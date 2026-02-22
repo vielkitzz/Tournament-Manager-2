@@ -355,12 +355,10 @@ export default function TournamentDetailPage() {
     }
   };
 
-  const autoGenerate = (forceEmptyKnockout = false) => {
-    const hasMatches = tournament.matches.length > 0;
-    const hasKnockoutMatches = (tournament.matches || []).some(m => m.stage === "knockout");
+  const autoGenerate = () => {
+    if (tournament.matches.length > 0 || tournament.teamIds.length < 2) return;
     
     if (tournament.format === "liga") {
-      if (hasMatches) return;
       const turnos = tournament.ligaTurnos || 1;
       const matches = generateRoundRobin(tournament.id, tournament.teamIds, turnos);
       updateTournament(tournament.id, { matches });
@@ -391,60 +389,51 @@ export default function TournamentDetailPage() {
       }
       updateTournament(tournament.id, { matches: allMatches });
       toast.success(`${allMatches.length} jogos de fase de grupos gerados!`);
-    } else if (tournament.format === "mata-mata" || (tournament.format === "grupos" && forceEmptyKnockout)) {
-      if (hasKnockoutMatches && !forceEmptyKnockout) return;
-      
-      const teamIds = forceEmptyKnockout ? [] : [...tournament.teamIds];
-      const startStage = (tournament.format === "grupos" ? tournament.gruposMataMataInicio : tournament.mataMataInicio) || "1/8";
+    } else if (tournament.format === "mata-mata") {
+      const teamIds = [...tournament.teamIds];
+      const startStage = tournament.mataMataInicio || "1/8";
       const expectedTeams = STAGE_TEAM_COUNTS[startStage] || 16;
 
-      if (!forceEmptyKnockout && teamIds.length < 2) {
+      if (teamIds.length < 2) {
         toast.error(`Adicione pelo menos 2 times para gerar o chaveamento.`);
         return;
       }
-      if (!forceEmptyKnockout && teamIds.length > expectedTeams) {
+      if (teamIds.length > expectedTeams) {
         toast.error(`A fase ${startStage} suporta no máximo ${expectedTeams} times. Você tem ${teamIds.length}.`);
         return;
       }
 
-      if (!forceEmptyKnockout) {
-        for (let i = teamIds.length - 1; i > 0; i--) {
-          const j = Math.floor(Math.random() * (i + 1));
-          [teamIds[i], teamIds[j]] = [teamIds[j], teamIds[i]];
-        }
+      for (let i = teamIds.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [teamIds[i], teamIds[j]] = [teamIds[j], teamIds[i]];
       }
 
-      let bracketSize = expectedTeams;
-      if (!forceEmptyKnockout) {
-        bracketSize = 2;
-        while (bracketSize < teamIds.length) bracketSize *= 2;
-        if (bracketSize > expectedTeams) bracketSize = expectedTeams;
-      }
-      
+      let bracketSize = 2;
+      while (bracketSize < teamIds.length) bracketSize *= 2;
+      if (bracketSize > expectedTeams) bracketSize = expectedTeams;
       const paddedIds: (string | null)[] = [...teamIds];
-      while (paddedIds.length < bracketSize) paddedIds.push("");
+      while (paddedIds.length < bracketSize) paddedIds.push(null);
 
       const legMode = tournament.settings.knockoutLegMode || "single";
       const newMatches: Match[] = [];
       for (let i = 0; i < paddedIds.length; i += 2) {
         const homeId = paddedIds[i];
         const awayId = paddedIds[i + 1];
-        
-        if (legMode === "home-away") {
+        if (!homeId && !awayId) continue;
+        if (legMode === "home-away" && homeId && awayId) {
           const pairId = crypto.randomUUID();
-          newMatches.push({ id: crypto.randomUUID(), tournamentId: tournament.id, round: 1, homeTeamId: homeId || "", awayTeamId: awayId || "", homeScore: 0, awayScore: 0, played: false, leg: 1, pairId, stage: "knockout" });
-          newMatches.push({ id: crypto.randomUUID(), tournamentId: tournament.id, round: 1, homeTeamId: awayId || "", awayTeamId: homeId || "", homeScore: 0, awayScore: 0, played: false, leg: 2, pairId, stage: "knockout" });
+          newMatches.push({ id: crypto.randomUUID(), tournamentId: tournament.id, round: 1, homeTeamId: homeId, awayTeamId: awayId, homeScore: 0, awayScore: 0, played: false, leg: 1, pairId, stage: "knockout" });
+          newMatches.push({ id: crypto.randomUUID(), tournamentId: tournament.id, round: 1, homeTeamId: awayId, awayTeamId: homeId, homeScore: 0, awayScore: 0, played: false, leg: 2, pairId, stage: "knockout" });
         } else {
-          newMatches.push({ id: crypto.randomUUID(), tournamentId: tournament.id, round: 1, homeTeamId: homeId || "", awayTeamId: awayId || "", homeScore: 0, awayScore: 0, played: false, stage: "knockout" });
+          const matchHomeId = homeId || awayId!;
+          const matchAwayId = homeId && awayId ? awayId : "";
+          const isBye = !homeId || !awayId;
+          newMatches.push({ id: crypto.randomUUID(), tournamentId: tournament.id, round: 1, homeTeamId: matchHomeId, awayTeamId: matchAwayId, homeScore: isBye ? 1 : 0, awayScore: 0, played: isBye, stage: "knockout" });
         }
       }
-      
-      const allMatches = tournament.format === "grupos" 
-        ? [...(tournament.matches || []), ...newMatches]
-        : newMatches;
-        
-      updateTournament(tournament.id, { matches: allMatches });
-      toast.success(forceEmptyKnockout ? "Bracket vazio gerado!" : `${newMatches.length} jogos gerados!`);
+      updateTournament(tournament.id, { matches: newMatches });
+      const byeCount = newMatches.filter((m) => m.awayTeamId === "").length;
+      toast.success(`${newMatches.length} jogos gerados!${byeCount > 0 ? ` (${byeCount} BYE automático)` : ""}`);
     }
   };
 
@@ -697,32 +686,53 @@ export default function TournamentDetailPage() {
 
         {(isMataMata || isGrupos) && (
           <TabsContent value="bracket" className="mt-0 outline-none">
-            <div className="space-y-4">
-              <BracketView
-                tournament={isViewingPastSeason ? { ...tournament, matches: seasonData?.matches || [] } : knockoutTournament}
-                teams={teams}
-                onUpdateMatch={(updated) => {
-                  const newMatches = (tournament.matches || []).map((m) => (m.id === updated.id ? updated : m));
-                  updateTournament(tournament.id, { matches: newMatches });
-                }}
-                onBatchUpdateMatches={(updatedMatches) => {
-                  const tagged = updatedMatches.map((m) => ({ ...m, stage: (isGrupos ? "knockout" : m.stage) as any }));
-                  const existingIds = new Set((tournament.matches || []).map((m) => m.id));
-                  const updates = tagged.filter((m) => existingIds.has(m.id));
-                  const additions = tagged.filter((m) => !existingIds.has(m.id));
-                  const newMatches = [
-                    ...(tournament.matches || []).map((m) => {
-                      const upd = updates.find((u) => u.id === m.id);
-                      return upd || m;
-                    }),
-                    ...additions,
-                  ];
-                  updateTournament(tournament.id, { matches: newMatches });
-                  toast.success("Chaveamento atualizado!");
-                }}
-                onGenerateBracket={(force) => autoGenerate(force === true || isGrupos)}
-                onFinalize={handleFinalizeSeason}
-              />
+            <div className="space-y-6">
+              {isGrupos && !tournament.groupsFinalized && (
+                <div className="space-y-4">
+                  <div className="flex items-center gap-2 px-1">
+                    <Trophy className="w-5 h-5 text-primary" />
+                    <h2 className="text-lg font-display font-bold text-foreground">Definir Classificados</h2>
+                  </div>
+                  <GroupQualificationView
+                    groupCount={groupCount}
+                    standingsByGroup={standingsByGroup}
+                    totalKnockoutTeams={qualifiersPerGroup}
+                    allGroupMatchesPlayed={allGroupMatchesPlayed}
+                    confirmedTeamIds={tournament.settings.qualifiedTeamIds}
+                    onConfirm={handleConfirmQualifiers}
+                  />
+                </div>
+              )}
+              
+              {(isMataMata || (isGrupos && tournament.groupsFinalized)) && (
+                <div className="space-y-4">
+                  <BracketView
+                    tournament={isViewingPastSeason ? { ...tournament, matches: seasonData?.matches || [] } : knockoutTournament}
+                    teams={teams}
+                    onUpdateMatch={(updated) => {
+                      const newMatches = (tournament.matches || []).map((m) => (m.id === updated.id ? updated : m));
+                      updateTournament(tournament.id, { matches: newMatches });
+                    }}
+                    onBatchUpdateMatches={(updatedMatches) => {
+                      const tagged = updatedMatches.map((m) => ({ ...m, stage: (isGrupos ? "knockout" : m.stage) as any }));
+                      const existingIds = new Set((tournament.matches || []).map((m) => m.id));
+                      const updates = tagged.filter((m) => existingIds.has(m.id));
+                      const additions = tagged.filter((m) => !existingIds.has(m.id));
+                      const newMatches = [
+                        ...(tournament.matches || []).map((m) => {
+                          const upd = updates.find((u) => u.id === m.id);
+                          return upd || m;
+                        }),
+                        ...additions,
+                      ];
+                      updateTournament(tournament.id, { matches: newMatches });
+                      toast.success("Chaveamento atualizado!");
+                    }}
+                    onGenerateBracket={() => autoGenerate()}
+                    onFinalize={handleFinalizeSeason}
+                  />
+                </div>
+              )}
             </div>
           </TabsContent>
         )}
