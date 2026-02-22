@@ -12,7 +12,7 @@ interface BracketViewProps {
   teams: Team[];
   onUpdateMatch: (match: Match) => void;
   onBatchUpdateMatches?: (matches: Match[]) => void;
-  onGenerateBracket: () => void;
+  onGenerateBracket: (force?: boolean) => void;
   onFinalize?: () => void;
 }
 
@@ -84,19 +84,31 @@ export default function BracketView({
 
   if (matches.length === 0) {
     const hasEnoughTeams = tournament.teamIds.length >= 2;
+    const isGrupos = tournament.format === "grupos";
+
     return (
       <div className="text-center py-12">
         <p className="text-sm text-muted-foreground mb-3">
-          {hasEnoughTeams
-            ? "Gere o chaveamento para começar"
-            : `Adicione pelo menos 2 times (${tournament.teamIds.length} adicionados)`}
+          {isGrupos 
+            ? "O chaveamento pode ser preenchido manualmente ou gerado após a fase de grupos."
+            : hasEnoughTeams
+              ? "Gere o chaveamento para começar"
+              : `Adicione pelo menos 2 times (${tournament.teamIds.length} adicionados)`}
         </p>
-        {hasEnoughTeams && (
-          <Button onClick={onGenerateBracket} className="gap-2 bg-primary text-primary-foreground">
-            <Play className="w-4 h-4" />
-            Gerar Chaveamento
-          </Button>
-        )}
+        <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
+          {hasEnoughTeams && (
+            <Button onClick={onGenerateBracket} className="gap-2 bg-primary text-primary-foreground">
+              <Play className="w-4 h-4" />
+              Gerar Chaveamento
+            </Button>
+          )}
+          {(hasEnoughTeams || isGrupos) && (
+            <Button onClick={() => (onGenerateBracket as any)(true)} variant="outline" className="gap-2">
+              <UserPlus className="w-4 h-4" />
+              Gerar Bracket Vazio
+            </Button>
+          )}
+        </div>
       </div>
     );
   }
