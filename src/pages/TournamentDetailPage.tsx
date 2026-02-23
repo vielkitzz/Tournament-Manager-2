@@ -15,6 +15,7 @@ import {
   Zap,
   Shield,
   Pencil,
+  Shuffle,
 } from "lucide-react";
 import { useTournamentStore } from "@/store/tournamentStore";
 import { Button } from "@/components/ui/button";
@@ -30,12 +31,14 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
 import StandingsTable from "@/components/tournament/StandingsTable";
 import RoundsView from "@/components/tournament/RoundsView";
 import BracketView from "@/components/tournament/BracketView";
 import GroupQualificationView from "@/components/tournament/GroupQualificationView";
+import GroupDrawDialog from "@/components/tournament/GroupDrawDialog";
 import StatsView from "@/components/tournament/StatsView";
 import { calculateStandings } from "@/lib/standings";
 import { generateRoundRobin } from "@/lib/roundRobin";
@@ -57,6 +60,8 @@ export default function TournamentDetailPage() {
   const [viewingYear, setViewingYear] = useState<number | null>(null);
   const [showYearPicker, setShowYearPicker] = useState(false);
   const [newSeasonYear, setNewSeasonYear] = useState("");
+  const [showDrawDialog, setShowDrawDialog] = useState(false);
+  const [groupTeamSearch, setGroupTeamSearch] = useState("");
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   if (!tournament) {
@@ -98,34 +103,96 @@ export default function TournamentDetailPage() {
     ? (tournament.matches || []).filter((m) => m.stage === "knockout")
     : [];
 
-  // For grupos: compute standings per group
+  // Group count and assignments
   const groupCount = tournament.gruposQuantidade || 1;
+
+  // Derive current group assignments from settings or existing matches
+  const currentAssignments: Record<string, string[]> = (() => {
+    if (settings.groupAssignments && Object.keys(settings.groupAssignments).length > 0) {
+      return settings.groupAssignments;
+    }
+    if (!isGrupos) return {};
+    const derived: Record<string, string[]> = {};
+    for (let g = 1; g <= groupCount; g++) {
+      const gMatches = groupMatches.filter((m) => m.group === g);
+      const ids = [...new Set(gMatches.flatMap((m) => [m.homeTeamId, m.awayTeamId]))].filter(Boolean);
+      if (ids.length > 0) derived[String(g)] = ids;
+    }
+    return derived;
+  })();
+
+  const assignedTeamIds = new Set(Object.values(currentAssignments).flat());
+  const unassignedTeamIds = isGrupos ? tournament.teamIds.filter((id) => !assignedTeamIds.has(id)) : [];
+
+  // Compute standings per group using assignments
   const standingsByGroup: Record<number, import("@/lib/standings").StandingRow[]> = {};
   if (isGrupos) {
     for (let g = 1; g <= groupCount; g++) {
+      const assignedTeams = currentAssignments[String(g)] || [];
       const gMatches = groupMatches.filter((m) => m.group === g);
-      const gTeamIds = [...new Set(gMatches.flatMap((m) => [m.homeTeamId, m.awayTeamId]))];
+      const gTeamIds = assignedTeams.length > 0
+        ? assignedTeams
+        : [...new Set(gMatches.flatMap((m) => [m.homeTeamId, m.awayTeamId]))];
       standingsByGroup[g] = calculateStandings(gTeamIds, gMatches, settings, teams);
     }
   }
 
-  // Overall standings (for liga format or general use)
   const standings = isGrupos
     ? Object.values(standingsByGroup).flat()
     : calculateStandings(tournament.teamIds, tournament.matches || [], settings, teams);
 
-  // Check if all group matches have been played
   const allGroupMatchesPlayed = isGrupos && groupMatches.length > 0 && groupMatches.every((m) => m.played);
 
-  // Create a "group-only" tournament view for RoundsView
   const groupTournament = isGrupos
     ? { ...tournament, matches: groupMatches }
     : tournament;
 
-  // Create a "knockout-only" tournament view for BracketView
   const knockoutTournament = isGrupos
     ? { ...tournament, matches: knockoutMatches, mataMataInicio: tournament.gruposMataMataInicio || "1/8" }
     : tournament;
+
+  // ─── Group management functions ───
+  const regenerateGroupMatches = (assignments: Record<string, string[]>) => {
+    const turnos = tournament.gruposTurnos || 1;
+    const allGroupMatchesList: Match[] = [];
+    for (let g = 1; g <= groupCount; g++) {
+      const groupTeamsList = assignments[String(g)] || [];
+      if (groupTeamsList.length < 2) continue;
+      const gMatches = generateRoundRobin(tournament.id, groupTeamsList, turnos as 1 | 2 | 3 | 4);
+      const tagged = gMatches.map((m) => ({ ...m, group: g, stage: "group" as const }));
+      allGroupMatchesList.push(...tagged);
+    }
+    const knockoutOnly = (tournament.matches || []).filter((m) => m.stage === "knockout");
+    updateTournament(tournament.id, {
+      matches: [...allGroupMatchesList, ...knockoutOnly],
+      settings: { ...settings, groupAssignments: assignments },
+    });
+  };
+
+  const addTeamToGroup = (teamId: string, groupNum: number) => {
+    const assignments: Record<string, string[]> = {};
+    for (let g = 1; g <= groupCount; g++) {
+      assignments[String(g)] = [...(currentAssignments[String(g)] || [])];
+    }
+    assignments[String(groupNum)].push(teamId);
+    regenerateGroupMatches(assignments);
+    toast.success("Time adicionado ao grupo!");
+  };
+
+  const removeTeamFromGroup = (teamId: string, groupNum: number) => {
+    const assignments: Record<string, string[]> = {};
+    for (let g = 1; g <= groupCount; g++) {
+      assignments[String(g)] = [...(currentAssignments[String(g)] || [])];
+    }
+    assignments[String(groupNum)] = assignments[String(groupNum)].filter((id) => id !== teamId);
+    regenerateGroupMatches(assignments);
+    toast.success("Time removido do grupo!");
+  };
+
+  const handleDrawConfirm = (assignments: Record<string, string[]>) => {
+    regenerateGroupMatches(assignments);
+    toast.success("Sorteio realizado! Jogos gerados automaticamente.");
+  };
 
   // ─── Confirm manual qualifiers & generate knockout ───────────────────────
   const qualifiersPerGroup = (() => {
@@ -600,7 +667,20 @@ export default function TournamentDetailPage() {
         <TabsContent value="standings" className="mt-0 outline-none">
           {isGrupos ? (
             <div className="space-y-8">
-              {!tournament.groupsFinalized && (
+              {!isViewingPastSeason && !tournament.finalized && (
+                <div className="flex items-center justify-between gap-4 flex-wrap">
+                  <span className="text-sm text-muted-foreground">
+                    {unassignedTeamIds.length > 0
+                      ? `${unassignedTeamIds.length} ${unassignedTeamIds.length === 1 ? 'time' : 'times'} sem grupo`
+                      : 'Todos os times distribuídos'}
+                  </span>
+                  <Button onClick={() => setShowDrawDialog(true)} size="sm" variant="outline" className="gap-1.5">
+                    <Shuffle className="w-3.5 h-3.5" />
+                    Sortear Grupos
+                  </Button>
+                </div>
+              )}
+              {!tournament.groupsFinalized && groupMatches.length > 0 && (
                 <div className="p-4 rounded-xl bg-primary/5 border border-primary/20 flex flex-col sm:flex-row items-center justify-between gap-4">
                   <div className="flex items-center gap-3">
                     <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
@@ -625,12 +705,60 @@ export default function TournamentDetailPage() {
                   <div key={groupNum} className="space-y-3">
                     <div className="flex items-center justify-between px-1">
                       <h3 className="font-display font-bold text-lg text-foreground">Grupo {String.fromCharCode(64 + groupNum)}</h3>
+                      {!isViewingPastSeason && !tournament.finalized && (
+                        <Popover>
+                          <PopoverTrigger asChild>
+                            <Button size="sm" variant="ghost" className="gap-1 text-xs h-7">
+                              <Plus className="w-3 h-3" />
+                              Adicionar
+                            </Button>
+                          </PopoverTrigger>
+                          <PopoverContent className="w-64 p-2" align="end">
+                            <div className="space-y-2">
+                              <Input
+                                placeholder="Buscar time..."
+                                value={groupTeamSearch}
+                                onChange={(e) => setGroupTeamSearch(e.target.value)}
+                                className="h-8 text-xs"
+                              />
+                              <div className="max-h-[200px] overflow-y-auto space-y-0.5">
+                                {unassignedTeamIds
+                                  .map((tid) => teams.find((t) => t.id === tid))
+                                  .filter((t): t is NonNullable<typeof t> => !!t)
+                                  .filter((t) => !groupTeamSearch || t.name.toLowerCase().includes(groupTeamSearch.toLowerCase()) || t.abbreviation?.toLowerCase().includes(groupTeamSearch.toLowerCase()))
+                                  .map((team) => (
+                                    <button
+                                      key={team.id}
+                                      onClick={() => { addTeamToGroup(team.id, groupNum); setGroupTeamSearch(""); }}
+                                      className="w-full flex items-center gap-2 px-2 py-1.5 rounded hover:bg-secondary/60 transition-colors text-left"
+                                    >
+                                      <div className="w-5 h-5 flex items-center justify-center shrink-0">
+                                        {team.logo ? (
+                                          <img src={team.logo} alt="" className="w-5 h-5 object-contain" />
+                                        ) : (
+                                          <Shield className="w-3.5 h-3.5 text-muted-foreground" />
+                                        )}
+                                      </div>
+                                      <span className="text-xs text-foreground truncate">{team.name}</span>
+                                    </button>
+                                  ))}
+                                {unassignedTeamIds.length === 0 && (
+                                  <p className="text-xs text-muted-foreground text-center py-2">Todos os times já estão em grupos</p>
+                                )}
+                              </div>
+                            </div>
+                          </PopoverContent>
+                        </Popover>
+                      )}
                     </div>
                     <div className="rounded-xl border border-border bg-card shadow-sm overflow-hidden">
                       <StandingsTable
                         standings={isViewingPastSeason ? seasonStandings : (standingsByGroup[groupNum] || [])}
                         promotions={tournament.settings.promotions}
                         qualifyUntil={qualifiersPerGroup}
+                        onRemoveTeam={!isViewingPastSeason && !tournament.finalized
+                          ? (teamId) => removeTeamFromGroup(teamId, groupNum)
+                          : undefined}
                       />
                     </div>
                   </div>
@@ -679,7 +807,7 @@ export default function TournamentDetailPage() {
                 ];
                 updateTournament(tournament.id, { matches: newMatches });
               }}
-              onGenerateRounds={() => autoGenerate()}
+              onGenerateRounds={isGrupos ? undefined : () => autoGenerate()}
             />
           </div>
         </TabsContent>
@@ -744,6 +872,17 @@ export default function TournamentDetailPage() {
           />
         </TabsContent>
       </Tabs>
+
+      {isGrupos && (
+        <GroupDrawDialog
+          open={showDrawDialog}
+          onOpenChange={setShowDrawDialog}
+          teams={teams}
+          teamIds={tournament.teamIds}
+          groupCount={groupCount}
+          onConfirm={handleDrawConfirm}
+        />
+      )}
     </div>
   );
 }

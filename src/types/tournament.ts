@@ -23,6 +23,7 @@ export interface TournamentSettings {
   bestOfPosition?: number;        // Which position gets "best of" treatment (e.g. 3 = thirds)
   // Manual qualification (grupos format)
   qualifiedTeamIds?: string[];    // Teams manually confirmed as qualified for knockout
+  groupAssignments?: Record<string, string[]>; // Group number (as string) -> team IDs
 }
 
 export interface PromotionRule {

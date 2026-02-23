@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Match, Team, Tournament, KnockoutStage, STAGE_TEAM_COUNTS } from "@/types/tournament";
 import { cn } from "@/lib/utils";
-import { Shield, Play, Zap, Trophy, Medal, UserPlus } from "lucide-react";
+import { Shield, Play, Zap, Trophy, Medal, UserPlus, Shuffle, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { simulateFullMatch } from "@/lib/simulation";
 import MatchPopup from "./MatchPopup";
@@ -84,19 +84,42 @@ export default function BracketView({
 
   if (matches.length === 0) {
     const hasEnoughTeams = tournament.teamIds.length >= 2;
+    const startStageForEmpty = tournament.mataMataInicio || "1/8";
+    const numSlots = (STAGE_TEAM_COUNTS[startStageForEmpty] || 8) / 2;
+
+    const handleCreateEmpty = () => {
+      const emptyMatches: Match[] = [];
+      for (let i = 0; i < numSlots; i++) {
+        if (legMode === "home-away") {
+          const pairId = crypto.randomUUID();
+          emptyMatches.push({ id: crypto.randomUUID(), tournamentId: tournament.id, round: 1, homeTeamId: "", awayTeamId: "", homeScore: 0, awayScore: 0, played: false, stage: "knockout", leg: 1, pairId });
+          emptyMatches.push({ id: crypto.randomUUID(), tournamentId: tournament.id, round: 1, homeTeamId: "", awayTeamId: "", homeScore: 0, awayScore: 0, played: false, stage: "knockout", leg: 2, pairId });
+        } else {
+          emptyMatches.push({ id: crypto.randomUUID(), tournamentId: tournament.id, round: 1, homeTeamId: "", awayTeamId: "", homeScore: 0, awayScore: 0, played: false, stage: "knockout" });
+        }
+      }
+      if (onBatchUpdateMatches) onBatchUpdateMatches(emptyMatches);
+    };
+
     return (
-      <div className="text-center py-12">
-        <p className="text-sm text-muted-foreground mb-3">
+      <div className="text-center py-12 space-y-4">
+        <p className="text-sm text-muted-foreground">
           {hasEnoughTeams
-            ? "Gere o chaveamento para começar"
+            ? "Crie o chaveamento para começar"
             : `Adicione pelo menos 2 times (${tournament.teamIds.length} adicionados)`}
         </p>
-        {hasEnoughTeams && (
-          <Button onClick={onGenerateBracket} className="gap-2 bg-primary text-primary-foreground">
-            <Play className="w-4 h-4" />
-            Gerar Chaveamento
+        <div className="flex items-center justify-center gap-3">
+          <Button onClick={handleCreateEmpty} variant="outline" className="gap-2">
+            <Plus className="w-4 h-4" />
+            Chaveamento Vazio
           </Button>
-        )}
+          {hasEnoughTeams && (
+            <Button onClick={onGenerateBracket} className="gap-2 bg-primary text-primary-foreground">
+              <Shuffle className="w-4 h-4" />
+              Sortear Times
+            </Button>
+          )}
+        </div>
       </div>
     );
   }
