@@ -10,7 +10,7 @@ interface RoundsViewProps {
   teams: Team[];
   onUpdateMatch: (match: Match) => void;
   onBatchUpdateMatches?: (matches: Match[]) => void;
-  onGenerateRounds: () => void;
+  onGenerateRounds?: () => void;
   onFinalize?: () => void;
 }
 
@@ -29,11 +29,11 @@ export default function RoundsView({ tournament, teams, onUpdateMatch, onBatchUp
     return (
       <div className="text-center py-12">
         <p className="text-sm text-muted-foreground mb-3">
-          {hasEnoughTeams
-            ? "Gere as rodadas para começar"
-            : `Adicione pelo menos 2 times (${tournament.teamIds.length} adicionados)`}
+          {onGenerateRounds
+            ? (hasEnoughTeams ? "Gere as rodadas para começar" : `Adicione pelo menos 2 times (${tournament.teamIds.length} adicionados)`)
+            : "Os jogos serão gerados automaticamente ao definir os grupos."}
         </p>
-        {hasEnoughTeams && (
+        {onGenerateRounds && hasEnoughTeams && (
           <Button onClick={onGenerateRounds} className="gap-2 bg-primary text-primary-foreground">
             <Play className="w-4 h-4" />
             Gerar Rodadas

@@ -1,4 +1,4 @@
-import { Shield } from "lucide-react";
+import { Shield, X } from "lucide-react";
 import { StandingRow } from "@/lib/standings";
 import { PromotionRule } from "@/types/tournament";
 import { cn } from "@/lib/utils";
@@ -6,11 +6,11 @@ import { cn } from "@/lib/utils";
 interface StandingsTableProps {
   standings: StandingRow[];
   promotions?: PromotionRule[];
-  /** Position (1-indexed) after which teams are considered eliminated in grupo phase */
   qualifyUntil?: number;
+  onRemoveTeam?: (teamId: string) => void;
 }
 
-export default function StandingsTable({ standings, promotions = [], qualifyUntil }: StandingsTableProps) {
+export default function StandingsTable({ standings, promotions = [], qualifyUntil, onRemoveTeam }: StandingsTableProps) {
   if (standings.length === 0) {
     return (
       <div className="text-center py-12">
@@ -36,6 +36,7 @@ export default function StandingsTable({ standings, promotions = [], qualifyUnti
             <th className="text-center py-2 px-1 w-8">GP</th>
             <th className="text-center py-2 px-1 w-8">GC</th>
             <th className="text-center py-2 px-1 w-8">SG</th>
+            {onRemoveTeam && <th className="w-6"></th>}
           </tr>
         </thead>
         <tbody>
@@ -90,6 +91,17 @@ export default function StandingsTable({ standings, promotions = [], qualifyUnti
                 <td className="text-center py-2.5 px-1 text-muted-foreground">
                   {row.goalDifference > 0 ? `+${row.goalDifference}` : row.goalDifference}
                 </td>
+                {onRemoveTeam && (
+                  <td className="text-center py-2.5 px-1">
+                    <button
+                      onClick={() => onRemoveTeam(row.teamId)}
+                      className="p-0.5 rounded hover:bg-destructive/10 text-muted-foreground/40 hover:text-destructive transition-colors"
+                      title="Remover do grupo"
+                    >
+                      <X className="w-3 h-3" />
+                    </button>
+                  </td>
+                )}
               </tr>
             );
           })}
