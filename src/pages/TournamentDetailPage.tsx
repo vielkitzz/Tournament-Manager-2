@@ -819,23 +819,6 @@ export default function TournamentDetailPage() {
         {(isMataMata || isGrupos) && (
           <TabsContent value="bracket" className="mt-0 outline-none">
             <div className="space-y-6">
-              {isGrupos && !tournament.groupsFinalized && (
-                <div className="space-y-4">
-                  <div className="flex items-center gap-2 px-1">
-                    <Trophy className="w-5 h-5 text-primary" />
-                    <h2 className="text-lg font-display font-bold text-foreground">Definir Classificados</h2>
-                  </div>
-                  <GroupQualificationView
-                    groupCount={groupCount}
-                    standingsByGroup={standingsByGroup}
-                    totalKnockoutTeams={qualifiersPerGroup}
-                    allGroupMatchesPlayed={allGroupMatchesPlayed}
-                    confirmedTeamIds={tournament.settings.qualifiedTeamIds}
-                    onConfirm={handleConfirmQualifiers}
-                  />
-                </div>
-              )}
-              
               {(isMataMata || isGrupos) && (
                 <div className="space-y-4">
                   {(isMataMata || isGrupos) && !tournament.finalized && tournament.teamIds.length >= 2 && (
