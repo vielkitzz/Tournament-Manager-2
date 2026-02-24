@@ -838,7 +838,7 @@ export default function TournamentDetailPage() {
               
               {(isMataMata || (isGrupos && tournament.groupsFinalized)) && (
                 <div className="space-y-4">
-                  {isMataMata && !tournament.finalized && tournament.teamIds.length >= 2 && (
+                  {(isMataMata || (isGrupos && tournament.groupsFinalized)) && !tournament.finalized && tournament.teamIds.length >= 2 && (
                     <div className="flex justify-end">
                       <Button onClick={() => autoGenerate()} size="sm" variant="outline" className="gap-1.5">
                         <Shuffle className="w-3.5 h-3.5" />
