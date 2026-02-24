@@ -87,7 +87,8 @@ export default function BracketView({
     const startStageForEmpty = tournament.mataMataInicio || "1/8";
     const numSlots = (STAGE_TEAM_COUNTS[startStageForEmpty] || 8) / 2;
 
-    const handleCreateEmpty = () => {
+    // Auto-create empty bracket on mount
+    const createEmpty = () => {
       const emptyMatches: Match[] = [];
       for (let i = 0; i < numSlots; i++) {
         if (legMode === "home-away") {
@@ -101,25 +102,12 @@ export default function BracketView({
       if (onBatchUpdateMatches) onBatchUpdateMatches(emptyMatches);
     };
 
+    // Auto-generate empty bracket immediately
+    setTimeout(() => createEmpty(), 0);
+
     return (
       <div className="text-center py-12 space-y-4">
-        <p className="text-sm text-muted-foreground">
-          {hasEnoughTeams
-            ? "Crie o chaveamento para começar"
-            : `Adicione pelo menos 2 times (${tournament.teamIds.length} adicionados)`}
-        </p>
-        <div className="flex items-center justify-center gap-3">
-          <Button onClick={handleCreateEmpty} variant="outline" className="gap-2">
-            <Plus className="w-4 h-4" />
-            Chaveamento Vazio
-          </Button>
-          {hasEnoughTeams && (
-            <Button onClick={onGenerateBracket} className="gap-2 bg-primary text-primary-foreground">
-              <Shuffle className="w-4 h-4" />
-              Sortear Times
-            </Button>
-          )}
-        </div>
+        <p className="text-sm text-muted-foreground">Gerando chaveamento...</p>
       </div>
     );
   }

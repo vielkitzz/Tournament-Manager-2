@@ -56,7 +56,7 @@ export default function TournamentDetailPage() {
   const { tournaments, teams, updateTournament, removeTournament } = useTournamentStore();
   const tournament = tournaments.find((t) => t.id === id);
 
-  const [activeTab, setActiveTab] = useState("standings");
+  const [activeTab, setActiveTab] = useState(tournament?.format === "mata-mata" ? "bracket" : "standings");
   const [viewingYear, setViewingYear] = useState<number | null>(null);
   const [showYearPicker, setShowYearPicker] = useState(false);
   const [newSeasonYear, setNewSeasonYear] = useState("");
@@ -649,8 +649,12 @@ export default function TournamentDetailPage() {
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
         <div className="flex items-center justify-between gap-4 flex-wrap">
           <TabsList className="bg-secondary/50 border border-border p-1">
-            <TabsTrigger value="standings" className="data-[state=active]:bg-card data-[state=active]:shadow-sm text-xs lg:text-sm">Classificação</TabsTrigger>
-            <TabsTrigger value="rounds" className="data-[state=active]:bg-card data-[state=active]:shadow-sm text-xs lg:text-sm">Jogos</TabsTrigger>
+            {!isMataMata && (
+              <TabsTrigger value="standings" className="data-[state=active]:bg-card data-[state=active]:shadow-sm text-xs lg:text-sm">Classificação</TabsTrigger>
+            )}
+            {!isMataMata && (
+              <TabsTrigger value="rounds" className="data-[state=active]:bg-card data-[state=active]:shadow-sm text-xs lg:text-sm">Jogos</TabsTrigger>
+            )}
             {(isMataMata || isGrupos) && (
               <TabsTrigger value="bracket" className="data-[state=active]:bg-card data-[state=active]:shadow-sm text-xs lg:text-sm">Chaveamento</TabsTrigger>
             )}
@@ -834,6 +838,14 @@ export default function TournamentDetailPage() {
               
               {(isMataMata || (isGrupos && tournament.groupsFinalized)) && (
                 <div className="space-y-4">
+                  {isMataMata && !tournament.finalized && tournament.teamIds.length >= 2 && (
+                    <div className="flex justify-end">
+                      <Button onClick={() => autoGenerate()} size="sm" variant="outline" className="gap-1.5">
+                        <Shuffle className="w-3.5 h-3.5" />
+                        Sortear Times
+                      </Button>
+                    </div>
+                  )}
                   <BracketView
                     tournament={isViewingPastSeason ? { ...tournament, matches: seasonData?.matches || [] } : knockoutTournament}
                     teams={teams}
