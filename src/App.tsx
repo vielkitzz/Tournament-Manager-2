@@ -22,8 +22,8 @@ import NotFound from "./pages/NotFound";
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
-      refetchOnWindowFocus: false, // <-- A MÁGICA ACONTECE AQUI
-      retry: false,
+      refetchOnWindowFocus: false, // <-- A trava que desliga o recarregamento irritante
+      retry: 1, // Bônus: Se a internet falhar, ele tenta só 1 vez em vez de travar num loop
     },
   },
 });
