@@ -120,8 +120,11 @@ export default function MatchPopup({
     }
   }, [simulatedHalves, totalHome, totalAway, isKnockout, showExtraTime, showPenalties]);
 
-  const currentHome = scores[activeHalf][0];
-  const currentAway = scores[activeHalf][1];
+  // Accumulated scores up to and including the active half (visual only)
+  const halvesOrder: HalfKey[] = ["h1", "h2", "et1", "et2"];
+  const activeIndex = halvesOrder.indexOf(activeHalf);
+  const accumulatedHome = halvesOrder.slice(0, activeIndex + 1).reduce((sum, k) => sum + scores[k][0], 0);
+  const accumulatedAway = halvesOrder.slice(0, activeIndex + 1).reduce((sum, k) => sum + scores[k][1], 0);
 
   const increment = (side: 0 | 1) => setHalfScore(activeHalf, side, scores[activeHalf][side] + 1);
   const decrement = (side: 0 | 1) => setHalfScore(activeHalf, side, Math.max(0, scores[activeHalf][side] - 1));
@@ -301,10 +304,10 @@ export default function MatchPopup({
                 </button>
               </div>
               <div className="w-28 h-28 rounded-xl bg-secondary border border-border flex items-center justify-center">
-                <span className="text-6xl font-bold text-foreground font-display">{currentHome}</span>
+                <span className="text-6xl font-bold text-foreground font-display">{accumulatedHome}</span>
               </div>
               <div className="w-28 h-28 rounded-xl bg-secondary border border-border flex items-center justify-center">
-                <span className="text-6xl font-bold text-foreground font-display">{currentAway}</span>
+                <span className="text-6xl font-bold text-foreground font-display">{accumulatedAway}</span>
               </div>
               <div className="flex flex-col items-center gap-1">
                 <button onClick={() => increment(1)} className="p-1 text-primary hover:text-primary/80 transition-colors">
