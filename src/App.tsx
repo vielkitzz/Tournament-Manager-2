@@ -19,7 +19,14 @@ import AuthPage from "@/pages/AuthPage";
 import SharedTournamentPage from "@/pages/SharedTournamentPage";
 import NotFound from "./pages/NotFound";
 
-const queryClient = new QueryClient();
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      refetchOnWindowFocus: false, // <-- A MÁGICA ACONTECE AQUI
+      retry: false,
+    },
+  },
+});
 
 const App = () => (
   <QueryClientProvider client={queryClient}>
