@@ -1,9 +1,10 @@
 import { NavLink, useNavigate } from "react-router-dom";
-import { Trophy, PlusCircle, Shield, LogOut, ArrowLeftRight, Share2 } from "lucide-react";
+import { Trophy, PlusCircle, Shield, LogOut, Download, Upload, Share2 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
 import appLogo from "@/assets/logo.svg";
-import ImportExportDialog from "@/components/ImportExportDialog";
+import ExportDialog from "@/components/ExportDialog";
+import ImportDialog from "@/components/ImportDialog";
 
 const navSections = [
   {
@@ -74,17 +75,25 @@ export default function AppSidebar({ onNavigate }: AppSidebarProps) {
           </div>
         ))}
 
-        {/* Import/Export */}
+        {/* Dados */}
         <div>
           <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-widest mb-2 px-3">
             DADOS
           </p>
           <div className="space-y-1">
-            <ImportExportDialog
+            <ExportDialog
               trigger={
                 <button className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-secondary/50 transition-all">
-                  <ArrowLeftRight className="w-5 h-5" />
-                  <span>Importar / Exportar</span>
+                  <Download className="w-5 h-5" />
+                  <span>Exportar</span>
+                </button>
+              }
+            />
+            <ImportDialog
+              trigger={
+                <button className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-secondary/50 transition-all">
+                  <Upload className="w-5 h-5" />
+                  <span>Importar</span>
                 </button>
               }
             />
