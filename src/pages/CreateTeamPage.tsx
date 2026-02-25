@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from "react";
 import { motion } from "framer-motion";
-import { ArrowLeft, Upload, Loader2 } from "lucide-react";
+import { ArrowLeft, Upload, Loader2, Trash2, Plus } from "lucide-react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -29,8 +29,7 @@ export default function CreateTeamPage() {
   const [shortName, setShortName] = useState("");
   const [abbreviation, setAbbreviation] = useState("");
   const [foundingYear, setFoundingYear] = useState("");
-  const [color1, setColor1] = useState("#1e40af");
-  const [color2, setColor2] = useState("#ffffff");
+  const [colors, setColors] = useState<string[]>(["#1e40af", "#ffffff"]);
   const [rate, setRate] = useState("3.00");
 
   // logoUrl = persisted Storage URL (saved to DB)
@@ -58,8 +57,7 @@ export default function CreateTeamPage() {
       setShortName(existingTeam.shortName || "");
       setAbbreviation(existingTeam.abbreviation || "");
       setFoundingYear(existingTeam.foundingYear?.toString() || "");
-      setColor1(existingTeam.colors?.[0] || "#333333");
-      setColor2(existingTeam.colors?.[1] || "#cccccc");
+      setColors(existingTeam.colors?.length ? [...existingTeam.colors] : ["#333333", "#cccccc"]);
       setRate(existingTeam.rate?.toString() || "3.00");
       setLogoUrl(existingTeam.logo);
       setPreviewUrl(existingTeam.logo); // show existing logo (Storage URL)
@@ -136,7 +134,7 @@ export default function CreateTeamPage() {
         shortName: shortName.trim() || name.trim().substring(0, 10),
         abbreviation: abbreviation.trim() || name.trim().substring(0, 3).toUpperCase(),
         foundingYear: foundingYear ? parseInt(foundingYear) : undefined,
-        colors: [color1, color2],
+        colors: colors,
         rate: Math.min(9.99, Math.max(0.01, parseFloat(rate) || 3)),
         logo: finalLogoUrl,
       };
@@ -274,36 +272,52 @@ export default function CreateTeamPage() {
 
           {/* Colors */}
           <div className="space-y-2">
-            <Label className="text-sm font-medium text-foreground">Cores</Label>
-            <div className="flex items-center gap-4">
-              <div className="flex items-center gap-2">
-                <input
-                  type="color"
-                  value={color1}
-                  onChange={(e) => setColor1(e.target.value)}
-                  className="w-10 h-10 rounded-lg cursor-pointer border border-border bg-transparent"
-                />
-                <Input
-                  value={color1}
-                  onChange={(e) => setColor1(e.target.value)}
-                  placeholder="#1e40af"
-                  className="bg-secondary border-border w-28 text-xs font-mono"
-                />
-              </div>
-              <div className="flex items-center gap-2">
-                <input
-                  type="color"
-                  value={color2}
-                  onChange={(e) => setColor2(e.target.value)}
-                  className="w-10 h-10 rounded-lg cursor-pointer border border-border bg-transparent"
-                />
-                <Input
-                  value={color2}
-                  onChange={(e) => setColor2(e.target.value)}
-                  placeholder="#ffffff"
-                  className="bg-secondary border-border w-28 text-xs font-mono"
-                />
-              </div>
+            <Label className="text-sm font-medium text-foreground">
+              Cores <span className="text-muted-foreground font-normal">({colors.length}/5)</span>
+            </Label>
+            <div className="flex flex-wrap items-center gap-3">
+              {colors.map((color, i) => (
+                <div key={i} className="flex items-center gap-1.5">
+                  <input
+                    type="color"
+                    value={color}
+                    onChange={(e) => {
+                      const next = [...colors];
+                      next[i] = e.target.value;
+                      setColors(next);
+                    }}
+                    className="w-10 h-10 rounded-lg cursor-pointer border border-border bg-transparent"
+                  />
+                  <Input
+                    value={color}
+                    onChange={(e) => {
+                      const next = [...colors];
+                      next[i] = e.target.value;
+                      setColors(next);
+                    }}
+                    placeholder="#000000"
+                    className="bg-secondary border-border w-24 text-xs font-mono"
+                  />
+                  {colors.length > 1 && (
+                    <button
+                      type="button"
+                      onClick={() => setColors(colors.filter((_, j) => j !== i))}
+                      className="p-1 text-muted-foreground hover:text-destructive transition-colors"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </button>
+                  )}
+                </div>
+              ))}
+              {colors.length < 5 && (
+                <button
+                  type="button"
+                  onClick={() => setColors([...colors, "#888888"])}
+                  className="w-10 h-10 rounded-lg border-2 border-dashed border-border flex items-center justify-center text-muted-foreground hover:border-primary hover:text-primary transition-colors"
+                >
+                  <Plus className="w-4 h-4" />
+                </button>
+              )}
             </div>
           </div>
 

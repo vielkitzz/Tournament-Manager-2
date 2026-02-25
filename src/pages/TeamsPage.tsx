@@ -55,8 +55,9 @@ const TeamCard = memo(function TeamCard({
       className="p-3 rounded-xl card-gradient border border-border hover:border-primary/40 transition-all relative overflow-hidden group cursor-grab active:cursor-grabbing"
     >
       <div className="absolute left-0 top-0 bottom-0 w-1.5 rounded-l-xl overflow-hidden flex flex-col">
-        <div className="flex-1" style={{ backgroundColor: team.colors[0] || "hsl(var(--primary))" }} />
-        <div className="flex-1" style={{ backgroundColor: team.colors[1] || "hsl(var(--secondary))" }} />
+        {(team.colors.length > 0 ? team.colors : ["hsl(var(--primary))", "hsl(var(--secondary))"]).map((c, i) => (
+          <div key={i} className="flex-1" style={{ backgroundColor: c }} />
+        ))}
       </div>
       <div className="flex items-center gap-2 pl-2">
         <GripVertical className="w-3.5 h-3.5 text-muted-foreground/50 shrink-0" />
