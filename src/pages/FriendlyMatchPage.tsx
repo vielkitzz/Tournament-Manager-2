@@ -14,7 +14,7 @@ export default function FriendlyMatchPage() {
   const { teams, folders } = useTournamentStore();
   const [searchHome, setSearchHome] = useState("");
   const [searchAway, setSearchAway] = useState("");
-  const [expandedFolders, setExpandedFolders] = useState<Set<string>>(new Set());
+  const [expandedFolders, setExpandedFolders] = useState<Set<string>>(() => new Set(folders.map(f => f.id)));
   const [homeTeam, setHomeTeam] = useState<Team | null>(null);
   const [awayTeam, setAwayTeam] = useState<Team | null>(null);
   const [started, setStarted] = useState(false);
@@ -155,7 +155,30 @@ export default function FriendlyMatchPage() {
     const rootFolders = folders.filter((f) => !f.parentId);
     const looseteams = filtered.filter((t) => !t.folderId);
     const folderTeams = (fId: string) => filtered.filter((t) => t.folderId === fId);
-    const foldersWithTeams = rootFolders.filter((f) => folderTeams(f.id).length > 0);
+    const allFolderTeams = (fId: string): boolean => {
+      if (folderTeams(fId).length > 0) return true;
+      return folders.filter(f => f.parentId === fId).some(child => allFolderTeams(child.id));
+    };
+
+    // Auto-open folders with search matches
+    if (search.trim()) {
+      const toOpen = new Set<string>();
+      filtered.forEach((t) => {
+        if (t.folderId) {
+          toOpen.add(t.folderId);
+          let parentId = folders.find(f => f.id === t.folderId)?.parentId;
+          while (parentId) {
+            toOpen.add(parentId);
+            parentId = folders.find(f => f.id === parentId)?.parentId;
+          }
+        }
+      });
+      toOpen.forEach(id => {
+        if (!expandedFolders.has(id)) {
+          setExpandedFolders(prev => new Set(prev).add(id));
+        }
+      });
+    }
 
     if (filtered.length === 0) {
       return <p className="text-sm text-muted-foreground text-center py-8">Nenhum time encontrado</p>;
@@ -163,7 +186,7 @@ export default function FriendlyMatchPage() {
 
     return (
       <>
-        {foldersWithTeams.map((folder) => (
+        {rootFolders.filter(f => allFolderTeams(f.id) || !search.trim()).map((folder) => (
           <div key={folder.id}>
             <button
               onClick={() => toggleFolder(folder.id)}
@@ -181,7 +204,7 @@ export default function FriendlyMatchPage() {
             )}
           </div>
         ))}
-        {looseteams.length > 0 && foldersWithTeams.length > 0 && (
+        {looseteams.length > 0 && rootFolders.length > 0 && (
           <p className="px-3 pt-2 text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Sem pasta</p>
         )}
         {looseteams.map((t) => renderTeamButton(t, selected, onSelect))}
