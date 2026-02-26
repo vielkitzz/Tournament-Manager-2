@@ -15,6 +15,7 @@ import TournamentTeamsPage from "@/pages/TournamentTeamsPage";
 import TournamentSettingsPage from "@/pages/TournamentSettingsPage";
 import TournamentGalleryPage from "@/pages/TournamentGalleryPage";
 import PublishPage from "@/pages/PublishPage";
+import FriendlyMatchPage from "@/pages/FriendlyMatchPage";
 import AuthPage from "@/pages/AuthPage";
 import SharedTournamentPage from "@/pages/SharedTournamentPage";
 import NotFound from "./pages/NotFound";
@@ -54,6 +55,7 @@ const App = () => (
               <Route path="/teams" element={<TeamsPage />} />
               <Route path="/teams/create" element={<CreateTeamPage />} />
               <Route path="/publish" element={<PublishPage />} />
+              <Route path="/friendly" element={<FriendlyMatchPage />} />
             </Route>
             <Route path="/shared/:token" element={<SharedTournamentPage />} />
             <Route path="*" element={<NotFound />} />
