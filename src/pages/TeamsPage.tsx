@@ -1,4 +1,4 @@
-import { useState, useCallback, DragEvent, useMemo, memo } from "react";
+import { useState, useCallback, DragEvent, useMemo, memo, useEffect } from "react";
 import { motion } from "framer-motion";
 import {
   Shield,
@@ -319,7 +319,7 @@ export default function TeamsPage() {
 
   const navigate = useNavigate();
   const [search, setSearch] = useState("");
-  const [openFolders, setOpenFolders] = useState<Set<string>>(new Set());
+  const [openFolders, setOpenFolders] = useState<Set<string>>(() => new Set(folders.map(f => f.id)));
   const [editingFolderId, setEditingFolderId] = useState<string | null>(null);
   const [editingFolderName, setEditingFolderName] = useState("");
   const [dragOverFolder, setDragOverFolder] = useState<string | null>(null);
@@ -333,6 +333,31 @@ export default function TeamsPage() {
         (t.abbreviation || "").toLowerCase().includes(q),
     );
   }, [teams, search]);
+
+  // Auto-open folders containing search results
+  useEffect(() => {
+    if (search.trim()) {
+      const foldersWithMatches = new Set<string>();
+      filteredTeams.forEach((t) => {
+        if (t.folderId) {
+          foldersWithMatches.add(t.folderId);
+          // Also open parent folders
+          let parentId = folders.find(f => f.id === t.folderId)?.parentId;
+          while (parentId) {
+            foldersWithMatches.add(parentId);
+            parentId = folders.find(f => f.id === parentId)?.parentId;
+          }
+        }
+      });
+      if (foldersWithMatches.size > 0) {
+        setOpenFolders((prev) => {
+          const next = new Set(prev);
+          foldersWithMatches.forEach(id => next.add(id));
+          return next;
+        });
+      }
+    }
+  }, [search, filteredTeams, folders]);
 
   // 4. Agrupamento para uso otimizado de pastar e times
   const teamsByFolder = useMemo(() => {

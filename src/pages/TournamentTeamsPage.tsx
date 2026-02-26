@@ -1,4 +1,4 @@
-import { useState, DragEvent, useCallback } from "react";
+import { useState, DragEvent, useCallback, useMemo, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { ArrowLeft, Shield, Plus, X, Trophy, Folder, FolderOpen, ChevronRight, GripVertical, Search } from "lucide-react";
 import { useTournamentStore } from "@/store/tournamentStore";
@@ -13,8 +13,41 @@ export default function TournamentTeamsPage() {
   const { tournaments, teams, folders, updateTournament } = useTournamentStore();
   const tournament = tournaments.find((t) => t.id === id);
   const [search, setSearch] = useState("");
-  const [openFolders, setOpenFolders] = useState<Set<string>>(new Set());
+  const [openFolders, setOpenFolders] = useState<Set<string>>(() => new Set(folders.map(f => f.id)));
   const [dragOverZone, setDragOverZone] = useState<string | null>(null);
+
+  const available = useMemo(() => {
+    if (!tournament) return [];
+    return teams.filter(
+      (t) => !tournament.teamIds.includes(t.id) &&
+        (t.name.toLowerCase().includes(search.toLowerCase()) ||
+         t.shortName.toLowerCase().includes(search.toLowerCase()))
+    );
+  }, [tournament, teams, search]);
+
+  // Auto-open folders with search matches
+  useEffect(() => {
+    if (search.trim()) {
+      const toOpen = new Set<string>();
+      available.forEach((t) => {
+        if (t.folderId) {
+          toOpen.add(t.folderId);
+          let parentId = folders.find(f => f.id === t.folderId)?.parentId;
+          while (parentId) {
+            toOpen.add(parentId);
+            parentId = folders.find(f => f.id === parentId)?.parentId;
+          }
+        }
+      });
+      if (toOpen.size > 0) {
+        setOpenFolders(prev => {
+          const next = new Set(prev);
+          toOpen.forEach(id => next.add(id));
+          return next;
+        });
+      }
+    }
+  }, [search, available, folders]);
 
   if (!tournament) {
     return (
@@ -27,12 +60,6 @@ export default function TournamentTeamsPage() {
       </div>
     );
   }
-
-  const available = teams.filter(
-    (t) => !tournament.teamIds.includes(t.id) &&
-      (t.name.toLowerCase().includes(search.toLowerCase()) ||
-       t.shortName.toLowerCase().includes(search.toLowerCase()))
-  );
 
   const toggleFolder = (fid: string) => {
     setOpenFolders((prev) => {
