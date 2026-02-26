@@ -1,10 +1,8 @@
-import { useState } from "react";
-import { Shield, Swords, RotateCcw } from "lucide-react";
+import { useState, useMemo } from "react";
+import { Shield, Swords, RotateCcw, Search, FolderOpen, ChevronRight, ChevronUp, ChevronDown, Play } from "lucide-react";
 import { useTournamentStore } from "@/store/tournamentStore";
 import { Team } from "@/types/tournament";
 import { simulateHalf } from "@/lib/simulation";
-import { ChevronUp, ChevronDown, Play } from "lucide-react";
-import TeamLogo from "@/components/TeamLogo";
 
 type HalfKey = "h1" | "h2";
 
@@ -13,7 +11,10 @@ function simulatePenaltyKick(): boolean {
 }
 
 export default function FriendlyMatchPage() {
-  const { teams } = useTournamentStore();
+  const { teams, folders } = useTournamentStore();
+  const [searchHome, setSearchHome] = useState("");
+  const [searchAway, setSearchAway] = useState("");
+  const [expandedFolders, setExpandedFolders] = useState<Set<string>>(new Set());
   const [homeTeam, setHomeTeam] = useState<Team | null>(null);
   const [awayTeam, setAwayTeam] = useState<Team | null>(null);
   const [started, setStarted] = useState(false);
@@ -111,11 +112,85 @@ export default function FriendlyMatchPage() {
 
   const allSimulated = simulatedHalves.has("h1") && simulatedHalves.has("h2");
 
+  const toggleFolder = (id: string) => {
+    setExpandedFolders((prev) => {
+      const next = new Set(prev);
+      next.has(id) ? next.delete(id) : next.add(id);
+      return next;
+    });
+  };
+
+  const renderTeamButton = (t: Team, selected: Team | null, onSelect: (t: Team) => void) => (
+    <button
+      key={t.id}
+      onClick={() => onSelect(t)}
+      className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm transition-all ${
+        selected?.id === t.id
+          ? "bg-primary/20 text-primary border border-primary/30"
+          : "text-foreground hover:bg-secondary border border-transparent"
+      }`}
+    >
+      <div className="w-7 h-7 flex items-center justify-center shrink-0">
+        {t.logo ? (
+          <img src={t.logo} alt="" className="w-7 h-7 object-contain" />
+        ) : (
+          <Shield className="w-4 h-4 text-muted-foreground" />
+        )}
+      </div>
+      <span className="font-medium truncate">{t.name}</span>
+      <span className="ml-auto text-xs text-muted-foreground font-mono">{t.rate.toFixed(1)}</span>
+    </button>
+  );
+
+  const renderTeamList = (
+    excludeId: string | undefined,
+    search: string,
+    selected: Team | null,
+    onSelect: (t: Team) => void
+  ) => {
+    const filtered = teams
+      .filter((t) => t.id !== excludeId)
+      .filter((t) => t.name.toLowerCase().includes(search.toLowerCase()));
+
+    const rootFolders = folders.filter((f) => !f.parentId);
+    const looseteams = filtered.filter((t) => !t.folderId);
+    const folderTeams = (fId: string) => filtered.filter((t) => t.folderId === fId);
+    const foldersWithTeams = rootFolders.filter((f) => folderTeams(f.id).length > 0);
+
+    if (filtered.length === 0) {
+      return <p className="text-sm text-muted-foreground text-center py-8">Nenhum time encontrado</p>;
+    }
+
+    return (
+      <>
+        {foldersWithTeams.map((folder) => (
+          <div key={folder.id}>
+            <button
+              onClick={() => toggleFolder(folder.id)}
+              className="w-full flex items-center gap-2 px-3 py-2 text-xs font-semibold text-muted-foreground uppercase tracking-wider hover:text-foreground transition-colors"
+            >
+              <ChevronRight className={`w-3.5 h-3.5 transition-transform ${expandedFolders.has(folder.id) ? "rotate-90" : ""}`} />
+              <FolderOpen className="w-3.5 h-3.5" />
+              <span>{folder.name}</span>
+              <span className="ml-auto text-[10px] font-mono">{folderTeams(folder.id).length}</span>
+            </button>
+            {expandedFolders.has(folder.id) && (
+              <div className="ml-4 space-y-0.5">
+                {folderTeams(folder.id).map((t) => renderTeamButton(t, selected, onSelect))}
+              </div>
+            )}
+          </div>
+        ))}
+        {looseteams.length > 0 && foldersWithTeams.length > 0 && (
+          <p className="px-3 pt-2 text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Sem pasta</p>
+        )}
+        {looseteams.map((t) => renderTeamButton(t, selected, onSelect))}
+      </>
+    );
+  };
+
   // Team selector
   if (!started) {
-    const availableForHome = teams.filter((t) => t.id !== awayTeam?.id);
-    const availableForAway = teams.filter((t) => t.id !== homeTeam?.id);
-
     return (
       <div className="max-w-2xl mx-auto space-y-8">
         <div className="text-center space-y-2">
@@ -128,62 +203,36 @@ export default function FriendlyMatchPage() {
           {/* Home */}
           <div className="space-y-3">
             <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Mandante</p>
-            <div className="space-y-1 max-h-[50vh] overflow-y-auto pr-1">
-              {availableForHome.map((t) => (
-                <button
-                  key={t.id}
-                  onClick={() => setHomeTeam(t)}
-                  className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm transition-all ${
-                    homeTeam?.id === t.id
-                      ? "bg-primary/20 text-primary border border-primary/30"
-                      : "text-foreground hover:bg-secondary border border-transparent"
-                  }`}
-                >
-                  <div className="w-8 h-8 flex items-center justify-center shrink-0">
-                    {t.logo ? (
-                      <img src={t.logo} alt="" className="w-8 h-8 object-contain" />
-                    ) : (
-                      <Shield className="w-5 h-5 text-muted-foreground" />
-                    )}
-                  </div>
-                  <span className="font-medium truncate">{t.name}</span>
-                  <span className="ml-auto text-xs text-muted-foreground font-mono">{t.rate.toFixed(1)}</span>
-                </button>
-              ))}
-              {availableForHome.length === 0 && (
-                <p className="text-sm text-muted-foreground text-center py-8">Nenhum time disponível</p>
-              )}
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+              <input
+                type="text"
+                value={searchHome}
+                onChange={(e) => setSearchHome(e.target.value)}
+                placeholder="Buscar time..."
+                className="w-full pl-9 pr-3 py-2 rounded-lg bg-secondary border border-border text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary"
+              />
+            </div>
+            <div className="space-y-0.5 max-h-[50vh] overflow-y-auto pr-1">
+              {renderTeamList(awayTeam?.id, searchHome, homeTeam, setHomeTeam)}
             </div>
           </div>
 
           {/* Away */}
           <div className="space-y-3">
             <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Visitante</p>
-            <div className="space-y-1 max-h-[50vh] overflow-y-auto pr-1">
-              {availableForAway.map((t) => (
-                <button
-                  key={t.id}
-                  onClick={() => setAwayTeam(t)}
-                  className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm transition-all ${
-                    awayTeam?.id === t.id
-                      ? "bg-primary/20 text-primary border border-primary/30"
-                      : "text-foreground hover:bg-secondary border border-transparent"
-                  }`}
-                >
-                  <div className="w-8 h-8 flex items-center justify-center shrink-0">
-                    {t.logo ? (
-                      <img src={t.logo} alt="" className="w-8 h-8 object-contain" />
-                    ) : (
-                      <Shield className="w-5 h-5 text-muted-foreground" />
-                    )}
-                  </div>
-                  <span className="font-medium truncate">{t.name}</span>
-                  <span className="ml-auto text-xs text-muted-foreground font-mono">{t.rate.toFixed(1)}</span>
-                </button>
-              ))}
-              {availableForAway.length === 0 && (
-                <p className="text-sm text-muted-foreground text-center py-8">Nenhum time disponível</p>
-              )}
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+              <input
+                type="text"
+                value={searchAway}
+                onChange={(e) => setSearchAway(e.target.value)}
+                placeholder="Buscar time..."
+                className="w-full pl-9 pr-3 py-2 rounded-lg bg-secondary border border-border text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary"
+              />
+            </div>
+            <div className="space-y-0.5 max-h-[50vh] overflow-y-auto pr-1">
+              {renderTeamList(homeTeam?.id, searchAway, awayTeam, setAwayTeam)}
             </div>
           </div>
         </div>
