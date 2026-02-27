@@ -184,26 +184,36 @@ export default function FriendlyMatchPage() {
       return <p className="text-sm text-muted-foreground text-center py-8">Nenhum time encontrado</p>;
     }
 
+    const renderFolder = (folder: typeof folders[0], depth: number = 0) => {
+      const childFolders = folders.filter(f => f.parentId === folder.id);
+      const hasContent = allFolderTeams(folder.id) || !search.trim();
+      if (!hasContent) return null;
+
+      return (
+        <div key={folder.id}>
+          <button
+            onClick={() => toggleFolder(folder.id)}
+            className="w-full flex items-center gap-2 px-3 py-2 text-xs font-semibold text-muted-foreground uppercase tracking-wider hover:text-foreground transition-colors"
+            style={{ paddingLeft: `${12 + depth * 16}px` }}
+          >
+            <ChevronRight className={`w-3.5 h-3.5 transition-transform ${expandedFolders.has(folder.id) ? "rotate-90" : ""}`} />
+            <FolderOpen className="w-3.5 h-3.5" />
+            <span>{folder.name}</span>
+            <span className="ml-auto text-[10px] font-mono">{folderTeams(folder.id).length}</span>
+          </button>
+          {expandedFolders.has(folder.id) && (
+            <div className="space-y-0.5" style={{ marginLeft: `${16 + depth * 8}px` }}>
+              {folderTeams(folder.id).map((t) => renderTeamButton(t, selected, onSelect))}
+              {childFolders.map((cf) => renderFolder(cf, depth + 1))}
+            </div>
+          )}
+        </div>
+      );
+    };
+
     return (
       <>
-        {rootFolders.filter(f => allFolderTeams(f.id) || !search.trim()).map((folder) => (
-          <div key={folder.id}>
-            <button
-              onClick={() => toggleFolder(folder.id)}
-              className="w-full flex items-center gap-2 px-3 py-2 text-xs font-semibold text-muted-foreground uppercase tracking-wider hover:text-foreground transition-colors"
-            >
-              <ChevronRight className={`w-3.5 h-3.5 transition-transform ${expandedFolders.has(folder.id) ? "rotate-90" : ""}`} />
-              <FolderOpen className="w-3.5 h-3.5" />
-              <span>{folder.name}</span>
-              <span className="ml-auto text-[10px] font-mono">{folderTeams(folder.id).length}</span>
-            </button>
-            {expandedFolders.has(folder.id) && (
-              <div className="ml-4 space-y-0.5">
-                {folderTeams(folder.id).map((t) => renderTeamButton(t, selected, onSelect))}
-              </div>
-            )}
-          </div>
-        ))}
+        {rootFolders.filter(f => allFolderTeams(f.id) || !search.trim()).map((folder) => renderFolder(folder))}
         {looseteams.length > 0 && rootFolders.length > 0 && (
           <p className="px-3 pt-2 text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Sem pasta</p>
         )}
