@@ -660,12 +660,6 @@ export default function TournamentDetailPage() {
             )}
             <TabsTrigger value="stats" className="data-[state=active]:bg-card data-[state=active]:shadow-sm text-xs lg:text-sm">Estatísticas</TabsTrigger>
           </TabsList>
-          <div className="flex items-center gap-2">
-            <Button variant="outline" size="sm" className="gap-1.5 text-xs">
-              <Download className="w-3.5 h-3.5" />
-              Exportar
-            </Button>
-          </div>
         </div>
 
         <TabsContent value="standings" className="mt-0 outline-none">
