@@ -107,8 +107,11 @@ export default function RoundsView({ tournament, teams, onUpdateMatch, onBatchUp
       {/* Simulate round icon in header area */}
 
       {/* Matches */}
-      <div className="space-y-2">
-        {roundMatches.map((match) => {
+      {(() => {
+        const isGroupFormat = tournament.format === "grupos";
+        const hasGroups = isGroupFormat && roundMatches.some((m) => m.group != null);
+
+        const renderMatch = (match: Match) => {
           const home = getTeam(match.homeTeamId);
           const away = getTeam(match.awayTeamId);
           return (
@@ -118,7 +121,6 @@ export default function RoundsView({ tournament, teams, onUpdateMatch, onBatchUp
               className="w-full p-3 rounded-xl bg-secondary/30 border border-border hover:border-primary/40 transition-all text-left"
             >
               <div className="flex items-center gap-3">
-                {/* Home team */}
                 <div className="flex-1 flex items-center gap-2 justify-end">
                   <span className="text-xs font-medium text-foreground truncate">
                     {home?.shortName || home?.abbreviation || "—"}
@@ -131,8 +133,6 @@ export default function RoundsView({ tournament, teams, onUpdateMatch, onBatchUp
                     )}
                   </div>
                 </div>
-
-                {/* Score */}
                 <div className="flex items-center gap-1.5 min-w-[60px] justify-center">
                   {match.played ? (
                     <>
@@ -144,8 +144,6 @@ export default function RoundsView({ tournament, teams, onUpdateMatch, onBatchUp
                     <span className="text-xs text-muted-foreground">vs</span>
                   )}
                 </div>
-
-                {/* Away team */}
                 <div className="flex-1 flex items-center gap-2">
                   <div className="w-6 h-6 flex items-center justify-center shrink-0">
                     {away?.logo ? (
@@ -161,8 +159,33 @@ export default function RoundsView({ tournament, teams, onUpdateMatch, onBatchUp
               </div>
             </button>
           );
-        })}
-      </div>
+        };
+
+        if (hasGroups) {
+          const groups = [...new Set(roundMatches.map((m) => m.group!))].sort((a, b) => a - b);
+          return (
+            <div className="space-y-4">
+              {groups.map((group) => (
+                <div key={group} className="space-y-2">
+                  <div className="flex items-center gap-2 px-1">
+                    <span className="text-xs font-bold text-muted-foreground uppercase tracking-wider">
+                      Grupo {String.fromCharCode(64 + group)}
+                    </span>
+                    <div className="flex-1 h-px bg-border" />
+                  </div>
+                  {roundMatches.filter((m) => m.group === group).map(renderMatch)}
+                </div>
+              ))}
+            </div>
+          );
+        }
+
+        return (
+          <div className="space-y-2">
+            {roundMatches.map(renderMatch)}
+          </div>
+        );
+      })()}
 
       {/* Finalize banner */}
       {allPlayed && !tournament.finalized && onFinalize && (
