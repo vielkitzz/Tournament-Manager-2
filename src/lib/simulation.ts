@@ -1,21 +1,15 @@
 /**
  * Realistic match simulation engine based on team rates.
  *
- * Each team's rate (0.01–9.99) is multiplied by a goal factor to produce
- * an expected-goals value (lambda). A Poisson random variable then generates
- * the actual number of goals — naturally producing upsets without extra tweaks.
+ * Uses a Poisson model where each team's expected goals per half
+ * is derived from their rate relative to the opponent's rate.
  *
- * Goal factor 0.15 keeps scores realistic:
- *   rate 5.0 → λ ≈ 0.75 → ~1.5 goals/match (football average)
- *   rate 9.0 → λ ≈ 1.35 → ~2.7 goals/match (dominant team)
- *   rate 1.0 → λ ≈ 0.15 → ~0.3 goals/match (very weak team)
+ * Rate acts as "strength": higher rate = more likely to score and less likely to concede.
+ * But football is unpredictable — upsets happen naturally through the Poisson variance.
  */
 
-const GOAL_FACTOR = 0.15;
-
-/** Knuth algorithm for Poisson-distributed random variable. */
 function poissonRandom(lambda: number): number {
-  if (lambda <= 0) return 0;
+  // Knuth algorithm for Poisson-distributed random variable
   const L = Math.exp(-lambda);
   let k = 0;
   let p = 1;
@@ -27,12 +21,27 @@ function poissonRandom(lambda: number): number {
 }
 
 /**
- * Calculates expected goals for one half.
- * Lambda = rate × GOAL_FACTOR × small form variance (±10%).
+ * Calculates expected goals for a half based on team strengths.
+ *
+ * Base expected goals per half ≈ 0.75 (realistic ~1.5 goals/game per team on average in football).
+ * The ratio of rates determines how goals are distributed.
+ *
+ * Examples with base 0.75:
+ *   - Equal rates (5 vs 5): both expect ~0.75 goals/half
+ *   - Dominant vs weak (8 vs 2): dominant expects ~1.2, weak expects ~0.3
+ *   - Slight edge (6 vs 4): stronger expects ~0.9, weaker expects ~0.6
  */
-function getExpectedGoals(teamRate: number): number {
-  const formFactor = 0.90 + Math.random() * 0.20; // 0.90–1.10
-  return teamRate * GOAL_FACTOR * formFactor;
+function getExpectedGoals(teamRate: number, opponentRate: number): number {
+  const BASE_GOALS_PER_HALF = 0.75;
+
+  // Strength ratio: how much stronger this team is relative to opponent
+  // Using sqrt to dampen extreme differences (a 9.0 vs 1.0 shouldn't be 9x more likely)
+  const strengthRatio = Math.sqrt(teamRate / opponentRate);
+
+  // Apply ratio to base, with a small random "form" factor (±15%)
+  const formFactor = 0.85 + Math.random() * 0.30;
+
+  return BASE_GOALS_PER_HALF * strengthRatio * formFactor;
 }
 
 /**
@@ -40,12 +49,15 @@ function getExpectedGoals(teamRate: number): number {
  * Returns [homeGoals, awayGoals].
  */
 export function simulateHalf(homeRate: number, awayRate: number): [number, number] {
-  return [poissonRandom(getExpectedGoals(homeRate)), poissonRandom(getExpectedGoals(awayRate))];
+  const homeExpected = getExpectedGoals(homeRate, awayRate);
+  const awayExpected = getExpectedGoals(awayRate, homeRate);
+
+  return [poissonRandom(homeExpected), poissonRandom(awayExpected)];
 }
 
 /**
  * Simulates a full match (two halves).
- * Returns { h1, h2, total } with [home, away] tuples.
+ * Returns { h1: [home, away], h2: [home, away], total: [home, away] }.
  */
 export function simulateFullMatch(
   homeRate: number,
