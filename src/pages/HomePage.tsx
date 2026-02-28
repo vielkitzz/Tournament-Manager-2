@@ -69,7 +69,10 @@ export default function HomePage() {
                 onClick={() => navigate(`/tournament/${t.id}`)}
                 className="group cursor-pointer"
               >
-                <div className="p-4 rounded-xl card-gradient border border-border hover:border-primary/40 transition-all relative">
+                <motion.div
+                  whileHover={{ y: -2, boxShadow: "0 8px 30px hsl(217 91% 60% / 0.15)" }}
+                  className="p-4 rounded-xl card-gradient border border-border hover:border-primary/40 transition-all relative"
+                >
                   <div className="flex items-center gap-3">
                     <div className="w-12 h-12 flex items-center justify-center shrink-0">
                       {t.logo ? (
@@ -129,7 +132,7 @@ export default function HomePage() {
                       </AlertDialog>
                     </div>
                   </div>
-                </div>
+                </motion.div>
               </motion.div>
             ))}
 
@@ -146,13 +149,34 @@ export default function HomePage() {
 
           {tournaments.length === 0 && (
             <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              transition={{ delay: 0.3 }}
-              className="text-center py-16"
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.3, type: "spring", stiffness: 100 }}
+              className="text-center py-20 px-6"
             >
-              <Trophy className="w-12 h-12 text-muted-foreground/30 mx-auto mb-3" />
-              <p className="text-muted-foreground text-sm">Nenhuma competição criada ainda</p>
+              <motion.div
+                initial={{ scale: 0.8 }}
+                animate={{ scale: 1 }}
+                transition={{ delay: 0.5, type: "spring" }}
+                className="w-20 h-20 rounded-2xl bg-primary/10 flex items-center justify-center mx-auto mb-5"
+              >
+                <Trophy className="w-10 h-10 text-primary/60" />
+              </motion.div>
+              <h3 className="text-lg font-display font-bold text-foreground mb-2">
+                Nenhuma competição ainda
+              </h3>
+              <p className="text-sm text-muted-foreground max-w-xs mx-auto mb-6">
+                Crie sua primeira competição para começar a organizar torneios, ligas e campeonatos.
+              </p>
+              <motion.button
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+                onClick={() => navigate("/tournament/create")}
+                className="inline-flex items-center gap-2 px-6 py-3 rounded-xl bg-primary text-primary-foreground font-display font-semibold text-sm shadow-glow hover:bg-primary/90 transition-colors"
+              >
+                <Plus className="w-4 h-4" />
+                Criar Competição
+              </motion.button>
             </motion.div>
           )}
         </>
