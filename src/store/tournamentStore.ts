@@ -1,7 +1,6 @@
-import { useState, useCallback, useEffect } from "react";
+import { create } from "zustand";
 import { Tournament, Team, TeamFolder, TournamentSettings, Match, SeasonRecord } from "@/types/tournament";
 import { supabase } from "@/integrations/supabase/client";
-import { useAuth } from "@/hooks/useAuth";
 import { Json } from "@/integrations/supabase/types";
 
 // Use any-typed client to avoid strict type errors from generated types
@@ -67,103 +66,136 @@ function dbToTeam(row: any): Team {
   };
 }
 
-export function useTournamentStore() {
-  const { user } = useAuth();
-  const [tournaments, setTournaments] = useState<Tournament[]>([]);
-  const [teams, setTeams] = useState<Team[]>([]);
-  const [folders, setFolders] = useState<TeamFolder[]>([]);
-  const [loading, setLoading] = useState(true);
+function tournamentToDb(tournament: Tournament, userId: string) {
+  return {
+    id: tournament.id,
+    user_id: userId,
+    name: tournament.name,
+    sport: tournament.sport,
+    year: tournament.year,
+    format: tournament.format,
+    number_of_teams: tournament.numberOfTeams,
+    logo: tournament.logo || null,
+    team_ids: tournament.teamIds,
+    settings: tournament.settings as unknown as Json,
+    matches: tournament.matches as unknown as Json,
+    finalized: tournament.finalized || false,
+    groups_finalized: tournament.groupsFinalized || false,
+    seasons: (tournament.seasons || []) as unknown as Json,
+    liga_turnos: tournament.ligaTurnos || null,
+    grupos_quantidade: tournament.gruposQuantidade || null,
+    grupos_turnos: tournament.gruposTurnos || null,
+    grupos_mata_mata_inicio: tournament.gruposMataMataInicio || null,
+    mata_mata_inicio: tournament.mataMataInicio || null,
+    suico_jogos_liga: (tournament as any).suicoJogosLiga || null,
+    suico_mata_mata_inicio: (tournament as any).suicoMataMataInicio || null,
+    suico_playoff_vagas: (tournament as any).suicoPlayoffVagas || null,
+  };
+}
 
-  useEffect(() => {
-    if (!user) {
-      setTournaments([]);
-      setTeams([]);
-      setFolders([]);
-      setLoading(false);
+function updatesToDb(updates: Partial<Tournament>): Record<string, any> {
+  const dbUpdates: any = {};
+  if (updates.name !== undefined) dbUpdates.name = updates.name;
+  if (updates.sport !== undefined) dbUpdates.sport = updates.sport;
+  if (updates.year !== undefined) dbUpdates.year = updates.year;
+  if (updates.format !== undefined) dbUpdates.format = updates.format;
+  if (updates.numberOfTeams !== undefined) dbUpdates.number_of_teams = updates.numberOfTeams;
+  if (updates.logo !== undefined) dbUpdates.logo = updates.logo;
+  if (updates.teamIds !== undefined) dbUpdates.team_ids = updates.teamIds;
+  if (updates.settings !== undefined) dbUpdates.settings = updates.settings as unknown as Json;
+  if (updates.matches !== undefined) dbUpdates.matches = updates.matches as unknown as Json;
+  if (updates.finalized !== undefined) dbUpdates.finalized = updates.finalized;
+  if (updates.groupsFinalized !== undefined) dbUpdates.groups_finalized = updates.groupsFinalized;
+  if (updates.seasons !== undefined) dbUpdates.seasons = updates.seasons as unknown as Json;
+  if (updates.ligaTurnos !== undefined) dbUpdates.liga_turnos = updates.ligaTurnos;
+  if (updates.gruposQuantidade !== undefined) dbUpdates.grupos_quantidade = updates.gruposQuantidade;
+  if (updates.gruposTurnos !== undefined) dbUpdates.grupos_turnos = updates.gruposTurnos;
+  if (updates.gruposMataMataInicio !== undefined) dbUpdates.grupos_mata_mata_inicio = updates.gruposMataMataInicio;
+  if (updates.mataMataInicio !== undefined) dbUpdates.mata_mata_inicio = updates.mataMataInicio;
+  if ((updates as any).suicoJogosLiga !== undefined) dbUpdates.suico_jogos_liga = (updates as any).suicoJogosLiga;
+  if ((updates as any).suicoMataMataInicio !== undefined) dbUpdates.suico_mata_mata_inicio = (updates as any).suicoMataMataInicio;
+  if ((updates as any).suicoPlayoffVagas !== undefined) dbUpdates.suico_playoff_vagas = (updates as any).suicoPlayoffVagas;
+  return dbUpdates;
+}
+
+interface TournamentState {
+  // State
+  tournaments: Tournament[];
+  teams: Team[];
+  folders: TeamFolder[];
+  loading: boolean;
+  _userId: string | null;
+
+  // Actions
+  initialize: (userId: string | null) => Promise<void>;
+  addTournament: (tournament: Tournament) => Promise<void>;
+  updateTournament: (id: string, updates: Partial<Tournament>) => Promise<void>;
+  removeTournament: (id: string) => Promise<void>;
+  addTeam: (team: Team) => Promise<void>;
+  updateTeam: (id: string, updates: Partial<Team>) => Promise<void>;
+  removeTeam: (id: string) => Promise<void>;
+  addFolder: (name: string) => Promise<string | undefined>;
+  renameFolder: (id: string, name: string) => Promise<void>;
+  removeFolder: (id: string) => Promise<void>;
+  moveTeamToFolder: (teamId: string, folderId: string | null) => Promise<void>;
+  moveFolderToFolder: (folderId: string, parentId: string | null) => Promise<void>;
+}
+
+export const useTournamentStore = create<TournamentState>((set, get) => ({
+  tournaments: [],
+  teams: [],
+  folders: [],
+  loading: true,
+  _userId: null,
+
+  initialize: async (userId) => {
+    if (!userId) {
+      set({ tournaments: [], teams: [], folders: [], loading: false, _userId: null });
       return;
     }
-    setLoading(true);
-    Promise.all([
-      db.from("tournaments").select("*").eq("user_id", user.id),
-      db.from("teams").select("*").eq("user_id", user.id),
-      db.from("team_folders").select("*").eq("user_id", user.id),
-    ]).then(([tRes, teRes, fRes]: any[]) => {
-      if (tRes.data) setTournaments(tRes.data.map(dbToTournament));
-      if (teRes.data) setTeams(teRes.data.map(dbToTeam));
-      if (fRes.data) setFolders(fRes.data.map((f: any) => ({ id: f.id, name: f.name, parentId: f.parent_id || null })));
-      setLoading(false);
+    if (userId === get()._userId && !get().loading) return; // already loaded
+    set({ loading: true, _userId: userId });
+    const [tRes, teRes, fRes] = await Promise.all([
+      db.from("tournaments").select("*").eq("user_id", userId),
+      db.from("teams").select("*").eq("user_id", userId),
+      db.from("team_folders").select("*").eq("user_id", userId),
+    ]) as any[];
+    set({
+      tournaments: tRes.data ? tRes.data.map(dbToTournament) : [],
+      teams: teRes.data ? teRes.data.map(dbToTeam) : [],
+      folders: fRes.data ? fRes.data.map((f: any) => ({ id: f.id, name: f.name, parentId: f.parent_id || null })) : [],
+      loading: false,
     });
-  }, [user]);
+  },
 
-  const addTournament = useCallback(async (tournament: Tournament) => {
-    if (!user) return;
-    const { data } = await db.from("tournaments").insert({
-      id: tournament.id,
-      user_id: user.id,
-      name: tournament.name,
-      sport: tournament.sport,
-      year: tournament.year,
-      format: tournament.format,
-      number_of_teams: tournament.numberOfTeams,
-      logo: tournament.logo || null,
-      team_ids: tournament.teamIds,
-      settings: tournament.settings as unknown as Json,
-      matches: tournament.matches as unknown as Json,
-      finalized: tournament.finalized || false,
-      groups_finalized: tournament.groupsFinalized || false,
-      seasons: (tournament.seasons || []) as unknown as Json,
-      liga_turnos: tournament.ligaTurnos || null,
-      grupos_quantidade: tournament.gruposQuantidade || null,
-      grupos_turnos: tournament.gruposTurnos || null,
-      grupos_mata_mata_inicio: tournament.gruposMataMataInicio || null,
-      mata_mata_inicio: tournament.mataMataInicio || null,
-      suico_jogos_liga: (tournament as any).suicoJogosLiga || null,
-      suico_mata_mata_inicio: (tournament as any).suicoMataMataInicio || null,
-      suico_playoff_vagas: (tournament as any).suicoPlayoffVagas || null,
-    }).select().single();
-    if (data) setTournaments((prev) => [...prev, dbToTournament(data)]);
-  }, [user]);
+  addTournament: async (tournament) => {
+    const userId = get()._userId;
+    if (!userId) return;
+    const { data } = await db.from("tournaments").insert(tournamentToDb(tournament, userId)).select().single();
+    if (data) set((s) => ({ tournaments: [...s.tournaments, dbToTournament(data)] }));
+  },
 
-  const updateTournament = useCallback(async (id: string, updates: Partial<Tournament>) => {
-    if (!user) return;
-    const dbUpdates: any = {};
-    if (updates.name !== undefined) dbUpdates.name = updates.name;
-    if (updates.sport !== undefined) dbUpdates.sport = updates.sport;
-    if (updates.year !== undefined) dbUpdates.year = updates.year;
-    if (updates.format !== undefined) dbUpdates.format = updates.format;
-    if (updates.numberOfTeams !== undefined) dbUpdates.number_of_teams = updates.numberOfTeams;
-    if (updates.logo !== undefined) dbUpdates.logo = updates.logo;
-    if (updates.teamIds !== undefined) dbUpdates.team_ids = updates.teamIds;
-    if (updates.settings !== undefined) dbUpdates.settings = updates.settings as unknown as Json;
-    if (updates.matches !== undefined) dbUpdates.matches = updates.matches as unknown as Json;
-    if (updates.finalized !== undefined) dbUpdates.finalized = updates.finalized;
-    if (updates.groupsFinalized !== undefined) dbUpdates.groups_finalized = updates.groupsFinalized;
-    if (updates.seasons !== undefined) dbUpdates.seasons = updates.seasons as unknown as Json;
-    if (updates.ligaTurnos !== undefined) dbUpdates.liga_turnos = updates.ligaTurnos;
-    if (updates.gruposQuantidade !== undefined) dbUpdates.grupos_quantidade = updates.gruposQuantidade;
-    if (updates.gruposTurnos !== undefined) dbUpdates.grupos_turnos = updates.gruposTurnos;
-    if (updates.gruposMataMataInicio !== undefined) dbUpdates.grupos_mata_mata_inicio = updates.gruposMataMataInicio;
-    if (updates.mataMataInicio !== undefined) dbUpdates.mata_mata_inicio = updates.mataMataInicio;
-    if ((updates as any).suicoJogosLiga !== undefined) dbUpdates.suico_jogos_liga = (updates as any).suicoJogosLiga;
-    if ((updates as any).suicoMataMataInicio !== undefined) dbUpdates.suico_mata_mata_inicio = (updates as any).suicoMataMataInicio;
-    if ((updates as any).suicoPlayoffVagas !== undefined) dbUpdates.suico_playoff_vagas = (updates as any).suicoPlayoffVagas;
-
+  updateTournament: async (id, updates) => {
+    const userId = get()._userId;
+    if (!userId) return;
     // Optimistic update
-    setTournaments((prev) => prev.map((t) => (t.id === id ? { ...t, ...updates } : t)));
-    await db.from("tournaments").update(dbUpdates).eq("id", id).eq("user_id", user.id);
-  }, [user]);
+    set((s) => ({ tournaments: s.tournaments.map((t) => (t.id === id ? { ...t, ...updates } : t)) }));
+    await db.from("tournaments").update(updatesToDb(updates)).eq("id", id).eq("user_id", userId);
+  },
 
-  const removeTournament = useCallback(async (id: string) => {
-    if (!user) return;
-    setTournaments((prev) => prev.filter((t) => t.id !== id));
-    await db.from("tournaments").delete().eq("id", id).eq("user_id", user.id);
-  }, [user]);
+  removeTournament: async (id) => {
+    const userId = get()._userId;
+    if (!userId) return;
+    set((s) => ({ tournaments: s.tournaments.filter((t) => t.id !== id) }));
+    await db.from("tournaments").delete().eq("id", id).eq("user_id", userId);
+  },
 
-  const addTeam = useCallback(async (team: Team) => {
-    if (!user) return;
+  addTeam: async (team) => {
+    const userId = get()._userId;
+    if (!userId) return;
     const { data } = await db.from("teams").insert({
       id: team.id,
-      user_id: user.id,
+      user_id: userId,
       name: team.name,
       short_name: team.shortName,
       abbreviation: team.abbreviation,
@@ -173,11 +205,12 @@ export function useTournamentStore() {
       rate: team.rate,
       folder_id: team.folderId || null,
     }).select().single();
-    if (data) setTeams((prev) => [...prev, dbToTeam(data)]);
-  }, [user]);
+    if (data) set((s) => ({ teams: [...s.teams, dbToTeam(data)] }));
+  },
 
-  const updateTeam = useCallback(async (id: string, updates: Partial<Team>) => {
-    if (!user) return;
+  updateTeam: async (id, updates) => {
+    const userId = get()._userId;
+    if (!userId) return;
     const dbUpdates: any = {};
     if (updates.name !== undefined) dbUpdates.name = updates.name;
     if (updates.shortName !== undefined) dbUpdates.short_name = updates.shortName;
@@ -187,77 +220,64 @@ export function useTournamentStore() {
     if (updates.colors !== undefined) dbUpdates.colors = updates.colors;
     if (updates.rate !== undefined) dbUpdates.rate = updates.rate;
     if (updates.folderId !== undefined) dbUpdates.folder_id = updates.folderId;
+    set((s) => ({ teams: s.teams.map((t) => (t.id === id ? { ...t, ...updates } : t)) }));
+    await db.from("teams").update(dbUpdates).eq("id", id).eq("user_id", userId);
+  },
 
-    setTeams((prev) => prev.map((t) => (t.id === id ? { ...t, ...updates } : t)));
-    await db.from("teams").update(dbUpdates).eq("id", id).eq("user_id", user.id);
-  }, [user]);
+  removeTeam: async (id) => {
+    const userId = get()._userId;
+    if (!userId) return;
+    set((s) => ({ teams: s.teams.filter((t) => t.id !== id) }));
+    await db.from("teams").delete().eq("id", id).eq("user_id", userId);
+  },
 
-  const removeTeam = useCallback(async (id: string) => {
-    if (!user) return;
-    setTeams((prev) => prev.filter((t) => t.id !== id));
-    await db.from("teams").delete().eq("id", id).eq("user_id", user.id);
-  }, [user]);
+  addFolder: async (name) => {
+    const userId = get()._userId;
+    if (!userId) return;
+    const { data } = await db.from("team_folders").insert({ user_id: userId, name }).select().single();
+    if (data) {
+      set((s) => ({ folders: [...s.folders, { id: data.id, name: data.name, parentId: data.parent_id || null }] }));
+      return data.id;
+    }
+  },
 
-  const addFolder = useCallback(async (name: string) => {
-    if (!user) return;
-    const { data } = await db.from("team_folders").insert({
-      user_id: user.id,
-      name,
-    }).select().single();
-    if (data) setFolders((prev) => [...prev, { id: data.id, name: data.name, parentId: data.parent_id || null }]);
-    return data?.id;
-  }, [user]);
+  renameFolder: async (id, name) => {
+    const userId = get()._userId;
+    if (!userId) return;
+    set((s) => ({ folders: s.folders.map((f) => (f.id === id ? { ...f, name } : f)) }));
+    await db.from("team_folders").update({ name }).eq("id", id).eq("user_id", userId);
+  },
 
-  const renameFolder = useCallback(async (id: string, name: string) => {
-    if (!user) return;
-    setFolders((prev) => prev.map((f) => (f.id === id ? { ...f, name } : f)));
-    await db.from("team_folders").update({ name }).eq("id", id).eq("user_id", user.id);
-  }, [user]);
+  removeFolder: async (id) => {
+    const userId = get()._userId;
+    if (!userId) return;
+    set((s) => ({
+      teams: s.teams.map((t) => (t.folderId === id ? { ...t, folderId: null } : t)),
+      folders: s.folders.filter((f) => f.id !== id),
+    }));
+    await db.from("teams").update({ folder_id: null }).eq("folder_id", id).eq("user_id", userId);
+    await db.from("team_folders").delete().eq("id", id).eq("user_id", userId);
+  },
 
-  const removeFolder = useCallback(async (id: string) => {
-    if (!user) return;
-    setTeams((prev) => prev.map((t) => (t.folderId === id ? { ...t, folderId: null } : t)));
-    setFolders((prev) => prev.filter((f) => f.id !== id));
-    await db.from("teams").update({ folder_id: null }).eq("folder_id", id).eq("user_id", user.id);
-    await db.from("team_folders").delete().eq("id", id).eq("user_id", user.id);
-  }, [user]);
+  moveTeamToFolder: async (teamId, folderId) => {
+    const userId = get()._userId;
+    if (!userId) return;
+    set((s) => ({ teams: s.teams.map((t) => (t.id === teamId ? { ...t, folderId } : t)) }));
+    await db.from("teams").update({ folder_id: folderId }).eq("id", teamId).eq("user_id", userId);
+  },
 
-  const moveTeamToFolder = useCallback(async (teamId: string, folderId: string | null) => {
-    if (!user) return;
-    setTeams((prev) => prev.map((t) => (t.id === teamId ? { ...t, folderId } : t)));
-    await db.from("teams").update({ folder_id: folderId }).eq("id", teamId).eq("user_id", user.id);
-  }, [user]);
-
-  const moveFolderToFolder = useCallback(async (folderId: string, parentId: string | null) => {
-    if (!user) return;
-    // Prevent circular references
+  moveFolderToFolder: async (folderId, parentId) => {
+    const userId = get()._userId;
+    if (!userId) return;
     if (parentId === folderId) return;
-    // Check that parentId is not a descendant of folderId
+    const { folders } = get();
     let current = parentId;
     while (current) {
       if (current === folderId) return;
       const parent = folders.find((f) => f.id === current);
       current = parent?.parentId || null;
     }
-    setFolders((prev) => prev.map((f) => (f.id === folderId ? { ...f, parentId } : f)));
-    await db.from("team_folders").update({ parent_id: parentId }).eq("id", folderId).eq("user_id", user.id);
-  }, [user, folders]);
-
-  return {
-    tournaments,
-    teams,
-    folders,
-    loading,
-    addTournament,
-    updateTournament,
-    removeTournament,
-    addTeam,
-    updateTeam,
-    removeTeam,
-    addFolder,
-    renameFolder,
-    removeFolder,
-    moveTeamToFolder,
-    moveFolderToFolder,
-  };
-}
+    set((s) => ({ folders: s.folders.map((f) => (f.id === folderId ? { ...f, parentId } : f)) }));
+    await db.from("team_folders").update({ parent_id: parentId }).eq("id", folderId).eq("user_id", userId);
+  },
+}));
