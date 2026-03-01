@@ -12,14 +12,14 @@ export default function AppLayout() {
   return (
     <div className="flex min-h-screen w-full bg-background">
       {/* Mobile header */}
-      <div className="fixed top-0 left-0 right-0 z-40 flex items-center justify-between px-4 py-3 bg-background/80 backdrop-blur-lg border-b border-border lg:hidden">
+      <div className="fixed top-0 left-0 right-0 z-40 flex items-center justify-between px-4 h-14 bg-background/90 backdrop-blur-xl border-b border-border lg:hidden">
         <button
           onClick={() => setSidebarOpen(true)}
-          className="p-2 rounded-lg hover:bg-secondary text-muted-foreground hover:text-foreground transition-colors"
+          className="p-2 -ml-1 rounded-lg hover:bg-secondary text-muted-foreground hover:text-foreground transition-colors"
         >
           <Menu className="w-5 h-5" />
         </button>
-        <span className="text-sm font-display font-bold text-foreground">TM2</span>
+        <span className="text-sm font-display font-bold text-foreground tracking-wide">TM2</span>
         <div className="w-9" />
       </div>
 
