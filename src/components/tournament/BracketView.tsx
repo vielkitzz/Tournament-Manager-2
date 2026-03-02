@@ -240,12 +240,21 @@ export default function BracketView({
   const handleSimulateStage = (stage: string) => {
     const stageMatches = matchesByStage[stage]?.filter((m) => !m.played && m.homeTeamId && m.awayTeamId) || [];
     if (stageMatches.length === 0) return;
-    const updated = stageMatches.map((match) => {
-      if (match.pairId && match.leg === 2) {
-        const leg1 = matchesByStage[stage].find((m) => m.pairId === match.pairId && m.leg === 1);
-        if (leg1 && leg1.played) return simulateLeg2(match, leg1);
-      }
+    // First pass: simulate all leg1 matches and single matches
+    const firstPass = stageMatches.map((match) => {
+      if (match.pairId && match.leg === 2) return match; // skip leg2 for now
       return simulateMatch(match, !!(match.pairId && match.leg === 1));
+    });
+    // Second pass: simulate leg2 using the freshly simulated leg1
+    const updated = firstPass.map((match) => {
+      if (match.pairId && match.leg === 2 && !match.played) {
+        // Find leg1 from firstPass (already simulated) or from existing played matches
+        const leg1 = firstPass.find((m) => m.pairId === match.pairId && m.leg === 1 && m.played)
+          || matchesByStage[stage].find((m) => m.pairId === match.pairId && m.leg === 1 && m.played);
+        if (leg1) return simulateLeg2(match, leg1);
+        return simulateMatch(match, false);
+      }
+      return match;
     });
     if (onBatchUpdateMatches) {
       onBatchUpdateMatches(updated);
