@@ -423,7 +423,9 @@ export default function TournamentDetailPage() {
   };
 
   const autoGenerate = () => {
-    if (tournament.matches.length > 0 || tournament.teamIds.length < 2) return;
+    // Allow regeneration if all existing matches are empty placeholders (no teams assigned or played)
+    const hasRealMatches = tournament.matches.some((m) => m.played || (m.homeTeamId && m.awayTeamId));
+    if (hasRealMatches || tournament.teamIds.length < 2) return;
     
     if (tournament.format === "liga") {
       const turnos = tournament.ligaTurnos || 1;
