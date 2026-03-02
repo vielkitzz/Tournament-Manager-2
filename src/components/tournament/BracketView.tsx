@@ -167,7 +167,7 @@ export default function BracketView({
   const finalPairs = getPairs(finalMatchesList);
   const allFinalResolved = finalPairs.length > 0 && finalPairs.every((p) => getTieResult(p) !== null);
 
-  const simulateMatch = (match: Match): Match => {
+  const simulateMatch = (match: Match, isLeg1OfPair = false): Match => {
     const home = getTeam(match.homeTeamId);
     const away = getTeam(match.awayTeamId);
     const homeRate = tournament.settings.rateInfluence ? (home?.rate ?? 5) : 5;
@@ -177,7 +177,8 @@ export default function BracketView({
     let awayScore = result.total[1];
     let homePenalties: number | undefined;
     let awayPenalties: number | undefined;
-    if (homeScore === awayScore) {
+    // Only add penalties for single-leg knockout matches (not leg1 of a pair)
+    if (homeScore === awayScore && !isLeg1OfPair) {
       homePenalties = Math.floor(Math.random() * 3) + 3;
       awayPenalties = homePenalties + (Math.random() > 0.5 ? 1 : -1);
       if (awayPenalties < 0) awayPenalties = homePenalties + 1;
@@ -244,7 +245,7 @@ export default function BracketView({
         const leg1 = matchesByStage[stage].find((m) => m.pairId === match.pairId && m.leg === 1);
         if (leg1 && leg1.played) return simulateLeg2(match, leg1);
       }
-      return simulateMatch(match);
+      return simulateMatch(match, !!(match.pairId && match.leg === 1));
     });
     if (onBatchUpdateMatches) {
       onBatchUpdateMatches(updated);
@@ -256,7 +257,7 @@ export default function BracketView({
   const handleSimulateThirdPlace = () => {
     const unplayed = thirdPlaceMatches.filter((m) => !m.played && m.homeTeamId && m.awayTeamId);
     if (unplayed.length === 0) return;
-    const updated = unplayed.map(simulateMatch);
+    const updated = unplayed.map((m) => simulateMatch(m));
     if (onBatchUpdateMatches) onBatchUpdateMatches(updated);
     else updated.forEach((m) => onUpdateMatch(m));
   };
