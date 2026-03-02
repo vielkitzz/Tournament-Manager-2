@@ -84,30 +84,19 @@ export default function BracketView({
 
   if (matches.length === 0) {
     const hasEnoughTeams = tournament.teamIds.length >= 2;
-    const startStageForEmpty = tournament.mataMataInicio || "1/8";
-    const numSlots = (STAGE_TEAM_COUNTS[startStageForEmpty] || 8) / 2;
-
-    // Auto-create empty bracket on mount
-    const createEmpty = () => {
-      const emptyMatches: Match[] = [];
-      for (let i = 0; i < numSlots; i++) {
-        if (legMode === "home-away") {
-          const pairId = crypto.randomUUID();
-          emptyMatches.push({ id: crypto.randomUUID(), tournamentId: tournament.id, round: 1, homeTeamId: "", awayTeamId: "", homeScore: 0, awayScore: 0, played: false, stage: "knockout", leg: 1, pairId });
-          emptyMatches.push({ id: crypto.randomUUID(), tournamentId: tournament.id, round: 1, homeTeamId: "", awayTeamId: "", homeScore: 0, awayScore: 0, played: false, stage: "knockout", leg: 2, pairId });
-        } else {
-          emptyMatches.push({ id: crypto.randomUUID(), tournamentId: tournament.id, round: 1, homeTeamId: "", awayTeamId: "", homeScore: 0, awayScore: 0, played: false, stage: "knockout" });
-        }
-      }
-      if (onBatchUpdateMatches) onBatchUpdateMatches(emptyMatches);
-    };
-
-    // Auto-generate empty bracket immediately
-    setTimeout(() => createEmpty(), 0);
-
     return (
       <div className="text-center py-12 space-y-4">
-        <p className="text-sm text-muted-foreground">Gerando chaveamento...</p>
+        <p className="text-sm text-muted-foreground">
+          {hasEnoughTeams
+            ? "Use o botão \"Sortear Times\" para gerar o chaveamento"
+            : `Adicione pelo menos 2 times (${tournament.teamIds.length} adicionados)`}
+        </p>
+        {hasEnoughTeams && (
+          <Button onClick={onGenerateBracket} className="gap-2 bg-primary text-primary-foreground">
+            <Shuffle className="w-4 h-4" />
+            Sortear Times
+          </Button>
+        )}
       </div>
     );
   }
@@ -215,12 +204,28 @@ export default function BracketView({
 
     const agg = getAggregate(leg1, { ...leg2, homeScore, awayScore });
     const isTied = agg.home === agg.away;
-    const awayGoalsTied = awayGoalsRule && (leg1.awayScore || 0) === (leg2.awayScore || 0);
     
-    if (isTied && (!awayGoalsRule || awayGoalsTied)) {
-      homePenalties = Math.floor(Math.random() * 3) + 3;
-      awayPenalties = homePenalties + (Math.random() > 0.5 ? 1 : -1);
-      if (awayPenalties < 0) awayPenalties = homePenalties + 1;
+    if (isTied) {
+      // Check away goals rule: leg1 away goals = awayTeamId's goals scored away (leg1.awayScore)
+      // leg2 away goals = homeTeamId's goals scored away (leg2.awayScore which we just simulated)
+      if (awayGoalsRule) {
+        const homeTeamAwayGoals = awayScore; // homeTeamId scored these as away in leg2
+        const awayTeamAwayGoals = (leg1.awayScore || 0); // awayTeamId scored these as away in leg1
+        // If away goals break the tie, no penalties needed
+        if (homeTeamAwayGoals !== awayTeamAwayGoals) {
+          // Away goals rule decides - no penalties
+        } else {
+          // Away goals also tied - penalties
+          homePenalties = Math.floor(Math.random() * 3) + 3;
+          awayPenalties = homePenalties + (Math.random() > 0.5 ? 1 : -1);
+          if (awayPenalties < 0) awayPenalties = homePenalties + 1;
+        }
+      } else {
+        // No away goals rule - straight to penalties
+        homePenalties = Math.floor(Math.random() * 3) + 3;
+        awayPenalties = homePenalties + (Math.random() > 0.5 ? 1 : -1);
+        if (awayPenalties < 0) awayPenalties = homePenalties + 1;
+      }
     }
     return {
       ...leg2,
@@ -571,6 +576,26 @@ export default function BracketView({
           side={editingTeam.side}
           onUpdate={(updated) => {
             onUpdateMatch(updated);
+            // Propagate team changes to paired leg
+            if (updated.pairId) {
+              const paired = matches.find((m) => m.pairId === updated.pairId && m.id !== updated.id);
+              if (paired) {
+                // Leg2 has reversed home/away relative to leg1
+                const pairedUpdated = {
+                  ...paired,
+                  homeTeamId: updated.awayTeamId,
+                  awayTeamId: updated.homeTeamId,
+                  homeScore: 0,
+                  awayScore: 0,
+                  played: false,
+                  homePenalties: undefined,
+                  awayPenalties: undefined,
+                  homeExtraTime: undefined,
+                  awayExtraTime: undefined,
+                };
+                onUpdateMatch(pairedUpdated);
+              }
+            }
           }}
           onClose={() => setEditingTeam(null)}
         />
