@@ -82,6 +82,18 @@ export default function TournamentDetailPage() {
     ? tournament.seasons?.find((s) => s.year === viewingYear)
     : null;
 
+  const seasonRecordForYear = (tournament.seasons || []).find((s) => s.year === activeYear);
+  const championRecord = isViewingPastSeason
+    ? seasonData
+    : tournament.finalized
+      ? seasonRecordForYear
+      : null;
+  const championTeam = championRecord?.championId
+    ? teams.find((t) => t.id === championRecord.championId)
+    : null;
+  const championDisplayName = championRecord?.championName || championTeam?.name;
+  const championDisplayLogo = championRecord?.championLogo || championTeam?.logo;
+
   // Map season standings to StandingRow[] (adding missing fields)
   const seasonStandings: import("@/lib/standings").StandingRow[] = (seasonData?.standings || []).map((s) => ({
     ...s,
@@ -647,6 +659,27 @@ export default function TournamentDetailPage() {
           )}
         </div>
       </div>
+
+      {championDisplayName && (
+        <div className="mb-6 rounded-xl border border-primary/20 bg-primary/5 px-4 py-3 flex items-center justify-between gap-3">
+          <div className="flex items-center gap-3 min-w-0">
+            <div className="w-9 h-9 rounded-full bg-primary/15 flex items-center justify-center shrink-0">
+              <Trophy className="w-4 h-4 text-primary" />
+            </div>
+            <div className="min-w-0">
+              <p className="text-xs text-muted-foreground">Temporada {activeYear}</p>
+              <p className="text-sm font-display font-bold text-primary truncate">Campeão: {championDisplayName}</p>
+            </div>
+          </div>
+          <div className="w-9 h-9 flex items-center justify-center shrink-0">
+            {championDisplayLogo ? (
+              <img src={championDisplayLogo} alt={`Escudo do campeão ${championDisplayName}`} className="w-9 h-9 object-contain" />
+            ) : (
+              <Shield className="w-4 h-4 text-muted-foreground" />
+            )}
+          </div>
+        </div>
+      )}
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
         <div className="flex items-center justify-between gap-4 flex-wrap">

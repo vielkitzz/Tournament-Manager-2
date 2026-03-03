@@ -127,7 +127,7 @@ export const DEFAULT_SETTINGS: TournamentSettings = {
   rateInfluence: true,
   promotions: [],
   knockoutLegMode: "single",
-  finalSingleLeg: true,
+  finalSingleLeg: false,
   thirdPlaceMatch: false,
   bestOfQualifiers: 0,
   bestOfPosition: 3,

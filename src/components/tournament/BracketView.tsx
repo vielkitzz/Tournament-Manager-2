@@ -3,7 +3,7 @@ import { Match, Team, Tournament, KnockoutStage, STAGE_TEAM_COUNTS } from "@/typ
 import { cn } from "@/lib/utils";
 import { Shield, Play, Zap, Trophy, Medal, UserPlus, Shuffle, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { simulateFullMatch } from "@/lib/simulation";
+import { simulateFullMatch, simulateHalf } from "@/lib/simulation";
 import MatchPopup from "./MatchPopup";
 import BracketTeamEditor from "./BracketTeamEditor";
 
@@ -78,7 +78,7 @@ export default function BracketView({
   const getTeam = (id: string) => teams.find((t) => t.id === id);
 
   const legMode = tournament.settings.knockoutLegMode || "single";
-  const finalSingleLeg = tournament.settings.finalSingleLeg ?? true;
+  const finalSingleLeg = tournament.settings.finalSingleLeg ?? false;
   const thirdPlaceMatch = tournament.settings.thirdPlaceMatch ?? false;
   const awayGoalsRule = tournament.settings.awayGoalsRule ?? false;
 
@@ -200,39 +200,65 @@ export default function BracketView({
     const result = simulateFullMatch(homeRate, awayRate);
     let homeScore = result.total[0];
     let awayScore = result.total[1];
+    let homeExtraTime: number | undefined;
+    let awayExtraTime: number | undefined;
     let homePenalties: number | undefined;
     let awayPenalties: number | undefined;
 
-    const agg = getAggregate(leg1, { ...leg2, homeScore, awayScore });
-    const isTied = agg.home === agg.away;
-    
-    if (isTied) {
-      // Check away goals rule: leg1 away goals = awayTeamId's goals scored away (leg1.awayScore)
-      // leg2 away goals = homeTeamId's goals scored away (leg2.awayScore which we just simulated)
-      if (awayGoalsRule) {
-        const homeTeamAwayGoals = awayScore; // homeTeamId scored these as away in leg2
-        const awayTeamAwayGoals = (leg1.awayScore || 0); // awayTeamId scored these as away in leg1
-        // If away goals break the tie, no penalties needed
-        if (homeTeamAwayGoals !== awayTeamAwayGoals) {
-          // Away goals rule decides - no penalties
+    const generatePenalties = () => {
+      const homePens = Math.floor(Math.random() * 3) + 3;
+      let awayPens = homePens + (Math.random() > 0.5 ? 1 : -1);
+      if (awayPens < 0) awayPens = homePens + 1;
+      return { homePenalties: homePens, awayPenalties: awayPens };
+    };
+
+    const regularAggregate = getAggregate(leg1, { ...leg2, homeScore, awayScore });
+    const regularTied = regularAggregate.home === regularAggregate.away;
+
+    if (regularTied) {
+      const homeTeamAwayGoalsRegular = awayScore;
+      const awayTeamAwayGoals = (leg1.awayScore || 0) + (leg1.awayExtraTime || 0);
+      const awayGoalsDecidesRegular = awayGoalsRule && homeTeamAwayGoalsRegular !== awayTeamAwayGoals;
+
+      if (!awayGoalsDecidesRegular) {
+        if (tournament.settings.extraTime) {
+          const et1 = simulateHalf(homeRate, awayRate);
+          const et2 = simulateHalf(homeRate, awayRate);
+          homeExtraTime = et1[0] + et2[0];
+          awayExtraTime = et1[1] + et2[1];
+
+          const extraAggregate = getAggregate(leg1, {
+            ...leg2,
+            homeScore,
+            awayScore,
+            homeExtraTime,
+            awayExtraTime,
+          });
+
+          const extraTied = extraAggregate.home === extraAggregate.away;
+          const homeTeamAwayGoalsAfterExtra = awayScore + (awayExtraTime || 0);
+          const awayGoalsDecidesAfterExtra =
+            awayGoalsRule && homeTeamAwayGoalsAfterExtra !== awayTeamAwayGoals;
+
+          if (extraTied && !awayGoalsDecidesAfterExtra) {
+            const pens = generatePenalties();
+            homePenalties = pens.homePenalties;
+            awayPenalties = pens.awayPenalties;
+          }
         } else {
-          // Away goals also tied - penalties
-          homePenalties = Math.floor(Math.random() * 3) + 3;
-          awayPenalties = homePenalties + (Math.random() > 0.5 ? 1 : -1);
-          if (awayPenalties < 0) awayPenalties = homePenalties + 1;
+          const pens = generatePenalties();
+          homePenalties = pens.homePenalties;
+          awayPenalties = pens.awayPenalties;
         }
-      } else {
-        // No away goals rule - straight to penalties
-        homePenalties = Math.floor(Math.random() * 3) + 3;
-        awayPenalties = homePenalties + (Math.random() > 0.5 ? 1 : -1);
-        if (awayPenalties < 0) awayPenalties = homePenalties + 1;
       }
     }
+
     return {
       ...leg2,
       homeScore,
       awayScore,
       played: true,
+      ...(homeExtraTime !== undefined && { homeExtraTime, awayExtraTime }),
       ...(homePenalties !== undefined && { homePenalties, awayPenalties }),
     };
   };
@@ -402,14 +428,24 @@ export default function BracketView({
             )}
           </button>
         )}
-        {winner && (
-          <div className="px-2 py-0.5 bg-primary/10 border-t border-primary/20">
-            <span className="text-[9px] text-primary font-bold">
-              ✓ {getTeam(winner)?.abbreviation || "—"}
-            </span>
-          </div>
-        )}
       </div>
+    );
+  };
+
+  const renderThirdPlaceMatch = (match: Match) => {
+    const winner = getSingleMatchWinner(match);
+    const home = getTeam(match.homeTeamId);
+    const away = getTeam(match.awayTeamId);
+
+    return (
+      <button
+        key={match.id}
+        onClick={() => setSelectedMatch(match)}
+        className="w-[180px] rounded-lg bg-secondary/30 border border-warning/30 hover:border-warning/60 transition-all text-left overflow-hidden"
+      >
+        <TeamRow team={home} score={match.played ? match.homeScore : undefined} isWinner={winner === match.homeTeamId} borderBottom onEditTeam={() => setEditingTeam({ match, side: "home" })} />
+        <TeamRow team={away} score={match.played ? match.awayScore : undefined} isWinner={winner === match.awayTeamId} onEditTeam={() => setEditingTeam({ match, side: "away" })} />
+      </button>
     );
   };
 
@@ -464,6 +500,27 @@ export default function BracketView({
                   ) : (
                     pairs.map((pair, i) => renderPair(pair, i))
                   )}
+
+                  {isFinal && thirdPlaceMatches.length > 0 && (
+                    <div className="pt-2 mt-1 border-t border-border/40 w-[180px]">
+                      <div className="flex items-center gap-1.5 mb-1.5">
+                        <Medal className="w-3.5 h-3.5 text-warning" />
+                        <span className="text-[10px] font-bold text-foreground">3º Lugar</span>
+                        {thirdPlaceMatches.some((m) => !m.played) && (
+                          <button
+                            onClick={handleSimulateThirdPlace}
+                            className="ml-auto flex items-center gap-1 px-1.5 py-0.5 rounded bg-primary/10 text-primary hover:bg-primary/20 text-[9px] font-bold transition-colors"
+                          >
+                            <Zap className="w-2 h-2" />
+                            Simular
+                          </button>
+                        )}
+                      </div>
+                      <div className="flex flex-col gap-2">
+                        {thirdPlaceMatches.map(renderThirdPlaceMatch)}
+                      </div>
+                    </div>
+                  )}
                 </div>
               </div>
             );
@@ -496,40 +553,6 @@ export default function BracketView({
         </div>
       </div>
 
-      {thirdPlaceMatches.length > 0 && (
-        <div className="border-t border-border pt-4">
-          <div className="flex items-center gap-2 mb-2">
-            <Medal className="w-4 h-4 text-warning" />
-            <span className="text-xs font-bold text-foreground">Disputa de 3º Lugar</span>
-            {thirdPlaceMatches.some((m) => !m.played) && (
-              <button
-                onClick={handleSimulateThirdPlace}
-                className="flex items-center gap-1 px-2 py-0.5 rounded-md bg-primary/10 text-primary hover:bg-primary/20 text-[10px] font-bold transition-colors"
-              >
-                <Zap className="w-2.5 h-2.5" />
-                Simular
-              </button>
-            )}
-          </div>
-          <div className="flex gap-2 flex-wrap">
-            {thirdPlaceMatches.map((match) => {
-              const w = getSingleMatchWinner(match);
-              const home = getTeam(match.homeTeamId);
-              const away = getTeam(match.awayTeamId);
-              return (
-                <button
-                  key={match.id}
-                  onClick={() => setSelectedMatch(match)}
-                  className="w-[180px] rounded-lg bg-secondary/30 border border-warning/30 hover:border-warning/60 transition-all text-left overflow-hidden"
-                >
-                  <TeamRow team={home} score={match.played ? match.homeScore : undefined} isWinner={w === match.homeTeamId} borderBottom onEditTeam={() => setEditingTeam({ match, side: "home" })} />
-                  <TeamRow team={away} score={match.played ? match.awayScore : undefined} isWinner={w === match.awayTeamId} onEditTeam={() => setEditingTeam({ match, side: "away" })} />
-                </button>
-              );
-            })}
-          </div>
-        </div>
-      )}
 
       {allFinalResolved && !tournament.finalized && onFinalize && (
         <div className="flex items-center justify-center gap-3 p-3 rounded-xl bg-primary/5 border border-primary/20">
@@ -542,26 +565,6 @@ export default function BracketView({
         </div>
       )}
 
-      {tournament.finalized && (() => {
-        const champion = finalPairs.length > 0 ? getTieResult(finalPairs[0]) : null;
-        const championTeam = champion ? teams.find((t) => t.id === champion) : null;
-        return (
-          <div className="flex items-center justify-center gap-3 p-4 rounded-xl bg-primary/5 border border-primary/20">
-            <Trophy className="w-5 h-5 text-primary" />
-            <div className="text-center">
-              <p className="text-xs text-muted-foreground">Temporada {tournament.year} finalizada</p>
-              {championTeam && (
-                <p className="text-sm font-bold text-primary">
-                  🏆 Campeão: {championTeam.name}
-                </p>
-              )}
-            </div>
-            {championTeam?.logo && (
-              <img src={championTeam.logo} alt="" className="w-8 h-8 object-contain" />
-            )}
-          </div>
-        );
-      })()}
 
       {selectedMatch && (
         <MatchPopup

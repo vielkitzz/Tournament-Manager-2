@@ -33,10 +33,15 @@ export default function MatchPopup({
   onCancel,
 }: MatchPopupProps) {
   const isKnockoutFormat = match.stage === "knockout" || tournament?.format === "mata-mata";
-  // Leg1 of a home-away pair should NOT trigger penalties/extra time - only leg2 or single matches
+  // Leg1 of a home-away pair should NOT trigger extra time/penalties - only leg2 or single matches
   const isLeg1OfPair = !!(match.pairId && match.leg === 1);
+  const pairLeg1 = match.pairId
+    ? tournament?.matches.find((m) => m.pairId === match.pairId && m.leg === 1 && m.id !== match.id)
+    : undefined;
+  const isLeg2OfPair = !!(match.pairId && match.leg === 2 && pairLeg1);
   const isKnockout = isKnockoutFormat && !isLeg1OfPair;
   const extraTimeEnabled = tournament?.settings.extraTime ?? false;
+  const awayGoalsRule = tournament?.settings.awayGoalsRule ?? false;
 
   const [scores, setScores] = useState<Record<HalfKey, [number, number]>>({
     h1: [0, 0],
@@ -69,6 +74,43 @@ export default function MatchPopup({
   const totalHome = regularHome + (showExtraTime ? etHome : 0);
   const totalAway = regularAway + (showExtraTime ? etAway : 0);
 
+  const getTwoLegTieContext = (includeExtraTime: boolean) => {
+    if (!pairLeg1) return null;
+
+    const leg1HomeTotal = (pairLeg1.homeScore || 0) + (pairLeg1.homeExtraTime || 0);
+    const leg1AwayTotal = (pairLeg1.awayScore || 0) + (pairLeg1.awayExtraTime || 0);
+    const leg2HomeTotal = regularHome + (includeExtraTime ? etHome : 0);
+    const leg2AwayTotal = regularAway + (includeExtraTime ? etAway : 0);
+
+    const aggregateHome = leg1HomeTotal + leg2AwayTotal;
+    const aggregateAway = leg1AwayTotal + leg2HomeTotal;
+    const awayGoalsHome = leg2AwayTotal;
+    const awayGoalsAway = leg1AwayTotal;
+    const awayGoalsBreakTie = awayGoalsRule && awayGoalsHome !== awayGoalsAway;
+
+    return {
+      aggregateHome,
+      aggregateAway,
+      isAggregateTied: aggregateHome === aggregateAway,
+      awayGoalsBreakTie,
+    };
+  };
+
+  const regularTieContext = isLeg2OfPair ? getTwoLegTieContext(false) : null;
+  const extraTimeTieContext = isLeg2OfPair ? getTwoLegTieContext(true) : null;
+
+  const requiresDeciderAfterRegular = isKnockout
+    ? isLeg2OfPair
+      ? !!regularTieContext && regularTieContext.isAggregateTied && !regularTieContext.awayGoalsBreakTie
+      : regularHome === regularAway
+    : false;
+
+  const requiresPenaltiesAfterExtraTime = isKnockout
+    ? isLeg2OfPair
+      ? !!extraTimeTieContext && extraTimeTieContext.isAggregateTied && !extraTimeTieContext.awayGoalsBreakTie
+      : totalHome === totalAway
+    : false;
+
   const [simulatedHalves, setSimulatedHalves] = useState<Set<HalfKey>>(new Set());
 
   // Bug fix #10: Pre-load existing scores when opening a played match for editing
@@ -82,11 +124,11 @@ export default function MatchPopup({
         et1: [match.homeExtraTime ? match.homeExtraTime : 0, match.awayExtraTime ? match.awayExtraTime : 0],
         et2: [0, 0],
       });
-      if (match.homeExtraTime !== undefined || match.awayExtraTime !== undefined) {
+      if (isKnockout && (match.homeExtraTime !== undefined || match.awayExtraTime !== undefined)) {
         setShowExtraTime(true);
         setActiveHalf("et1");
       }
-      if (match.homePenalties !== undefined && match.awayPenalties !== undefined) {
+      if (isKnockout && match.homePenalties !== undefined && match.awayPenalties !== undefined) {
         setShowPenalties(true);
         const homeKicks = Array.from({ length: match.homePenalties + (match.awayPenalties - match.homePenalties > 0 ? 1 : 0) }, (_, i) => i < match.homePenalties);
         const awayKicks = Array.from({ length: match.awayPenalties + (match.homePenalties - match.awayPenalties > 0 ? 1 : 0) }, (_, i) => i < match.awayPenalties);
@@ -103,7 +145,7 @@ export default function MatchPopup({
   useEffect(() => {
     if (!isKnockout) return;
     if (!simulatedHalves.has("h2")) return;
-    if (regularHome !== regularAway) return;
+    if (!requiresDeciderAfterRegular) return;
 
     if (extraTimeEnabled && !showExtraTime) {
       setShowExtraTime(true);
@@ -111,17 +153,36 @@ export default function MatchPopup({
     } else if (!extraTimeEnabled && !showPenalties) {
       setShowPenalties(true);
     }
-  }, [simulatedHalves, regularHome, regularAway, isKnockout, extraTimeEnabled, showExtraTime, showPenalties]);
+  }, [simulatedHalves, isKnockout, requiresDeciderAfterRegular, extraTimeEnabled, showExtraTime, showPenalties]);
 
   // After et2 is simulated in knockout: auto trigger penalties if still drawn
   useEffect(() => {
     if (!isKnockout || !showExtraTime) return;
     if (!simulatedHalves.has("et2")) return;
-    if (totalHome !== totalAway) return;
+    if (!requiresPenaltiesAfterExtraTime) return;
     if (!showPenalties) {
       setShowPenalties(true);
     }
-  }, [simulatedHalves, totalHome, totalAway, isKnockout, showExtraTime, showPenalties]);
+  }, [simulatedHalves, isKnockout, showExtraTime, requiresPenaltiesAfterExtraTime, showPenalties]);
+
+  useEffect(() => {
+    if (!isKnockout) return;
+    if (requiresDeciderAfterRegular) return;
+
+    if (showExtraTime) {
+      setShowExtraTime(false);
+      if (activeHalf === "et1" || activeHalf === "et2") {
+        setActiveHalf("h2");
+      }
+    }
+
+    if (showPenalties) {
+      setShowPenalties(false);
+      setPenalties({ home: [], away: [] });
+      setPenaltyIndex(0);
+      setPenaltyFinished(false);
+    }
+  }, [isKnockout, requiresDeciderAfterRegular, showExtraTime, showPenalties, activeHalf]);
 
   // Accumulated scores up to and including the active half (visual only)
   const halvesOrder: HalfKey[] = ["h1", "h2", "et1", "et2"];
@@ -204,6 +265,24 @@ export default function MatchPopup({
   };
 
   const handleFinish = () => {
+    if (isKnockout && requiresDeciderAfterRegular) {
+      if (extraTimeEnabled && !showExtraTime) {
+        setShowExtraTime(true);
+        setActiveHalf("et1");
+        return;
+      }
+
+      const penaltiesNeeded = showExtraTime ? requiresPenaltiesAfterExtraTime : !extraTimeEnabled;
+      if (penaltiesNeeded && !showPenalties) {
+        setShowPenalties(true);
+        return;
+      }
+    }
+
+    if (showPenalties && penaltyScore("home") === penaltyScore("away")) {
+      return;
+    }
+
     onSave({
       ...match,
       homeScore: regularHome,
