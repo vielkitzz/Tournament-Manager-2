@@ -32,7 +32,10 @@ export default function MatchPopup({
   onSave,
   onCancel,
 }: MatchPopupProps) {
-  const isKnockout = match.stage === "knockout" || tournament?.format === "mata-mata";
+  const isKnockoutFormat = match.stage === "knockout" || tournament?.format === "mata-mata";
+  // Leg1 of a home-away pair should NOT trigger penalties/extra time - only leg2 or single matches
+  const isLeg1OfPair = !!(match.pairId && match.leg === 1);
+  const isKnockout = isKnockoutFormat && !isLeg1OfPair;
   const extraTimeEnabled = tournament?.settings.extraTime ?? false;
 
   const [scores, setScores] = useState<Record<HalfKey, [number, number]>>({
