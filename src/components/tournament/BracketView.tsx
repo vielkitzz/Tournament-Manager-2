@@ -585,12 +585,10 @@ export default function BracketView({
           allTeams={teams}
           side={editingTeam.side}
           onUpdate={(updated) => {
-            onUpdateMatch(updated);
-            // Propagate team changes to paired leg
+            // Propagate team changes to paired leg and batch both updates
             if (updated.pairId) {
               const paired = matches.find((m) => m.pairId === updated.pairId && m.id !== updated.id);
-              if (paired) {
-                // Leg2 has reversed home/away relative to leg1
+              if (paired && onBatchUpdateMatches) {
                 const pairedUpdated = {
                   ...paired,
                   homeTeamId: updated.awayTeamId,
@@ -603,9 +601,17 @@ export default function BracketView({
                   homeExtraTime: undefined,
                   awayExtraTime: undefined,
                 };
-                onUpdateMatch(pairedUpdated);
+                // Batch both updates in a single call to avoid stale state
+                const newMatches = matches.map((m) => {
+                  if (m.id === updated.id) return updated;
+                  if (m.id === pairedUpdated.id) return pairedUpdated;
+                  return m;
+                });
+                onBatchUpdateMatches(newMatches);
+                return;
               }
             }
+            onUpdateMatch(updated);
           }}
           onClose={() => setEditingTeam(null)}
         />
