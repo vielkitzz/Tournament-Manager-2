@@ -815,8 +815,28 @@ export default function TournamentDetailPage() {
         {(isMataMata || isGrupos) && (
           <TabsContent value="bracket" className="mt-0 outline-none">
             <div className="space-y-6">
-              {(isMataMata || isGrupos) && (
+           {(isMataMata || isGrupos) && (
                 <div className="space-y-4">
+                  {isGrupos && !tournament.groupsFinalized && groupMatches.length > 0 && (
+                    <GroupQualificationView
+                      groupCount={groupCount}
+                      standingsByGroup={standingsByGroup}
+                      totalKnockoutTeams={qualifiersPerGroup}
+                      allGroupMatchesPlayed={allGroupMatchesPlayed}
+                      confirmedTeamIds={tournament.settings.qualifiedTeamIds}
+                      onConfirm={handleConfirmQualifiers}
+                    />
+                  )}
+                  {isGrupos && tournament.groupsFinalized && knockoutMatches.length === 0 && (
+                    <GroupQualificationView
+                      groupCount={groupCount}
+                      standingsByGroup={standingsByGroup}
+                      totalKnockoutTeams={qualifiersPerGroup}
+                      allGroupMatchesPlayed={allGroupMatchesPlayed}
+                      confirmedTeamIds={tournament.settings.qualifiedTeamIds}
+                      onConfirm={handleConfirmQualifiers}
+                    />
+                  )}
                   {(isMataMata || isGrupos) && !tournament.finalized && tournament.teamIds.length >= 2 && (
                     <div className="flex justify-end">
                       <Button onClick={() => autoGenerate()} size="sm" variant="outline" className="gap-1.5">
