@@ -38,7 +38,7 @@ export default function TournamentSettingsPage() {
     bestOfPosition: 3,
     bestOfQualifiers: 0,
     knockoutLegMode: "home-away" as const,
-    finalSingleLeg: true,
+    finalSingleLeg: false,
     thirdPlaceMatch: false,
     awayGoalsRule: false,
     extraTime: false,
@@ -271,7 +271,7 @@ export default function TournamentSettingsPage() {
                     <p className="text-xs text-muted-foreground">Mesmo com ida/volta nas demais fases</p>
                   </div>
                   <Switch
-                    checked={settings.finalSingleLeg ?? true}
+                    checked={settings.finalSingleLeg ?? false}
                     onCheckedChange={(v) => updateTournament(tournament.id, { settings: { ...settings, finalSingleLeg: v } })}
                   />
                 </div>
