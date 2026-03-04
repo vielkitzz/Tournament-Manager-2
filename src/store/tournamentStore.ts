@@ -347,14 +347,4 @@ export const useTournamentStore = create<TournamentState>((set, get) => ({
   },
 }));
     if (parentId === folderId) return;
-    const { folders } = get();
-    let current = parentId;
-    while (current) {
-      if (current === folderId) return;
-      const parent = folders.find((f) => f.id === current);
-      current = parent?.parentId || null;
-    }
-    set((s) => ({ folders: s.folders.map((f) => (f.id === folderId ? { ...f, parentId } : f)) }));
-    await db.from("team_folders").update({ parent_id: parentId }).eq("id", folderId).eq("user_id", userId);
-  },
 }));
