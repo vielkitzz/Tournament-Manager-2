@@ -346,5 +346,3 @@ export const useTournamentStore = create<TournamentState>((set, get) => ({
     return get().teamHistories.filter((h) => h.teamId === teamId);
   },
 }));
-    if (parentId === folderId) return;
-}));
