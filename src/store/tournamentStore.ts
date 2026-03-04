@@ -2,6 +2,7 @@ import { create } from "zustand";
 import { Tournament, Team, TeamFolder, TournamentSettings, Match, SeasonRecord } from "@/types/tournament";
 import { supabase } from "@/integrations/supabase/client";
 import { Json } from "@/integrations/supabase/types";
+import { TeamHistory } from "@/lib/teamHistoryUtils";
 
 // Use any-typed client to avoid strict type errors from generated types
 const db = supabase as any;
@@ -123,6 +124,7 @@ interface TournamentState {
   tournaments: Tournament[];
   teams: Team[];
   folders: TeamFolder[];
+  teamHistories: TeamHistory[];
   loading: boolean;
   _userId: string | null;
 
@@ -139,31 +141,46 @@ interface TournamentState {
   removeFolder: (id: string) => Promise<void>;
   moveTeamToFolder: (teamId: string, folderId: string | null) => Promise<void>;
   moveFolderToFolder: (folderId: string, parentId: string | null) => Promise<void>;
+  // Team histories
+  addTeamHistory: (history: TeamHistory) => Promise<void>;
+  updateTeamHistory: (id: string, updates: Partial<TeamHistory>) => Promise<void>;
+  removeTeamHistory: (id: string) => Promise<void>;
+  getTeamHistories: (teamId: string) => TeamHistory[];
 }
 
 export const useTournamentStore = create<TournamentState>((set, get) => ({
   tournaments: [],
   teams: [],
   folders: [],
+  teamHistories: [],
   loading: true,
   _userId: null,
 
   initialize: async (userId) => {
     if (!userId) {
-      set({ tournaments: [], teams: [], folders: [], loading: false, _userId: null });
+      set({ tournaments: [], teams: [], folders: [], teamHistories: [], loading: false, _userId: null });
       return;
     }
-    if (userId === get()._userId && !get().loading) return; // already loaded
+    if (userId === get()._userId && !get().loading) return;
     set({ loading: true, _userId: userId });
-    const [tRes, teRes, fRes] = await Promise.all([
+    const [tRes, teRes, fRes, hRes] = await Promise.all([
       db.from("tournaments").select("*").eq("user_id", userId),
       db.from("teams").select("*").eq("user_id", userId),
       db.from("team_folders").select("*").eq("user_id", userId),
+      db.from("team_histories").select("*").eq("user_id", userId),
     ]) as any[];
     set({
       tournaments: tRes.data ? tRes.data.map(dbToTournament) : [],
       teams: teRes.data ? teRes.data.map(dbToTeam) : [],
       folders: fRes.data ? fRes.data.map((f: any) => ({ id: f.id, name: f.name, parentId: f.parent_id || null })) : [],
+      teamHistories: hRes.data ? hRes.data.map((h: any) => ({
+        id: h.id,
+        teamId: h.team_id,
+        startYear: h.start_year,
+        endYear: h.end_year,
+        logo: h.logo || undefined,
+        rating: h.rating ?? 0,
+      })) : [],
       loading: false,
     });
   },
@@ -279,5 +296,53 @@ export const useTournamentStore = create<TournamentState>((set, get) => ({
     }
     set((s) => ({ folders: s.folders.map((f) => (f.id === folderId ? { ...f, parentId } : f)) }));
     await db.from("team_folders").update({ parent_id: parentId }).eq("id", folderId).eq("user_id", userId);
+  },
+
+  // Team Histories
+  addTeamHistory: async (history) => {
+    const userId = get()._userId;
+    if (!userId) return;
+    const { data } = await db.from("team_histories").insert({
+      id: history.id,
+      team_id: history.teamId,
+      user_id: userId,
+      start_year: history.startYear,
+      end_year: history.endYear,
+      logo: history.logo || null,
+      rating: history.rating,
+    }).select().single();
+    if (data) {
+      set((s) => ({ teamHistories: [...s.teamHistories, {
+        id: data.id,
+        teamId: data.team_id,
+        startYear: data.start_year,
+        endYear: data.end_year,
+        logo: data.logo || undefined,
+        rating: data.rating ?? 0,
+      }] }));
+    }
+  },
+
+  updateTeamHistory: async (id, updates) => {
+    const userId = get()._userId;
+    if (!userId) return;
+    const dbUpdates: any = {};
+    if (updates.startYear !== undefined) dbUpdates.start_year = updates.startYear;
+    if (updates.endYear !== undefined) dbUpdates.end_year = updates.endYear;
+    if (updates.logo !== undefined) dbUpdates.logo = updates.logo || null;
+    if (updates.rating !== undefined) dbUpdates.rating = updates.rating;
+    set((s) => ({ teamHistories: s.teamHistories.map((h) => (h.id === id ? { ...h, ...updates } : h)) }));
+    await db.from("team_histories").update(dbUpdates).eq("id", id).eq("user_id", userId);
+  },
+
+  removeTeamHistory: async (id) => {
+    const userId = get()._userId;
+    if (!userId) return;
+    set((s) => ({ teamHistories: s.teamHistories.filter((h) => h.id !== id) }));
+    await db.from("team_histories").delete().eq("id", id).eq("user_id", userId);
+  },
+
+  getTeamHistories: (teamId) => {
+    return get().teamHistories.filter((h) => h.teamId === teamId);
   },
 }));

@@ -9,7 +9,8 @@ import { useTournamentStore } from "@/store/tournamentStore";
 import { toast } from "sonner";
 import { processImage, revokeImagePreview } from "@/lib/imageUtils";
 import { uploadLogo } from "@/lib/storageUtils";
-import { supabase } from "@/integrations/supabase/client"; // Importe o cliente do Supabase
+import { supabase } from "@/integrations/supabase/client";
+import TeamHistoryEditor from "@/components/TeamHistoryEditor";
 
 // Função auxiliar para extrair o caminho correto do arquivo na nuvem a partir da URL pública
 const extractFilePathFromUrl = (url: string, bucketName: string) => {
@@ -354,6 +355,13 @@ export default function CreateTeamPage() {
             )}
           </Button>
         </form>
+
+        {/* Historical Versions - Only show when editing */}
+        {editId && existingTeam && (
+          <div className="mt-8 pt-6 border-t border-border">
+            <TeamHistoryEditor teamId={editId} />
+          </div>
+        )}
       </motion.div>
     </div>
   );

@@ -18,6 +18,7 @@ import {
   Shuffle,
 } from "lucide-react";
 import { useTournamentStore } from "@/store/tournamentStore";
+import { resolveTeam } from "@/lib/teamHistoryUtils";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
@@ -53,8 +54,12 @@ const formatLabels: Record<string, string> = {
 export default function TournamentDetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const { tournaments, teams, updateTournament, removeTournament } = useTournamentStore();
+  const { tournaments, teams, updateTournament, removeTournament, teamHistories } = useTournamentStore();
   const tournament = tournaments.find((t) => t.id === id);
+
+  // Resolve teams with historical logo/rate for the tournament year
+  const tournamentYear = tournament?.year;
+  const resolvedTeams = teams.map((t) => resolveTeam(t, tournamentYear, teamHistories));
 
   const [activeTab, setActiveTab] = useState(tournament?.format === "mata-mata" ? "bracket" : "standings");
   const [viewingYear, setViewingYear] = useState<number | null>(null);
@@ -89,7 +94,7 @@ export default function TournamentDetailPage() {
       ? seasonRecordForYear
       : null;
   const championTeam = championRecord?.championId
-    ? teams.find((t) => t.id === championRecord.championId)
+    ? resolvedTeams.find((t) => t.id === championRecord.championId)
     : null;
   const championDisplayName = championRecord?.championName || championTeam?.name;
   const championDisplayLogo = championRecord?.championLogo || championTeam?.logo;
@@ -145,13 +150,13 @@ export default function TournamentDetailPage() {
       const gTeamIds = assignedTeams.length > 0
         ? assignedTeams
         : [...new Set(gMatches.flatMap((m) => [m.homeTeamId, m.awayTeamId]))];
-      standingsByGroup[g] = calculateStandings(gTeamIds, gMatches, settings, teams);
+      standingsByGroup[g] = calculateStandings(gTeamIds, gMatches, settings, resolvedTeams);
     }
   }
 
   const standings = isGrupos
     ? Object.values(standingsByGroup).flat()
-    : calculateStandings(tournament.teamIds, tournament.matches || [], settings, teams);
+    : calculateStandings(tournament.teamIds, tournament.matches || [], settings, resolvedTeams);
 
   const allGroupMatchesPlayed = isGrupos && groupMatches.length > 0 && groupMatches.every((m) => m.played);
 
@@ -331,7 +336,7 @@ export default function TournamentDetailPage() {
           }
           
           if (winnerId) {
-            const winnerTeam = teams.find(t => t.id === winnerId);
+            const winnerTeam = resolvedTeams.find(t => t.id === winnerId);
             if (winnerTeam) {
               championTeamId = winnerTeam.id;
               championName = winnerTeam.name;
@@ -448,8 +453,8 @@ export default function TournamentDetailPage() {
       const turnos = tournament.gruposTurnos || 1;
       const teamIds = [...tournament.teamIds];
       const sortedTeamIds = [...teamIds].sort((a, b) => {
-        const teamA = teams.find((t) => t.id === a);
-        const teamB = teams.find((t) => t.id === b);
+        const teamA = resolvedTeams.find((t) => t.id === a);
+        const teamB = resolvedTeams.find((t) => t.id === b);
         return (teamB?.rate || 5) - (teamA?.rate || 5);
       });
       const groups: string[][] = Array.from({ length: groupCount }, () => []);
@@ -756,7 +761,7 @@ export default function TournamentDetailPage() {
                               />
                               <div className="max-h-[200px] overflow-y-auto space-y-0.5">
                                 {unassignedTeamIds
-                                  .map((tid) => teams.find((t) => t.id === tid))
+                                  .map((tid) => resolvedTeams.find((t) => t.id === tid))
                                   .filter((t): t is NonNullable<typeof t> => !!t)
                                   .filter((t) => !groupTeamSearch || t.name.toLowerCase().includes(groupTeamSearch.toLowerCase()) || t.abbreviation?.toLowerCase().includes(groupTeamSearch.toLowerCase()))
                                   .map((team) => (
@@ -822,7 +827,7 @@ export default function TournamentDetailPage() {
           <div className="space-y-4">
             <RoundsView
               tournament={isViewingPastSeason ? { ...tournament, matches: seasonData?.matches || [] } : groupTournament}
-              teams={teams}
+              teams={resolvedTeams}
               onUpdateMatch={(updated) => {
                 const newMatches = (tournament.matches || []).map((m) => (m.id === updated.id ? updated : m));
                 updateTournament(tournament.id, { matches: newMatches });
@@ -880,7 +885,7 @@ export default function TournamentDetailPage() {
                   )}
                   <BracketView
                     tournament={isViewingPastSeason ? { ...tournament, matches: seasonData?.matches || [] } : knockoutTournament}
-                    teams={teams}
+                    teams={resolvedTeams}
                     onUpdateMatch={(updated) => {
                       const newMatches = (tournament.matches || []).map((m) => (m.id === updated.id ? updated : m));
                       updateTournament(tournament.id, { matches: newMatches });
@@ -912,7 +917,7 @@ export default function TournamentDetailPage() {
         <TabsContent value="stats" className="mt-0 outline-none">
           <StatsView
             tournament={isViewingPastSeason ? { ...tournament, matches: seasonData?.matches || [] } : tournament}
-            teams={teams}
+            teams={resolvedTeams}
           />
         </TabsContent>
       </Tabs>
@@ -921,7 +926,7 @@ export default function TournamentDetailPage() {
         <GroupDrawDialog
           open={showDrawDialog}
           onOpenChange={setShowDrawDialog}
-          teams={teams}
+          teams={resolvedTeams}
           teamIds={tournament.teamIds}
           groupCount={groupCount}
           onConfirm={handleDrawConfirm}
