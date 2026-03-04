@@ -2,6 +2,7 @@ import { create } from "zustand";
 import { Tournament, Team, TeamFolder, TournamentSettings, Match, SeasonRecord } from "@/types/tournament";
 import { supabase } from "@/integrations/supabase/client";
 import { Json } from "@/integrations/supabase/types";
+import { TeamHistory } from "@/lib/teamHistoryUtils";
 
 // Use any-typed client to avoid strict type errors from generated types
 const db = supabase as any;
@@ -123,6 +124,7 @@ interface TournamentState {
   tournaments: Tournament[];
   teams: Team[];
   folders: TeamFolder[];
+  teamHistories: TeamHistory[];
   loading: boolean;
   _userId: string | null;
 
@@ -139,12 +141,18 @@ interface TournamentState {
   removeFolder: (id: string) => Promise<void>;
   moveTeamToFolder: (teamId: string, folderId: string | null) => Promise<void>;
   moveFolderToFolder: (folderId: string, parentId: string | null) => Promise<void>;
+  // Team histories
+  addTeamHistory: (history: TeamHistory) => Promise<void>;
+  updateTeamHistory: (id: string, updates: Partial<TeamHistory>) => Promise<void>;
+  removeTeamHistory: (id: string) => Promise<void>;
+  getTeamHistories: (teamId: string) => TeamHistory[];
 }
 
 export const useTournamentStore = create<TournamentState>((set, get) => ({
   tournaments: [],
   teams: [],
   folders: [],
+  teamHistories: [],
   loading: true,
   _userId: null,
 
