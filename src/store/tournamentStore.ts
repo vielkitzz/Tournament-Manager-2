@@ -158,20 +158,29 @@ export const useTournamentStore = create<TournamentState>((set, get) => ({
 
   initialize: async (userId) => {
     if (!userId) {
-      set({ tournaments: [], teams: [], folders: [], loading: false, _userId: null });
+      set({ tournaments: [], teams: [], folders: [], teamHistories: [], loading: false, _userId: null });
       return;
     }
-    if (userId === get()._userId && !get().loading) return; // already loaded
+    if (userId === get()._userId && !get().loading) return;
     set({ loading: true, _userId: userId });
-    const [tRes, teRes, fRes] = await Promise.all([
+    const [tRes, teRes, fRes, hRes] = await Promise.all([
       db.from("tournaments").select("*").eq("user_id", userId),
       db.from("teams").select("*").eq("user_id", userId),
       db.from("team_folders").select("*").eq("user_id", userId),
+      db.from("team_histories").select("*").eq("user_id", userId),
     ]) as any[];
     set({
       tournaments: tRes.data ? tRes.data.map(dbToTournament) : [],
       teams: teRes.data ? teRes.data.map(dbToTeam) : [],
       folders: fRes.data ? fRes.data.map((f: any) => ({ id: f.id, name: f.name, parentId: f.parent_id || null })) : [],
+      teamHistories: hRes.data ? hRes.data.map((h: any) => ({
+        id: h.id,
+        teamId: h.team_id,
+        startYear: h.start_year,
+        endYear: h.end_year,
+        logo: h.logo || undefined,
+        rating: h.rating ?? 0,
+      })) : [],
       loading: false,
     });
   },
