@@ -354,6 +354,13 @@ export default function CreateTeamPage() {
             )}
           </Button>
         </form>
+
+        {/* Historical Versions - Only show when editing */}
+        {editId && existingTeam && (
+          <div className="mt-8 pt-6 border-t border-border">
+            <TeamHistoryEditor teamId={editId} />
+          </div>
+        )}
       </motion.div>
     </div>
   );
