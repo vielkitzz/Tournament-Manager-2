@@ -94,7 +94,7 @@ export default function TournamentDetailPage() {
       ? seasonRecordForYear
       : null;
   const championTeam = championRecord?.championId
-    ? teams.find((t) => t.id === championRecord.championId)
+    ? resolvedTeams.find((t) => t.id === championRecord.championId)
     : null;
   const championDisplayName = championRecord?.championName || championTeam?.name;
   const championDisplayLogo = championRecord?.championLogo || championTeam?.logo;
@@ -336,7 +336,7 @@ export default function TournamentDetailPage() {
           }
           
           if (winnerId) {
-            const winnerTeam = teams.find(t => t.id === winnerId);
+            const winnerTeam = resolvedTeams.find(t => t.id === winnerId);
             if (winnerTeam) {
               championTeamId = winnerTeam.id;
               championName = winnerTeam.name;
