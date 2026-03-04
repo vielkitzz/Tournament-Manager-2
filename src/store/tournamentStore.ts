@@ -297,4 +297,64 @@ export const useTournamentStore = create<TournamentState>((set, get) => ({
     set((s) => ({ folders: s.folders.map((f) => (f.id === folderId ? { ...f, parentId } : f)) }));
     await db.from("team_folders").update({ parent_id: parentId }).eq("id", folderId).eq("user_id", userId);
   },
+
+  // Team Histories
+  addTeamHistory: async (history) => {
+    const userId = get()._userId;
+    if (!userId) return;
+    const { data } = await db.from("team_histories").insert({
+      id: history.id,
+      team_id: history.teamId,
+      user_id: userId,
+      start_year: history.startYear,
+      end_year: history.endYear,
+      logo: history.logo || null,
+      rating: history.rating,
+    }).select().single();
+    if (data) {
+      set((s) => ({ teamHistories: [...s.teamHistories, {
+        id: data.id,
+        teamId: data.team_id,
+        startYear: data.start_year,
+        endYear: data.end_year,
+        logo: data.logo || undefined,
+        rating: data.rating ?? 0,
+      }] }));
+    }
+  },
+
+  updateTeamHistory: async (id, updates) => {
+    const userId = get()._userId;
+    if (!userId) return;
+    const dbUpdates: any = {};
+    if (updates.startYear !== undefined) dbUpdates.start_year = updates.startYear;
+    if (updates.endYear !== undefined) dbUpdates.end_year = updates.endYear;
+    if (updates.logo !== undefined) dbUpdates.logo = updates.logo || null;
+    if (updates.rating !== undefined) dbUpdates.rating = updates.rating;
+    set((s) => ({ teamHistories: s.teamHistories.map((h) => (h.id === id ? { ...h, ...updates } : h)) }));
+    await db.from("team_histories").update(dbUpdates).eq("id", id).eq("user_id", userId);
+  },
+
+  removeTeamHistory: async (id) => {
+    const userId = get()._userId;
+    if (!userId) return;
+    set((s) => ({ teamHistories: s.teamHistories.filter((h) => h.id !== id) }));
+    await db.from("team_histories").delete().eq("id", id).eq("user_id", userId);
+  },
+
+  getTeamHistories: (teamId) => {
+    return get().teamHistories.filter((h) => h.teamId === teamId);
+  },
+}));
+    if (parentId === folderId) return;
+    const { folders } = get();
+    let current = parentId;
+    while (current) {
+      if (current === folderId) return;
+      const parent = folders.find((f) => f.id === current);
+      current = parent?.parentId || null;
+    }
+    set((s) => ({ folders: s.folders.map((f) => (f.id === folderId ? { ...f, parentId } : f)) }));
+    await db.from("team_folders").update({ parent_id: parentId }).eq("id", folderId).eq("user_id", userId);
+  },
 }));
