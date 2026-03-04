@@ -62,6 +62,39 @@ export type Database = {
         }
         Relationships: []
       }
+      team_histories: {
+        Row: {
+          created_at: string | null
+          end_year: number
+          id: string
+          logo: string | null
+          rating: number | null
+          start_year: number
+          team_id: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          end_year: number
+          id?: string
+          logo?: string | null
+          rating?: number | null
+          start_year: number
+          team_id: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string | null
+          end_year?: number
+          id?: string
+          logo?: string | null
+          rating?: number | null
+          start_year?: number
+          team_id?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       teams: {
         Row: {
           abbreviation: string | null
