@@ -183,7 +183,7 @@ export const useTournamentStore = create<TournamentState>((set, get) => ({
         name: h.name || undefined,
         shortName: h.short_name || undefined,
         abbreviation: h.abbreviation || undefined,
-        colors: parseColors(h.colors),
+        colors: h.colors ? parseColors(h.colors) : undefined,
       })) : [],
       loading: false,
     });
