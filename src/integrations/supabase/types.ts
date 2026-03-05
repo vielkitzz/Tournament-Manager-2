@@ -64,31 +64,43 @@ export type Database = {
       }
       team_histories: {
         Row: {
+          abbreviation: string | null
+          colors: string | null
           created_at: string | null
           end_year: number
           id: string
           logo: string | null
+          name: string | null
           rating: number | null
+          short_name: string | null
           start_year: number
           team_id: string
           user_id: string
         }
         Insert: {
+          abbreviation?: string | null
+          colors?: string | null
           created_at?: string | null
           end_year: number
           id?: string
           logo?: string | null
+          name?: string | null
           rating?: number | null
+          short_name?: string | null
           start_year: number
           team_id: string
           user_id: string
         }
         Update: {
+          abbreviation?: string | null
+          colors?: string | null
           created_at?: string | null
           end_year?: number
           id?: string
           logo?: string | null
+          name?: string | null
           rating?: number | null
+          short_name?: string | null
           start_year?: number
           team_id?: string
           user_id?: string
