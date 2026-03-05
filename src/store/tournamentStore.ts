@@ -179,7 +179,11 @@ export const useTournamentStore = create<TournamentState>((set, get) => ({
         startYear: h.start_year,
         endYear: h.end_year,
         logo: h.logo || undefined,
-        rating: h.rating ?? 0,
+        rating: h.rating != null ? Number(h.rating) : undefined,
+        name: h.name || undefined,
+        shortName: h.short_name || undefined,
+        abbreviation: h.abbreviation || undefined,
+        colors: parseColors(h.colors),
       })) : [],
       loading: false,
     });
@@ -309,7 +313,11 @@ export const useTournamentStore = create<TournamentState>((set, get) => ({
       start_year: history.startYear,
       end_year: history.endYear,
       logo: history.logo || null,
-      rating: history.rating,
+      rating: history.rating != null ? history.rating : null,
+      name: history.name || null,
+      short_name: history.shortName || null,
+      abbreviation: history.abbreviation || null,
+      colors: history.colors?.length ? JSON.stringify(history.colors) : null,
     }).select().single();
     if (data) {
       set((s) => ({ teamHistories: [...s.teamHistories, {
@@ -318,7 +326,11 @@ export const useTournamentStore = create<TournamentState>((set, get) => ({
         startYear: data.start_year,
         endYear: data.end_year,
         logo: data.logo || undefined,
-        rating: data.rating ?? 0,
+        rating: data.rating != null ? Number(data.rating) : undefined,
+        name: data.name || undefined,
+        shortName: data.short_name || undefined,
+        abbreviation: data.abbreviation || undefined,
+        colors: parseColors(data.colors),
       }] }));
     }
   },
@@ -331,6 +343,10 @@ export const useTournamentStore = create<TournamentState>((set, get) => ({
     if (updates.endYear !== undefined) dbUpdates.end_year = updates.endYear;
     if (updates.logo !== undefined) dbUpdates.logo = updates.logo || null;
     if (updates.rating !== undefined) dbUpdates.rating = updates.rating;
+    if (updates.name !== undefined) dbUpdates.name = updates.name || null;
+    if (updates.shortName !== undefined) dbUpdates.short_name = updates.shortName || null;
+    if (updates.abbreviation !== undefined) dbUpdates.abbreviation = updates.abbreviation || null;
+    if (updates.colors !== undefined) dbUpdates.colors = updates.colors?.length ? JSON.stringify(updates.colors) : null;
     set((s) => ({ teamHistories: s.teamHistories.map((h) => (h.id === id ? { ...h, ...updates } : h)) }));
     await db.from("team_histories").update(dbUpdates).eq("id", id).eq("user_id", userId);
   },
