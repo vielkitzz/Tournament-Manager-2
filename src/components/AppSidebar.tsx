@@ -54,7 +54,6 @@ export default function AppSidebar({ onNavigate }: AppSidebarProps) {
       {/* Logo */}
       <div className="px-5 pt-6 pb-6 flex items-center gap-2.5">
         <img src={appLogo} alt="TM2" className="h-8 object-contain" />
-        <span className="font-display text-sm font-bold text-foreground tracking-wide">TM2</span>
       </div>
 
       {/* Navigation */}
