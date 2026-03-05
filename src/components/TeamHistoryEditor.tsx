@@ -1,5 +1,5 @@
 import { useState, useRef } from "react";
-import { Plus, Trash2, Upload, Loader2, ChevronDown, ChevronUp } from "lucide-react";
+import { Plus, Trash2, Upload, Loader2, ChevronDown, ChevronUp, Pencil, X, Check } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -9,96 +9,137 @@ import { useTournamentStore } from "@/store/tournamentStore";
 import { processImage, revokeImagePreview } from "@/lib/imageUtils";
 import { uploadLogo } from "@/lib/storageUtils";
 import { toast } from "sonner";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 interface TeamHistoryEditorProps {
   teamId: string;
 }
+
+interface HistoryFormState {
+  singleYear: boolean;
+  startYear: string;
+  endYear: string;
+  name: string;
+  shortName: string;
+  abbreviation: string;
+  colors: string[];
+  rating: string;
+  logoPreview?: string;
+  pendingBlob: { blob: Blob; filename: string } | null;
+}
+
+const emptyForm = (): HistoryFormState => ({
+  singleYear: false,
+  startYear: "",
+  endYear: "",
+  name: "",
+  shortName: "",
+  abbreviation: "",
+  colors: [],
+  rating: "",
+  logoPreview: undefined,
+  pendingBlob: null,
+});
+
+const historyToForm = (h: TeamHistory): HistoryFormState => ({
+  singleYear: h.startYear === h.endYear,
+  startYear: h.startYear.toString(),
+  endYear: h.endYear.toString(),
+  name: h.name || "",
+  shortName: h.shortName || "",
+  abbreviation: h.abbreviation || "",
+  colors: h.colors ? [...h.colors] : [],
+  rating: h.rating !== undefined && h.rating !== null ? Number(h.rating).toFixed(2) : "",
+  logoPreview: h.logo,
+  pendingBlob: null,
+});
 
 export default function TeamHistoryEditor({ teamId }: TeamHistoryEditorProps) {
   const { teamHistories, addTeamHistory, updateTeamHistory, removeTeamHistory } = useTournamentStore();
   const histories = teamHistories.filter((h) => h.teamId === teamId).sort((a, b) => a.startYear - b.startYear);
 
   const [adding, setAdding] = useState(false);
-  const [singleYear, setSingleYear] = useState(false);
-  const [newStartYear, setNewStartYear] = useState("");
-  const [newEndYear, setNewEndYear] = useState("");
-  const [newName, setNewName] = useState("");
-  const [newShortName, setNewShortName] = useState("");
-  const [newAbbreviation, setNewAbbreviation] = useState("");
-  const [newColors, setNewColors] = useState<string[]>([]);
-  const [newRating, setNewRating] = useState("");
-  const [newLogoPreview, setNewLogoPreview] = useState<string | undefined>();
-  const [newPendingBlob, setNewPendingBlob] = useState<{ blob: Blob; filename: string } | null>(null);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [form, setForm] = useState<HistoryFormState>(emptyForm());
   const [uploading, setUploading] = useState(false);
   const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [deleteId, setDeleteId] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const editFileInputRef = useRef<HTMLInputElement>(null);
+
+  const updateForm = (patch: Partial<HistoryFormState>) => setForm((prev) => ({ ...prev, ...patch }));
 
   const handleLogoSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    if (newLogoPreview?.startsWith("blob:")) revokeImagePreview(newLogoPreview);
+    if (form.logoPreview?.startsWith("blob:")) revokeImagePreview(form.logoPreview);
     try {
       const processed = await processImage(file);
-      setNewLogoPreview(processed.previewUrl);
-      setNewPendingBlob({ blob: processed.blob, filename: processed.filename });
+      updateForm({ logoPreview: processed.previewUrl, pendingBlob: { blob: processed.blob, filename: processed.filename } });
     } catch {
       toast.error("Erro ao processar imagem");
     }
   };
 
   const resetForm = () => {
-    setNewStartYear("");
-    setNewEndYear("");
-    setNewName("");
-    setNewShortName("");
-    setNewAbbreviation("");
-    setNewColors([]);
-    setNewRating("");
-    if (newLogoPreview?.startsWith("blob:")) revokeImagePreview(newLogoPreview);
-    setNewLogoPreview(undefined);
-    setNewPendingBlob(null);
-    setSingleYear(false);
+    if (form.logoPreview?.startsWith("blob:")) revokeImagePreview(form.logoPreview);
+    setForm(emptyForm());
     setAdding(false);
+    setEditingId(null);
   };
 
-  const handleAdd = async () => {
-    const startYear = parseInt(newStartYear);
-    const endYear = singleYear ? startYear : parseInt(newEndYear);
-    if (!startYear || (!singleYear && (!endYear || endYear < startYear))) {
+  const validateForm = (): { startYear: number; endYear: number } | null => {
+    const startYear = parseInt(form.startYear);
+    const endYear = form.singleYear ? startYear : parseInt(form.endYear);
+    if (!startYear || (!form.singleYear && (!endYear || endYear < startYear))) {
       toast.error("Informe um período válido");
-      return;
+      return null;
     }
-
-    // Must have at least one field filled (besides the year)
-    const hasVisual = newName || newShortName || newAbbreviation || newColors.length > 0 || newPendingBlob;
-    const hasRating = newRating.trim() !== "";
+    const hasVisual = form.name || form.shortName || form.abbreviation || form.colors.length > 0 || form.pendingBlob || form.logoPreview;
+    const hasRating = form.rating.trim() !== "";
     if (!hasVisual && !hasRating) {
       toast.error("Preencha ao menos um campo além do período");
-      return;
+      return null;
     }
+    return { startYear, endYear };
+  };
 
+  const uploadLogoIfNeeded = async (): Promise<string | undefined> => {
+    if (form.pendingBlob) {
+      const path = `teams/${teamId}_hist_${Date.now()}.webp`;
+      return await uploadLogo(form.pendingBlob.blob, path);
+    }
+    return form.logoPreview; // keep existing or undefined
+  };
+
+  const buildData = (startYear: number, endYear: number, logoUrl?: string) => ({
+    teamId,
+    startYear,
+    endYear,
+    logo: logoUrl,
+    rating: form.rating.trim() ? Math.min(9.99, Math.max(0.01, parseFloat(form.rating) || 0)) : undefined,
+    name: form.name.trim() || undefined,
+    shortName: form.shortName.trim() || undefined,
+    abbreviation: form.abbreviation.trim() || undefined,
+    colors: form.colors.length > 0 ? form.colors : undefined,
+  });
+
+  const handleAdd = async () => {
+    const period = validateForm();
+    if (!period) return;
     setUploading(true);
-    let logoUrl: string | undefined;
-
     try {
-      if (newPendingBlob) {
-        const path = `teams/${teamId}_hist_${Date.now()}.webp`;
-        logoUrl = await uploadLogo(newPendingBlob.blob, path);
-      }
-
-      await addTeamHistory({
-        id: crypto.randomUUID(),
-        teamId,
-        startYear,
-        endYear,
-        logo: logoUrl,
-        rating: hasRating ? Math.min(9.99, Math.max(0.01, parseFloat(newRating) || 0)) : undefined,
-        name: newName.trim() || undefined,
-        shortName: newShortName.trim() || undefined,
-        abbreviation: newAbbreviation.trim() || undefined,
-        colors: newColors.length > 0 ? newColors : undefined,
-      });
-
+      const logoUrl = await uploadLogoIfNeeded();
+      await addTeamHistory({ id: crypto.randomUUID(), ...buildData(period.startYear, period.endYear, logoUrl) });
       resetForm();
       toast.success("Versão histórica adicionada!");
     } catch {
@@ -108,14 +149,39 @@ export default function TeamHistoryEditor({ teamId }: TeamHistoryEditorProps) {
     }
   };
 
-  const handleRemove = async (id: string) => {
-    await removeTeamHistory(id);
+  const handleEdit = (h: TeamHistory) => {
+    resetForm();
+    setEditingId(h.id);
+    setForm(historyToForm(h));
+    setExpandedId(h.id);
+  };
+
+  const handleSaveEdit = async () => {
+    if (!editingId) return;
+    const period = validateForm();
+    if (!period) return;
+    setUploading(true);
+    try {
+      const logoUrl = await uploadLogoIfNeeded();
+      await updateTeamHistory(editingId, buildData(period.startYear, period.endYear, logoUrl));
+      resetForm();
+      toast.success("Versão histórica atualizada!");
+    } catch {
+      toast.error("Erro ao atualizar versão histórica");
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  const handleConfirmDelete = async () => {
+    if (!deleteId) return;
+    await removeTeamHistory(deleteId);
+    if (editingId === deleteId) resetForm();
+    setDeleteId(null);
     toast.success("Versão histórica removida");
   };
 
-  const formatPeriod = (h: TeamHistory) => {
-    return h.startYear === h.endYear ? `${h.startYear}` : `${h.startYear} – ${h.endYear}`;
-  };
+  const formatPeriod = (h: TeamHistory) => (h.startYear === h.endYear ? `${h.startYear}` : `${h.startYear} – ${h.endYear}`);
 
   const getHistoryDetails = (h: TeamHistory) => {
     const parts: string[] = [];
@@ -125,6 +191,123 @@ export default function TeamHistoryEditor({ teamId }: TeamHistoryEditorProps) {
     if (h.logo) parts.push("Escudo");
     return parts.join(" · ") || "Sem alterações visuais";
   };
+
+  const renderFormFields = (isEdit: boolean) => (
+    <div className="space-y-4">
+      {/* Period */}
+      <div className="space-y-2">
+        <div className="flex items-center justify-between">
+          <Label className="text-xs font-bold text-foreground">Período</Label>
+          <div className="flex items-center gap-2">
+            <span className="text-[10px] text-muted-foreground">Ano único</span>
+            <Switch checked={form.singleYear} onCheckedChange={(v) => { updateForm({ singleYear: v }); if (v) updateForm({ endYear: "" }); }} />
+          </div>
+        </div>
+        <div className={form.singleYear ? "" : "grid grid-cols-2 gap-3"}>
+          <div className="space-y-1">
+            <Label className="text-[10px] text-muted-foreground">{form.singleYear ? "Ano" : "Início"}</Label>
+            <Input type="number" value={form.startYear} onChange={(e) => updateForm({ startYear: e.target.value })} placeholder={form.singleYear ? "1970" : "1968"} className="bg-secondary border-border h-8 text-sm" min={1800} max={2100} />
+          </div>
+          {!form.singleYear && (
+            <div className="space-y-1">
+              <Label className="text-[10px] text-muted-foreground">Fim</Label>
+              <Input type="number" value={form.endYear} onChange={(e) => updateForm({ endYear: e.target.value })} placeholder="1974" className="bg-secondary border-border h-8 text-sm" min={1800} max={2100} />
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Visual section */}
+      <div className="space-y-3 pt-2 border-t border-border">
+        <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Identidade Visual</p>
+
+        {/* Logo */}
+        <div className="space-y-1">
+          <Label className="text-xs text-foreground">Escudo da Época</Label>
+          <div className="flex items-center gap-3">
+            <div
+              onClick={() => (isEdit ? editFileInputRef : fileInputRef).current?.click()}
+              className="w-12 h-12 rounded-lg bg-secondary border border-border flex items-center justify-center cursor-pointer hover:border-primary/50 transition-colors overflow-hidden"
+            >
+              {form.logoPreview ? (
+                <img src={form.logoPreview} alt="" className="w-full h-full object-contain" />
+              ) : (
+                <Upload className="w-4 h-4 text-muted-foreground" />
+              )}
+            </div>
+            <input ref={isEdit ? editFileInputRef : fileInputRef} type="file" accept="image/*" onChange={handleLogoSelect} className="hidden" />
+            <div className="flex flex-col gap-0.5">
+              <span className="text-[10px] text-muted-foreground">Opcional. Se vazio, usa o escudo atual.</span>
+              {form.logoPreview && (
+                <button type="button" onClick={() => updateForm({ logoPreview: undefined, pendingBlob: null })} className="text-[10px] text-destructive hover:underline text-left">
+                  Remover escudo
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+
+        {/* Name fields */}
+        <div className="space-y-1">
+          <Label className="text-xs text-foreground">Nome Completo</Label>
+          <Input value={form.name} onChange={(e) => updateForm({ name: e.target.value })} placeholder="Ex: Futbol Club Barcelona" className="bg-secondary border-border h-8 text-sm" />
+        </div>
+
+        <div className="grid grid-cols-2 gap-3">
+          <div className="space-y-1">
+            <Label className="text-xs text-foreground">Nome Curto</Label>
+            <Input value={form.shortName} onChange={(e) => updateForm({ shortName: e.target.value })} placeholder="Ex: Barcelona" className="bg-secondary border-border h-8 text-sm" />
+          </div>
+          <div className="space-y-1">
+            <Label className="text-xs text-foreground">Abreviação</Label>
+            <Input value={form.abbreviation} onChange={(e) => updateForm({ abbreviation: e.target.value.toUpperCase().slice(0, 3) })} placeholder="BAR" maxLength={3} className="bg-secondary border-border h-8 text-sm uppercase" />
+          </div>
+        </div>
+
+        {/* Colors */}
+        <div className="space-y-1">
+          <Label className="text-xs text-foreground">
+            Cores <span className="text-muted-foreground font-normal">({form.colors.length}/5)</span>
+          </Label>
+          <div className="flex flex-wrap items-center gap-2">
+            {form.colors.map((color, i) => (
+              <div key={i} className="flex items-center gap-1">
+                <input
+                  type="color"
+                  value={color}
+                  onChange={(e) => {
+                    const next = [...form.colors];
+                    next[i] = e.target.value;
+                    updateForm({ colors: next });
+                  }}
+                  className="w-8 h-8 rounded cursor-pointer border border-border bg-transparent"
+                />
+                <button type="button" onClick={() => updateForm({ colors: form.colors.filter((_, j) => j !== i) })} className="p-0.5 text-muted-foreground hover:text-destructive transition-colors">
+                  <Trash2 className="w-3 h-3" />
+                </button>
+              </div>
+            ))}
+            {form.colors.length < 5 && (
+              <button type="button" onClick={() => updateForm({ colors: [...form.colors, "#888888"] })} className="w-8 h-8 rounded border-2 border-dashed border-border flex items-center justify-center text-muted-foreground hover:border-primary hover:text-primary transition-colors">
+                <Plus className="w-3 h-3" />
+              </button>
+            )}
+          </div>
+          <span className="text-[10px] text-muted-foreground">Opcional. Se vazio, usa as cores atuais.</span>
+        </div>
+      </div>
+
+      {/* Rate section */}
+      <div className="space-y-2 pt-2 border-t border-border">
+        <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Força / Pontuação</p>
+        <div className="space-y-1">
+          <Label className="text-xs text-foreground">Rate (0.01 – 9.99)</Label>
+          <Input type="number" value={form.rating} onChange={(e) => updateForm({ rating: e.target.value })} step="0.01" min="0.01" max="9.99" placeholder="Deixe vazio para manter o rate padrão" className="bg-secondary border-border h-8 text-sm w-full font-mono" />
+          <span className="text-[10px] text-muted-foreground">Opcional. Se vazio, mantém o rate padrão do time.</span>
+        </div>
+      </div>
+    </div>
+  );
 
   return (
     <div className="space-y-4">
@@ -141,7 +324,7 @@ export default function TeamHistoryEditor({ teamId }: TeamHistoryEditorProps) {
             <div key={h.id} className="rounded-lg bg-secondary/30 border border-border overflow-hidden">
               <div
                 className="flex items-center gap-3 p-3 cursor-pointer hover:bg-secondary/50 transition-colors"
-                onClick={() => setExpandedId(expandedId === h.id ? null : h.id)}
+                onClick={() => { if (editingId !== h.id) setExpandedId(expandedId === h.id ? null : h.id); }}
               >
                 <div className="w-10 h-10 rounded-lg bg-secondary border border-border flex items-center justify-center overflow-hidden shrink-0">
                   {h.logo ? (
@@ -154,14 +337,31 @@ export default function TeamHistoryEditor({ teamId }: TeamHistoryEditorProps) {
                   <p className="text-xs font-bold text-foreground">{formatPeriod(h)}</p>
                   <p className="text-[10px] text-muted-foreground truncate">{getHistoryDetails(h)}</p>
                 </div>
-                {expandedId === h.id ? (
-                  <ChevronUp className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
-                ) : (
-                  <ChevronDown className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
+                {editingId !== h.id && (
+                  expandedId === h.id ? (
+                    <ChevronUp className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
+                  ) : (
+                    <ChevronDown className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
+                  )
                 )}
               </div>
 
-              {expandedId === h.id && (
+              {expandedId === h.id && editingId === h.id && (
+                <div className="px-3 pb-3 pt-1 border-t border-border">
+                  {renderFormFields(true)}
+                  <div className="flex gap-2 pt-3">
+                    <Button type="button" size="sm" onClick={handleSaveEdit} disabled={uploading} className="gap-1.5 bg-primary text-primary-foreground">
+                      {uploading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Check className="w-3.5 h-3.5" />}
+                      Salvar
+                    </Button>
+                    <Button type="button" variant="ghost" size="sm" onClick={resetForm} className="gap-1">
+                      <X className="w-3.5 h-3.5" /> Cancelar
+                    </Button>
+                  </div>
+                </div>
+              )}
+
+              {expandedId === h.id && editingId !== h.id && (
                 <div className="px-3 pb-3 pt-1 border-t border-border space-y-1.5">
                   {h.name && <p className="text-[11px] text-foreground"><span className="text-muted-foreground">Nome:</span> {h.name}</p>}
                   {h.shortName && <p className="text-[11px] text-foreground"><span className="text-muted-foreground">Nome Curto:</span> {h.shortName}</p>}
@@ -177,12 +377,18 @@ export default function TeamHistoryEditor({ teamId }: TeamHistoryEditorProps) {
                       ))}
                     </div>
                   )}
-                  <div className="pt-1">
+                  <div className="pt-2 flex items-center gap-3">
                     <button
-                      onClick={(e) => { e.stopPropagation(); handleRemove(h.id); }}
+                      onClick={(e) => { e.stopPropagation(); handleEdit(h); }}
+                      className="flex items-center gap-1 text-[11px] text-primary hover:underline"
+                    >
+                      <Pencil className="w-3 h-3" /> Editar
+                    </button>
+                    <button
+                      onClick={(e) => { e.stopPropagation(); setDeleteId(h.id); }}
                       className="flex items-center gap-1 text-[11px] text-destructive hover:underline"
                     >
-                      <Trash2 className="w-3 h-3" /> Remover
+                      <Trash2 className="w-3 h-3" /> Excluir
                     </button>
                   </div>
                 </div>
@@ -192,168 +398,15 @@ export default function TeamHistoryEditor({ teamId }: TeamHistoryEditorProps) {
         </div>
       )}
 
-      {!adding ? (
-        <Button type="button" variant="outline" size="sm" onClick={() => setAdding(true)} className="gap-1.5 w-full">
+      {!adding && !editingId ? (
+        <Button type="button" variant="outline" size="sm" onClick={() => { resetForm(); setAdding(true); }} className="gap-1.5 w-full">
           <Plus className="w-3.5 h-3.5" />
           Adicionar Versão Histórica
         </Button>
-      ) : (
-        <div className="p-4 rounded-lg border border-primary/30 bg-primary/5 space-y-4">
-          {/* Period */}
-          <div className="space-y-2">
-            <div className="flex items-center justify-between">
-              <Label className="text-xs font-bold text-foreground">Período</Label>
-              <div className="flex items-center gap-2">
-                <span className="text-[10px] text-muted-foreground">Ano único</span>
-                <Switch checked={singleYear} onCheckedChange={(v) => { setSingleYear(v); if (v) setNewEndYear(""); }} />
-              </div>
-            </div>
-            <div className={singleYear ? "" : "grid grid-cols-2 gap-3"}>
-              <div className="space-y-1">
-                <Label className="text-[10px] text-muted-foreground">{singleYear ? "Ano" : "Início"}</Label>
-                <Input
-                  type="number"
-                  value={newStartYear}
-                  onChange={(e) => setNewStartYear(e.target.value)}
-                  placeholder={singleYear ? "1970" : "1968"}
-                  className="bg-secondary border-border h-8 text-sm"
-                  min={1800} max={2100}
-                />
-              </div>
-              {!singleYear && (
-                <div className="space-y-1">
-                  <Label className="text-[10px] text-muted-foreground">Fim</Label>
-                  <Input
-                    type="number"
-                    value={newEndYear}
-                    onChange={(e) => setNewEndYear(e.target.value)}
-                    placeholder="1974"
-                    className="bg-secondary border-border h-8 text-sm"
-                    min={1800} max={2100}
-                  />
-                </div>
-              )}
-            </div>
-          </div>
-
-          {/* Visual section */}
-          <div className="space-y-3 pt-2 border-t border-border">
-            <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Identidade Visual</p>
-
-            {/* Logo */}
-            <div className="space-y-1">
-              <Label className="text-xs text-foreground">Escudo da Época</Label>
-              <div className="flex items-center gap-3">
-                <div
-                  onClick={() => fileInputRef.current?.click()}
-                  className="w-12 h-12 rounded-lg bg-secondary border border-border flex items-center justify-center cursor-pointer hover:border-primary/50 transition-colors overflow-hidden"
-                >
-                  {newLogoPreview ? (
-                    <img src={newLogoPreview} alt="" className="w-full h-full object-contain" />
-                  ) : (
-                    <Upload className="w-4 h-4 text-muted-foreground" />
-                  )}
-                </div>
-                <input ref={fileInputRef} type="file" accept="image/*" onChange={handleLogoSelect} className="hidden" />
-                <span className="text-[10px] text-muted-foreground">Opcional. Se vazio, usa o escudo atual.</span>
-              </div>
-            </div>
-
-            {/* Name fields */}
-            <div className="space-y-1">
-              <Label className="text-xs text-foreground">Nome Completo</Label>
-              <Input
-                value={newName}
-                onChange={(e) => setNewName(e.target.value)}
-                placeholder="Ex: Futbol Club Barcelona"
-                className="bg-secondary border-border h-8 text-sm"
-              />
-            </div>
-
-            <div className="grid grid-cols-2 gap-3">
-              <div className="space-y-1">
-                <Label className="text-xs text-foreground">Nome Curto</Label>
-                <Input
-                  value={newShortName}
-                  onChange={(e) => setNewShortName(e.target.value)}
-                  placeholder="Ex: Barcelona"
-                  className="bg-secondary border-border h-8 text-sm"
-                />
-              </div>
-              <div className="space-y-1">
-                <Label className="text-xs text-foreground">Abreviação</Label>
-                <Input
-                  value={newAbbreviation}
-                  onChange={(e) => setNewAbbreviation(e.target.value.toUpperCase().slice(0, 3))}
-                  placeholder="BAR"
-                  maxLength={3}
-                  className="bg-secondary border-border h-8 text-sm uppercase"
-                />
-              </div>
-            </div>
-
-            {/* Colors */}
-            <div className="space-y-1">
-              <Label className="text-xs text-foreground">
-                Cores <span className="text-muted-foreground font-normal">({newColors.length}/5)</span>
-              </Label>
-              <div className="flex flex-wrap items-center gap-2">
-                {newColors.map((color, i) => (
-                  <div key={i} className="flex items-center gap-1">
-                    <input
-                      type="color"
-                      value={color}
-                      onChange={(e) => {
-                        const next = [...newColors];
-                        next[i] = e.target.value;
-                        setNewColors(next);
-                      }}
-                      className="w-8 h-8 rounded cursor-pointer border border-border bg-transparent"
-                    />
-                    <button
-                      type="button"
-                      onClick={() => setNewColors(newColors.filter((_, j) => j !== i))}
-                      className="p-0.5 text-muted-foreground hover:text-destructive transition-colors"
-                    >
-                      <Trash2 className="w-3 h-3" />
-                    </button>
-                  </div>
-                ))}
-                {newColors.length < 5 && (
-                  <button
-                    type="button"
-                    onClick={() => setNewColors([...newColors, "#888888"])}
-                    className="w-8 h-8 rounded border-2 border-dashed border-border flex items-center justify-center text-muted-foreground hover:border-primary hover:text-primary transition-colors"
-                  >
-                    <Plus className="w-3 h-3" />
-                  </button>
-                )}
-              </div>
-              <span className="text-[10px] text-muted-foreground">Opcional. Se vazio, usa as cores atuais.</span>
-            </div>
-          </div>
-
-          {/* Rate section - separate */}
-          <div className="space-y-2 pt-2 border-t border-border">
-            <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Força / Pontuação</p>
-            <div className="space-y-1">
-              <Label className="text-xs text-foreground">Rate (0.01 – 9.99)</Label>
-              <Input
-                type="number"
-                value={newRating}
-                onChange={(e) => setNewRating(e.target.value)}
-                step="0.01"
-                min="0.01"
-                max="9.99"
-                placeholder="Deixe vazio para manter o rate padrão"
-                className="bg-secondary border-border h-8 text-sm w-full font-mono"
-              />
-              <span className="text-[10px] text-muted-foreground">Opcional. Se vazio, mantém o rate padrão do time.</span>
-            </div>
-          </div>
-
-          {/* Actions */}
-          <div className="flex gap-2 pt-1">
+      ) : adding ? (
+        <div className="p-4 rounded-lg border border-primary/30 bg-primary/5">
+          {renderFormFields(false)}
+          <div className="flex gap-2 pt-3">
             <Button type="button" size="sm" onClick={handleAdd} disabled={uploading} className="gap-1.5 bg-primary text-primary-foreground">
               {uploading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Plus className="w-3.5 h-3.5" />}
               Salvar
@@ -363,7 +416,23 @@ export default function TeamHistoryEditor({ teamId }: TeamHistoryEditorProps) {
             </Button>
           </div>
         </div>
-      )}
+      ) : null}
+
+      {/* Delete confirmation */}
+      <AlertDialog open={!!deleteId} onOpenChange={(open) => { if (!open) setDeleteId(null); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Excluir versão histórica?</AlertDialogTitle>
+            <AlertDialogDescription>Esta ação não pode ser desfeita.</AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction onClick={handleConfirmDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+              Excluir
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
