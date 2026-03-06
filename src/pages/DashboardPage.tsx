@@ -133,7 +133,7 @@ export default function DashboardPage() {
                     </p>
                   </div>
                   {t.finalized ? (
-                    <span className="text-[10px] px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-500 font-medium shrink-0">
+                    <span className="text-[10px] px-2 py-0.5 rounded-full bg-accent text-accent-foreground font-medium shrink-0">
                       Finalizado
                     </span>
                   ) : (
