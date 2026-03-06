@@ -157,7 +157,7 @@ export default function DashboardPage() {
             className="rounded-xl card-gradient border border-border p-5"
           >
             <h2 className="text-sm font-display font-bold text-foreground mb-3 flex items-center gap-2">
-              <Star className="w-4 h-4 text-yellow-500" /> Maior Campeão
+              <Star className="w-4 h-4 text-primary" /> Maior Campeão
             </h2>
             {topChamp ? (
               <div className="flex items-center gap-3">
