@@ -313,6 +313,7 @@ export const useTournamentStore = create<TournamentState>((set, get) => ({
       user_id: userId,
       start_year: history.startYear,
       end_year: history.endYear,
+      field_type: history.fieldType || 'legacy',
       logo: history.logo || null,
       rating: history.rating != null ? history.rating : null,
       name: history.name || null,
@@ -326,13 +327,14 @@ export const useTournamentStore = create<TournamentState>((set, get) => ({
         teamId: data.team_id,
         startYear: data.start_year,
         endYear: data.end_year,
+        fieldType: data.field_type || 'legacy',
         logo: data.logo || undefined,
         rating: data.rating != null ? Number(data.rating) : undefined,
         name: data.name || undefined,
         shortName: data.short_name || undefined,
         abbreviation: data.abbreviation || undefined,
         colors: parseColors(data.colors),
-      }] }));
+      } as TeamHistory] }));
     }
   },
 
@@ -342,6 +344,7 @@ export const useTournamentStore = create<TournamentState>((set, get) => ({
     const dbUpdates: any = {};
     if (updates.startYear !== undefined) dbUpdates.start_year = updates.startYear;
     if (updates.endYear !== undefined) dbUpdates.end_year = updates.endYear;
+    if (updates.fieldType !== undefined) dbUpdates.field_type = updates.fieldType;
     if (updates.logo !== undefined) dbUpdates.logo = updates.logo || null;
     if (updates.rating !== undefined) dbUpdates.rating = updates.rating;
     if (updates.name !== undefined) dbUpdates.name = updates.name || null;
