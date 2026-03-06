@@ -68,6 +68,7 @@ export type Database = {
           colors: string | null
           created_at: string | null
           end_year: number
+          field_type: string
           id: string
           logo: string | null
           name: string | null
@@ -82,6 +83,7 @@ export type Database = {
           colors?: string | null
           created_at?: string | null
           end_year: number
+          field_type?: string
           id?: string
           logo?: string | null
           name?: string | null
@@ -96,6 +98,7 @@ export type Database = {
           colors?: string | null
           created_at?: string | null
           end_year?: number
+          field_type?: string
           id?: string
           logo?: string | null
           name?: string | null

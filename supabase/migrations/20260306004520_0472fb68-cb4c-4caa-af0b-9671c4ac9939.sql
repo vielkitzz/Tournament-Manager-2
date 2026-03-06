@@ -1,0 +1,1 @@
+ALTER TABLE public.team_histories ADD COLUMN IF NOT EXISTS field_type text NOT NULL DEFAULT 'legacy';
