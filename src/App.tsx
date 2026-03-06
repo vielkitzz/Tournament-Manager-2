@@ -12,7 +12,8 @@ import StoreInitializer from "@/components/StoreInitializer";
 import { Skeleton } from "@/components/ui/skeleton";
 
 // Code splitting – lazy load pages
-const HomePage = lazy(() => import("@/pages/HomePage"));
+const DashboardPage = lazy(() => import("@/pages/DashboardPage"));
+const CompetitionsPage = lazy(() => import("@/pages/CompetitionsPage"));
 const CreateTournamentPage = lazy(() => import("@/pages/CreateTournamentPage"));
 const TeamsPage = lazy(() => import("@/pages/TeamsPage"));
 const CreateTeamPage = lazy(() => import("@/pages/CreateTeamPage"));
@@ -68,7 +69,8 @@ const App = () => (
                     </ProtectedRoute>
                   }
                 >
-                  <Route path="/" element={<HomePage />} />
+                  <Route path="/" element={<DashboardPage />} />
+                  <Route path="/competitions" element={<CompetitionsPage />} />
                   <Route path="/tournament/create" element={<CreateTournamentPage />} />
                   <Route path="/tournament/:id/edit" element={<CreateTournamentPage />} />
                   <Route path="/tournament/:id" element={<TournamentDetailPage />} />
