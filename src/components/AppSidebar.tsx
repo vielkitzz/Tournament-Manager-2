@@ -1,5 +1,5 @@
-import { NavLink, useNavigate } from "react-router-dom";
-import { Trophy, PlusCircle, Shield, LogOut, Download, Upload, Share2, Swords } from "lucide-react";
+import { NavLink, useNavigate, Link } from "react-router-dom";
+import { Trophy, PlusCircle, Shield, LogOut, Download, Upload, Share2, Swords, LayoutDashboard } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
 import appLogo from "@/assets/logo.svg";
@@ -10,7 +10,8 @@ const navSections = [
   {
     label: "NAVEGAR",
     items: [
-      { to: "/", icon: Trophy, label: "Competições", end: true },
+      { to: "/", icon: LayoutDashboard, label: "Dashboard", end: true },
+      { to: "/competitions", icon: Trophy, label: "Competições", end: false },
       { to: "/teams", icon: Shield, label: "Times", end: false },
       { to: "/publish", icon: Share2, label: "Publicar", end: false },
       { to: "/friendly", icon: Swords, label: "Amistoso", end: false },
@@ -53,7 +54,9 @@ export default function AppSidebar({ onNavigate }: AppSidebarProps) {
     <aside className="w-60 min-h-screen bg-sidebar border-r border-sidebar-border flex flex-col">
       {/* Logo */}
       <div className="px-5 pt-6 pb-6 flex items-center gap-2.5">
-        <img src={appLogo} alt="TM2" className="h-8 object-contain" />
+        <Link to="/" onClick={onNavigate}>
+          <img src={appLogo} alt="TM2" className="h-8 object-contain cursor-pointer hover:opacity-80 transition-opacity" />
+        </Link>
       </div>
 
       {/* Navigation */}
