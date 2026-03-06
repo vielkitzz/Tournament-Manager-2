@@ -178,6 +178,7 @@ export const useTournamentStore = create<TournamentState>((set, get) => ({
         teamId: h.team_id,
         startYear: h.start_year,
         endYear: h.end_year,
+        fieldType: h.field_type || 'legacy',
         logo: h.logo || undefined,
         rating: h.rating != null ? Number(h.rating) : undefined,
         name: h.name || undefined,
