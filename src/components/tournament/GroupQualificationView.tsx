@@ -67,11 +67,17 @@ export default function GroupQualificationView({
         }
       }
       
-      // Ordena por pontos (descendente) e pega os N melhores
+      // Ordena pelos critérios de desempate padrão (Pontos, Vitórias, Saldo, Gols Pró)
       positionTeams.sort((a, b) => {
         const rowA = (standingsByGroup[a.group] || [])[a.position - 1];
         const rowB = (standingsByGroup[b.group] || [])[b.position - 1];
-        return (rowB?.points ?? 0) - (rowA?.points ?? 0);
+        
+        if (!rowA || !rowB) return 0;
+        
+        if (rowB.points !== rowA.points) return rowB.points - rowA.points;
+        if (rowB.wins !== rowA.wins) return rowB.wins - rowA.wins;
+        if (rowB.goalDifference !== rowA.goalDifference) return rowB.goalDifference - rowA.goalDifference;
+        return rowB.goalsFor - rowA.goalsFor;
       });
       
       // Adiciona os N melhores dessa posição
@@ -83,14 +89,14 @@ export default function GroupQualificationView({
 
   const [selected, setSelected] = useState<Set<string>>(getAutoSelected);
 
-  // Atualiza a seleção automaticamente quando os jogos forem concluídos
+  // Atualiza a seleção automaticamente quando os jogos forem concluídos ou quando as props de configuração mudarem
   useEffect(() => {
     if (isReadonly) return;
-    if (allGroupMatchesPlayed && selected.size === 0) {
+    if (allGroupMatchesPlayed) {
       setSelected(getAutoSelected());
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [allGroupMatchesPlayed, isReadonly]);
+  }, [allGroupMatchesPlayed, isReadonly, bestOfQualifiers, bestOfPosition]);
 
   const toggle = (teamId: string) => {
     if (isReadonly || !allGroupMatchesPlayed) return;
