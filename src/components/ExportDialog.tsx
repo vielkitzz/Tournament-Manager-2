@@ -11,7 +11,7 @@ interface Props {
 }
 
 export default function ExportDialog({ trigger }: Props) {
-  const { teams, tournaments, folders } = useTournamentStore();
+  const { teams, tournaments, folders, teamHistories } = useTournamentStore();
   const [open, setOpen] = useState(false);
 
   // Selection state
@@ -39,7 +39,6 @@ export default function ExportDialog({ trigger }: Props) {
       next.has(folderId) ? next.delete(folderId) : next.add(folderId);
       return next;
     });
-    // Select/deselect all teams in folder
     setSelectedTeamIds((prev) => {
       const next = new Set(prev);
       const allSelected = folderTeams.every((t) => prev.has(t.id));
@@ -76,19 +75,23 @@ export default function ExportDialog({ trigger }: Props) {
     }
   };
 
-  const handleExportSelected = () => {
+  const buildExportData = (selTeamIds: Set<string>, selTournamentIds: Set<string>, withFolders: boolean) => {
     const data: any = {};
-    const selTeams = teams.filter((t) => selectedTeamIds.has(t.id));
-    const selTournaments = tournaments.filter((t) => selectedTournamentIds.has(t.id));
+    const selTeams = teams.filter((t) => selTeamIds.has(t.id));
+    const selTournaments = tournaments.filter((t) => selTournamentIds.has(t.id));
 
     if (selTeams.length > 0) {
-      data.teams = selTeams.map(({ id, ...t }) => t);
-      if (exportWithFolders) {
+      data.teams = selTeams.map(({ id, ...t }) => ({ ...t, _originalId: id }));
+      // Include team histories for selected teams
+      const histories = teamHistories.filter((h) => selTeamIds.has(h.teamId));
+      if (histories.length > 0) {
+        data.teamHistories = histories;
+      }
+      if (withFolders) {
         const usedFolderIds = new Set(selTeams.map((t) => t.folderId).filter(Boolean));
         const relevantFolders = folders.filter((f) => usedFolderIds.has(f.id));
         if (relevantFolders.length > 0) {
           data.folders = relevantFolders.map(({ id, ...f }) => ({ ...f, _originalId: id }));
-          data.teams = selTeams.map(({ id, ...t }) => t);
         }
       }
     }
@@ -96,42 +99,37 @@ export default function ExportDialog({ trigger }: Props) {
       data.tournaments = selTournaments.map(({ id, ...t }) => t);
     }
 
-    if (!selTeams.length && !selTournaments.length) {
-      toast.error("Selecione pelo menos um item para exportar");
-      return;
-    }
-
     data._exportedAt = new Date().toISOString();
     data._version = 1;
+    return data;
+  };
 
+  const downloadJson = (data: any, suffix: string) => {
     const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = `tm2-export-${new Date().toISOString().slice(0, 10)}.json`;
+    a.download = `tm2-${suffix}-${new Date().toISOString().slice(0, 10)}.json`;
     a.click();
     URL.revokeObjectURL(url);
+  };
+
+  const handleExportSelected = () => {
+    if (selectedTeamIds.size === 0 && selectedTournamentIds.size === 0) {
+      toast.error("Selecione pelo menos um item para exportar");
+      return;
+    }
+    const data = buildExportData(selectedTeamIds, selectedTournamentIds, exportWithFolders);
+    downloadJson(data, "export");
     toast.success("Exportação concluída!");
     setOpen(false);
   };
 
   const handleExportAll = () => {
-    const data: any = {};
-    data.teams = teams.map(({ id, ...t }) => t);
-    data.tournaments = tournaments.map(({ id, ...t }) => t);
-    if (folders.length > 0) {
-      data.folders = folders.map(({ id, ...f }) => ({ ...f, _originalId: id }));
-    }
-    data._exportedAt = new Date().toISOString();
-    data._version = 1;
-
-    const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `tm2-todos-${new Date().toISOString().slice(0, 10)}.json`;
-    a.click();
-    URL.revokeObjectURL(url);
+    const allTeamIds = new Set(teams.map((t) => t.id));
+    const allTournamentIds = new Set(tournaments.map((t) => t.id));
+    const data = buildExportData(allTeamIds, allTournamentIds, true);
+    downloadJson(data, "todos");
     toast.success("Tudo exportado!");
     setOpen(false);
   };
@@ -168,6 +166,9 @@ export default function ExportDialog({ trigger }: Props) {
               {teamsExpanded ? <ChevronDown className="w-4 h-4 text-muted-foreground" /> : <ChevronRight className="w-4 h-4 text-muted-foreground" />}
               <Shield className="w-4 h-4 text-primary" />
               <span className="text-sm font-semibold">Times ({teams.length})</span>
+              {teamHistories.length > 0 && (
+                <span className="text-[10px] text-muted-foreground">+{teamHistories.length} versões históricas</span>
+              )}
               <button
                 onClick={(e) => { e.stopPropagation(); selectAllTeams(); }}
                 className="ml-auto text-[11px] text-primary hover:underline"
@@ -178,7 +179,6 @@ export default function ExportDialog({ trigger }: Props) {
 
             {teamsExpanded && (
               <div className="ml-6 space-y-1 max-h-48 overflow-y-auto pr-1">
-                {/* Folders with their teams */}
                 {folders.map((folder) => {
                   const folderTeams = teamsByFolder.get(folder.id) || [];
                   if (folderTeams.length === 0) return null;
@@ -186,20 +186,14 @@ export default function ExportDialog({ trigger }: Props) {
                   return (
                     <div key={folder.id} className="space-y-0.5">
                       <label className="flex items-center gap-2 px-2 py-1.5 rounded-lg hover:bg-secondary/50 cursor-pointer">
-                        <Checkbox
-                          checked={allInFolderSelected}
-                          onCheckedChange={() => toggleFolder(folder.id)}
-                        />
+                        <Checkbox checked={allInFolderSelected} onCheckedChange={() => toggleFolder(folder.id)} />
                         <Folder className="w-3.5 h-3.5 text-primary" />
                         <span className="text-xs font-medium">{folder.name} ({folderTeams.length})</span>
                       </label>
                       <div className="ml-6 space-y-0.5">
                         {folderTeams.map((team) => (
                           <label key={team.id} className="flex items-center gap-2 px-2 py-1 rounded-lg hover:bg-secondary/50 cursor-pointer">
-                            <Checkbox
-                              checked={selectedTeamIds.has(team.id)}
-                              onCheckedChange={() => toggleTeam(team.id)}
-                            />
+                            <Checkbox checked={selectedTeamIds.has(team.id)} onCheckedChange={() => toggleTeam(team.id)} />
                             <span className="text-xs truncate">{team.name}</span>
                           </label>
                         ))}
@@ -207,13 +201,9 @@ export default function ExportDialog({ trigger }: Props) {
                     </div>
                   );
                 })}
-                {/* Unfoldered teams */}
                 {unfolderedTeams.map((team) => (
                   <label key={team.id} className="flex items-center gap-2 px-2 py-1 rounded-lg hover:bg-secondary/50 cursor-pointer">
-                    <Checkbox
-                      checked={selectedTeamIds.has(team.id)}
-                      onCheckedChange={() => toggleTeam(team.id)}
-                    />
+                    <Checkbox checked={selectedTeamIds.has(team.id)} onCheckedChange={() => toggleTeam(team.id)} />
                     <span className="text-xs truncate">{team.name}</span>
                   </label>
                 ))}
@@ -222,10 +212,7 @@ export default function ExportDialog({ trigger }: Props) {
 
             {selectedTeamIds.size > 0 && (
               <label className="flex items-center gap-2 ml-6 px-2 py-1 cursor-pointer">
-                <Checkbox
-                  checked={exportWithFolders}
-                  onCheckedChange={(v) => setExportWithFolders(!!v)}
-                />
+                <Checkbox checked={exportWithFolders} onCheckedChange={(v) => setExportWithFolders(!!v)} />
                 <span className="text-xs text-muted-foreground">Exportar com pastas</span>
               </label>
             )}
@@ -252,10 +239,7 @@ export default function ExportDialog({ trigger }: Props) {
               <div className="ml-6 space-y-0.5 max-h-48 overflow-y-auto pr-1">
                 {tournaments.map((t) => (
                   <label key={t.id} className="flex items-center gap-2 px-2 py-1 rounded-lg hover:bg-secondary/50 cursor-pointer">
-                    <Checkbox
-                      checked={selectedTournamentIds.has(t.id)}
-                      onCheckedChange={() => toggleTournament(t.id)}
-                    />
+                    <Checkbox checked={selectedTournamentIds.has(t.id)} onCheckedChange={() => toggleTournament(t.id)} />
                     <span className="text-xs truncate">{t.name} ({t.year})</span>
                   </label>
                 ))}

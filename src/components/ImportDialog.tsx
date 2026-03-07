@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { useTournamentStore } from "@/store/tournamentStore";
 import { toast } from "sonner";
 import { Team, Tournament } from "@/types/tournament";
+import { TeamHistory } from "@/lib/teamHistoryUtils";
 
 interface Props {
   trigger: React.ReactNode;
@@ -13,7 +14,7 @@ interface Props {
 type ImportMode = "teams" | "tournaments" | "all";
 
 export default function ImportDialog({ trigger }: Props) {
-  const { addTeam, addTournament } = useTournamentStore();
+  const { addTeam, addTournament, addTeamHistory } = useTournamentStore();
   const [open, setOpen] = useState(false);
   const [mode, setMode] = useState<ImportMode | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -32,11 +33,19 @@ export default function ImportDialog({ trigger }: Props) {
       const data = JSON.parse(text);
       let teamsImported = 0;
       let tournamentsImported = 0;
+      let historiesImported = 0;
+
+      // Build ID mapping for teams (old ID -> new ID)
+      const teamIdMap = new Map<string, string>();
 
       if ((mode === "teams" || mode === "all") && data.teams && Array.isArray(data.teams)) {
         for (const team of data.teams) {
+          const newId = crypto.randomUUID();
+          const oldId = team._originalId || team.id;
+          if (oldId) teamIdMap.set(oldId, newId);
+
           const newTeam: Team = {
-            id: crypto.randomUUID(),
+            id: newId,
             name: team.name || "Time importado",
             shortName: team.shortName || team.name?.substring(0, 10) || "",
             abbreviation: team.abbreviation || team.name?.substring(0, 3)?.toUpperCase() || "IMP",
@@ -47,6 +56,30 @@ export default function ImportDialog({ trigger }: Props) {
           };
           await addTeam(newTeam);
           teamsImported++;
+        }
+
+        // Import team histories with remapped team IDs
+        if (data.teamHistories && Array.isArray(data.teamHistories)) {
+          for (const h of data.teamHistories) {
+            const newTeamId = teamIdMap.get(h.teamId);
+            if (!newTeamId) continue; // Skip if team wasn't imported
+
+            const history: TeamHistory = {
+              id: crypto.randomUUID(),
+              teamId: newTeamId,
+              startYear: h.startYear,
+              endYear: h.endYear,
+              fieldType: h.fieldType || 'legacy',
+              logo: h.logo || undefined,
+              rating: h.rating != null ? Number(h.rating) : undefined,
+              name: h.name || undefined,
+              shortName: h.shortName || undefined,
+              abbreviation: h.abbreviation || undefined,
+              colors: h.colors || undefined,
+            };
+            await addTeamHistory(history);
+            historiesImported++;
+          }
         }
       }
 
@@ -78,10 +111,11 @@ export default function ImportDialog({ trigger }: Props) {
 
       const parts: string[] = [];
       if (teamsImported > 0) parts.push(`${teamsImported} time(s)`);
+      if (historiesImported > 0) parts.push(`${historiesImported} versão(ões) histórica(s)`);
       if (tournamentsImported > 0) parts.push(`${tournamentsImported} competição(ões)`);
 
       if (parts.length > 0) {
-        toast.success(`Importado: ${parts.join(" e ")}`);
+        toast.success(`Importado: ${parts.join(", ")}`);
       } else {
         toast.error("Nenhum dado reconhecido no arquivo");
       }
@@ -118,7 +152,7 @@ export default function ImportDialog({ trigger }: Props) {
             onClick={() => handleSelect("teams")}
           >
             <Shield className="w-4 h-4 text-primary" />
-            <span>Apenas Times</span>
+            <span>Apenas Times (inclui versões históricas)</span>
             <Upload className="w-3.5 h-3.5 ml-auto text-muted-foreground" />
           </Button>
           <Button
@@ -140,7 +174,7 @@ export default function ImportDialog({ trigger }: Props) {
             <Upload className="w-3.5 h-3.5 ml-auto text-muted-foreground" />
           </Button>
           <p className="text-[11px] text-muted-foreground pt-1">
-            Aceita arquivos exportados pelo TM2 (.json)
+            Aceita arquivos exportados pelo TM2 (.json). Versões históricas são importadas junto com os times.
           </p>
         </div>
       </DialogContent>
