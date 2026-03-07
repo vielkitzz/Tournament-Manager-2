@@ -440,7 +440,16 @@ export default function BracketView({
     const winner = getTieResult(pair);
 
     return (
-      <div key={pair.leg1.id} className="w-[180px] rounded-lg bg-secondary/30 border border-border overflow-hidden">
+      <div key={pair.leg1.id} className="relative group/pair w-[180px] rounded-lg bg-secondary/30 border border-border overflow-hidden">
+        {onRemoveMatch && !tournament.finalized && (
+          <button
+            onClick={(e) => { e.stopPropagation(); handleRemoveMatch(pair.leg1); }}
+            className="absolute -top-1.5 -right-1.5 z-10 p-0.5 rounded-full bg-destructive text-destructive-foreground opacity-0 group-hover/pair:opacity-100 transition-opacity shadow-sm"
+            title="Remover confronto"
+          >
+            <Trash2 className="w-2.5 h-2.5" />
+          </button>
+        )}
         <button
           className="w-full text-left hover:bg-secondary/20 transition-colors"
           onClick={() => setSelectedMatch(pair.leg1)}
