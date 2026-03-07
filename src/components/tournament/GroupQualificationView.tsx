@@ -12,10 +12,6 @@ interface GroupQualificationViewProps {
   /** IDs já confirmados (quando groupsFinalized = true) */
   confirmedTeamIds?: string[];
   onConfirm: (qualifiedTeamIds: string[]) => void;
-  /** Número de melhores classificados de uma posição específica */
-  bestOfQualifiers?: number;
-  /** Qual posição (ex: 3 para terceiros) */
-  bestOfPosition?: number;
 }
 
 export default function GroupQualificationView({
@@ -25,8 +21,6 @@ export default function GroupQualificationView({
   allGroupMatchesPlayed,
   confirmedTeamIds,
   onConfirm,
-  bestOfQualifiers = 0,
-  bestOfPosition = 3,
 }: GroupQualificationViewProps) {
   const isReadonly = !!confirmedTeamIds && confirmedTeamIds.length > 0;
 
@@ -40,63 +34,23 @@ export default function GroupQualificationView({
     }
     if (!allGroupMatchesPlayed) return new Set();
     const autoIds: string[] = [];
-    
-    // Primeiro: adiciona os classificados diretos de cada grupo
     for (let g = 1; g <= groupCount; g++) {
       const rows = standingsByGroup[g] || [];
       rows.slice(0, qualifiersPerGroup).forEach((row) => autoIds.push(row.teamId));
     }
-    
-    // Segundo: se há vagas para melhores de uma posição específica, adiciona os N melhores dessa posição
-    if (bestOfQualifiers > 0 && bestOfPosition > 1) {
-      const positionTeams: Array<{ teamId: string; group: number; position: number }> = [];
-      
-      // Coleta todos os times da posição especificada (ex: 3º lugar)
-      for (let g = 1; g <= groupCount; g++) {
-        const rows = standingsByGroup[g] || [];
-        if (rows.length >= bestOfPosition) {
-          const teamAtPosition = rows[bestOfPosition - 1];
-          // Verifica se este time já foi selecionado como classificado direto
-          if (!autoIds.includes(teamAtPosition.teamId)) {
-            positionTeams.push({
-              teamId: teamAtPosition.teamId,
-              group: g,
-              position: bestOfPosition,
-            });
-          }
-        }
-      }
-      
-      // Ordena pelos critérios de desempate padrão (Pontos, Vitórias, Saldo, Gols Pró)
-      positionTeams.sort((a, b) => {
-        const rowA = (standingsByGroup[a.group] || [])[a.position - 1];
-        const rowB = (standingsByGroup[b.group] || [])[b.position - 1];
-        
-        if (!rowA || !rowB) return 0;
-        
-        if (rowB.points !== rowA.points) return rowB.points - rowA.points;
-        if (rowB.wins !== rowA.wins) return rowB.wins - rowA.wins;
-        if (rowB.goalDifference !== rowA.goalDifference) return rowB.goalDifference - rowA.goalDifference;
-        return rowB.goalsFor - rowA.goalsFor;
-      });
-      
-      // Adiciona os N melhores dessa posição
-      positionTeams.slice(0, bestOfQualifiers).forEach((team) => autoIds.push(team.teamId));
-    }
-    
     return new Set(autoIds);
   };
 
   const [selected, setSelected] = useState<Set<string>>(getAutoSelected);
 
-  // Atualiza a seleção automaticamente quando os jogos forem concluídos ou quando as props de configuração mudarem
+  // Atualiza a seleção automaticamente quando os jogos forem concluídos
   useEffect(() => {
     if (isReadonly) return;
-    if (allGroupMatchesPlayed) {
+    if (allGroupMatchesPlayed && selected.size === 0) {
       setSelected(getAutoSelected());
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [allGroupMatchesPlayed, isReadonly, bestOfQualifiers, bestOfPosition]);
+  }, [allGroupMatchesPlayed, isReadonly]);
 
   const toggle = (teamId: string) => {
     if (isReadonly || !allGroupMatchesPlayed) return;

@@ -215,29 +215,23 @@ export default function TournamentDetailPage() {
   const qualifiersPerGroup = (() => {
     const startStage = tournament.gruposMataMataInicio || "1/8";
     const stageTotal = STAGE_TEAM_COUNTS[startStage] || 8;
-    // Quantos se classificam DIRETAMENTE por grupo
-    return Math.floor(stageTotal / (tournament.gruposQuantidade || 1));
-  })();
-  
-  const totalKnockoutTeams = (() => {
-    const startStage = tournament.gruposMataMataInicio || "1/8";
-    return STAGE_TEAM_COUNTS[startStage] || 8;
+    return Math.max(2, Math.min(stageTotal, tournament.teamIds.length));
   })();
 
   const handleConfirmQualifiers = (selectedTeamIds: string[]) => {
     const startStage = tournament.gruposMataMataInicio || "1/8";
-    const totalKnockoutTeamsExpected = totalKnockoutTeams;
+    const totalKnockoutTeams = qualifiersPerGroup;
 
     if (selectedTeamIds.length < 2) {
       toast.error(`Selecione pelo menos 2 times para o mata-mata.`);
       return;
     }
-    if (selectedTeamIds.length !== totalKnockoutTeamsExpected) {
+    if (selectedTeamIds.length !== totalKnockoutTeams) {
       if (selectedTeamIds.length % 2 !== 0) {
         toast.error(`Selecione um número par de times (atual: ${selectedTeamIds.length}).`);
         return;
       }
-      toast.warning(`${selectedTeamIds.length} times selecionados (esperado: ${totalKnockoutTeamsExpected}). Gerando mata-mata assim mesmo.`);
+      toast.warning(`${selectedTeamIds.length} times selecionados (esperado: ${totalKnockoutTeams}). Gerando mata-mata assim mesmo.`);
     }
 
     const teamGroupPos: Record<string, { group: number; pos: number }> = {};
@@ -863,24 +857,20 @@ export default function TournamentDetailPage() {
                     <GroupQualificationView
                       groupCount={groupCount}
                       standingsByGroup={standingsByGroup}
-                      totalKnockoutTeams={totalKnockoutTeams}
+                      totalKnockoutTeams={qualifiersPerGroup}
                       allGroupMatchesPlayed={allGroupMatchesPlayed}
                       confirmedTeamIds={tournament.settings.qualifiedTeamIds}
                       onConfirm={handleConfirmQualifiers}
-                      bestOfQualifiers={settings?.bestOfQualifiers ?? 0}
-                      bestOfPosition={settings?.bestOfPosition ?? 3}
                     />
                   )}
                   {isGrupos && tournament.groupsFinalized && knockoutMatches.length === 0 && (
                     <GroupQualificationView
                       groupCount={groupCount}
                       standingsByGroup={standingsByGroup}
-                      totalKnockoutTeams={totalKnockoutTeams}
+                      totalKnockoutTeams={qualifiersPerGroup}
                       allGroupMatchesPlayed={allGroupMatchesPlayed}
                       confirmedTeamIds={tournament.settings.qualifiedTeamIds}
                       onConfirm={handleConfirmQualifiers}
-                      bestOfQualifiers={settings?.bestOfQualifiers ?? 0}
-                      bestOfPosition={settings?.bestOfPosition ?? 3}
                     />
                   )}
                   {(isMataMata || isGrupos) && !tournament.finalized && tournament.teamIds.length >= 2 && (
