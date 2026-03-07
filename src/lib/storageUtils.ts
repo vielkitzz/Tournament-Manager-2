@@ -23,7 +23,8 @@ export async function uploadLogo(blob: Blob, path: string): Promise<string> {
   if (error) throw error;
 
   const { data } = supabase.storage.from(BUCKET).getPublicUrl(path);
-  return data.publicUrl;
+  // Append cache-buster to force browser to fetch new version after upsert
+  return `${data.publicUrl}?t=${Date.now()}`;
 }
 
 /**
