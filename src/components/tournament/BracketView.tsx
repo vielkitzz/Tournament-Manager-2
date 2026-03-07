@@ -302,6 +302,43 @@ export default function BracketView({
     else updated.forEach((m) => onUpdateMatch(m));
   };
 
+  const handleAddMatch = (stageIdx: number) => {
+    if (!onAddMatch) return;
+    const stageType = tournament.format === "grupos" ? "knockout" : undefined;
+    if (legMode === "home-away") {
+      const pairId = crypto.randomUUID();
+      const leg1: Match = {
+        id: crypto.randomUUID(), tournamentId: tournament.id, round: stageIdx + 1,
+        homeTeamId: "", awayTeamId: "", homeScore: 0, awayScore: 0, played: false,
+        leg: 1, pairId, stage: stageType as any,
+      };
+      const leg2: Match = {
+        id: crypto.randomUUID(), tournamentId: tournament.id, round: stageIdx + 1,
+        homeTeamId: "", awayTeamId: "", homeScore: 0, awayScore: 0, played: false,
+        leg: 2, pairId, stage: stageType as any,
+      };
+      if (onBatchUpdateMatches) {
+        onBatchUpdateMatches([...matches, leg1, leg2]);
+      } else {
+        onAddMatch(leg1);
+        onAddMatch(leg2);
+      }
+    } else {
+      onAddMatch({
+        id: crypto.randomUUID(), tournamentId: tournament.id, round: stageIdx + 1,
+        homeTeamId: "", awayTeamId: "", homeScore: 0, awayScore: 0, played: false,
+        stage: stageType as any,
+      });
+    }
+    toast.success("Confronto adicionado!");
+  };
+
+  const handleRemoveMatch = (match: Match) => {
+    if (!onRemoveMatch) return;
+    onRemoveMatch(match.id, match.pairId);
+    toast.success("Confronto removido!");
+  };
+
   const handleAdvanceStage = (stageIndex: number) => {
     const stage = stages[stageIndex];
     const nextStage = stages[stageIndex + 1];
