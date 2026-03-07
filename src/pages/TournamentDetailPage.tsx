@@ -215,9 +215,7 @@ export default function TournamentDetailPage() {
   const qualifiersPerGroup = (() => {
     const startStage = tournament.gruposMataMataInicio || "1/8";
     const stageTotal = STAGE_TEAM_COUNTS[startStage] || 8;
-    const totalTeams = tournament.teamIds.length;
-    const maxSensible = Math.max(2, Math.floor(totalTeams / 2));
-    return Math.min(stageTotal, maxSensible);
+    return Math.max(2, Math.min(stageTotal, tournament.teamIds.length));
   })();
 
   const handleConfirmQualifiers = (selectedTeamIds: string[]) => {
@@ -907,6 +905,17 @@ export default function TournamentDetailPage() {
                     }}
                     onGenerateBracket={() => autoGenerate()}
                     onFinalize={handleFinalizeSeason}
+                    onAddMatch={(match) => {
+                      const tagged = { ...match, stage: (isGrupos ? "knockout" : match.stage) as any };
+                      updateTournament(tournament.id, { matches: [...(tournament.matches || []), tagged] });
+                    }}
+                    onRemoveMatch={(matchId, pairId) => {
+                      const newMatches = (tournament.matches || []).filter((m) => {
+                        if (pairId) return m.pairId !== pairId;
+                        return m.id !== matchId;
+                      });
+                      updateTournament(tournament.id, { matches: newMatches });
+                    }}
                   />
                 </div>
               )}

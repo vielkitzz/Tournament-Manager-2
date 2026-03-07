@@ -1,7 +1,8 @@
 import { useState } from "react";
 import { Match, Team, Tournament, KnockoutStage, STAGE_TEAM_COUNTS } from "@/types/tournament";
+import { toast } from "sonner";
 import { cn } from "@/lib/utils";
-import { Shield, Play, Zap, Trophy, Medal, UserPlus, Shuffle, Plus } from "lucide-react";
+import { Shield, Play, Zap, Trophy, Medal, UserPlus, Shuffle, Plus, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { simulateFullMatch, simulateHalf } from "@/lib/simulation";
 import MatchPopup from "./MatchPopup";
@@ -14,6 +15,8 @@ interface BracketViewProps {
   onBatchUpdateMatches?: (matches: Match[]) => void;
   onGenerateBracket: () => void;
   onFinalize?: () => void;
+  onAddMatch?: (match: Match) => void;
+  onRemoveMatch?: (matchId: string, pairId?: string) => void;
 }
 
 const STAGE_LABELS: Record<string, string> = {
@@ -70,6 +73,8 @@ export default function BracketView({
   onBatchUpdateMatches,
   onGenerateBracket,
   onFinalize,
+  onAddMatch,
+  onRemoveMatch,
 }: BracketViewProps) {
   const matches = tournament.matches || [];
   const [selectedMatch, setSelectedMatch] = useState<Match | null>(null);
@@ -297,6 +302,43 @@ export default function BracketView({
     else updated.forEach((m) => onUpdateMatch(m));
   };
 
+  const handleAddMatch = (stageIdx: number) => {
+    if (!onAddMatch) return;
+    const stageType = tournament.format === "grupos" ? "knockout" : undefined;
+    if (legMode === "home-away") {
+      const pairId = crypto.randomUUID();
+      const leg1: Match = {
+        id: crypto.randomUUID(), tournamentId: tournament.id, round: stageIdx + 1,
+        homeTeamId: "", awayTeamId: "", homeScore: 0, awayScore: 0, played: false,
+        leg: 1, pairId, stage: stageType as any,
+      };
+      const leg2: Match = {
+        id: crypto.randomUUID(), tournamentId: tournament.id, round: stageIdx + 1,
+        homeTeamId: "", awayTeamId: "", homeScore: 0, awayScore: 0, played: false,
+        leg: 2, pairId, stage: stageType as any,
+      };
+      if (onBatchUpdateMatches) {
+        onBatchUpdateMatches([...matches, leg1, leg2]);
+      } else {
+        onAddMatch(leg1);
+        onAddMatch(leg2);
+      }
+    } else {
+      onAddMatch({
+        id: crypto.randomUUID(), tournamentId: tournament.id, round: stageIdx + 1,
+        homeTeamId: "", awayTeamId: "", homeScore: 0, awayScore: 0, played: false,
+        stage: stageType as any,
+      });
+    }
+    toast.success("Confronto adicionado!");
+  };
+
+  const handleRemoveMatch = (match: Match) => {
+    if (!onRemoveMatch) return;
+    onRemoveMatch(match.id, match.pairId);
+    toast.success("Confronto removido!");
+  };
+
   const handleAdvanceStage = (stageIndex: number) => {
     const stage = stages[stageIndex];
     const nextStage = stages[stageIndex + 1];
@@ -398,7 +440,16 @@ export default function BracketView({
     const winner = getTieResult(pair);
 
     return (
-      <div key={pair.leg1.id} className="w-[180px] rounded-lg bg-secondary/30 border border-border overflow-hidden">
+      <div key={pair.leg1.id} className="relative group/pair w-[180px] rounded-lg bg-secondary/30 border border-border overflow-hidden">
+        {onRemoveMatch && !tournament.finalized && (
+          <button
+            onClick={(e) => { e.stopPropagation(); handleRemoveMatch(pair.leg1); }}
+            className="absolute -top-1.5 -right-1.5 z-10 p-0.5 rounded-full bg-destructive text-destructive-foreground opacity-0 group-hover/pair:opacity-100 transition-opacity shadow-sm"
+            title="Remover confronto"
+          >
+            <Trash2 className="w-2.5 h-2.5" />
+          </button>
+        )}
         <button
           className="w-full text-left hover:bg-secondary/20 transition-colors"
           onClick={() => setSelectedMatch(pair.leg1)}
@@ -499,6 +550,16 @@ export default function BracketView({
                     </div>
                   ) : (
                     pairs.map((pair, i) => renderPair(pair, i))
+                  )}
+
+                  {onAddMatch && !tournament.finalized && (
+                    <button
+                      onClick={() => handleAddMatch(stageIdx)}
+                      className="w-[180px] p-2 rounded-lg border border-dashed border-border/60 hover:border-primary/40 bg-secondary/10 hover:bg-secondary/30 transition-colors flex items-center justify-center gap-1.5"
+                    >
+                      <Plus className="w-3 h-3 text-muted-foreground" />
+                      <span className="text-[10px] text-muted-foreground">Adicionar Confronto</span>
+                    </button>
                   )}
 
                   {isFinal && thirdPlaceMatches.length > 0 && (
