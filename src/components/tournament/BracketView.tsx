@@ -552,6 +552,16 @@ export default function BracketView({
                     pairs.map((pair, i) => renderPair(pair, i))
                   )}
 
+                  {onAddMatch && !tournament.finalized && (
+                    <button
+                      onClick={() => handleAddMatch(stageIdx)}
+                      className="w-[180px] p-2 rounded-lg border border-dashed border-border/60 hover:border-primary/40 bg-secondary/10 hover:bg-secondary/30 transition-colors flex items-center justify-center gap-1.5"
+                    >
+                      <Plus className="w-3 h-3 text-muted-foreground" />
+                      <span className="text-[10px] text-muted-foreground">Adicionar Confronto</span>
+                    </button>
+                  )}
+
                   {isFinal && thirdPlaceMatches.length > 0 && (
                     <div className="pt-2 mt-1 border-t border-border/40 w-[180px]">
                       <div className="flex items-center gap-1.5 mb-1.5">
