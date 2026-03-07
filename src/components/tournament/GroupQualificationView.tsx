@@ -12,6 +12,10 @@ interface GroupQualificationViewProps {
   /** IDs já confirmados (quando groupsFinalized = true) */
   confirmedTeamIds?: string[];
   onConfirm: (qualifiedTeamIds: string[]) => void;
+  /** Número de melhores classificados de uma posição específica */
+  bestOfQualifiers?: number;
+  /** Qual posição (ex: 3 para terceiros) */
+  bestOfPosition?: number;
 }
 
 export default function GroupQualificationView({
@@ -21,6 +25,8 @@ export default function GroupQualificationView({
   allGroupMatchesPlayed,
   confirmedTeamIds,
   onConfirm,
+  bestOfQualifiers = 0,
+  bestOfPosition = 3,
 }: GroupQualificationViewProps) {
   const isReadonly = !!confirmedTeamIds && confirmedTeamIds.length > 0;
 
@@ -34,10 +40,44 @@ export default function GroupQualificationView({
     }
     if (!allGroupMatchesPlayed) return new Set();
     const autoIds: string[] = [];
+    
+    // Primeiro: adiciona os classificados diretos de cada grupo
     for (let g = 1; g <= groupCount; g++) {
       const rows = standingsByGroup[g] || [];
       rows.slice(0, qualifiersPerGroup).forEach((row) => autoIds.push(row.teamId));
     }
+    
+    // Segundo: se há vagas para melhores de uma posição específica, adiciona os N melhores dessa posição
+    if (bestOfQualifiers > 0 && bestOfPosition > 1) {
+      const positionTeams: Array<{ teamId: string; group: number; position: number }> = [];
+      
+      // Coleta todos os times da posição especificada (ex: 3º lugar)
+      for (let g = 1; g <= groupCount; g++) {
+        const rows = standingsByGroup[g] || [];
+        if (rows.length >= bestOfPosition) {
+          const teamAtPosition = rows[bestOfPosition - 1];
+          // Verifica se este time já foi selecionado como classificado direto
+          if (!autoIds.includes(teamAtPosition.teamId)) {
+            positionTeams.push({
+              teamId: teamAtPosition.teamId,
+              group: g,
+              position: bestOfPosition,
+            });
+          }
+        }
+      }
+      
+      // Ordena por pontos (descendente) e pega os N melhores
+      positionTeams.sort((a, b) => {
+        const rowA = (standingsByGroup[a.group] || [])[a.position - 1];
+        const rowB = (standingsByGroup[b.group] || [])[b.position - 1];
+        return (rowB?.points ?? 0) - (rowA?.points ?? 0);
+      });
+      
+      // Adiciona os N melhores dessa posição
+      positionTeams.slice(0, bestOfQualifiers).forEach((team) => autoIds.push(team.teamId));
+    }
+    
     return new Set(autoIds);
   };
 

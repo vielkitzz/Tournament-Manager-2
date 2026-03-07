@@ -861,6 +861,8 @@ export default function TournamentDetailPage() {
                       allGroupMatchesPlayed={allGroupMatchesPlayed}
                       confirmedTeamIds={tournament.settings.qualifiedTeamIds}
                       onConfirm={handleConfirmQualifiers}
+                      bestOfQualifiers={settings?.bestOfQualifiers ?? 0}
+                      bestOfPosition={settings?.bestOfPosition ?? 3}
                     />
                   )}
                   {isGrupos && tournament.groupsFinalized && knockoutMatches.length === 0 && (
@@ -871,6 +873,8 @@ export default function TournamentDetailPage() {
                       allGroupMatchesPlayed={allGroupMatchesPlayed}
                       confirmedTeamIds={tournament.settings.qualifiedTeamIds}
                       onConfirm={handleConfirmQualifiers}
+                      bestOfQualifiers={settings?.bestOfQualifiers ?? 0}
+                      bestOfPosition={settings?.bestOfPosition ?? 3}
                     />
                   )}
                   {(isMataMata || isGrupos) && !tournament.finalized && tournament.teamIds.length >= 2 && (
