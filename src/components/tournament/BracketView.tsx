@@ -1,7 +1,8 @@
 import { useState } from "react";
 import { Match, Team, Tournament, KnockoutStage, STAGE_TEAM_COUNTS } from "@/types/tournament";
+import { toast } from "sonner";
 import { cn } from "@/lib/utils";
-import { Shield, Play, Zap, Trophy, Medal, UserPlus, Shuffle, Plus } from "lucide-react";
+import { Shield, Play, Zap, Trophy, Medal, UserPlus, Shuffle, Plus, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { simulateFullMatch, simulateHalf } from "@/lib/simulation";
 import MatchPopup from "./MatchPopup";
