@@ -905,6 +905,17 @@ export default function TournamentDetailPage() {
                     }}
                     onGenerateBracket={() => autoGenerate()}
                     onFinalize={handleFinalizeSeason}
+                    onAddMatch={(match) => {
+                      const tagged = { ...match, stage: (isGrupos ? "knockout" : match.stage) as any };
+                      updateTournament(tournament.id, { matches: [...(tournament.matches || []), tagged] });
+                    }}
+                    onRemoveMatch={(matchId, pairId) => {
+                      const newMatches = (tournament.matches || []).filter((m) => {
+                        if (pairId) return m.pairId !== pairId;
+                        return m.id !== matchId;
+                      });
+                      updateTournament(tournament.id, { matches: newMatches });
+                    }}
                   />
                 </div>
               )}
