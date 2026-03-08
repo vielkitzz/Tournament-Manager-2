@@ -874,9 +874,10 @@ export default function TournamentDetailPage() {
                       bestOfQualifiers={tournament.settings.bestOfQualifiers ?? 0}
                       bestOfPosition={tournament.settings.bestOfPosition ?? 3}
                       onConfirm={handleConfirmQualifiers}
+                      onReset={handleResetQualification}
                     />
                   )}
-                  {isGrupos && tournament.groupsFinalized && knockoutMatches.length === 0 && (
+                  {isGrupos && tournament.groupsFinalized && (
                     <GroupQualificationView
                       groupCount={groupCount}
                       standingsByGroup={standingsByGroup}
@@ -886,6 +887,7 @@ export default function TournamentDetailPage() {
                       bestOfQualifiers={tournament.settings.bestOfQualifiers ?? 0}
                       bestOfPosition={tournament.settings.bestOfPosition ?? 3}
                       onConfirm={handleConfirmQualifiers}
+                      onReset={handleResetQualification}
                     />
                   )}
                   {(isMataMata || isGrupos) && !tournament.finalized && tournament.teamIds.length >= 2 && (

@@ -19,7 +19,7 @@ export default function TournamentTeamsPage() {
   const available = useMemo(() => {
     if (!tournament) return [];
     return teams.filter(
-      (t) => !tournament.teamIds.includes(t.id) &&
+      (t) => !t.isArchived && !tournament.teamIds.includes(t.id) &&
         (t.name.toLowerCase().includes(search.toLowerCase()) ||
          t.shortName.toLowerCase().includes(search.toLowerCase()))
     );
