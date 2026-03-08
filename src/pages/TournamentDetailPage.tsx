@@ -451,19 +451,19 @@ export default function TournamentDetailPage() {
       toast.error("Este ano já existe");
       return;
     }
-    const newSeason: SeasonRecord = {
-      year: targetYear,
-      championId: "",
-      championName: "A definir",
-      format: tournament.format,
-      standings: [],
-      matches: [],
-    };
+    // If the current season is finalized, save it before switching
+    // If not finalized, just switch the year (current progress is lost)
     updateTournament(tournament.id, {
-      seasons: [...(tournament.seasons || []), newSeason].sort((a, b) => b.year - a.year),
+      year: targetYear,
+      matches: [],
+      finalized: false,
+      groupsFinalized: false,
     });
+    setViewingYear(null);
     setNewSeasonYear("");
-    toast.success(`Temporada ${targetYear} criada`);
+    setShowYearPicker(false);
+    navigate(`/tournament/${tournament.id}/settings`);
+    toast.success(`Temporada ${targetYear} criada! Edite as configurações.`);
   };
 
   const handleLogoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
