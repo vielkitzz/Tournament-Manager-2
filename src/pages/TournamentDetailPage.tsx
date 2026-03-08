@@ -1082,6 +1082,49 @@ export default function TournamentDetailPage() {
           onConfirm={handleDrawConfirm}
         />
       )}
+
+      {/* Advance Season Dialog */}
+      <AlertDialog open={showAdvanceDialog} onOpenChange={setShowAdvanceDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Encerrar Temporada e Processar Acessos</AlertDialogTitle>
+            <AlertDialogDescription className="space-y-3">
+              <p>
+                Isso irá arquivar a temporada {tournament.year}, transferir os times promovidos/rebaixados
+                para seus respectivos torneios de destino e avançar o ano da competição.
+              </p>
+              <div className="space-y-1.5">
+                <label className="text-xs font-medium text-foreground">Ano da próxima temporada:</label>
+                <Input
+                  type="number"
+                  value={advanceNextYear}
+                  onChange={(e) => setAdvanceNextYear(e.target.value)}
+                  className="h-9"
+                />
+              </div>
+              {(tournament.settings.promotions || [])
+                .filter((p) => p.type !== "playoff" && p.targetCompetition)
+                .map((rule) => {
+                  const target = tournaments.find((t) => t.id === rule.targetCompetition);
+                  return (
+                    <div key={rule.position} className="flex items-center gap-2 text-xs">
+                      <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: rule.color }} />
+                      <span className="text-foreground">
+                        Posição {rule.position}: {rule.type === "promotion" ? "Promoção" : "Rebaixamento"} → {target?.name || "Torneio não encontrado"}
+                      </span>
+                    </div>
+                  );
+                })}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction onClick={handleAdvanceSeason}>
+              Confirmar
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
