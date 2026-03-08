@@ -615,6 +615,7 @@ export default function CompetitionsPage() {
                   onFolderDragStart={handleFolderDragStart}
                   navigate={navigate}
                   onDeleteTournament={handleDelete}
+                  onDuplicateTournament={handleDuplicate}
                 />
               ))}
             </div>
