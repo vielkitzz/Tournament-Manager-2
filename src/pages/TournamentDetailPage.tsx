@@ -537,6 +537,22 @@ export default function TournamentDetailPage() {
     }
   };
 
+  const handleAdvanceSeason = async () => {
+    const year = parseInt(advanceNextYear);
+    if (!year || isNaN(year)) {
+      toast.error("Informe um ano válido.");
+      return;
+    }
+    const result = await advanceSeasonAndProcessPromotions(tournament.id, year);
+    if (result.success) {
+      toast.success(result.message);
+      setShowAdvanceDialog(false);
+      setViewingYear(null);
+    } else {
+      toast.error(result.message);
+    }
+  };
+
   const autoGenerate = () => {
     // Allow regeneration if all existing matches are empty placeholders (no teams assigned or played)
     const hasRealMatches = tournament.matches.some((m) => m.played || (m.homeTeamId && m.awayTeamId));
