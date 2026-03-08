@@ -622,6 +622,7 @@ export default function CompetitionsPage() {
                   tournament={t}
                   onNavigate={() => navigate(`/tournament/${t.id}`)}
                   onDelete={() => handleDelete(t.id, t.name)}
+                  onDuplicate={() => handleDuplicate(t.id)}
                 />
               </motion.div>
             ))}
