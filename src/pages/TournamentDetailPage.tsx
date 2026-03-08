@@ -63,9 +63,7 @@ export default function TournamentDetailPage() {
     if (id) trackTournamentOpen(id);
   }, [id]);
 
-  // Resolve teams with historical logo/rate for the tournament year
-  const tournamentYear = tournament?.year;
-  const resolvedTeams = teams.map((t) => resolveTeam(t, tournamentYear, teamHistories));
+  // Resolve teams with historical logo/rate - deferred until activeYear is known
 
 
 
@@ -96,10 +94,8 @@ export default function TournamentDetailPage() {
     ? tournament.seasons?.find((s) => s.year === viewingYear)
     : null;
 
-  // For past seasons, resolve teams for that season's year and use season's teamIds
-  const resolvedTeamsForSeason = isViewingPastSeason
-    ? teams.map((t) => resolveTeam(t, viewingYear!, teamHistories))
-    : resolvedTeams;
+  // Resolve teams based on the active year (current or past season)
+  const resolvedTeams = teams.map((t) => resolveTeam(t, activeYear, teamHistories));
   const seasonTeamIds = isViewingPastSeason && seasonData?.teamIds
     ? seasonData.teamIds
     : tournament.teamIds;
@@ -145,7 +141,7 @@ export default function TournamentDetailPage() {
         const gMatches = pastMatches.filter((m) => m.group === g && (m.stage === "group" || !m.stage));
         const gTeamIds = [...new Set(gMatches.flatMap((m) => [m.homeTeamId, m.awayTeamId]))].filter(Boolean);
         if (gTeamIds.length > 0) {
-          seasonStandingsByGroup[g] = calculateStandings(gTeamIds, gMatches, pastSettings, resolvedTeamsForSeason);
+          seasonStandingsByGroup[g] = calculateStandings(gTeamIds, gMatches, pastSettings, resolvedTeams);
         }
       }
     }
@@ -1036,7 +1032,7 @@ export default function TournamentDetailPage() {
         <TabsContent value="stats" className="mt-0 outline-none">
           <StatsView
             tournament={isViewingPastSeason ? { ...tournament, matches: seasonData?.matches || [], teamIds: seasonTeamIds } : tournament}
-            teams={isViewingPastSeason ? resolvedTeamsForSeason : resolvedTeams}
+            teams={resolvedTeams}
           />
         </TabsContent>
       </Tabs>
