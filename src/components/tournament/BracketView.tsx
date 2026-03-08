@@ -505,6 +505,11 @@ export default function BracketView({
     const winner = getSingleMatchWinner(match);
     const home = getTeam(match.homeTeamId);
     const away = getTeam(match.awayTeamId);
+    const homeTotal = match.played ? (match.homeScore || 0) + (match.homeExtraTime || 0) : undefined;
+    const awayTotal = match.played ? (match.awayScore || 0) + (match.awayExtraTime || 0) : undefined;
+
+    const hasET = match.played && ((match.homeExtraTime || 0) > 0 || (match.awayExtraTime || 0) > 0);
+    const hasPens = match.played && match.homePenalties !== undefined;
 
     return (
       <button
@@ -512,8 +517,15 @@ export default function BracketView({
         onClick={() => setSelectedMatch(match)}
         className="w-[180px] rounded-lg bg-secondary/30 border border-warning/30 hover:border-warning/60 transition-all text-left overflow-hidden"
       >
-        <TeamRow team={home} score={match.played ? match.homeScore : undefined} isWinner={winner === match.homeTeamId} borderBottom onEditTeam={() => setEditingTeam({ match, side: "home" })} />
-        <TeamRow team={away} score={match.played ? match.awayScore : undefined} isWinner={winner === match.awayTeamId} onEditTeam={() => setEditingTeam({ match, side: "away" })} />
+        <TeamRow team={home} score={homeTotal} isWinner={winner === match.homeTeamId} borderBottom onEditTeam={() => setEditingTeam({ match, side: "home" })} />
+        <TeamRow team={away} score={awayTotal} isWinner={winner === match.awayTeamId} onEditTeam={() => setEditingTeam({ match, side: "away" })} />
+        {(hasET || hasPens) && (
+          <div className="text-center py-0.5 bg-secondary/50 border-t border-border/10">
+            <span className="text-[9px] text-muted-foreground">
+              {[hasET && "AET", hasPens && `Pên: ${match.homePenalties}×${match.awayPenalties}`].filter(Boolean).join(" • ")}
+            </span>
+          </div>
+        )}
       </button>
     );
   };
