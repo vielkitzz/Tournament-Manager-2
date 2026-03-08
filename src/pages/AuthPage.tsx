@@ -20,6 +20,18 @@ export default function AuthPage() {
 
   if (user) return <Navigate to="/" replace />;
 
+  const translateError = (msg: string) => {
+    const lower = msg.toLowerCase();
+    if (lower.includes("invalid login credentials")) return "Email ou senha incorretos";
+    if (lower.includes("email not confirmed")) return "Email não confirmado. Verifique sua caixa de entrada.";
+    if (lower.includes("user not found")) return "Usuário não encontrado";
+    if (lower.includes("user already registered")) return "Este email já está cadastrado. Tente fazer login.";
+    if (lower.includes("signup is disabled")) return "Cadastro desativado temporariamente";
+    if (lower.includes("email rate limit")) return "Muitas tentativas. Aguarde alguns minutos.";
+    if (lower.includes("password") && lower.includes("least")) return "A senha deve ter pelo menos 6 caracteres";
+    return msg;
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!email.trim() || !password.trim()) {
@@ -32,16 +44,26 @@ export default function AuthPage() {
     }
 
     setLoading(true);
-    const { error } = isLogin
-      ? await signIn(email.trim(), password)
-      : await signUp(email.trim(), password);
-    setLoading(false);
-
-    if (error) {
-      toast.error(error.message);
-    } else if (!isLogin) {
-      toast.success("Conta criada! Verifique seu email para confirmar.");
+    try {
+      if (isLogin) {
+        const { error } = await signIn(email.trim(), password);
+        if (error) {
+          toast.error(translateError(error.message));
+        }
+      } else {
+        const { error, session } = await signUp(email.trim(), password);
+        if (error) {
+          toast.error(translateError(error.message));
+        } else if (!session) {
+          toast.success("Conta criada! Verifique seu email para confirmar.", { duration: 6000 });
+        } else {
+          toast.success("Conta criada com sucesso!");
+        }
+      }
+    } catch (err: any) {
+      toast.error(translateError(err?.message || "Erro inesperado"));
     }
+    setLoading(false);
   };
 
   const handleGoogleSignIn = async () => {
