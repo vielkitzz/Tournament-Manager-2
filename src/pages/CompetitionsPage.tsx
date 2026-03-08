@@ -295,6 +295,7 @@ const CompetitionFolderNode = memo(function CompetitionFolderNode({
                   tournament={t}
                   onNavigate={() => navigate(`/tournament/${t.id}`)}
                   onDelete={() => onDeleteTournament(t.id, t.name)}
+                  onDuplicate={() => onDuplicateTournament(t.id)}
                 />
               ))}
             </div>
