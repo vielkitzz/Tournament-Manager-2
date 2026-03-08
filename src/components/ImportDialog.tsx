@@ -84,6 +84,44 @@ export default function ImportDialog({ trigger }: Props) {
       }
 
       if ((mode === "tournaments" || mode === "all") && data.tournaments && Array.isArray(data.tournaments)) {
+        // Helper to remap a team ID through the teamIdMap (falls back to original if not mapped)
+        const remapId = (id: string) => teamIdMap.get(id) || id;
+        const remapIds = (ids: string[]) => ids.map(remapId);
+
+        const remapMatch = (m: any) => ({
+          ...m,
+          id: crypto.randomUUID(),
+          homeTeamId: remapId(m.homeTeamId),
+          awayTeamId: remapId(m.awayTeamId),
+        });
+
+        const remapSettings = (s: any) => {
+          if (!s) return s;
+          const clone = { ...s };
+          if (clone.groupAssignments) {
+            const newGA: Record<string, string[]> = {};
+            for (const [g, ids] of Object.entries(clone.groupAssignments)) {
+              newGA[g] = (ids as string[]).map(remapId);
+            }
+            clone.groupAssignments = newGA;
+          }
+          if (clone.qualifiedTeamIds) {
+            clone.qualifiedTeamIds = (clone.qualifiedTeamIds as string[]).map(remapId);
+          }
+          return clone;
+        };
+
+        const remapSeason = (season: any) => ({
+          ...season,
+          teamIds: season.teamIds ? remapIds(season.teamIds) : undefined,
+          championId: season.championId ? remapId(season.championId) : undefined,
+          matches: season.matches ? season.matches.map(remapMatch) : undefined,
+          standings: season.standings ? season.standings.map((st: any) => ({
+            ...st,
+            teamId: remapId(st.teamId),
+          })) : undefined,
+        });
+
         for (const t of data.tournaments) {
           const newTournament: Tournament = {
             id: crypto.randomUUID(),
@@ -93,11 +131,11 @@ export default function ImportDialog({ trigger }: Props) {
             format: t.format || "liga",
             numberOfTeams: t.numberOfTeams || 0,
             logo: t.logo,
-            teamIds: [],
-            settings: t.settings || { pointsWin: 3, pointsDraw: 1, pointsLoss: 0, tiebreakers: [], awayGoalsRule: false, extraTime: true, goldenGoal: false, rateInfluence: true, promotions: [] },
-            matches: [],
+            teamIds: t.teamIds ? remapIds(t.teamIds) : [],
+            settings: remapSettings(t.settings) || { pointsWin: 3, pointsDraw: 1, pointsLoss: 0, tiebreakers: [], awayGoalsRule: false, extraTime: true, goldenGoal: false, rateInfluence: true, promotions: [] },
+            matches: t.matches ? t.matches.map(remapMatch) : [],
             finalized: false,
-            seasons: t.seasons || [],
+            seasons: t.seasons ? t.seasons.map(remapSeason) : [],
             ligaTurnos: t.ligaTurnos,
             gruposQuantidade: t.gruposQuantidade,
             gruposTurnos: t.gruposTurnos,
