@@ -910,6 +910,8 @@ export default function TournamentDetailPage() {
                 <StandingsTable
                   standings={isViewingPastSeason ? seasonStandings : standings}
                   promotions={tournament.settings.promotions}
+                  matches={isViewingPastSeason ? (viewedSeason?.matches || []) : tournament.matches}
+                  allTeams={resolvedTeams}
                 />
               </div>
               {!isViewingPastSeason && !tournament.finalized && isLiga && standings.length > 0 && standings.every(s => s.played > 0) && (
