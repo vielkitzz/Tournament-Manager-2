@@ -19,6 +19,7 @@ import {
 } from "lucide-react";
 import { useTournamentStore } from "@/store/tournamentStore";
 import { resolveTeam } from "@/lib/teamHistoryUtils";
+import { ArrowRightLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
