@@ -31,6 +31,7 @@ function dbToTournament(row: any): Tournament {
     finalized: row.finalized === true || row.finalized === "true",
     groupsFinalized: row.groups_finalized === true || row.groups_finalized === "true",
     seasons: parseJsonField<SeasonRecord[]>(row.seasons, []),
+    folderId: row.folder_id || null,
     ligaTurnos: row.liga_turnos as Tournament["ligaTurnos"],
     gruposQuantidade: row.grupos_quantidade ? parseInt(String(row.grupos_quantidade)) : undefined,
     gruposTurnos: (row.grupos_turnos ? parseInt(String(row.grupos_turnos)) : undefined) as Tournament["gruposTurnos"],
