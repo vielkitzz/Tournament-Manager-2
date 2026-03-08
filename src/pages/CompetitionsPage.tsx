@@ -43,10 +43,12 @@ const CompetitionCard = memo(function CompetitionCard({
   tournament,
   onNavigate,
   onDelete,
+  onDuplicate,
 }: {
   tournament: Tournament;
   onNavigate: () => void;
   onDelete: () => void;
+  onDuplicate: () => void;
 }) {
   const handleDragStart = (e: DragEvent) => {
     e.dataTransfer.setData("tournament-id", tournament.id);
