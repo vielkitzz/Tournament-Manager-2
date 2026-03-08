@@ -135,43 +135,40 @@ export default function StandingsTable({ standings, promotions = [], qualifyUnti
                   </td>
                   <td className="text-center py-2.5 px-1 font-bold text-foreground">{row.points}</td>
                   <td className="text-center py-2.5 px-1 text-muted-foreground">{row.played}</td>
-                  {/* Wins with tooltip */}
                   <td className="text-center py-2.5 px-1 text-muted-foreground">
                     {hasMatches && row.wins > 0 ? (
                       <Tooltip>
                         <TooltipTrigger asChild>
-                          <span className="cursor-help text-emerald-400/80 font-medium">{row.wins}</span>
+                          <span className="cursor-help">{row.wins}</span>
                         </TooltipTrigger>
                         <TooltipContent side="top" className="max-w-48">
-                          <p className="text-[10px] font-semibold text-emerald-400 mb-1">Vitórias</p>
+                          <p className="text-[10px] font-semibold mb-1">Vitórias</p>
                           {renderTooltipMatches(row.teamId, "win")}
                         </TooltipContent>
                       </Tooltip>
                     ) : row.wins}
                   </td>
-                  {/* Draws with tooltip */}
                   <td className="text-center py-2.5 px-1 text-muted-foreground">
                     {hasMatches && row.draws > 0 ? (
                       <Tooltip>
                         <TooltipTrigger asChild>
-                          <span className="cursor-help text-amber-400/80 font-medium">{row.draws}</span>
+                          <span className="cursor-help">{row.draws}</span>
                         </TooltipTrigger>
                         <TooltipContent side="top" className="max-w-48">
-                          <p className="text-[10px] font-semibold text-amber-400 mb-1">Empates</p>
+                          <p className="text-[10px] font-semibold mb-1">Empates</p>
                           {renderTooltipMatches(row.teamId, "draw")}
                         </TooltipContent>
                       </Tooltip>
                     ) : row.draws}
                   </td>
-                  {/* Losses with tooltip */}
                   <td className="text-center py-2.5 px-1 text-muted-foreground">
                     {hasMatches && row.losses > 0 ? (
                       <Tooltip>
                         <TooltipTrigger asChild>
-                          <span className="cursor-help text-destructive/80 font-medium">{row.losses}</span>
+                          <span className="cursor-help">{row.losses}</span>
                         </TooltipTrigger>
                         <TooltipContent side="top" className="max-w-48">
-                          <p className="text-[10px] font-semibold text-destructive mb-1">Derrotas</p>
+                          <p className="text-[10px] font-semibold mb-1">Derrotas</p>
                           {renderTooltipMatches(row.teamId, "loss")}
                         </TooltipContent>
                       </Tooltip>
