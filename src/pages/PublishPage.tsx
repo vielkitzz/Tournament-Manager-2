@@ -61,10 +61,15 @@ export default function PublishPage() {
       toast.info("Esta competição já está publicada");
       return;
     }
-    const { data } = await supabase.from("published_tournaments").insert({
+    const { data, error } = await supabase.from("published_tournaments").insert({
       tournament_id: tournamentId,
       user_id: user.id,
     } as any).select().single();
+    if (error) {
+      toast.error("Erro ao publicar competição");
+      console.error(error);
+      return;
+    }
     if (data) {
       setPublished((prev) => [...prev, data as any]);
       toast.success("Competição publicada!");
