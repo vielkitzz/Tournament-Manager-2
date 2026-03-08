@@ -416,6 +416,14 @@ export default function CompetitionsPage() {
     [removeTournament]
   );
 
+  const handleDuplicate = useCallback(
+    async (id: string) => {
+      const newId = await duplicateTournament(id);
+      if (newId) toast.success("Competição duplicada!");
+    },
+    [duplicateTournament]
+  );
+
   const handleAddFolder = async () => {
     const id = await addTournamentFolder("Nova Pasta");
     if (id) {
