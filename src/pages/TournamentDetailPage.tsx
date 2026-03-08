@@ -117,6 +117,30 @@ export default function TournamentDetailPage() {
     goalDifference: s.goalsFor - s.goalsAgainst,
   }));
 
+  // For past seasons with groups, build per-group standings
+  const seasonStandingsByGroup: Record<number, import("@/lib/standings").StandingRow[]> = {};
+  if (isViewingPastSeason && seasonData && isGrupos) {
+    const pastGroupCount = seasonData.groupCount || tournament.gruposQuantidade || 1;
+    // If standings have group info, use it directly
+    const hasGroupInfo = seasonData.standings.some((s) => s.group != null);
+    if (hasGroupInfo) {
+      for (let g = 1; g <= pastGroupCount; g++) {
+        seasonStandingsByGroup[g] = seasonStandings.filter((s) => (s as any).group === g);
+      }
+    } else {
+      // Derive from season matches
+      const pastMatches = seasonData.matches || [];
+      const pastSettings = seasonData.settings || tournament.settings;
+      for (let g = 1; g <= pastGroupCount; g++) {
+        const gMatches = pastMatches.filter((m) => m.group === g && (m.stage === "group" || !m.stage));
+        const gTeamIds = [...new Set(gMatches.flatMap((m) => [m.homeTeamId, m.awayTeamId]))].filter(Boolean);
+        if (gTeamIds.length > 0) {
+          seasonStandingsByGroup[g] = calculateStandings(gTeamIds, gMatches, pastSettings, resolvedTeamsForSeason);
+        }
+      }
+    }
+  }
+
   const isLiga = tournament.format === "liga";
   const isMataMata = tournament.format === "mata-mata";
   const isGrupos = tournament.format === "grupos";
