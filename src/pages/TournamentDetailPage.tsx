@@ -61,11 +61,8 @@ export default function TournamentDetailPage() {
   const tournamentYear = tournament?.year;
   const resolvedTeams = teams.map((t) => resolveTeam(t, tournamentYear, teamHistories));
 
-  // For past seasons, resolve teams for that season's year and filter to season's teamIds
-  const activeSeasonYear = (viewingYear !== null && viewingYear !== tournament?.year) ? viewingYear : tournament?.year;
-  const resolvedTeamsForSeason = activeSeasonYear !== tournamentYear
-    ? teams.map((t) => resolveTeam(t, activeSeasonYear, teamHistories))
-    : resolvedTeams;
+
+
 
   const [activeTab, setActiveTab] = useState(tournament?.format === "mata-mata" ? "bracket" : "standings");
   const [viewingYear, setViewingYear] = useState<number | null>(null);
