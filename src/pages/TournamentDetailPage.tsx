@@ -75,6 +75,8 @@ export default function TournamentDetailPage() {
   const [newSeasonYear, setNewSeasonYear] = useState("");
   const [showDrawDialog, setShowDrawDialog] = useState(false);
   const [groupTeamSearch, setGroupTeamSearch] = useState("");
+  const [showAdvanceDialog, setShowAdvanceDialog] = useState(false);
+  const [advanceNextYear, setAdvanceNextYear] = useState("");
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   if (!tournament) {
