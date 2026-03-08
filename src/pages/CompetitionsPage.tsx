@@ -314,6 +314,7 @@ export default function CompetitionsPage() {
   const {
     tournaments,
     removeTournament,
+    duplicateTournament,
     loading,
     tournamentFolders,
     addTournamentFolder,
