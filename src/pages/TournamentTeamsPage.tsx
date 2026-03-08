@@ -225,38 +225,52 @@ export default function TournamentTeamsPage() {
           </div>
 
           <div className="space-y-2 max-h-[60vh] overflow-y-auto pr-1">
-            {/* Root folders */}
-            {rootFolders.map((folder) => {
-              const isOpen = openFolders.has(folder.id);
-              const folderAvailable = available.filter((t) => t.folderId === folder.id);
-              if (folderAvailable.length === 0 && folders.filter((f) => f.parentId === folder.id).length === 0) return null;
-              return (
-                <div key={folder.id} className="rounded-lg border border-border overflow-hidden">
-                  <button
-                    onClick={() => toggleFolder(folder.id)}
-                    className="flex items-center gap-2 px-3 py-2 bg-secondary/20 w-full text-left hover:bg-secondary/40 transition-colors"
-                  >
-                    <ChevronRight className={`w-3 h-3 text-muted-foreground transition-transform ${isOpen ? "rotate-90" : ""}`} />
-                    {isOpen ? <FolderOpen className="w-3.5 h-3.5 text-primary" /> : <Folder className="w-3.5 h-3.5 text-primary" />}
-                    <span className="text-xs font-bold text-foreground flex-1 truncate">{folder.name}</span>
-                    <span className="text-[10px] text-muted-foreground">{folderAvailable.length}</span>
-                  </button>
-                  {isOpen && (
-                    <div className="p-2 space-y-1">
-                      {renderFolderTeams(folder.id)}
+            {/* When searching, show flat list */}
+            {search.trim() ? (
+              <>
+                {available.map(renderAvailableTeam)}
+                {available.length === 0 && (
+                  <p className="text-xs text-muted-foreground text-center py-4">
+                    Nenhum time encontrado para "{search}"
+                  </p>
+                )}
+              </>
+            ) : (
+              <>
+                {/* Root folders */}
+                {rootFolders.map((folder) => {
+                  const isOpen = openFolders.has(folder.id);
+                  const folderAvailable = available.filter((t) => t.folderId === folder.id);
+                  if (folderAvailable.length === 0 && folders.filter((f) => f.parentId === folder.id).length === 0) return null;
+                  return (
+                    <div key={folder.id} className="rounded-lg border border-border overflow-hidden">
+                      <button
+                        onClick={() => toggleFolder(folder.id)}
+                        className="flex items-center gap-2 px-3 py-2 bg-secondary/20 w-full text-left hover:bg-secondary/40 transition-colors"
+                      >
+                        <ChevronRight className={`w-3 h-3 text-muted-foreground transition-transform ${isOpen ? "rotate-90" : ""}`} />
+                        {isOpen ? <FolderOpen className="w-3.5 h-3.5 text-primary" /> : <Folder className="w-3.5 h-3.5 text-primary" />}
+                        <span className="text-xs font-bold text-foreground flex-1 truncate">{folder.name}</span>
+                        <span className="text-[10px] text-muted-foreground">{folderAvailable.length}</span>
+                      </button>
+                      {isOpen && (
+                        <div className="p-2 space-y-1">
+                          {renderFolderTeams(folder.id)}
+                        </div>
+                      )}
                     </div>
-                  )}
-                </div>
-              );
-            })}
+                  );
+                })}
 
-            {/* Unfoldered teams */}
-            {available.filter((t) => !t.folderId).map(renderAvailableTeam)}
+                {/* Unfoldered teams */}
+                {available.filter((t) => !t.folderId).map(renderAvailableTeam)}
 
-            {available.length === 0 && (
-              <p className="text-xs text-muted-foreground text-center py-4">
-                {teams.length === 0 ? "Nenhum time criado." : "Todos os times já foram adicionados."}
-              </p>
+                {available.length === 0 && (
+                  <p className="text-xs text-muted-foreground text-center py-4">
+                    {teams.length === 0 ? "Nenhum time criado." : "Todos os times já foram adicionados."}
+                  </p>
+                )}
+              </>
             )}
           </div>
         </div>

@@ -124,21 +124,21 @@ export default function FriendlyMatchPage() {
     <button
       key={t.id}
       onClick={() => onSelect(t)}
-      className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm transition-all ${
+      className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-all ${
         selected?.id === t.id
           ? "bg-primary/20 text-primary border border-primary/30"
           : "text-foreground hover:bg-secondary border border-transparent"
       }`}
     >
-      <div className="w-7 h-7 flex items-center justify-center shrink-0">
+      <div className="w-6 h-6 flex items-center justify-center shrink-0">
         {t.logo ? (
-          <img src={t.logo} alt="" className="w-7 h-7 object-contain" />
+          <img src={t.logo} alt="" className="w-6 h-6 object-contain" />
         ) : (
           <Shield className="w-4 h-4 text-muted-foreground" />
         )}
       </div>
-      <span className="font-medium truncate">{t.name}</span>
-      <span className="ml-auto text-xs text-muted-foreground font-mono">{t.rate.toFixed(1)}</span>
+      <span className="font-medium truncate text-xs">{t.name}</span>
+      <span className="ml-auto text-[10px] text-muted-foreground font-mono">{t.rate.toFixed(1)}</span>
     </button>
   );
 
@@ -182,16 +182,16 @@ export default function FriendlyMatchPage() {
         <div key={folder.id}>
           <button
             onClick={() => toggleFolder(folder.id)}
-            className="w-full flex items-center gap-2 px-3 py-2 text-xs font-semibold text-muted-foreground uppercase tracking-wider hover:text-foreground transition-colors"
+            className="w-full flex items-center gap-2 px-3 py-1.5 text-xs font-semibold text-muted-foreground uppercase tracking-wider hover:text-foreground transition-colors"
             style={{ paddingLeft: `${12 + depth * 16}px` }}
           >
-            <ChevronRight className={`w-3.5 h-3.5 transition-transform ${expandedFolders.has(folder.id) ? "rotate-90" : ""}`} />
-            <FolderOpen className="w-3.5 h-3.5" />
+            <ChevronRight className={`w-3 h-3 transition-transform ${expandedFolders.has(folder.id) ? "rotate-90" : ""}`} />
+            <FolderOpen className="w-3 h-3" />
             <span>{folder.name}</span>
             <span className="ml-auto text-[10px] font-mono">{folderTeams(folder.id).length}</span>
           </button>
           {expandedFolders.has(folder.id) && (
-            <div className="space-y-0.5" style={{ marginLeft: `${16 + depth * 8}px` }}>
+            <div className="space-y-0.5" style={{ marginLeft: `${12 + depth * 8}px` }}>
               {folderTeams(folder.id).map((t) => renderTeamButton(t, selected, onSelect))}
               {childFolders.map((cf) => renderFolder(cf, depth + 1))}
             </div>
@@ -214,71 +214,98 @@ export default function FriendlyMatchPage() {
   // Team selector
   if (!started) {
     return (
-      <div className="max-w-2xl mx-auto space-y-8">
-        <div className="text-center space-y-2">
-          <Swords className="w-10 h-10 text-primary mx-auto" />
-          <h1 className="text-2xl font-display font-bold text-foreground">Amistoso</h1>
-          <p className="text-sm text-muted-foreground">Selecione dois times para simular uma partida</p>
+      <div className="max-w-3xl mx-auto space-y-6 px-4">
+        <div className="text-center space-y-1">
+          <Swords className="w-8 h-8 text-primary mx-auto" />
+          <h1 className="text-xl font-display font-bold text-foreground">Amistoso</h1>
+          <p className="text-xs text-muted-foreground">Selecione dois times para simular uma partida</p>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {/* Home */}
-          <div className="space-y-3">
-            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Mandante</p>
+          <div className="rounded-xl border border-border bg-card p-4 space-y-3">
+            <div className="flex items-center gap-2">
+              <div className="w-2 h-2 rounded-full bg-primary" />
+              <p className="text-xs font-semibold text-foreground uppercase tracking-wider">Mandante</p>
+            </div>
+            {homeTeam && (
+              <div className="flex items-center gap-3 p-3 rounded-lg bg-primary/10 border border-primary/20">
+                <div className="w-8 h-8 flex items-center justify-center shrink-0">
+                  {homeTeam.logo ? <img src={homeTeam.logo} alt="" className="w-8 h-8 object-contain" /> : <Shield className="w-5 h-5 text-muted-foreground" />}
+                </div>
+                <div className="min-w-0">
+                  <p className="text-sm font-bold text-foreground truncate">{homeTeam.name}</p>
+                  <p className="text-[10px] text-primary font-mono">{homeTeam.rate.toFixed(2)}</p>
+                </div>
+                <button onClick={() => setHomeTeam(null)} className="ml-auto text-xs text-muted-foreground hover:text-foreground">✕</button>
+              </div>
+            )}
             <div className="relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
               <input
                 type="text"
                 value={searchHome}
                 onChange={(e) => setSearchHome(e.target.value)}
                 placeholder="Buscar time..."
-                className="w-full pl-9 pr-3 py-2 rounded-lg bg-secondary border border-border text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary"
+                className="w-full pl-8 pr-3 py-1.5 rounded-lg bg-secondary border border-border text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary"
               />
             </div>
-            <div className="space-y-0.5 max-h-[50vh] overflow-y-auto pr-1">
+            <div className="space-y-0.5 max-h-[40vh] overflow-y-auto">
               {renderTeamList(awayTeam?.id, searchHome, homeTeam, setHomeTeam)}
             </div>
           </div>
 
           {/* Away */}
-          <div className="space-y-3">
-            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Visitante</p>
+          <div className="rounded-xl border border-border bg-card p-4 space-y-3">
+            <div className="flex items-center gap-2">
+              <div className="w-2 h-2 rounded-full bg-accent" />
+              <p className="text-xs font-semibold text-foreground uppercase tracking-wider">Visitante</p>
+            </div>
+            {awayTeam && (
+              <div className="flex items-center gap-3 p-3 rounded-lg bg-accent/10 border border-accent/20">
+                <div className="w-8 h-8 flex items-center justify-center shrink-0">
+                  {awayTeam.logo ? <img src={awayTeam.logo} alt="" className="w-8 h-8 object-contain" /> : <Shield className="w-5 h-5 text-muted-foreground" />}
+                </div>
+                <div className="min-w-0">
+                  <p className="text-sm font-bold text-foreground truncate">{awayTeam.name}</p>
+                  <p className="text-[10px] text-accent font-mono">{awayTeam.rate.toFixed(2)}</p>
+                </div>
+                <button onClick={() => setAwayTeam(null)} className="ml-auto text-xs text-muted-foreground hover:text-foreground">✕</button>
+              </div>
+            )}
             <div className="relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
               <input
                 type="text"
                 value={searchAway}
                 onChange={(e) => setSearchAway(e.target.value)}
                 placeholder="Buscar time..."
-                className="w-full pl-9 pr-3 py-2 rounded-lg bg-secondary border border-border text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary"
+                className="w-full pl-8 pr-3 py-1.5 rounded-lg bg-secondary border border-border text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary"
               />
             </div>
-            <div className="space-y-0.5 max-h-[50vh] overflow-y-auto pr-1">
+            <div className="space-y-0.5 max-h-[40vh] overflow-y-auto">
               {renderTeamList(homeTeam?.id, searchAway, awayTeam, setAwayTeam)}
             </div>
           </div>
         </div>
 
-        {/* Penalty toggle */}
-        {homeTeam && awayTeam && (
-          <div className="flex items-center justify-center gap-3">
-            <label className="flex items-center gap-2 text-sm text-muted-foreground cursor-pointer">
+        {/* Penalty toggle + Start */}
+        <div className="flex flex-col items-center gap-3">
+          {homeTeam && awayTeam && (
+            <label className="flex items-center gap-2 text-xs text-muted-foreground cursor-pointer">
               <input
                 type="checkbox"
                 checked={usePenalties}
                 onChange={(e) => setUsePenalties(e.target.checked)}
-                className="accent-primary"
+                className="accent-primary w-3.5 h-3.5"
               />
               Pênaltis em caso de empate
             </label>
-          </div>
-        )}
-
-        <div className="flex justify-center">
+          )}
           <button
             onClick={() => homeTeam && awayTeam && setStarted(true)}
             disabled={!homeTeam || !awayTeam}
-            className="px-8 py-3 rounded-xl bg-primary text-primary-foreground font-display font-bold text-lg hover:bg-primary/90 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+            className="px-8 py-2.5 rounded-xl bg-primary text-primary-foreground font-display font-bold text-sm hover:bg-primary/90 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
           >
             Iniciar Partida
           </button>
@@ -289,35 +316,36 @@ export default function FriendlyMatchPage() {
 
   // Match simulation view
   return (
-    <div className="max-w-2xl mx-auto space-y-6">
+    <div className="max-w-lg mx-auto space-y-4 px-4">
       {/* Header */}
       <div className="rounded-xl bg-card border border-border shadow-lg overflow-hidden">
-        <div className="bg-secondary/50 border-b border-border px-6 py-5">
+        {/* Teams header */}
+        <div className="bg-secondary/50 border-b border-border px-4 py-4">
           <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3 flex-1">
-              <div className="w-12 h-12 flex items-center justify-center shrink-0">
+            <div className="flex items-center gap-2.5 flex-1 min-w-0">
+              <div className="w-10 h-10 flex items-center justify-center shrink-0">
                 {homeTeam?.logo ? (
-                  <img src={homeTeam.logo} alt="" className="w-12 h-12 object-contain" />
+                  <img src={homeTeam.logo} alt="" className="w-10 h-10 object-contain" />
                 ) : (
-                  <Shield className="w-8 h-8 text-muted-foreground" />
+                  <Shield className="w-6 h-6 text-muted-foreground" />
                 )}
               </div>
-              <div>
-                <p className="font-display font-bold text-foreground text-sm">{homeTeam?.name}</p>
-                <p className="text-xs text-primary font-mono">{homeTeam?.rate.toFixed(2)}</p>
+              <div className="min-w-0">
+                <p className="font-display font-bold text-foreground text-xs truncate">{homeTeam?.name}</p>
+                <p className="text-[10px] text-primary font-mono">{homeTeam?.rate.toFixed(2)}</p>
               </div>
             </div>
-            <span className="text-muted-foreground font-bold text-sm px-4 shrink-0">VS</span>
-            <div className="flex items-center gap-3 flex-1 justify-end text-right">
-              <div>
-                <p className="font-display font-bold text-foreground text-sm">{awayTeam?.name}</p>
-                <p className="text-xs text-primary font-mono">{awayTeam?.rate.toFixed(2)}</p>
+            <span className="text-muted-foreground font-bold text-xs px-3 shrink-0">VS</span>
+            <div className="flex items-center gap-2.5 flex-1 justify-end text-right min-w-0">
+              <div className="min-w-0">
+                <p className="font-display font-bold text-foreground text-xs truncate">{awayTeam?.name}</p>
+                <p className="text-[10px] text-primary font-mono">{awayTeam?.rate.toFixed(2)}</p>
               </div>
-              <div className="w-12 h-12 flex items-center justify-center shrink-0">
+              <div className="w-10 h-10 flex items-center justify-center shrink-0">
                 {awayTeam?.logo ? (
-                  <img src={awayTeam.logo} alt="" className="w-12 h-12 object-contain" />
+                  <img src={awayTeam.logo} alt="" className="w-10 h-10 object-contain" />
                 ) : (
-                  <Shield className="w-8 h-8 text-muted-foreground" />
+                  <Shield className="w-6 h-6 text-muted-foreground" />
                 )}
               </div>
             </div>
@@ -325,14 +353,14 @@ export default function FriendlyMatchPage() {
         </div>
 
         {/* Half tabs */}
-        <div className="flex items-center justify-center gap-2 py-3 border-b border-border">
+        <div className="flex items-center justify-center gap-1.5 py-2 border-b border-border bg-card">
           {(["h1", "h2"] as HalfKey[]).map((k, i) => (
             <button
               key={k}
               onClick={() => !showPenalties && !finished && setActiveHalf(k)}
-              className={`px-3 py-1 rounded-md text-xs font-mono font-bold transition-colors ${
+              className={`px-2.5 py-1 rounded-md text-[11px] font-mono font-bold transition-colors ${
                 activeHalf === k && !showPenalties
-                  ? "border border-primary text-primary"
+                  ? "border border-primary text-primary bg-primary/10"
                   : "text-muted-foreground hover:text-foreground"
               }`}
             >
@@ -340,7 +368,7 @@ export default function FriendlyMatchPage() {
             </button>
           ))}
           {showPenalties && (
-            <span className="px-3 py-1 rounded-md text-xs font-mono font-bold border border-primary text-primary">
+            <span className="px-2.5 py-1 rounded-md text-[11px] font-mono font-bold border border-primary text-primary bg-primary/10">
               PEN {penaltyScore("home")}:{penaltyScore("away")}
             </span>
           )}
@@ -349,36 +377,37 @@ export default function FriendlyMatchPage() {
         {/* Score controls */}
         {!showPenalties && !finished && (
           <>
-            <div className="flex items-center justify-center gap-4 py-6 px-6">
-              <div className="flex flex-col items-center gap-1">
-                <button onClick={() => increment(0)} className="p-1 text-primary hover:text-primary/80 transition-colors">
-                  <ChevronUp className="w-8 h-8" strokeWidth={3} />
+            <div className="flex items-center justify-center gap-3 py-5 px-4">
+              <div className="flex flex-col items-center gap-0.5">
+                <button onClick={() => increment(0)} className="p-0.5 text-primary hover:text-primary/80 transition-colors">
+                  <ChevronUp className="w-6 h-6" strokeWidth={3} />
                 </button>
-                <button onClick={() => decrement(0)} className="p-1 text-destructive hover:text-destructive/80 transition-colors">
-                  <ChevronDown className="w-8 h-8" strokeWidth={3} />
+                <button onClick={() => decrement(0)} className="p-0.5 text-destructive hover:text-destructive/80 transition-colors">
+                  <ChevronDown className="w-6 h-6" strokeWidth={3} />
                 </button>
               </div>
-              <div className="w-28 h-28 rounded-xl bg-secondary border border-border flex items-center justify-center">
-                <span className="text-6xl font-bold text-foreground font-display">{accumulatedHome}</span>
+              <div className="w-20 h-20 rounded-xl bg-secondary border border-border flex items-center justify-center">
+                <span className="text-4xl font-bold text-foreground font-display">{accumulatedHome}</span>
               </div>
-              <div className="w-28 h-28 rounded-xl bg-secondary border border-border flex items-center justify-center">
-                <span className="text-6xl font-bold text-foreground font-display">{accumulatedAway}</span>
+              <span className="text-muted-foreground font-bold text-lg">×</span>
+              <div className="w-20 h-20 rounded-xl bg-secondary border border-border flex items-center justify-center">
+                <span className="text-4xl font-bold text-foreground font-display">{accumulatedAway}</span>
               </div>
-              <div className="flex flex-col items-center gap-1">
-                <button onClick={() => increment(1)} className="p-1 text-primary hover:text-primary/80 transition-colors">
-                  <ChevronUp className="w-8 h-8" strokeWidth={3} />
+              <div className="flex flex-col items-center gap-0.5">
+                <button onClick={() => increment(1)} className="p-0.5 text-primary hover:text-primary/80 transition-colors">
+                  <ChevronUp className="w-6 h-6" strokeWidth={3} />
                 </button>
-                <button onClick={() => decrement(1)} className="p-1 text-destructive hover:text-destructive/80 transition-colors">
-                  <ChevronDown className="w-8 h-8" strokeWidth={3} />
+                <button onClick={() => decrement(1)} className="p-0.5 text-destructive hover:text-destructive/80 transition-colors">
+                  <ChevronDown className="w-6 h-6" strokeWidth={3} />
                 </button>
               </div>
             </div>
 
             {canSimulate && (
-              <div className="px-6 pb-4">
+              <div className="px-4 pb-3">
                 <button
                   onClick={handleSimulate}
-                  className="w-full max-w-xs mx-auto block py-3 rounded-xl bg-primary/20 text-primary font-display font-bold text-lg hover:bg-primary/30 transition-colors"
+                  className="w-full py-2.5 rounded-lg bg-primary/15 text-primary font-display font-bold text-sm hover:bg-primary/25 transition-colors border border-primary/20"
                 >
                   Simular {activeHalf === "h1" ? "1ºT" : "2ºT"}
                 </button>
@@ -389,12 +418,12 @@ export default function FriendlyMatchPage() {
 
         {/* Penalties */}
         {showPenalties && !finished && (
-          <div className="px-6 py-6 space-y-4">
-            <p className="text-sm font-display font-bold text-foreground text-center">Disputa de Pênaltis</p>
-            <div className="space-y-3">
+          <div className="px-4 py-4 space-y-3">
+            <p className="text-xs font-display font-bold text-foreground text-center">Disputa de Pênaltis</p>
+            <div className="space-y-2">
               <div className="flex items-center gap-2 justify-center">
-                <span className="text-xs text-muted-foreground w-16 text-right truncate">{homeTeam?.abbreviation || homeTeam?.shortName}</span>
-                <div className="flex gap-1.5 min-w-[140px]">
+                <span className="text-[10px] text-muted-foreground w-14 text-right truncate">{homeTeam?.abbreviation || homeTeam?.shortName}</span>
+                <div className="flex gap-1 min-w-[120px]">
                   {penalties.home.map((p, i) => (
                     <button
                       key={i}
@@ -405,7 +434,7 @@ export default function FriendlyMatchPage() {
                           return { ...prev, home: arr };
                         });
                       }}
-                      className={`w-7 h-7 rounded-full border-2 transition-all text-xs font-bold ${
+                      className={`w-6 h-6 rounded-full border-2 transition-all text-[10px] font-bold ${
                         p ? "bg-primary border-primary text-primary-foreground" : "bg-destructive border-destructive text-destructive-foreground"
                       }`}
                     >
@@ -413,11 +442,11 @@ export default function FriendlyMatchPage() {
                     </button>
                   ))}
                 </div>
-                <span className="text-lg font-bold text-foreground w-8 text-center">{penaltyScore("home")}</span>
+                <span className="text-sm font-bold text-foreground w-6 text-center">{penaltyScore("home")}</span>
               </div>
               <div className="flex items-center gap-2 justify-center">
-                <span className="text-xs text-muted-foreground w-16 text-right truncate">{awayTeam?.abbreviation || awayTeam?.shortName}</span>
-                <div className="flex gap-1.5 min-w-[140px]">
+                <span className="text-[10px] text-muted-foreground w-14 text-right truncate">{awayTeam?.abbreviation || awayTeam?.shortName}</span>
+                <div className="flex gap-1 min-w-[120px]">
                   {penalties.away.map((p, i) => (
                     <button
                       key={i}
@@ -428,7 +457,7 @@ export default function FriendlyMatchPage() {
                           return { ...prev, away: arr };
                         });
                       }}
-                      className={`w-7 h-7 rounded-full border-2 transition-all text-xs font-bold ${
+                      className={`w-6 h-6 rounded-full border-2 transition-all text-[10px] font-bold ${
                         p ? "bg-primary border-primary text-primary-foreground" : "bg-destructive border-destructive text-destructive-foreground"
                       }`}
                     >
@@ -436,16 +465,16 @@ export default function FriendlyMatchPage() {
                     </button>
                   ))}
                 </div>
-                <span className="text-lg font-bold text-foreground w-8 text-center">{penaltyScore("away")}</span>
+                <span className="text-sm font-bold text-foreground w-6 text-center">{penaltyScore("away")}</span>
               </div>
             </div>
             {!penaltyFinished && (
               <div className="flex justify-center">
                 <button
                   onClick={handleShootPenalty}
-                  className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-primary text-primary-foreground font-display font-bold text-sm hover:bg-primary/90 transition-colors"
+                  className="flex items-center gap-1.5 px-4 py-2 rounded-lg bg-primary text-primary-foreground font-display font-bold text-xs hover:bg-primary/90 transition-colors"
                 >
-                  <Play className="w-4 h-4" />
+                  <Play className="w-3.5 h-3.5" />
                   Cobrar ({penaltyIndex % 2 === 0 ? homeTeam?.abbreviation || "Casa" : awayTeam?.abbreviation || "Fora"})
                 </button>
               </div>
@@ -460,16 +489,16 @@ export default function FriendlyMatchPage() {
 
         {/* Result */}
         {finished && (
-          <div className="px-6 py-8 text-center space-y-2">
-            <p className="text-4xl font-display font-bold text-foreground">
+          <div className="px-4 py-6 text-center space-y-1.5">
+            <p className="text-3xl font-display font-bold text-foreground">
               {totalHome} × {totalAway}
             </p>
             {showPenalties && penaltyFinished && (
-              <p className="text-sm text-primary font-bold">
+              <p className="text-xs text-primary font-bold">
                 ({penaltyScore("home")} × {penaltyScore("away")} nos pênaltis)
               </p>
             )}
-            <p className="text-sm text-muted-foreground">
+            <p className="text-xs text-muted-foreground">
               {totalHome > totalAway
                 ? `${homeTeam?.name} venceu!`
                 : totalAway > totalHome
@@ -484,11 +513,11 @@ export default function FriendlyMatchPage() {
         )}
 
         {/* Actions */}
-        <div className="px-6 pb-6 flex gap-3 justify-center">
+        <div className="px-4 pb-4 flex gap-2 justify-center">
           {!finished && allSimulated && !showPenalties && (
             <button
               onClick={handleFinish}
-              className="px-6 py-3 rounded-xl bg-primary text-primary-foreground font-display font-bold hover:bg-primary/90 transition-colors"
+              className="px-5 py-2 rounded-lg bg-primary text-primary-foreground font-display font-bold text-sm hover:bg-primary/90 transition-colors"
             >
               Finalizar
             </button>
@@ -496,7 +525,7 @@ export default function FriendlyMatchPage() {
           {!finished && showPenalties && penaltyFinished && (
             <button
               onClick={() => setFinished(true)}
-              className="px-6 py-3 rounded-xl bg-primary text-primary-foreground font-display font-bold hover:bg-primary/90 transition-colors"
+              className="px-5 py-2 rounded-lg bg-primary text-primary-foreground font-display font-bold text-sm hover:bg-primary/90 transition-colors"
             >
               Finalizar
             </button>
@@ -504,9 +533,9 @@ export default function FriendlyMatchPage() {
           {finished && (
             <button
               onClick={handleReset}
-              className="flex items-center gap-2 px-6 py-3 rounded-xl bg-secondary text-foreground font-display font-bold hover:bg-secondary/80 transition-colors"
+              className="flex items-center gap-1.5 px-5 py-2 rounded-lg bg-secondary text-foreground font-display font-bold text-sm hover:bg-secondary/80 transition-colors"
             >
-              <RotateCcw className="w-4 h-4" />
+              <RotateCcw className="w-3.5 h-3.5" />
               Novo Amistoso
             </button>
           )}
