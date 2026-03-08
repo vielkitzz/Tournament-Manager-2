@@ -1,5 +1,5 @@
 import { create } from "zustand";
-import { Tournament, Team, TeamFolder, TournamentSettings, Match, SeasonRecord } from "@/types/tournament";
+import { Tournament, Team, TeamFolder, TournamentFolder, TournamentSettings, Match, SeasonRecord } from "@/types/tournament";
 import { supabase } from "@/integrations/supabase/client";
 import { Json } from "@/integrations/supabase/types";
 import { TeamHistory } from "@/lib/teamHistoryUtils";
@@ -31,6 +31,7 @@ function dbToTournament(row: any): Tournament {
     finalized: row.finalized === true || row.finalized === "true",
     groupsFinalized: row.groups_finalized === true || row.groups_finalized === "true",
     seasons: parseJsonField<SeasonRecord[]>(row.seasons, []),
+    folderId: row.folder_id || null,
     ligaTurnos: row.liga_turnos as Tournament["ligaTurnos"],
     gruposQuantidade: row.grupos_quantidade ? parseInt(String(row.grupos_quantidade)) : undefined,
     gruposTurnos: (row.grupos_turnos ? parseInt(String(row.grupos_turnos)) : undefined) as Tournament["gruposTurnos"],
@@ -78,6 +79,7 @@ function tournamentToDb(tournament: Tournament, userId: string) {
     format: tournament.format,
     number_of_teams: tournament.numberOfTeams,
     logo: tournament.logo || null,
+    folder_id: tournament.folderId || null,
     team_ids: tournament.teamIds,
     settings: tournament.settings as unknown as Json,
     matches: tournament.matches as unknown as Json,
@@ -103,6 +105,7 @@ function updatesToDb(updates: Partial<Tournament>): Record<string, any> {
   if (updates.format !== undefined) dbUpdates.format = updates.format;
   if (updates.numberOfTeams !== undefined) dbUpdates.number_of_teams = updates.numberOfTeams;
   if (updates.logo !== undefined) dbUpdates.logo = updates.logo;
+  if (updates.folderId !== undefined) dbUpdates.folder_id = updates.folderId;
   if (updates.teamIds !== undefined) dbUpdates.team_ids = updates.teamIds;
   if (updates.settings !== undefined) dbUpdates.settings = updates.settings as unknown as Json;
   if (updates.matches !== undefined) dbUpdates.matches = updates.matches as unknown as Json;
@@ -125,6 +128,7 @@ interface TournamentState {
   tournaments: Tournament[];
   teams: Team[];
   folders: TeamFolder[];
+  tournamentFolders: TournamentFolder[];
   teamHistories: TeamHistory[];
   loading: boolean;
   _userId: string | null;
@@ -143,6 +147,12 @@ interface TournamentState {
   removeFolder: (id: string) => Promise<void>;
   moveTeamToFolder: (teamId: string, folderId: string | null) => Promise<void>;
   moveFolderToFolder: (folderId: string, parentId: string | null) => Promise<void>;
+  // Tournament folders
+  addTournamentFolder: (name: string) => Promise<string | undefined>;
+  renameTournamentFolder: (id: string, name: string) => Promise<void>;
+  removeTournamentFolder: (id: string) => Promise<void>;
+  moveTournamentToFolder: (tournamentId: string, folderId: string | null) => Promise<void>;
+  moveTournamentFolderToFolder: (folderId: string, parentId: string | null) => Promise<void>;
   // Team histories
   addTeamHistory: (history: TeamHistory) => Promise<void>;
   updateTeamHistory: (id: string, updates: Partial<TeamHistory>) => Promise<void>;
@@ -154,27 +164,30 @@ export const useTournamentStore = create<TournamentState>((set, get) => ({
   tournaments: [],
   teams: [],
   folders: [],
+  tournamentFolders: [],
   teamHistories: [],
   loading: true,
   _userId: null,
 
   initialize: async (userId) => {
     if (!userId) {
-      set({ tournaments: [], teams: [], folders: [], teamHistories: [], loading: false, _userId: null });
+      set({ tournaments: [], teams: [], folders: [], tournamentFolders: [], teamHistories: [], loading: false, _userId: null });
       return;
     }
     if (userId === get()._userId && !get().loading) return;
     set({ loading: true, _userId: userId });
-    const [tRes, teRes, fRes, hRes] = await Promise.all([
+    const [tRes, teRes, fRes, tfRes, hRes] = await Promise.all([
       db.from("tournaments").select("*").eq("user_id", userId),
       db.from("teams").select("*").eq("user_id", userId),
       db.from("team_folders").select("*").eq("user_id", userId),
+      db.from("tournament_folders").select("*").eq("user_id", userId),
       db.from("team_histories").select("*").eq("user_id", userId),
     ]) as any[];
     set({
       tournaments: tRes.data ? tRes.data.map(dbToTournament) : [],
       teams: teRes.data ? teRes.data.map(dbToTeam) : [],
       folders: fRes.data ? fRes.data.map((f: any) => ({ id: f.id, name: f.name, parentId: f.parent_id || null })) : [],
+      tournamentFolders: tfRes.data ? tfRes.data.map((f: any) => ({ id: f.id, name: f.name, parentId: f.parent_id || null })) : [],
       teamHistories: hRes.data ? hRes.data.map((h: any) => ({
         id: h.id,
         teamId: h.team_id,
@@ -310,6 +323,57 @@ export const useTournamentStore = create<TournamentState>((set, get) => ({
     }
     set((s) => ({ folders: s.folders.map((f) => (f.id === folderId ? { ...f, parentId } : f)) }));
     await db.from("team_folders").update({ parent_id: parentId }).eq("id", folderId).eq("user_id", userId);
+  },
+
+  // Tournament Folders
+  addTournamentFolder: async (name) => {
+    const userId = get()._userId;
+    if (!userId) return;
+    const { data } = await db.from("tournament_folders").insert({ user_id: userId, name }).select().single();
+    if (data) {
+      set((s) => ({ tournamentFolders: [...s.tournamentFolders, { id: data.id, name: data.name, parentId: data.parent_id || null }] }));
+      return data.id;
+    }
+  },
+
+  renameTournamentFolder: async (id, name) => {
+    const userId = get()._userId;
+    if (!userId) return;
+    set((s) => ({ tournamentFolders: s.tournamentFolders.map((f) => (f.id === id ? { ...f, name } : f)) }));
+    await db.from("tournament_folders").update({ name }).eq("id", id).eq("user_id", userId);
+  },
+
+  removeTournamentFolder: async (id) => {
+    const userId = get()._userId;
+    if (!userId) return;
+    set((s) => ({
+      tournaments: s.tournaments.map((t) => (t.folderId === id ? { ...t, folderId: null } : t)),
+      tournamentFolders: s.tournamentFolders.filter((f) => f.id !== id),
+    }));
+    await db.from("tournaments").update({ folder_id: null }).eq("folder_id", id).eq("user_id", userId);
+    await db.from("tournament_folders").delete().eq("id", id).eq("user_id", userId);
+  },
+
+  moveTournamentToFolder: async (tournamentId, folderId) => {
+    const userId = get()._userId;
+    if (!userId) return;
+    set((s) => ({ tournaments: s.tournaments.map((t) => (t.id === tournamentId ? { ...t, folderId } : t)) }));
+    await db.from("tournaments").update({ folder_id: folderId }).eq("id", tournamentId).eq("user_id", userId);
+  },
+
+  moveTournamentFolderToFolder: async (folderId, parentId) => {
+    const userId = get()._userId;
+    if (!userId) return;
+    if (parentId === folderId) return;
+    const { tournamentFolders } = get();
+    let current = parentId;
+    while (current) {
+      if (current === folderId) return;
+      const parent = tournamentFolders.find((f) => f.id === current);
+      current = parent?.parentId || null;
+    }
+    set((s) => ({ tournamentFolders: s.tournamentFolders.map((f) => (f.id === folderId ? { ...f, parentId } : f)) }));
+    await db.from("tournament_folders").update({ parent_id: parentId }).eq("id", folderId).eq("user_id", userId);
   },
 
   // Team Histories

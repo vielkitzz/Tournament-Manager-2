@@ -197,10 +197,35 @@ export type Database = {
         }
         Relationships: []
       }
+      tournament_folders: {
+        Row: {
+          created_at: string | null
+          id: string
+          name: string
+          parent_id: string | null
+          user_id: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          name: string
+          parent_id?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          name?: string
+          parent_id?: string | null
+          user_id?: string | null
+        }
+        Relationships: []
+      }
       tournaments: {
         Row: {
           created_at: string | null
           finalized: string | null
+          folder_id: string | null
           format: string | null
           groups_finalized: string | null
           grupos_mata_mata_inicio: string | null
@@ -227,6 +252,7 @@ export type Database = {
         Insert: {
           created_at?: string | null
           finalized?: string | null
+          folder_id?: string | null
           format?: string | null
           groups_finalized?: string | null
           grupos_mata_mata_inicio?: string | null
@@ -253,6 +279,7 @@ export type Database = {
         Update: {
           created_at?: string | null
           finalized?: string | null
+          folder_id?: string | null
           format?: string | null
           groups_finalized?: string | null
           grupos_mata_mata_inicio?: string | null
