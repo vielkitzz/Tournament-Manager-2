@@ -439,6 +439,27 @@ export default function BracketView({
     const awayTeam = getTeam(pair.leg1.awayTeamId);
     const winner = getTieResult(pair);
 
+    const getMatchTotalScore = (match: Match, side: "home" | "away") => {
+      const base = side === "home" ? (match.homeScore || 0) : (match.awayScore || 0);
+      const et = side === "home" ? (match.homeExtraTime || 0) : (match.awayExtraTime || 0);
+      return base + et;
+    };
+
+    const hasExtraTime = (match: Match) => match.played && ((match.homeExtraTime || 0) > 0 || (match.awayExtraTime || 0) > 0);
+    const hasPenalties = (match: Match) => match.played && match.homePenalties !== undefined;
+
+    const renderMatchFooter = (match: Match) => {
+      const parts: string[] = [];
+      if (hasExtraTime(match)) parts.push("AET");
+      if (hasPenalties(match)) parts.push(`Pên: ${match.homePenalties}×${match.awayPenalties}`);
+      if (parts.length === 0) return null;
+      return (
+        <div className="text-center py-0.5 bg-secondary/50 border-t border-border/10">
+          <span className="text-[9px] text-muted-foreground">{parts.join(" • ")}</span>
+        </div>
+      );
+    };
+
     return (
       <div key={pair.leg1.id} className="relative group/pair w-[180px] rounded-lg bg-secondary/30 border border-border overflow-hidden">
         {onRemoveMatch && !tournament.finalized && (
@@ -459,8 +480,9 @@ export default function BracketView({
               <span className="text-[8px] text-muted-foreground">Ida</span>
             </div>
           )}
-          <TeamRow team={homeTeam} score={pair.leg1.played ? pair.leg1.homeScore : undefined} isWinner={winner === pair.leg1.homeTeamId} borderBottom compact onEditTeam={() => setEditingTeam({ match: pair.leg1, side: "home" })} />
-          <TeamRow team={awayTeam} score={pair.leg1.played ? pair.leg1.awayScore : undefined} isWinner={winner === pair.leg1.awayTeamId} compact onEditTeam={() => setEditingTeam({ match: pair.leg1, side: "away" })} />
+          <TeamRow team={homeTeam} score={pair.leg1.played ? getMatchTotalScore(pair.leg1, "home") : undefined} isWinner={winner === pair.leg1.homeTeamId} borderBottom compact onEditTeam={() => setEditingTeam({ match: pair.leg1, side: "home" })} />
+          <TeamRow team={awayTeam} score={pair.leg1.played ? getMatchTotalScore(pair.leg1, "away") : undefined} isWinner={winner === pair.leg1.awayTeamId} compact onEditTeam={() => setEditingTeam({ match: pair.leg1, side: "away" })} />
+          {!pair.leg2 && renderMatchFooter(pair.leg1)}
         </button>
         {pair.leg2 && (
           <button
@@ -470,13 +492,9 @@ export default function BracketView({
             <div className="flex items-center gap-1 px-2 py-1 border-b border-border/20">
               <span className="text-[8px] text-muted-foreground">Volta</span>
             </div>
-            <TeamRow team={awayTeam} score={pair.leg2.played ? pair.leg2.homeScore : undefined} isWinner={winner === pair.leg1.awayTeamId} borderBottom compact onEditTeam={() => setEditingTeam({ match: pair.leg2!, side: "home" })} />
-            <TeamRow team={homeTeam} score={pair.leg2.played ? pair.leg2.awayScore : undefined} isWinner={winner === pair.leg1.homeTeamId} compact onEditTeam={() => setEditingTeam({ match: pair.leg2!, side: "away" })} />
-            {pair.leg2.played && pair.leg2.homePenalties !== undefined && (
-              <div className="text-center py-0.5 bg-secondary/50">
-                <span className="text-[9px] text-muted-foreground">Pên: {pair.leg2.awayPenalties}×{pair.leg2.homePenalties}</span>
-              </div>
-            )}
+            <TeamRow team={awayTeam} score={pair.leg2.played ? getMatchTotalScore(pair.leg2, "home") : undefined} isWinner={winner === pair.leg1.awayTeamId} borderBottom compact onEditTeam={() => setEditingTeam({ match: pair.leg2!, side: "home" })} />
+            <TeamRow team={homeTeam} score={pair.leg2.played ? getMatchTotalScore(pair.leg2, "away") : undefined} isWinner={winner === pair.leg1.homeTeamId} compact onEditTeam={() => setEditingTeam({ match: pair.leg2!, side: "away" })} />
+            {renderMatchFooter(pair.leg2)}
           </button>
         )}
       </div>
