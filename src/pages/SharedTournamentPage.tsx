@@ -14,13 +14,15 @@ export default function SharedTournamentPage() {
     if (!token) { setError(true); setLoading(false); return; }
 
     const load = async () => {
-      const { data: pub } = await (supabase as any)
-        .rpc("get_published_tournament_by_token", { p_token: token })
+      const { data: pub } = await supabase
+        .from("published_tournaments")
+        .select("*")
+        .eq("share_token", token)
         .maybeSingle();
 
-      if (!pub) { setError(true); setLoading(false); return; }
+      if (!pub || !pub.tournament_id) { setError(true); setLoading(false); return; }
 
-      const { data: t } = await (supabase as any)
+      const { data: t } = await supabase
         .from("tournaments")
         .select("*")
         .eq("id", pub.tournament_id)
