@@ -12,6 +12,7 @@ import {
   FolderOpen,
   ChevronRight,
   GripVertical,
+  Copy,
 } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Input } from "@/components/ui/input";
