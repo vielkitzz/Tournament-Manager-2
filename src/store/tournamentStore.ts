@@ -105,6 +105,7 @@ function updatesToDb(updates: Partial<Tournament>): Record<string, any> {
   if (updates.format !== undefined) dbUpdates.format = updates.format;
   if (updates.numberOfTeams !== undefined) dbUpdates.number_of_teams = updates.numberOfTeams;
   if (updates.logo !== undefined) dbUpdates.logo = updates.logo;
+  if (updates.folderId !== undefined) dbUpdates.folder_id = updates.folderId;
   if (updates.teamIds !== undefined) dbUpdates.team_ids = updates.teamIds;
   if (updates.settings !== undefined) dbUpdates.settings = updates.settings as unknown as Json;
   if (updates.matches !== undefined) dbUpdates.matches = updates.matches as unknown as Json;
