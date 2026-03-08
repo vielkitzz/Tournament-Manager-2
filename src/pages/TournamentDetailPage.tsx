@@ -141,7 +141,7 @@ export default function TournamentDetailPage() {
         const gMatches = pastMatches.filter((m) => m.group === g && (m.stage === "group" || !m.stage));
         const gTeamIds = [...new Set(gMatches.flatMap((m) => [m.homeTeamId, m.awayTeamId]))].filter(Boolean);
         if (gTeamIds.length > 0) {
-          seasonStandingsByGroup[g] = calculateStandings(gTeamIds, gMatches, pastSettings, resolvedTeamsForSeason);
+          seasonStandingsByGroup[g] = calculateStandings(gTeamIds, gMatches, pastSettings, resolvedTeams);
         }
       }
     }
