@@ -90,8 +90,16 @@ const CompetitionCard = memo(function CompetitionCard({
             <button
               onClick={(e) => { e.stopPropagation(); onNavigate(); }}
               className="p-1.5 rounded-md hover:bg-secondary text-muted-foreground hover:text-foreground transition-colors"
+              title="Editar"
             >
               <Pencil className="w-3.5 h-3.5" />
+            </button>
+            <button
+              onClick={(e) => { e.stopPropagation(); onDuplicate(); }}
+              className="p-1.5 rounded-md hover:bg-secondary text-muted-foreground hover:text-foreground transition-colors"
+              title="Duplicar"
+            >
+              <Copy className="w-3.5 h-3.5" />
             </button>
             <AlertDialog>
               <AlertDialogTrigger asChild>
