@@ -3,7 +3,6 @@ import { Tournament, PromotionRule } from "@/types/tournament";
 import { Shield } from "lucide-react";
 import { StandingRow } from "@/lib/standings";
 import { Input } from "@/components/ui/input";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
 
 interface PromotionEditorProps {
@@ -43,12 +42,6 @@ export default function PromotionEditor({
   const [editColor, setEditColor] = useState(ZONE_COLORS[0].value);
   const [editTarget, setEditTarget] = useState("");
   const [customHex, setCustomHex] = useState("");
-
-  // Helper to get tournament name by ID
-  const getTournamentName = (id: string) => {
-    const t = allTournaments.find((t) => t.id === id);
-    return t?.name || id;
-  };
 
   const handleSave = (pos: number) => {
     const filtered = promotions.filter((p) => p.position !== pos);
@@ -132,7 +125,7 @@ export default function PromotionEditor({
                     >
                       <span className="w-2 h-2 rounded-full" style={{ backgroundColor: promo.color }} />
                       {promo.type === "promotion" ? "Promoção" : promo.type === "relegation" ? "Rebaixamento" : "Playoff"}
-                      {promo.targetCompetition && ` → ${getTournamentName(promo.targetCompetition)}`}
+                      {promo.targetCompetition && ` → ${promo.targetCompetition}`}
                     </span>
                   )}
                 </td>
@@ -167,6 +160,7 @@ export default function PromotionEditor({
           <div className={cn("grid gap-3", gridCols)}>
             {Array.from({ length: groupCount }, (_, i) => i + 1).map((g) => {
               let groupStandings = standingsByGroup?.[g] || [];
+              // Generate placeholder rows if no real standings
               if (groupStandings.length === 0 && teamsPerGroup > 0) {
                 groupStandings = Array.from({ length: teamsPerGroup }, (_, j) => ({
                   teamId: `placeholder-${g}-${j}`,
@@ -237,36 +231,21 @@ export default function PromotionEditor({
               </div>
             </div>
           </div>
-          {editType !== "playoff" && (
-            <div className="space-y-1">
-              <span className="text-[11px] text-muted-foreground">Competição destino:</span>
-              <Select value={editTarget} onValueChange={setEditTarget}>
-                <SelectTrigger className="w-full h-8 text-xs bg-secondary border-border">
-                  <SelectValue placeholder="Selecione um torneio" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="__none__">Nenhuma</SelectItem>
-                  {otherTournaments.map((t) => (
-                    <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-          )}
-          <div className="flex gap-2">
-            <button
-              onClick={() => {
-                const target = editTarget === "__none__" ? "" : editTarget;
-                const filtered = promotions.filter((p) => p.position !== editingPos);
-                filtered.push({ position: editingPos, type: editType, color: editColor, targetCompetition: target });
-                filtered.sort((a, b) => a.position - b.position);
-                onUpdate(filtered);
-                setEditingPos(null);
-              }}
-              className="px-3 py-1 text-xs bg-primary text-primary-foreground rounded font-medium"
+          <div className="space-y-1">
+            <span className="text-[11px] text-muted-foreground">Competição destino:</span>
+            <select
+              value={editTarget}
+              onChange={(e) => setEditTarget(e.target.value)}
+              className="w-full text-xs bg-secondary border border-border rounded px-2 py-1.5 text-foreground"
             >
-              Salvar
-            </button>
+              <option value="">Nenhuma</option>
+              {otherTournaments.map((t) => (
+                <option key={t.id} value={t.name}>{t.name}</option>
+              ))}
+            </select>
+          </div>
+          <div className="flex gap-2">
+            <button onClick={() => handleSave(editingPos)} className="px-3 py-1 text-xs bg-primary text-primary-foreground rounded font-medium">Salvar</button>
             <button onClick={() => setEditingPos(null)} className="px-3 py-1 text-xs text-muted-foreground hover:text-foreground">Cancelar</button>
           </div>
         </div>
