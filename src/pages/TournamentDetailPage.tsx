@@ -433,11 +433,17 @@ export default function TournamentDetailPage() {
   };
 
   const handleNewSeason = () => {
+    const resetSettings = {
+      ...tournament.settings,
+      groupAssignments: undefined,
+      qualifiedTeamIds: undefined,
+    };
     updateTournament(tournament.id, {
       year: tournament.year + 1,
       matches: [],
       finalized: false,
       groupsFinalized: false,
+      settings: resetSettings,
     });
     navigate(`/tournament/${tournament.id}/settings`);
     toast.success(`Nova temporada ${tournament.year + 1} criada! Edite as configurações.`);
