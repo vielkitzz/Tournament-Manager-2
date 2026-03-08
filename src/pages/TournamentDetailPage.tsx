@@ -404,6 +404,7 @@ export default function TournamentDetailPage() {
       format: tournament.format,
       groupCount: isGrupos ? groupCount : undefined,
       teamIds: [...tournament.teamIds],
+      settings: { ...tournament.settings },
       standings: standings.map((s) => ({
         teamId: s.teamId,
         teamName: s.team?.name || "",
@@ -414,6 +415,12 @@ export default function TournamentDetailPage() {
         losses: s.losses,
         goalsFor: s.goalsFor,
         goalsAgainst: s.goalsAgainst,
+        group: isGrupos ? (() => {
+          for (const [g, ids] of Object.entries(currentAssignments)) {
+            if (ids.includes(s.teamId)) return parseInt(g);
+          }
+          return undefined;
+        })() : undefined,
       })),
       matches: [...(tournament.matches || [])],
     };
