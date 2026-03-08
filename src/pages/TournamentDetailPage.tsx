@@ -919,7 +919,9 @@ export default function TournamentDetailPage() {
         <TabsContent value="rounds" className="mt-0 outline-none">
           <div className="space-y-4">
             <RoundsView
-              tournament={isViewingPastSeason ? { ...tournament, matches: seasonData?.matches || [] } : groupTournament}
+              tournament={isViewingPastSeason
+                ? { ...tournament, matches: (seasonData?.matches || []).filter((m) => isGrupos ? (m.stage === "group" || (!m.stage && !m.isThirdPlace)) : true) }
+                : groupTournament}
               teams={resolvedTeams}
               onUpdateMatch={(updated) => {
                 const newMatches = (tournament.matches || []).map((m) => (m.id === updated.id ? updated : m));
@@ -978,7 +980,9 @@ export default function TournamentDetailPage() {
                     </div>
                   )}
                   <BracketView
-                    tournament={isViewingPastSeason ? { ...tournament, matches: seasonData?.matches || [] } : knockoutTournament}
+                    tournament={isViewingPastSeason
+                      ? { ...tournament, matches: (seasonData?.matches || []).filter((m) => m.stage === "knockout" || m.isThirdPlace), mataMataInicio: isGrupos ? (tournament.gruposMataMataInicio || "1/8") : tournament.mataMataInicio }
+                      : knockoutTournament}
                     teams={resolvedTeams}
                     onUpdateMatch={(updated) => {
                       const newMatches = (tournament.matches || []).map((m) => (m.id === updated.id ? updated : m));
