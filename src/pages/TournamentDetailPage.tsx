@@ -864,31 +864,26 @@ export default function TournamentDetailPage() {
             <div className="space-y-6">
            {(isMataMata || isGrupos) && (
                 <div className="space-y-4">
-                  {isGrupos && !tournament.groupsFinalized && groupMatches.length > 0 && (
-                    <GroupQualificationView
-                      groupCount={groupCount}
-                      standingsByGroup={standingsByGroup}
-                      totalKnockoutTeams={qualifiersPerGroup}
-                      allGroupMatchesPlayed={allGroupMatchesPlayed}
-                      confirmedTeamIds={tournament.settings.qualifiedTeamIds}
-                      bestOfQualifiers={tournament.settings.bestOfQualifiers ?? 0}
-                      bestOfPosition={tournament.settings.bestOfPosition ?? 3}
-                      onConfirm={handleConfirmQualifiers}
-                      onReset={handleResetQualification}
-                    />
+                  {isGrupos && !tournament.groupsFinalized && allGroupMatchesPlayed && (
+                    <div className="flex items-center justify-between p-3 rounded-lg border border-border bg-card">
+                      <span className="text-sm text-muted-foreground">
+                        Fase de grupos concluída. Confirme os classificados para gerar o chaveamento.
+                      </span>
+                      <Button onClick={() => handleConfirmQualifiers([])} size="sm" className="gap-1.5">
+                        <Trophy className="w-3.5 h-3.5" />
+                        Confirmar Classificados
+                      </Button>
+                    </div>
                   )}
                   {isGrupos && tournament.groupsFinalized && (
-                    <GroupQualificationView
-                      groupCount={groupCount}
-                      standingsByGroup={standingsByGroup}
-                      totalKnockoutTeams={qualifiersPerGroup}
-                      allGroupMatchesPlayed={allGroupMatchesPlayed}
-                      confirmedTeamIds={tournament.settings.qualifiedTeamIds}
-                      bestOfQualifiers={tournament.settings.bestOfQualifiers ?? 0}
-                      bestOfPosition={tournament.settings.bestOfPosition ?? 3}
-                      onConfirm={handleConfirmQualifiers}
-                      onReset={handleResetQualification}
-                    />
+                    <div className="flex items-center justify-between p-3 rounded-lg border border-border bg-card">
+                      <span className="text-sm text-muted-foreground">
+                        Classificados confirmados
+                      </span>
+                      <Button onClick={handleResetQualification} size="sm" variant="outline">
+                        Resetar
+                      </Button>
+                    </div>
                   )}
                   {(isMataMata || isGrupos) && !tournament.finalized && tournament.teamIds.length >= 2 && (
                     <div className="flex justify-end">
