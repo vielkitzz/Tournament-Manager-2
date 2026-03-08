@@ -215,8 +215,18 @@ export default function TournamentDetailPage() {
   const qualifiersPerGroup = (() => {
     const startStage = tournament.gruposMataMataInicio || "1/8";
     const stageTotal = STAGE_TEAM_COUNTS[startStage] || 8;
+    // Total knockout teams = stage size, capped by number of tournament teams
     return Math.max(2, Math.min(stageTotal, tournament.teamIds.length));
   })();
+
+  const handleResetQualification = () => {
+    updateTournament(tournament.id, {
+      groupsFinalized: false,
+      settings: { ...settings, qualifiedTeamIds: undefined },
+      matches: (tournament.matches || []).filter((m) => m.stage !== "knockout" && !m.isThirdPlace),
+    });
+    toast.success("Classificação resetada. Selecione os classificados novamente.");
+  };
 
   const handleConfirmQualifiers = (selectedTeamIds: string[]) => {
     const startStage = tournament.gruposMataMataInicio || "1/8";
@@ -352,6 +362,7 @@ export default function TournamentDetailPage() {
       championLogo: championLogo,
       format: tournament.format,
       groupCount: isGrupos ? groupCount : undefined,
+      teamIds: [...tournament.teamIds],
       standings: standings.map((s) => ({
         teamId: s.teamId,
         teamName: s.team?.name || "",
