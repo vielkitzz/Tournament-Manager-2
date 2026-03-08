@@ -63,9 +63,7 @@ export default function TournamentDetailPage() {
     if (id) trackTournamentOpen(id);
   }, [id]);
 
-  // Resolve teams with historical logo/rate for the tournament year
-  const tournamentYear = tournament?.year;
-  const resolvedTeams = teams.map((t) => resolveTeam(t, tournamentYear, teamHistories));
+  // Resolve teams with historical logo/rate - deferred until activeYear is known
 
 
 
