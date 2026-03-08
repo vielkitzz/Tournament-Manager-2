@@ -1,14 +1,16 @@
-import { useState, DragEvent, useCallback, useMemo, useEffect } from "react";
-import { useParams, useNavigate } from "react-router-dom";
+import { useState, DragEvent, useMemo, useEffect } from "react";
+import { useParams, useNavigate, useSearchParams } from "react-router-dom";
 import { ArrowLeft, Shield, Plus, X, Trophy, Folder, FolderOpen, ChevronRight, GripVertical, Search } from "lucide-react";
 import { useTournamentStore } from "@/store/tournamentStore";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
-import { Team, TeamFolder } from "@/types/tournament";
+import { Team } from "@/types/tournament";
 
 export default function TournamentTeamsPage() {
   const { id } = useParams<{ id: string }>();
+  const [searchParams] = useSearchParams();
+  const seasonYear = searchParams.get("season") ? parseInt(searchParams.get("season")!) : null;
   const navigate = useNavigate();
   const { tournaments, teams, folders, updateTournament } = useTournamentStore();
   const tournament = tournaments.find((t) => t.id === id);
@@ -16,14 +18,25 @@ export default function TournamentTeamsPage() {
   const [openFolders, setOpenFolders] = useState<Set<string>>(() => new Set(folders.map(f => f.id)));
   const [dragOverZone, setDragOverZone] = useState<string | null>(null);
 
+  // Determine if we're editing a past season
+  const isEditingPastSeason = seasonYear !== null && tournament && seasonYear !== tournament.year;
+  const seasonData = isEditingPastSeason
+    ? tournament?.seasons?.find((s) => s.year === seasonYear)
+    : null;
+
+  // Get the correct teamIds for the current context
+  const currentTeamIds = isEditingPastSeason && seasonData?.teamIds
+    ? seasonData.teamIds
+    : tournament?.teamIds || [];
+
   const available = useMemo(() => {
     if (!tournament) return [];
     return teams.filter(
-      (t) => !t.isArchived && !tournament.teamIds.includes(t.id) &&
+      (t) => !t.isArchived && !currentTeamIds.includes(t.id) &&
         (t.name.toLowerCase().includes(search.toLowerCase()) ||
          t.shortName.toLowerCase().includes(search.toLowerCase()))
     );
-  }, [tournament, teams, search]);
+  }, [tournament, teams, search, currentTeamIds]);
 
   // Auto-open folders with search matches
   useEffect(() => {
@@ -61,6 +74,21 @@ export default function TournamentTeamsPage() {
     );
   }
 
+  const displayYear = seasonYear || tournament.year;
+
+  const updateSeasonTeamIds = (newTeamIds: string[]) => {
+    if (isEditingPastSeason && seasonData) {
+      // Update the past season's teamIds within the seasons array
+      const updatedSeasons = (tournament.seasons || []).map((s) =>
+        s.year === seasonYear ? { ...s, teamIds: newTeamIds } : s
+      );
+      updateTournament(tournament.id, { seasons: updatedSeasons });
+    } else {
+      // Update the current tournament's teamIds
+      updateTournament(tournament.id, { teamIds: newTeamIds });
+    }
+  };
+
   const toggleFolder = (fid: string) => {
     setOpenFolders((prev) => {
       const next = new Set(prev);
@@ -70,16 +98,12 @@ export default function TournamentTeamsPage() {
   };
 
   const addTeamToTournament = (teamId: string, teamName: string) => {
-    updateTournament(tournament.id, {
-      teamIds: [...tournament.teamIds, teamId],
-    });
+    updateSeasonTeamIds([...currentTeamIds, teamId]);
     toast.success(`"${teamName}" adicionado`);
   };
 
   const removeTeamFromTournament = (teamId: string, teamName: string) => {
-    updateTournament(tournament.id, {
-      teamIds: tournament.teamIds.filter((i) => i !== teamId),
-    });
+    updateSeasonTeamIds(currentTeamIds.filter((i) => i !== teamId));
     toast.success(`"${teamName}" removido`);
   };
 
@@ -92,7 +116,7 @@ export default function TournamentTeamsPage() {
     e.preventDefault();
     setDragOverZone(null);
     const teamId = e.dataTransfer.getData("add-team-id");
-    if (teamId && !tournament.teamIds.includes(teamId)) {
+    if (teamId && !currentTeamIds.includes(teamId)) {
       const team = teams.find((t) => t.id === teamId);
       if (team) addTeamToTournament(teamId, team.name);
     }
@@ -164,14 +188,21 @@ export default function TournamentTeamsPage() {
         <button onClick={() => navigate(`/tournament/${id}`)} className="text-muted-foreground hover:text-foreground transition-colors">
           <ArrowLeft className="w-4 h-4" />
         </button>
-        <h1 className="text-xl font-display font-bold text-foreground">Editar Times — {tournament.name}</h1>
+        <div>
+          <h1 className="text-xl font-display font-bold text-foreground">Editar Times — {tournament.name}</h1>
+          {isEditingPastSeason && (
+            <p className="text-xs text-muted-foreground mt-0.5">
+              Editando temporada {seasonYear} (histórico isolado)
+            </p>
+          )}
+        </div>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 max-w-4xl">
         {/* Left: Tournament teams (drop zone) */}
         <div className="space-y-3">
           <Label className="text-sm font-medium text-foreground">
-            Times participantes ({tournament.teamIds.length}/{tournament.numberOfTeams})
+            Times participantes — {displayYear} ({currentTeamIds.length}/{tournament.numberOfTeams})
           </Label>
           <div
             className={`min-h-[200px] rounded-xl border-2 border-dashed p-3 transition-colors ${
@@ -181,11 +212,11 @@ export default function TournamentTeamsPage() {
             onDragLeave={() => setDragOverZone(null)}
             onDrop={handleDropOnTournament}
           >
-            {tournament.teamIds.length === 0 ? (
+            {currentTeamIds.length === 0 ? (
               <p className="text-xs text-muted-foreground text-center py-8">Arraste times aqui ou clique no +</p>
             ) : (
               <div className="flex flex-wrap gap-1.5">
-                {tournament.teamIds.map((tid) => {
+                {currentTeamIds.map((tid) => {
                   const team = teams.find((t) => t.id === tid);
                   if (!team) return null;
                   return (
@@ -216,12 +247,10 @@ export default function TournamentTeamsPage() {
         <div className="space-y-3">
           <div className="flex items-center gap-2">
             <Label className="text-sm font-medium text-foreground flex-1">Adicionar times</Label>
-            {available.length > 5 && (
-              <div className="relative w-40">
-                <Search className="absolute left-2 top-1/2 -translate-y-1/2 w-3 h-3 text-muted-foreground" />
-                <Input placeholder="Buscar..." value={search} onChange={(e) => setSearch(e.target.value)} className="pl-7 h-7 text-xs" />
-              </div>
-            )}
+            <div className="relative w-40">
+              <Search className="absolute left-2 top-1/2 -translate-y-1/2 w-3 h-3 text-muted-foreground" />
+              <Input placeholder="Buscar..." value={search} onChange={(e) => setSearch(e.target.value)} className="pl-7 h-7 text-xs" />
+            </div>
           </div>
 
           <div className="space-y-2 max-h-[60vh] overflow-y-auto pr-1">
