@@ -152,6 +152,19 @@ export default function FriendlyMatchPage() {
       .filter((t) => t.id !== excludeId)
       .filter((t) => t.name.toLowerCase().includes(search.toLowerCase()));
 
+    if (filtered.length === 0) {
+      return <p className="text-sm text-muted-foreground text-center py-8">Nenhum time encontrado</p>;
+    }
+
+    // When searching, show flat list without folders
+    if (search.trim()) {
+      return (
+        <>
+          {filtered.map((t) => renderTeamButton(t, selected, onSelect))}
+        </>
+      );
+    }
+
     const rootFolders = folders.filter((f) => !f.parentId);
     const looseteams = filtered.filter((t) => !t.folderId);
     const folderTeams = (fId: string) => filtered.filter((t) => t.folderId === fId);
@@ -160,33 +173,9 @@ export default function FriendlyMatchPage() {
       return folders.filter(f => f.parentId === fId).some(child => allFolderTeams(child.id));
     };
 
-    // Auto-open folders with search matches
-    if (search.trim()) {
-      const toOpen = new Set<string>();
-      filtered.forEach((t) => {
-        if (t.folderId) {
-          toOpen.add(t.folderId);
-          let parentId = folders.find(f => f.id === t.folderId)?.parentId;
-          while (parentId) {
-            toOpen.add(parentId);
-            parentId = folders.find(f => f.id === parentId)?.parentId;
-          }
-        }
-      });
-      toOpen.forEach(id => {
-        if (!expandedFolders.has(id)) {
-          setExpandedFolders(prev => new Set(prev).add(id));
-        }
-      });
-    }
-
-    if (filtered.length === 0) {
-      return <p className="text-sm text-muted-foreground text-center py-8">Nenhum time encontrado</p>;
-    }
-
     const renderFolder = (folder: typeof folders[0], depth: number = 0) => {
       const childFolders = folders.filter(f => f.parentId === folder.id);
-      const hasContent = allFolderTeams(folder.id) || !search.trim();
+      const hasContent = allFolderTeams(folder.id);
       if (!hasContent) return null;
 
       return (
@@ -213,7 +202,7 @@ export default function FriendlyMatchPage() {
 
     return (
       <>
-        {rootFolders.filter(f => allFolderTeams(f.id) || !search.trim()).map((folder) => renderFolder(folder))}
+        {rootFolders.filter(f => allFolderTeams(f.id)).map((folder) => renderFolder(folder))}
         {looseteams.length > 0 && rootFolders.length > 0 && (
           <p className="px-3 pt-2 text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Sem pasta</p>
         )}
