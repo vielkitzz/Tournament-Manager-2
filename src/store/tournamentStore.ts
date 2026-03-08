@@ -3,6 +3,7 @@ import { Tournament, Team, TeamFolder, TournamentFolder, TournamentSettings, Mat
 import { supabase } from "@/integrations/supabase/client";
 import { Json } from "@/integrations/supabase/types";
 import { TeamHistory } from "@/lib/teamHistoryUtils";
+import { calculateStandings } from "@/lib/standings";
 
 // Use any-typed client to avoid strict type errors from generated types
 const db = supabase as any;
@@ -159,6 +160,8 @@ interface TournamentState {
   updateTeamHistory: (id: string, updates: Partial<TeamHistory>) => Promise<void>;
   removeTeamHistory: (id: string) => Promise<void>;
   getTeamHistories: (teamId: string) => TeamHistory[];
+  // Season advancement with promotions
+  advanceSeasonAndProcessPromotions: (tournamentId: string, nextYear: number) => Promise<{ success: boolean; message: string }>;
 }
 
 export const useTournamentStore = create<TournamentState>((set, get) => ({
@@ -459,5 +462,212 @@ export const useTournamentStore = create<TournamentState>((set, get) => ({
 
   getTeamHistories: (teamId) => {
     return get().teamHistories.filter((h) => h.teamId === teamId);
+  },
+
+  // ─── Season Advancement with Promotion/Relegation ───
+  advanceSeasonAndProcessPromotions: async (tournamentId, nextYear) => {
+    const userId = get()._userId;
+    if (!userId) return { success: false, message: "Usuário não autenticado." };
+
+    const state = get();
+    const tournament = state.tournaments.find((t) => t.id === tournamentId);
+    if (!tournament) return { success: false, message: "Torneio não encontrado." };
+
+    const promotions = tournament.settings.promotions || [];
+    const actionableRules = promotions.filter((r) => r.type !== "playoff" && r.targetCompetition);
+
+    // Calculate current standings
+    const isGrupos = tournament.format === "grupos";
+    const groupCount = tournament.gruposQuantidade || 1;
+    const settings = tournament.settings;
+    const groupMatches = isGrupos
+      ? (tournament.matches || []).filter((m) => m.stage === "group" || (!m.stage && !m.isThirdPlace))
+      : tournament.matches || [];
+
+    let standings: { teamId: string; team?: Team }[];
+
+    if (isGrupos) {
+      // For group formats, apply per-group standings
+      const currentAssignments = settings.groupAssignments || {};
+      const allGroupStandings: { teamId: string; team?: Team; position: number }[] = [];
+
+      for (let g = 1; g <= groupCount; g++) {
+        const assignedTeams = currentAssignments[String(g)] || [];
+        const gMatches = groupMatches.filter((m) => m.group === g);
+        const gTeamIds = assignedTeams.length > 0
+          ? assignedTeams
+          : [...new Set(gMatches.flatMap((m) => [m.homeTeamId, m.awayTeamId]))];
+        const groupStandings = calculateStandings(gTeamIds, gMatches, settings, state.teams);
+        groupStandings.forEach((row, idx) => {
+          allGroupStandings.push({ teamId: row.teamId, team: row.team, position: idx + 1 });
+        });
+      }
+      standings = allGroupStandings as any;
+    } else {
+      standings = calculateStandings(tournament.teamIds, tournament.matches || [], settings, state.teams);
+    }
+
+    // Build position-to-teamIds map
+    const positionTeams: Record<number, string[]> = {};
+    if (isGrupos) {
+      // Each group has its own positions
+      const currentAssignments = settings.groupAssignments || {};
+      for (let g = 1; g <= groupCount; g++) {
+        const assignedTeams = currentAssignments[String(g)] || [];
+        const gMatches = groupMatches.filter((m) => m.group === g);
+        const gTeamIds = assignedTeams.length > 0
+          ? assignedTeams
+          : [...new Set(gMatches.flatMap((m) => [m.homeTeamId, m.awayTeamId]))];
+        const groupStandings = calculateStandings(gTeamIds, gMatches, settings, state.teams);
+        groupStandings.forEach((row, idx) => {
+          const pos = idx + 1;
+          if (!positionTeams[pos]) positionTeams[pos] = [];
+          positionTeams[pos].push(row.teamId);
+        });
+      }
+    } else {
+      const fullStandings = calculateStandings(tournament.teamIds, tournament.matches || [], settings, state.teams);
+      fullStandings.forEach((row, idx) => {
+        positionTeams[idx + 1] = [row.teamId];
+      });
+    }
+
+    // Identify teams to transfer
+    const transfers: { teamId: string; targetTournamentId: string }[] = [];
+    const errors: string[] = [];
+
+    for (const rule of actionableRules) {
+      const teamsAtPosition = positionTeams[rule.position] || [];
+      const targetTournament = state.tournaments.find((t) => t.id === rule.targetCompetition);
+      if (!targetTournament) {
+        errors.push(`Torneio destino não encontrado para posição ${rule.position} (ID: ${rule.targetCompetition})`);
+        continue;
+      }
+      for (const teamId of teamsAtPosition) {
+        transfers.push({ teamId, targetTournamentId: rule.targetCompetition });
+      }
+    }
+
+    if (errors.length > 0) {
+      return { success: false, message: errors.join("; ") };
+    }
+
+    // 1. Save current season as SeasonRecord
+    const flatStandings = isGrupos
+      ? (() => {
+          const result: any[] = [];
+          const currentAssignments = settings.groupAssignments || {};
+          for (let g = 1; g <= groupCount; g++) {
+            const assignedTeams = currentAssignments[String(g)] || [];
+            const gMatches = groupMatches.filter((m) => m.group === g);
+            const gTeamIds = assignedTeams.length > 0
+              ? assignedTeams
+              : [...new Set(gMatches.flatMap((m) => [m.homeTeamId, m.awayTeamId]))];
+            const groupStandings = calculateStandings(gTeamIds, gMatches, settings, state.teams);
+            groupStandings.forEach((s) => {
+              result.push({
+                teamId: s.teamId,
+                teamName: s.team?.name || "",
+                teamLogo: s.team?.logo,
+                points: s.points,
+                wins: s.wins,
+                draws: s.draws,
+                losses: s.losses,
+                goalsFor: s.goalsFor,
+                goalsAgainst: s.goalsAgainst,
+                group: g,
+              });
+            });
+          }
+          return result;
+        })()
+      : calculateStandings(tournament.teamIds, tournament.matches || [], settings, state.teams).map((s) => ({
+          teamId: s.teamId,
+          teamName: s.team?.name || "",
+          teamLogo: s.team?.logo,
+          points: s.points,
+          wins: s.wins,
+          draws: s.draws,
+          losses: s.losses,
+          goalsFor: s.goalsFor,
+          goalsAgainst: s.goalsAgainst,
+        }));
+
+    // Determine champion (first in standings or knockout winner)
+    let championId = flatStandings[0]?.teamId || "";
+    let championName = flatStandings[0]?.teamName || "";
+    let championLogo = flatStandings[0]?.teamLogo;
+
+    const seasonRecord: SeasonRecord = {
+      year: tournament.year,
+      championId,
+      championName,
+      championLogo,
+      format: tournament.format,
+      groupCount: isGrupos ? groupCount : undefined,
+      teamIds: [...tournament.teamIds],
+      settings: { ...tournament.settings },
+      standings: flatStandings,
+      matches: [...(tournament.matches || [])],
+    };
+
+    const existingSeasons = (tournament.seasons || []).filter((s) => s.year !== tournament.year);
+
+    // 2. Build new teamIds for current tournament (remove transferred teams)
+    const transferredTeamIds = new Set(transfers.map((t) => t.teamId));
+    const newTeamIds = tournament.teamIds.filter((id) => !transferredTeamIds.has(id));
+
+    // 3. Update current tournament
+    const currentUpdates: Partial<Tournament> = {
+      year: nextYear,
+      teamIds: newTeamIds,
+      numberOfTeams: newTeamIds.length,
+      matches: [],
+      finalized: false,
+      groupsFinalized: false,
+      seasons: [...existingSeasons, seasonRecord],
+      settings: {
+        ...tournament.settings,
+        groupAssignments: undefined,
+        qualifiedTeamIds: undefined,
+      },
+    };
+
+    // Optimistic update for current tournament
+    set((s) => ({
+      tournaments: s.tournaments.map((t) => (t.id === tournamentId ? { ...t, ...currentUpdates } : t)),
+    }));
+    await db.from("tournaments").update(updatesToDb(currentUpdates)).eq("id", tournamentId).eq("user_id", userId);
+
+    // 4. Update target tournaments (add incoming teams)
+    const targetUpdates: Record<string, string[]> = {}; // targetId -> teamIds to add
+    for (const transfer of transfers) {
+      if (!targetUpdates[transfer.targetTournamentId]) {
+        targetUpdates[transfer.targetTournamentId] = [];
+      }
+      targetUpdates[transfer.targetTournamentId].push(transfer.teamId);
+    }
+
+    for (const [targetId, incomingTeamIds] of Object.entries(targetUpdates)) {
+      const targetTournament = get().tournaments.find((t) => t.id === targetId);
+      if (!targetTournament) continue;
+
+      const updatedTeamIds = [...new Set([...targetTournament.teamIds, ...incomingTeamIds])];
+      const targetTournamentUpdates: Partial<Tournament> = {
+        teamIds: updatedTeamIds,
+        numberOfTeams: updatedTeamIds.length,
+      };
+
+      set((s) => ({
+        tournaments: s.tournaments.map((t) => (t.id === targetId ? { ...t, ...targetTournamentUpdates } : t)),
+      }));
+      await db.from("tournaments").update(updatesToDb(targetTournamentUpdates)).eq("id", targetId).eq("user_id", userId);
+    }
+
+    const transferCount = transfers.length;
+    return {
+      success: true,
+      message: `Temporada ${tournament.year} arquivada. ${transferCount} time${transferCount !== 1 ? 's' : ''} transferido${transferCount !== 1 ? 's' : ''}. Nova temporada: ${nextYear}.`,
+    };
   },
 }));

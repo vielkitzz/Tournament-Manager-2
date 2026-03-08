@@ -19,6 +19,7 @@ import {
 } from "lucide-react";
 import { useTournamentStore } from "@/store/tournamentStore";
 import { resolveTeam } from "@/lib/teamHistoryUtils";
+import { ArrowRightLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
@@ -55,7 +56,7 @@ const formatLabels: Record<string, string> = {
 export default function TournamentDetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const { tournaments, teams, updateTournament, removeTournament, teamHistories } = useTournamentStore();
+  const { tournaments, teams, updateTournament, removeTournament, teamHistories, advanceSeasonAndProcessPromotions } = useTournamentStore();
   const tournament = tournaments.find((t) => t.id === id);
 
   // Track recently opened
@@ -74,6 +75,8 @@ export default function TournamentDetailPage() {
   const [newSeasonYear, setNewSeasonYear] = useState("");
   const [showDrawDialog, setShowDrawDialog] = useState(false);
   const [groupTeamSearch, setGroupTeamSearch] = useState("");
+  const [showAdvanceDialog, setShowAdvanceDialog] = useState(false);
+  const [advanceNextYear, setAdvanceNextYear] = useState("");
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   if (!tournament) {
@@ -534,6 +537,22 @@ export default function TournamentDetailPage() {
     }
   };
 
+  const handleAdvanceSeason = async () => {
+    const year = parseInt(advanceNextYear);
+    if (!year || isNaN(year)) {
+      toast.error("Informe um ano válido.");
+      return;
+    }
+    const result = await advanceSeasonAndProcessPromotions(tournament.id, year);
+    if (result.success) {
+      toast.success(result.message);
+      setShowAdvanceDialog(false);
+      setViewingYear(null);
+    } else {
+      toast.error(result.message);
+    }
+  };
+
   const autoGenerate = () => {
     // Allow regeneration if all existing matches are empty placeholders (no teams assigned or played)
     const hasRealMatches = tournament.matches.some((m) => m.played || (m.homeTeamId && m.awayTeamId));
@@ -752,10 +771,26 @@ export default function TournamentDetailPage() {
             )}
           </div>
           {!isViewingPastSeason && tournament.finalized && (
-            <Button onClick={handleNewSeason} size="sm" className="gap-1.5 bg-primary text-primary-foreground">
-              <Plus className="w-3.5 h-3.5" />
-              Nova Temporada
-            </Button>
+            <div className="flex items-center gap-2">
+              {(tournament.settings.promotions || []).some((p) => p.type !== "playoff" && p.targetCompetition) && (
+                <Button
+                  onClick={() => {
+                    setAdvanceNextYear(String(tournament.year + 1));
+                    setShowAdvanceDialog(true);
+                  }}
+                  size="sm"
+                  variant="outline"
+                  className="gap-1.5"
+                >
+                  <ArrowRightLeft className="w-3.5 h-3.5" />
+                  Processar Acessos
+                </Button>
+              )}
+              <Button onClick={handleNewSeason} size="sm" className="gap-1.5 bg-primary text-primary-foreground">
+                <Plus className="w-3.5 h-3.5" />
+                Nova Temporada
+              </Button>
+            </div>
           )}
         </div>
       </div>
@@ -1047,6 +1082,49 @@ export default function TournamentDetailPage() {
           onConfirm={handleDrawConfirm}
         />
       )}
+
+      {/* Advance Season Dialog */}
+      <AlertDialog open={showAdvanceDialog} onOpenChange={setShowAdvanceDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Encerrar Temporada e Processar Acessos</AlertDialogTitle>
+            <AlertDialogDescription className="space-y-3">
+              <p>
+                Isso irá arquivar a temporada {tournament.year}, transferir os times promovidos/rebaixados
+                para seus respectivos torneios de destino e avançar o ano da competição.
+              </p>
+              <div className="space-y-1.5">
+                <label className="text-xs font-medium text-foreground">Ano da próxima temporada:</label>
+                <Input
+                  type="number"
+                  value={advanceNextYear}
+                  onChange={(e) => setAdvanceNextYear(e.target.value)}
+                  className="h-9"
+                />
+              </div>
+              {(tournament.settings.promotions || [])
+                .filter((p) => p.type !== "playoff" && p.targetCompetition)
+                .map((rule) => {
+                  const target = tournaments.find((t) => t.id === rule.targetCompetition);
+                  return (
+                    <div key={rule.position} className="flex items-center gap-2 text-xs">
+                      <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: rule.color }} />
+                      <span className="text-foreground">
+                        Posição {rule.position}: {rule.type === "promotion" ? "Promoção" : "Rebaixamento"} → {target?.name || "Torneio não encontrado"}
+                      </span>
+                    </div>
+                  );
+                })}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction onClick={handleAdvanceSeason}>
+              Confirmar
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
