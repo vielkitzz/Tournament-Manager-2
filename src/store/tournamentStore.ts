@@ -1,5 +1,5 @@
 import { create } from "zustand";
-import { Tournament, Team, TeamFolder, TournamentSettings, Match, SeasonRecord } from "@/types/tournament";
+import { Tournament, Team, TeamFolder, TournamentFolder, TournamentSettings, Match, SeasonRecord } from "@/types/tournament";
 import { supabase } from "@/integrations/supabase/client";
 import { Json } from "@/integrations/supabase/types";
 import { TeamHistory } from "@/lib/teamHistoryUtils";
