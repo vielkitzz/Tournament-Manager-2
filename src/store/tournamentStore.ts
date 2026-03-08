@@ -128,6 +128,7 @@ interface TournamentState {
   tournaments: Tournament[];
   teams: Team[];
   folders: TeamFolder[];
+  tournamentFolders: TournamentFolder[];
   teamHistories: TeamHistory[];
   loading: boolean;
   _userId: string | null;
@@ -146,6 +147,12 @@ interface TournamentState {
   removeFolder: (id: string) => Promise<void>;
   moveTeamToFolder: (teamId: string, folderId: string | null) => Promise<void>;
   moveFolderToFolder: (folderId: string, parentId: string | null) => Promise<void>;
+  // Tournament folders
+  addTournamentFolder: (name: string) => Promise<string | undefined>;
+  renameTournamentFolder: (id: string, name: string) => Promise<void>;
+  removeTournamentFolder: (id: string) => Promise<void>;
+  moveTournamentToFolder: (tournamentId: string, folderId: string | null) => Promise<void>;
+  moveTournamentFolderToFolder: (folderId: string, parentId: string | null) => Promise<void>;
   // Team histories
   addTeamHistory: (history: TeamHistory) => Promise<void>;
   updateTeamHistory: (id: string, updates: Partial<TeamHistory>) => Promise<void>;
@@ -157,6 +164,7 @@ export const useTournamentStore = create<TournamentState>((set, get) => ({
   tournaments: [],
   teams: [],
   folders: [],
+  tournamentFolders: [],
   teamHistories: [],
   loading: true,
   _userId: null,
