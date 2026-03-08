@@ -61,6 +61,9 @@ export default function TournamentDetailPage() {
   const tournamentYear = tournament?.year;
   const resolvedTeams = teams.map((t) => resolveTeam(t, tournamentYear, teamHistories));
 
+
+
+
   const [activeTab, setActiveTab] = useState(tournament?.format === "mata-mata" ? "bracket" : "standings");
   const [viewingYear, setViewingYear] = useState<number | null>(null);
   const [showYearPicker, setShowYearPicker] = useState(false);
@@ -86,6 +89,14 @@ export default function TournamentDetailPage() {
   const seasonData = isViewingPastSeason
     ? tournament.seasons?.find((s) => s.year === viewingYear)
     : null;
+
+  // For past seasons, resolve teams for that season's year and use season's teamIds
+  const resolvedTeamsForSeason = isViewingPastSeason
+    ? teams.map((t) => resolveTeam(t, viewingYear!, teamHistories))
+    : resolvedTeams;
+  const seasonTeamIds = isViewingPastSeason && seasonData?.teamIds
+    ? seasonData.teamIds
+    : tournament.teamIds;
 
   const seasonRecordForYear = (tournament.seasons || []).find((s) => s.year === activeYear);
   const championRecord = isViewingPastSeason
@@ -967,8 +978,8 @@ export default function TournamentDetailPage() {
 
         <TabsContent value="stats" className="mt-0 outline-none">
           <StatsView
-            tournament={isViewingPastSeason ? { ...tournament, matches: seasonData?.matches || [] } : tournament}
-            teams={resolvedTeams}
+            tournament={isViewingPastSeason ? { ...tournament, matches: seasonData?.matches || [], teamIds: seasonTeamIds } : tournament}
+            teams={isViewingPastSeason ? resolvedTeamsForSeason : resolvedTeams}
           />
         </TabsContent>
       </Tabs>
