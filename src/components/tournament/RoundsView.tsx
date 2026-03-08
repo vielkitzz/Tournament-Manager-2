@@ -123,7 +123,7 @@ export default function RoundsView({ tournament, teams, onUpdateMatch, onBatchUp
               <div className="flex items-center gap-3">
                 <div className="flex-1 flex items-center gap-2 justify-end">
                   <span className="text-xs font-medium text-foreground truncate">
-                    {home?.shortName || home?.abbreviation || "—"}
+                    {home?.shortName || home?.abbreviation || "Time Excluído"}
                   </span>
                   <div className="w-6 h-6 flex items-center justify-center shrink-0">
                     {home?.logo ? (
@@ -153,7 +153,7 @@ export default function RoundsView({ tournament, teams, onUpdateMatch, onBatchUp
                     )}
                   </div>
                   <span className="text-xs font-medium text-foreground truncate">
-                    {away?.shortName || away?.abbreviation || "—"}
+                    {away?.shortName || away?.abbreviation || "Time Excluído"}
                   </span>
                 </div>
               </div>
