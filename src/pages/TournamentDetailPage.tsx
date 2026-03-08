@@ -231,6 +231,36 @@ export default function TournamentDetailPage() {
   const handleConfirmQualifiers = (selectedTeamIds: string[]) => {
     const startStage = tournament.gruposMataMataInicio || "1/8";
     const totalKnockoutTeams = qualifiersPerGroup;
+    const bestOfQualifiers = tournament.settings.bestOfQualifiers ?? 0;
+    const bestOfPosition = tournament.settings.bestOfPosition ?? 3;
+
+    // Auto-select if empty
+    if (selectedTeamIds.length === 0) {
+      const directPerGroup = bestOfQualifiers > 0 ? bestOfPosition - 1 : Math.floor(totalKnockoutTeams / groupCount);
+      const autoSelected: string[] = [];
+      const bestOfCandidates: { teamId: string; points: number; gd: number; gf: number }[] = [];
+
+      for (let g = 1; g <= groupCount; g++) {
+        const rows = standingsByGroup[g] || [];
+        rows.slice(0, directPerGroup).forEach(r => autoSelected.push(r.teamId));
+        if (bestOfQualifiers > 0 && rows.length >= bestOfPosition) {
+          const row = rows[bestOfPosition - 1];
+          bestOfCandidates.push({
+            teamId: row.teamId,
+            points: row.points,
+            gd: row.goalsFor - row.goalsAgainst,
+            gf: row.goalsFor,
+          });
+        }
+      }
+
+      if (bestOfQualifiers > 0) {
+        bestOfCandidates.sort((a, b) => b.points - a.points || b.gd - a.gd || b.gf - a.gf);
+        bestOfCandidates.slice(0, bestOfQualifiers).forEach(c => autoSelected.push(c.teamId));
+      }
+
+      selectedTeamIds = autoSelected;
+    }
 
     if (selectedTeamIds.length < 2) {
       toast.error(`Selecione pelo menos 2 times para o mata-mata.`);
@@ -864,31 +894,26 @@ export default function TournamentDetailPage() {
             <div className="space-y-6">
            {(isMataMata || isGrupos) && (
                 <div className="space-y-4">
-                  {isGrupos && !tournament.groupsFinalized && groupMatches.length > 0 && (
-                    <GroupQualificationView
-                      groupCount={groupCount}
-                      standingsByGroup={standingsByGroup}
-                      totalKnockoutTeams={qualifiersPerGroup}
-                      allGroupMatchesPlayed={allGroupMatchesPlayed}
-                      confirmedTeamIds={tournament.settings.qualifiedTeamIds}
-                      bestOfQualifiers={tournament.settings.bestOfQualifiers ?? 0}
-                      bestOfPosition={tournament.settings.bestOfPosition ?? 3}
-                      onConfirm={handleConfirmQualifiers}
-                      onReset={handleResetQualification}
-                    />
+                  {isGrupos && !tournament.groupsFinalized && allGroupMatchesPlayed && (
+                    <div className="flex items-center justify-between p-3 rounded-lg border border-border bg-card">
+                      <span className="text-sm text-muted-foreground">
+                        Fase de grupos concluída. Confirme os classificados para gerar o chaveamento.
+                      </span>
+                      <Button onClick={() => handleConfirmQualifiers([])} size="sm" className="gap-1.5">
+                        <Trophy className="w-3.5 h-3.5" />
+                        Confirmar Classificados
+                      </Button>
+                    </div>
                   )}
                   {isGrupos && tournament.groupsFinalized && (
-                    <GroupQualificationView
-                      groupCount={groupCount}
-                      standingsByGroup={standingsByGroup}
-                      totalKnockoutTeams={qualifiersPerGroup}
-                      allGroupMatchesPlayed={allGroupMatchesPlayed}
-                      confirmedTeamIds={tournament.settings.qualifiedTeamIds}
-                      bestOfQualifiers={tournament.settings.bestOfQualifiers ?? 0}
-                      bestOfPosition={tournament.settings.bestOfPosition ?? 3}
-                      onConfirm={handleConfirmQualifiers}
-                      onReset={handleResetQualification}
-                    />
+                    <div className="flex items-center justify-between p-3 rounded-lg border border-border bg-card">
+                      <span className="text-sm text-muted-foreground">
+                        Classificados confirmados
+                      </span>
+                      <Button onClick={handleResetQualification} size="sm" variant="outline">
+                        Resetar
+                      </Button>
+                    </div>
                   )}
                   {(isMataMata || isGrupos) && !tournament.finalized && tournament.teamIds.length >= 2 && (
                     <div className="flex justify-end">
