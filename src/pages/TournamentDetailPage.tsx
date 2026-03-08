@@ -58,6 +58,11 @@ export default function TournamentDetailPage() {
   const { tournaments, teams, updateTournament, removeTournament, teamHistories } = useTournamentStore();
   const tournament = tournaments.find((t) => t.id === id);
 
+  // Track recently opened
+  useEffect(() => {
+    if (id) trackTournamentOpen(id);
+  }, [id]);
+
   // Resolve teams with historical logo/rate for the tournament year
   const tournamentYear = tournament?.year;
   const resolvedTeams = teams.map((t) => resolveTeam(t, tournamentYear, teamHistories));
