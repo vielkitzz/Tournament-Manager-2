@@ -12,6 +12,7 @@ import {
   FolderOpen,
   ChevronRight,
   GripVertical,
+  Copy,
 } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Input } from "@/components/ui/input";
@@ -42,10 +43,12 @@ const CompetitionCard = memo(function CompetitionCard({
   tournament,
   onNavigate,
   onDelete,
+  onDuplicate,
 }: {
   tournament: Tournament;
   onNavigate: () => void;
   onDelete: () => void;
+  onDuplicate: () => void;
 }) {
   const handleDragStart = (e: DragEvent) => {
     e.dataTransfer.setData("tournament-id", tournament.id);
@@ -87,8 +90,16 @@ const CompetitionCard = memo(function CompetitionCard({
             <button
               onClick={(e) => { e.stopPropagation(); onNavigate(); }}
               className="p-1.5 rounded-md hover:bg-secondary text-muted-foreground hover:text-foreground transition-colors"
+              title="Editar"
             >
               <Pencil className="w-3.5 h-3.5" />
+            </button>
+            <button
+              onClick={(e) => { e.stopPropagation(); onDuplicate(); }}
+              className="p-1.5 rounded-md hover:bg-secondary text-muted-foreground hover:text-foreground transition-colors"
+              title="Duplicar"
+            >
+              <Copy className="w-3.5 h-3.5" />
             </button>
             <AlertDialog>
               <AlertDialogTrigger asChild>
@@ -144,6 +155,7 @@ interface FolderNodeProps {
   onFolderDragStart: (e: DragEvent, folderId: string) => void;
   navigate: (path: string) => void;
   onDeleteTournament: (id: string, name: string) => void;
+  onDuplicateTournament: (id: string) => void;
   depth?: number;
 }
 
@@ -167,6 +179,7 @@ const CompetitionFolderNode = memo(function CompetitionFolderNode({
   onFolderDragStart,
   navigate,
   onDeleteTournament,
+  onDuplicateTournament,
   depth = 0,
 }: FolderNodeProps) {
   const isOpen = openFolders.has(folder.id);
@@ -272,6 +285,7 @@ const CompetitionFolderNode = memo(function CompetitionFolderNode({
               onFolderDragStart={onFolderDragStart}
               navigate={navigate}
               onDeleteTournament={onDeleteTournament}
+              onDuplicateTournament={onDuplicateTournament}
               depth={depth + 1}
             />
           ))}
@@ -283,6 +297,7 @@ const CompetitionFolderNode = memo(function CompetitionFolderNode({
                   tournament={t}
                   onNavigate={() => navigate(`/tournament/${t.id}`)}
                   onDelete={() => onDeleteTournament(t.id, t.name)}
+                  onDuplicate={() => onDuplicateTournament(t.id)}
                 />
               ))}
             </div>
@@ -299,6 +314,7 @@ export default function CompetitionsPage() {
   const {
     tournaments,
     removeTournament,
+    duplicateTournament,
     loading,
     tournamentFolders,
     addTournamentFolder,
@@ -398,6 +414,14 @@ export default function CompetitionsPage() {
       toast.success(`"${name}" excluído`);
     },
     [removeTournament]
+  );
+
+  const handleDuplicate = useCallback(
+    async (id: string) => {
+      const newId = await duplicateTournament(id);
+      if (newId) toast.success("Competição duplicada!");
+    },
+    [duplicateTournament]
   );
 
   const handleAddFolder = async () => {
@@ -591,6 +615,7 @@ export default function CompetitionsPage() {
                   onFolderDragStart={handleFolderDragStart}
                   navigate={navigate}
                   onDeleteTournament={handleDelete}
+                  onDuplicateTournament={handleDuplicate}
                 />
               ))}
             </div>
@@ -609,6 +634,7 @@ export default function CompetitionsPage() {
                   tournament={t}
                   onNavigate={() => navigate(`/tournament/${t.id}`)}
                   onDelete={() => handleDelete(t.id, t.name)}
+                  onDuplicate={() => handleDuplicate(t.id)}
                 />
               </motion.div>
             ))}
