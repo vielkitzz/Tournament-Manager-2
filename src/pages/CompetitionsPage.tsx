@@ -155,6 +155,7 @@ interface FolderNodeProps {
   onFolderDragStart: (e: DragEvent, folderId: string) => void;
   navigate: (path: string) => void;
   onDeleteTournament: (id: string, name: string) => void;
+  onDuplicateTournament: (id: string) => void;
   depth?: number;
 }
 
