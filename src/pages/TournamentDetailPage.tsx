@@ -231,6 +231,36 @@ export default function TournamentDetailPage() {
   const handleConfirmQualifiers = (selectedTeamIds: string[]) => {
     const startStage = tournament.gruposMataMataInicio || "1/8";
     const totalKnockoutTeams = qualifiersPerGroup;
+    const bestOfQualifiers = tournament.settings.bestOfQualifiers ?? 0;
+    const bestOfPosition = tournament.settings.bestOfPosition ?? 3;
+
+    // Auto-select if empty
+    if (selectedTeamIds.length === 0) {
+      const directPerGroup = bestOfQualifiers > 0 ? bestOfPosition - 1 : Math.floor(totalKnockoutTeams / groupCount);
+      const autoSelected: string[] = [];
+      const bestOfCandidates: { teamId: string; points: number; gd: number; gf: number }[] = [];
+
+      for (let g = 1; g <= groupCount; g++) {
+        const rows = standingsByGroup[g] || [];
+        rows.slice(0, directPerGroup).forEach(r => autoSelected.push(r.teamId));
+        if (bestOfQualifiers > 0 && rows.length >= bestOfPosition) {
+          const row = rows[bestOfPosition - 1];
+          bestOfCandidates.push({
+            teamId: row.teamId,
+            points: row.points,
+            gd: row.goalsFor - row.goalsAgainst,
+            gf: row.goalsFor,
+          });
+        }
+      }
+
+      if (bestOfQualifiers > 0) {
+        bestOfCandidates.sort((a, b) => b.points - a.points || b.gd - a.gd || b.gf - a.gf);
+        bestOfCandidates.slice(0, bestOfQualifiers).forEach(c => autoSelected.push(c.teamId));
+      }
+
+      selectedTeamIds = autoSelected;
+    }
 
     if (selectedTeamIds.length < 2) {
       toast.error(`Selecione pelo menos 2 times para o mata-mata.`);
