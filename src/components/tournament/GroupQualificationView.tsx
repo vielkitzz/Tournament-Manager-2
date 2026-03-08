@@ -11,6 +11,10 @@ interface GroupQualificationViewProps {
   allGroupMatchesPlayed: boolean;
   /** IDs já confirmados (quando groupsFinalized = true) */
   confirmedTeamIds?: string[];
+  /** Quantos "melhores Xºs" se classificam (ex: 2 melhores terceiros) */
+  bestOfQualifiers?: number;
+  /** Qual posição recebe o tratamento "melhores de" (ex: 3 = terceiros) */
+  bestOfPosition?: number;
   onConfirm: (qualifiedTeamIds: string[]) => void;
 }
 
@@ -20,24 +24,53 @@ export default function GroupQualificationView({
   totalKnockoutTeams,
   allGroupMatchesPlayed,
   confirmedTeamIds,
+  bestOfQualifiers = 0,
+  bestOfPosition = 3,
   onConfirm,
 }: GroupQualificationViewProps) {
   const isReadonly = !!confirmedTeamIds && confirmedTeamIds.length > 0;
 
-  // Calcula quantos classificados por grupo com base no total de vagas e número de grupos
-  const qualifiersPerGroup = groupCount > 0 ? Math.max(1, Math.round(totalKnockoutTeams / groupCount)) : 1;
+  // Calcula quantos classificados diretos por grupo
+  // Se bestOfQualifiers > 0, os classificados diretos são (total - bestOf) / groups
+  const directQualifiersPerGroup = bestOfQualifiers > 0
+    ? Math.floor((totalKnockoutTeams - bestOfQualifiers) / groupCount)
+    : Math.max(1, Math.round(totalKnockoutTeams / groupCount));
 
-  // Pré-seleciona automaticamente os classificados de cada grupo quando todos os jogos estiverem concluídos
+  // Pré-seleciona automaticamente os classificados
   const getAutoSelected = (): Set<string> => {
     if (confirmedTeamIds && confirmedTeamIds.length > 0) {
       return new Set(confirmedTeamIds);
     }
     if (!allGroupMatchesPlayed) return new Set();
+
     const autoIds: string[] = [];
+
+    // 1) Classificados diretos por grupo (top N de cada grupo)
     for (let g = 1; g <= groupCount; g++) {
       const rows = standingsByGroup[g] || [];
-      rows.slice(0, qualifiersPerGroup).forEach((row) => autoIds.push(row.teamId));
+      rows.slice(0, directQualifiersPerGroup).forEach((row) => autoIds.push(row.teamId));
     }
+
+    // 2) Melhores da posição X (ex: melhores terceiros)
+    if (bestOfQualifiers > 0) {
+      const positionTeams: StandingRow[] = [];
+      for (let g = 1; g <= groupCount; g++) {
+        const rows = standingsByGroup[g] || [];
+        const posIndex = bestOfPosition - 1; // posição 3 = index 2
+        if (rows[posIndex]) {
+          positionTeams.push(rows[posIndex]);
+        }
+      }
+      // Ordena pelos critérios padrão: pontos > saldo > gols marcados
+      positionTeams.sort((a, b) => {
+        if (b.points !== a.points) return b.points - a.points;
+        if (b.goalDifference !== a.goalDifference) return b.goalDifference - a.goalDifference;
+        return b.goalsFor - a.goalsFor;
+      });
+      // Pega os N melhores
+      positionTeams.slice(0, bestOfQualifiers).forEach((row) => autoIds.push(row.teamId));
+    }
+
     return new Set(autoIds);
   };
 
@@ -63,7 +96,6 @@ export default function GroupQualificationView({
   };
 
   const count = selected.size;
-  // Permite confirmação quando há pelo menos 2 times selecionados e o número é par
   const isReady = count >= 2 && count % 2 === 0;
 
   const gridCols =
@@ -80,9 +112,16 @@ export default function GroupQualificationView({
   return (
     <div className="space-y-5">
       <div className="flex justify-between items-center">
-        <span className="text-xs text-muted-foreground">
-          {count}/{totalKnockoutTeams} classificados
-        </span>
+        <div className="space-y-0.5">
+          <span className="text-xs text-muted-foreground">
+            {count}/{totalKnockoutTeams} classificados
+          </span>
+          {bestOfQualifiers > 0 && (
+            <p className="text-[10px] text-primary">
+              {directQualifiersPerGroup} diretos/grupo + {bestOfQualifiers} melhor(es) {bestOfPosition}º(s)
+            </p>
+          )}
+        </div>
         <Button
           onClick={() => onConfirm(Array.from(selected))}
           disabled={!isReady || !allGroupMatchesPlayed || isReadonly}
@@ -133,6 +172,10 @@ export default function GroupQualificationView({
                 <tbody>
                   {groupStandings.map((row, idx) => {
                     const isSelected = selected.has(row.teamId);
+                    const pos = idx + 1;
+                    // Highlight: direct qualifier, best-of qualifier, or neither
+                    const isDirectQualifier = pos <= directQualifiersPerGroup;
+                    const isBestOfCandidate = bestOfQualifiers > 0 && pos === bestOfPosition;
 
                     return (
                       <tr
@@ -147,7 +190,7 @@ export default function GroupQualificationView({
                         )}
                       >
                         <td className="py-2 pl-3 pr-1 text-muted-foreground font-mono text-[10px]">
-                          {idx + 1}
+                          {pos}
                         </td>
                         <td className="py-2 px-1">
                           <div className="flex items-center gap-1.5 min-w-0">
@@ -164,6 +207,11 @@ export default function GroupQualificationView({
                             )}>
                               {row.team?.abbreviation || row.team?.shortName || row.team?.name || "—"}
                             </span>
+                            {isSelected && isBestOfCandidate && !isDirectQualifier && (
+                              <span className="text-[9px] text-primary/70 shrink-0">
+                                melhor {bestOfPosition}º
+                              </span>
+                            )}
                           </div>
                         </td>
                         <td className="text-center py-2 px-0.5 font-bold tabular-nums text-foreground">{row.points}</td>

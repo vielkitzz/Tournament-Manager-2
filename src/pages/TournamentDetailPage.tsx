@@ -860,6 +860,8 @@ export default function TournamentDetailPage() {
                       totalKnockoutTeams={qualifiersPerGroup}
                       allGroupMatchesPlayed={allGroupMatchesPlayed}
                       confirmedTeamIds={tournament.settings.qualifiedTeamIds}
+                      bestOfQualifiers={tournament.settings.bestOfQualifiers ?? 0}
+                      bestOfPosition={tournament.settings.bestOfPosition ?? 3}
                       onConfirm={handleConfirmQualifiers}
                     />
                   )}
@@ -870,6 +872,8 @@ export default function TournamentDetailPage() {
                       totalKnockoutTeams={qualifiersPerGroup}
                       allGroupMatchesPlayed={allGroupMatchesPlayed}
                       confirmedTeamIds={tournament.settings.qualifiedTeamIds}
+                      bestOfQualifiers={tournament.settings.bestOfQualifiers ?? 0}
+                      bestOfPosition={tournament.settings.bestOfPosition ?? 3}
                       onConfirm={handleConfirmQualifiers}
                     />
                   )}
