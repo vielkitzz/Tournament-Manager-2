@@ -4,6 +4,42 @@ import { supabase } from "@/integrations/supabase/client";
 import { Trophy } from "lucide-react";
 import { Tournament, Match, SeasonRecord, TournamentSettings } from "@/types/tournament";
 
+function parseJsonField<T>(raw: any, fallback: T): T {
+  if (raw === null || raw === undefined) return fallback;
+  if (typeof raw === "object") return raw as T;
+  if (typeof raw === "string") {
+    try { return JSON.parse(raw) as T; } catch { return fallback; }
+  }
+  return fallback;
+}
+
+function dbToTournament(row: any): Tournament {
+  return {
+    id: row.id,
+    name: row.name,
+    sport: row.sport,
+    year: parseInt(String(row.year)) || new Date().getFullYear(),
+    format: row.format as Tournament["format"],
+    numberOfTeams: parseInt(String(row.number_of_teams)) || 0,
+    logo: row.logo || row.logo_url || undefined,
+    teamIds: parseJsonField<string[]>(row.team_ids, []),
+    settings: parseJsonField<TournamentSettings>(row.settings, {} as TournamentSettings),
+    matches: parseJsonField<Match[]>(row.matches, []),
+    finalized: row.finalized === true || row.finalized === "true",
+    groupsFinalized: row.groups_finalized === true || row.groups_finalized === "true",
+    seasons: parseJsonField<SeasonRecord[]>(row.seasons, []),
+    folderId: row.folder_id || null,
+    ligaTurnos: row.liga_turnos as Tournament["ligaTurnos"],
+    gruposQuantidade: row.grupos_quantidade ? parseInt(String(row.grupos_quantidade)) : undefined,
+    gruposTurnos: (row.grupos_turnos ? parseInt(String(row.grupos_turnos)) : undefined) as Tournament["gruposTurnos"],
+    gruposMataMataInicio: row.grupos_mata_mata_inicio as Tournament["gruposMataMataInicio"],
+    mataMataInicio: row.mata_mata_inicio as Tournament["mataMataInicio"],
+    suicoJogosLiga: row.suico_jogos_liga || undefined,
+    suicoMataMataInicio: row.suico_mata_mata_inicio as Tournament["suicoMataMataInicio"],
+    suicoPlayoffVagas: row.suico_playoff_vagas || undefined,
+  };
+}
+
 export default function SharedTournamentPage() {
   const { token } = useParams<{ token: string }>();
   const [tournament, setTournament] = useState<Tournament | null>(null);
@@ -30,29 +66,7 @@ export default function SharedTournamentPage() {
 
       if (!t) { setError(true); setLoading(false); return; }
 
-      setTournament({
-        id: t.id,
-        name: t.name,
-        sport: t.sport,
-        year: t.year,
-        format: t.format as Tournament["format"],
-        numberOfTeams: t.number_of_teams,
-        logo: t.logo || undefined,
-        teamIds: t.team_ids || [],
-        settings: t.settings as unknown as TournamentSettings,
-        matches: (t.matches || []) as unknown as Match[],
-        finalized: t.finalized,
-        groupsFinalized: t.groups_finalized || false,
-        seasons: (t.seasons || []) as unknown as SeasonRecord[],
-        ligaTurnos: t.liga_turnos as Tournament["ligaTurnos"],
-        gruposQuantidade: t.grupos_quantidade || undefined,
-        gruposTurnos: t.grupos_turnos as Tournament["gruposTurnos"],
-        gruposMataMataInicio: t.grupos_mata_mata_inicio as Tournament["gruposMataMataInicio"],
-        mataMataInicio: t.mata_mata_inicio as Tournament["mataMataInicio"],
-        suicoJogosLiga: t.suico_jogos_liga || undefined,
-        suicoMataMataInicio: t.suico_mata_mata_inicio as Tournament["suicoMataMataInicio"],
-        suicoPlayoffVagas: t.suico_playoff_vagas || undefined,
-      });
+      setTournament(dbToTournament(t));
       setLoading(false);
     };
 
