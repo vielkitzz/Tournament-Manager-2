@@ -79,6 +79,7 @@ function tournamentToDb(tournament: Tournament, userId: string) {
     format: tournament.format,
     number_of_teams: tournament.numberOfTeams,
     logo: tournament.logo || null,
+    folder_id: tournament.folderId || null,
     team_ids: tournament.teamIds,
     settings: tournament.settings as unknown as Json,
     matches: tournament.matches as unknown as Json,
