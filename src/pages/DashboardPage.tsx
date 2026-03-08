@@ -1,8 +1,10 @@
+import { useMemo } from "react";
 import { motion } from "framer-motion";
 import { Trophy, Shield, Swords, Calendar, TrendingUp, Star, ArrowRight, Plus } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useTournamentStore } from "@/store/tournamentStore";
 import { useAuth } from "@/hooks/useAuth";
+import { getRecentTournamentIds } from "@/lib/recentTournaments";
 
 const formatLabels: Record<string, string> = {
   liga: "Liga",
