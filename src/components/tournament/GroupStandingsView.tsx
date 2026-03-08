@@ -1,15 +1,18 @@
 import { StandingRow } from "@/lib/standings";
+import { PromotionRule } from "@/types/tournament";
 import { Shield } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface GroupStandingsViewProps {
   groupCount: number;
   standingsByGroup: Record<number, StandingRow[]>;
+  promotions?: PromotionRule[];
 }
 
 export default function GroupStandingsView({
   groupCount,
   standingsByGroup,
+  promotions = [],
 }: GroupStandingsViewProps) {
   if (groupCount === 0) {
     return (
@@ -18,6 +21,8 @@ export default function GroupStandingsView({
       </div>
     );
   }
+
+  const getPromotion = (pos: number) => promotions.find((p) => p.position === pos);
 
   const gridCols =
     groupCount <= 2
@@ -53,36 +58,45 @@ export default function GroupStandingsView({
                 </tr>
               </thead>
               <tbody>
-                {standings.map((row, i) => (
-                  <tr key={row.teamId} className="border-b border-border/30 hover:bg-secondary/30 transition-colors">
-                    <td className="py-2 pl-3 pr-1 text-muted-foreground font-mono text-[10px]">{i + 1}</td>
-                    <td className="py-2 px-1">
-                      <div className="flex items-center gap-1.5 min-w-0">
-                        <div className="w-4 h-4 flex items-center justify-center shrink-0">
-                          {row.team?.logo ? (
-                            <img src={row.team.logo} alt="" className="w-4 h-4 object-contain" />
-                          ) : (
-                            <Shield className="w-3 h-3 text-muted-foreground" />
-                          )}
+                {standings.map((row, i) => {
+                  const pos = i + 1;
+                  const promo = getPromotion(pos);
+                  return (
+                    <tr key={row.teamId} className="border-b border-border/30 hover:bg-secondary/30 transition-colors">
+                      <td
+                        className="py-2 pl-3 pr-1 text-muted-foreground font-mono text-[10px]"
+                        style={promo ? { borderLeft: `3px solid ${promo.color}` } : undefined}
+                      >
+                        {pos}
+                      </td>
+                      <td className="py-2 px-1">
+                        <div className="flex items-center gap-1.5 min-w-0">
+                          <div className="w-4 h-4 flex items-center justify-center shrink-0">
+                            {row.team?.logo ? (
+                              <img src={row.team.logo} alt="" className="w-4 h-4 object-contain" />
+                            ) : (
+                              <Shield className="w-3 h-3 text-muted-foreground" />
+                            )}
+                          </div>
+                          <span className="font-medium truncate text-[11px] text-foreground">
+                            {row.team?.abbreviation || row.team?.shortName || row.team?.name || "—"}
+                          </span>
                         </div>
-                        <span className="font-medium truncate text-[11px] text-foreground">
-                          {row.team?.abbreviation || row.team?.shortName || row.team?.name || "—"}
-                        </span>
-                      </div>
-                    </td>
-                    <td className="text-center py-2 px-0.5 font-bold tabular-nums text-foreground">{row.points}</td>
-                    <td className="text-center py-2 px-0.5 tabular-nums text-muted-foreground">{row.played}</td>
-                    <td className="text-center py-2 px-0.5 tabular-nums text-muted-foreground">{row.wins}</td>
-                    <td className="text-center py-2 px-0.5 tabular-nums text-muted-foreground">{row.draws}</td>
-                    <td className="text-center py-2 px-0.5 tabular-nums text-muted-foreground">{row.losses}</td>
-                    <td className={cn(
-                      "text-center py-2 px-0.5 font-semibold tabular-nums",
-                      row.goalDifference > 0 ? "text-emerald-400" : row.goalDifference < 0 ? "text-red-400" : "text-muted-foreground"
-                    )}>
-                      {row.goalDifference > 0 ? `+${row.goalDifference}` : row.goalDifference}
-                    </td>
-                  </tr>
-                ))}
+                      </td>
+                      <td className="text-center py-2 px-0.5 font-bold tabular-nums text-foreground">{row.points}</td>
+                      <td className="text-center py-2 px-0.5 tabular-nums text-muted-foreground">{row.played}</td>
+                      <td className="text-center py-2 px-0.5 tabular-nums text-muted-foreground">{row.wins}</td>
+                      <td className="text-center py-2 px-0.5 tabular-nums text-muted-foreground">{row.draws}</td>
+                      <td className="text-center py-2 px-0.5 tabular-nums text-muted-foreground">{row.losses}</td>
+                      <td className={cn(
+                        "text-center py-2 px-0.5 font-semibold tabular-nums",
+                        row.goalDifference > 0 ? "text-emerald-400" : row.goalDifference < 0 ? "text-red-400" : "text-muted-foreground"
+                      )}>
+                        {row.goalDifference > 0 ? `+${row.goalDifference}` : row.goalDifference}
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
             {standings.length === 0 && (
