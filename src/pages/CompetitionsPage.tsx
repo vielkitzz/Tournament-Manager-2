@@ -179,6 +179,7 @@ const CompetitionFolderNode = memo(function CompetitionFolderNode({
   onFolderDragStart,
   navigate,
   onDeleteTournament,
+  onDuplicateTournament,
   depth = 0,
 }: FolderNodeProps) {
   const isOpen = openFolders.has(folder.id);
