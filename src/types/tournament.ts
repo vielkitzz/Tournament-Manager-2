@@ -68,6 +68,7 @@ export interface SeasonRecord {
   standings: { teamId: string; teamName: string; teamLogo?: string; points: number; wins: number; draws: number; losses: number; goalsFor: number; goalsAgainst: number; group?: number }[];
   matches?: Match[];
   groupCount?: number;
+  teamIds?: string[];
 }
 
 export interface Tournament {
@@ -108,6 +109,7 @@ export interface Team {
   colors: string[];
   rate: number;
   folderId?: string | null;
+  isArchived?: boolean;
 }
 
 export interface TeamFolder {
