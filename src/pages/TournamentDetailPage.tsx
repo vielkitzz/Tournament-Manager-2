@@ -978,8 +978,8 @@ export default function TournamentDetailPage() {
 
         <TabsContent value="stats" className="mt-0 outline-none">
           <StatsView
-            tournament={isViewingPastSeason ? { ...tournament, matches: seasonData?.matches || [] } : tournament}
-            teams={resolvedTeams}
+            tournament={isViewingPastSeason ? { ...tournament, matches: seasonData?.matches || [], teamIds: seasonTeamIds } : tournament}
+            teams={isViewingPastSeason ? resolvedTeamsForSeason : resolvedTeams}
           />
         </TabsContent>
       </Tabs>
