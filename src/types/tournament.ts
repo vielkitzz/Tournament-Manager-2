@@ -85,6 +85,7 @@ export interface Tournament {
   finalized?: boolean;
   groupsFinalized?: boolean;
   seasons?: SeasonRecord[];
+  folderId?: string | null;
   // Liga options
   ligaTurnos?: 1 | 2;
   // Grupos options
@@ -97,6 +98,12 @@ export interface Tournament {
   suicoJogosLiga?: number;
   suicoMataMataInicio?: KnockoutStage;
   suicoPlayoffVagas?: number;
+}
+
+export interface TournamentFolder {
+  id: string;
+  name: string;
+  parentId?: string | null;
 }
 
 export interface Team {
