@@ -213,6 +213,27 @@ export const useTournamentStore = create<TournamentState>((set, get) => ({
     if (data) set((s) => ({ tournaments: [...s.tournaments, dbToTournament(data)] }));
   },
 
+  duplicateTournament: async (id) => {
+    const userId = get()._userId;
+    if (!userId) return undefined;
+    const source = get().tournaments.find((t) => t.id === id);
+    if (!source) return undefined;
+    const newId = crypto.randomUUID();
+    const clone: Tournament = {
+      ...source,
+      id: newId,
+      name: `${source.name} (Cópia)`,
+      folderId: source.folderId || null,
+    };
+    const { data } = await db.from("tournaments").insert(tournamentToDb(clone, userId)).select().single();
+    if (data) {
+      const t = dbToTournament(data);
+      set((s) => ({ tournaments: [...s.tournaments, t] }));
+      return t.id;
+    }
+    return undefined;
+  },
+
   updateTournament: async (id, updates) => {
     const userId = get()._userId;
     if (!userId) return;
