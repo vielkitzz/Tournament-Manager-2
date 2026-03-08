@@ -330,15 +330,15 @@ export default function MatchPopup({
                 )}
               </div>
               <div>
-                <p className="font-display font-bold text-foreground text-sm">{homeTeam?.name || "—"}</p>
-                <p className="text-xs text-primary font-mono">{homeTeam?.rate.toFixed(2)}</p>
+                <p className="font-display font-bold text-foreground text-sm">{homeTeam?.name || "Time Excluído"}</p>
+                <p className="text-xs text-primary font-mono">{homeTeam?.rate?.toFixed(2) ?? "—"}</p>
               </div>
             </div>
             <span className="text-muted-foreground font-bold text-sm px-4 shrink-0">VS</span>
             <div className="flex items-center gap-3 flex-1 justify-end text-right">
               <div>
-                <p className="font-display font-bold text-foreground text-sm">{awayTeam?.name || "—"}</p>
-                <p className="text-xs text-primary font-mono">{awayTeam?.rate.toFixed(2)}</p>
+                <p className="font-display font-bold text-foreground text-sm">{awayTeam?.name || "Time Excluído"}</p>
+                <p className="text-xs text-primary font-mono">{awayTeam?.rate?.toFixed(2) ?? "—"}</p>
               </div>
               <div className="w-12 h-12 flex items-center justify-center shrink-0">
                 {awayTeam?.logo ? (
