@@ -896,7 +896,7 @@ export default function TournamentDetailPage() {
                         onRemoveTeam={!isViewingPastSeason && !tournament.finalized
                           ? (teamId) => removeTeamFromGroup(teamId, groupNum)
                           : undefined}
-                        matches={isViewingPastSeason ? (viewedSeason?.matches || []).filter(m => m.group === groupNum) : tournament.matches.filter(m => m.group === groupNum)}
+                        matches={isViewingPastSeason ? (seasonData?.matches || []).filter(m => m.group === groupNum) : tournament.matches.filter(m => m.group === groupNum)}
                         allTeams={resolvedTeams}
                       />
                     </div>
