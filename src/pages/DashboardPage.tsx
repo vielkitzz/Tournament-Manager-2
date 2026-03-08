@@ -1,8 +1,10 @@
+import { useMemo } from "react";
 import { motion } from "framer-motion";
 import { Trophy, Shield, Swords, Calendar, TrendingUp, Star, ArrowRight, Plus } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useTournamentStore } from "@/store/tournamentStore";
 import { useAuth } from "@/hooks/useAuth";
+import { getRecentTournamentIds } from "@/lib/recentTournaments";
 
 const formatLabels: Record<string, string> = {
   liga: "Liga",
@@ -19,7 +21,15 @@ export default function DashboardPage() {
   const totalMatches = tournaments.reduce((sum, t) => sum + t.matches.filter((m) => m.played).length, 0);
   const totalSeasons = tournaments.reduce((sum, t) => sum + (t.seasons?.length || 0), 0);
   const activeTournaments = tournaments.filter((t) => !t.finalized);
-  const recentTournaments = [...tournaments].slice(0, 5);
+  const recentIds = useMemo(() => getRecentTournamentIds(), []);
+  const recentTournaments = useMemo(() => {
+    const byRecent = recentIds
+      .map((rid) => tournaments.find((t) => t.id === rid))
+      .filter(Boolean) as typeof tournaments;
+    // Fill remaining slots with tournaments not yet in recent list
+    const remaining = tournaments.filter((t) => !recentIds.includes(t.id));
+    return [...byRecent, ...remaining].slice(0, 5);
+  }, [tournaments, recentIds]);
 
   // Find most successful team (most championship wins)
   const champCounts: Record<string, { name: string; logo?: string; count: number }> = {};

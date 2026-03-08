@@ -44,6 +44,7 @@ import StatsView from "@/components/tournament/StatsView";
 import { calculateStandings } from "@/lib/standings";
 import { generateRoundRobin } from "@/lib/roundRobin";
 import { Match, SeasonRecord, STAGE_TEAM_COUNTS, KnockoutStage } from "@/types/tournament";
+import { trackTournamentOpen } from "@/lib/recentTournaments";
 
 const formatLabels: Record<string, string> = {
   liga: "Pontos Corridos",
@@ -56,6 +57,11 @@ export default function TournamentDetailPage() {
   const navigate = useNavigate();
   const { tournaments, teams, updateTournament, removeTournament, teamHistories } = useTournamentStore();
   const tournament = tournaments.find((t) => t.id === id);
+
+  // Track recently opened
+  useEffect(() => {
+    if (id) trackTournamentOpen(id);
+  }, [id]);
 
   // Resolve teams with historical logo/rate for the tournament year
   const tournamentYear = tournament?.year;
@@ -890,6 +896,8 @@ export default function TournamentDetailPage() {
                         onRemoveTeam={!isViewingPastSeason && !tournament.finalized
                           ? (teamId) => removeTeamFromGroup(teamId, groupNum)
                           : undefined}
+                        matches={isViewingPastSeason ? (seasonData?.matches || []).filter(m => m.group === groupNum) : tournament.matches.filter(m => m.group === groupNum)}
+                        allTeams={resolvedTeams}
                       />
                     </div>
                   </div>
@@ -902,6 +910,8 @@ export default function TournamentDetailPage() {
                 <StandingsTable
                   standings={isViewingPastSeason ? seasonStandings : standings}
                   promotions={tournament.settings.promotions}
+                  matches={isViewingPastSeason ? (seasonData?.matches || []) : tournament.matches}
+                  allTeams={resolvedTeams}
                 />
               </div>
               {!isViewingPastSeason && !tournament.finalized && isLiga && standings.length > 0 && standings.every(s => s.played > 0) && (
