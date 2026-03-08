@@ -137,6 +137,7 @@ interface TournamentState {
   initialize: (userId: string | null) => Promise<void>;
   addTournament: (tournament: Tournament) => Promise<void>;
   updateTournament: (id: string, updates: Partial<Tournament>) => Promise<void>;
+  duplicateTournament: (id: string) => Promise<string | undefined>;
   removeTournament: (id: string) => Promise<void>;
   addTeam: (team: Team) => Promise<void>;
   updateTeam: (id: string, updates: Partial<Team>) => Promise<void>;
