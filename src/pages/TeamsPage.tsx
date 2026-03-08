@@ -304,9 +304,10 @@ const FolderNode = memo(function FolderNode({
 
 export default function TeamsPage() {
   const {
-    teams,
+    teams: allTeams,
     tournaments,
     removeTeam,
+    archiveTeam,
     addTeam,
     loading,
     folders,
@@ -316,6 +317,9 @@ export default function TeamsPage() {
     moveTeamToFolder,
     moveFolderToFolder,
   } = useTournamentStore();
+
+  // Filter out archived teams from the main list
+  const teams = useMemo(() => allTeams.filter((t) => !t.isArchived), [allTeams]);
 
   const navigate = useNavigate();
   const [search, setSearch] = useState("");
@@ -393,25 +397,28 @@ export default function TeamsPage() {
     });
   }, []);
 
-  // Bug fix #12: Check referential integrity before deleting a team
-  // Warn if the team is part of active tournaments
+  // Soft delete: archive teams that are in tournaments, hard delete otherwise
   const handleDelete = useCallback(
     (id: string, name: string) => {
       const activeTournaments = (tournaments || []).filter(
         (t) => t.teamIds && t.teamIds.includes(id)
       );
-      if (activeTournaments.length > 0) {
-        const tournamentNames = activeTournaments.map((t) => `"${t.name}"`).join(", ");
+      const hasHistory = (tournaments || []).some((t) =>
+        (t.seasons || []).some((s) => s.teamIds?.includes(id) || s.standings.some((st) => st.teamId === id))
+      );
+      if (activeTournaments.length > 0 || hasHistory) {
+        // Soft delete: archive instead of removing
+        archiveTeam(id);
         toast.warning(
-          `"${name}" foi excluído, mas ainda estava em ${activeTournaments.length} competição(es): ${tournamentNames}. Os resultados históricos foram preservados.`,
+          `"${name}" foi arquivado (mantido no histórico). Ainda está em ${activeTournaments.length} competição(es).`,
           { duration: 6000 }
         );
       } else {
+        removeTeam(id);
         toast.success(`"${name}" excluído`);
       }
-      removeTeam(id);
     },
-    [removeTeam, tournaments],
+    [archiveTeam, removeTeam, tournaments],
   );
 
   const handleDuplicate = useCallback(

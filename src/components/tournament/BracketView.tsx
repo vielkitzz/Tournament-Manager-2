@@ -717,7 +717,7 @@ function TeamRow({
           "text-xs truncate",
           isWinner ? "font-bold text-foreground" : "text-muted-foreground"
         )}>
-          {team?.abbreviation || team?.shortName || "—"}
+          {team?.abbreviation || team?.shortName || "A definir"}
         </span>
       </div>
       <div className="flex items-center gap-1.5">

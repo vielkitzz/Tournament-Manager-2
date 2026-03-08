@@ -118,6 +118,7 @@ export type Database = {
           folder_id: string | null
           founding_year: string | null
           id: string | null
+          is_archived: boolean
           logo: string | null
           logo_url: string | null
           name: string | null
@@ -136,6 +137,7 @@ export type Database = {
           folder_id?: string | null
           founding_year?: string | null
           id?: string | null
+          is_archived?: boolean
           logo?: string | null
           logo_url?: string | null
           name?: string | null
@@ -154,6 +156,7 @@ export type Database = {
           folder_id?: string | null
           founding_year?: string | null
           id?: string | null
+          is_archived?: boolean
           logo?: string | null
           logo_url?: string | null
           name?: string | null

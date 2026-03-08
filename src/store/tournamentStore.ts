@@ -64,6 +64,7 @@ function dbToTeam(row: any): Team {
     colors: parseColors(row.colors),
     rate: row.rate ?? 0,
     folderId: row.folder_id || null,
+    isArchived: row.is_archived === true,
   };
 }
 
@@ -136,6 +137,7 @@ interface TournamentState {
   addTeam: (team: Team) => Promise<void>;
   updateTeam: (id: string, updates: Partial<Team>) => Promise<void>;
   removeTeam: (id: string) => Promise<void>;
+  archiveTeam: (id: string) => Promise<void>;
   addFolder: (name: string) => Promise<string | undefined>;
   renameFolder: (id: string, name: string) => Promise<void>;
   removeFolder: (id: string) => Promise<void>;
@@ -251,6 +253,13 @@ export const useTournamentStore = create<TournamentState>((set, get) => ({
     if (!userId) return;
     set((s) => ({ teams: s.teams.filter((t) => t.id !== id) }));
     await db.from("teams").delete().eq("id", id).eq("user_id", userId);
+  },
+
+  archiveTeam: async (id) => {
+    const userId = get()._userId;
+    if (!userId) return;
+    set((s) => ({ teams: s.teams.map((t) => (t.id === id ? { ...t, isArchived: true } : t)) }));
+    await db.from("teams").update({ is_archived: true }).eq("id", id).eq("user_id", userId);
   },
 
   addFolder: async (name) => {

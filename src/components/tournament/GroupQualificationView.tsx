@@ -16,6 +16,7 @@ interface GroupQualificationViewProps {
   /** Qual posição recebe o tratamento "melhores de" (ex: 3 = terceiros) */
   bestOfPosition?: number;
   onConfirm: (qualifiedTeamIds: string[]) => void;
+  onReset?: () => void;
 }
 
 export default function GroupQualificationView({
@@ -27,6 +28,7 @@ export default function GroupQualificationView({
   bestOfQualifiers = 0,
   bestOfPosition = 3,
   onConfirm,
+  onReset,
 }: GroupQualificationViewProps) {
   const isReadonly = !!confirmedTeamIds && confirmedTeamIds.length > 0;
 
@@ -122,20 +124,32 @@ export default function GroupQualificationView({
             </p>
           )}
         </div>
-        <Button
-          onClick={() => onConfirm(Array.from(selected))}
-          disabled={!isReady || !allGroupMatchesPlayed || isReadonly}
-          size="sm"
-          className={cn(
-            "gap-2 shrink-0",
-            isReadonly
-              ? "bg-primary/20 text-primary cursor-default"
-              : "bg-primary text-primary-foreground"
+        <div className="flex items-center gap-2">
+          {isReadonly && onReset && (
+            <Button
+              onClick={onReset}
+              size="sm"
+              variant="outline"
+              className="gap-1.5 text-xs"
+            >
+              Resetar
+            </Button>
           )}
-        >
-          <Trophy className="w-4 h-4" />
-          {isReadonly ? "Classificados Confirmados" : "Confirmar e Gerar Mata-Mata"}
-        </Button>
+          <Button
+            onClick={() => onConfirm(Array.from(selected))}
+            disabled={!isReady || !allGroupMatchesPlayed || isReadonly}
+            size="sm"
+            className={cn(
+              "gap-2 shrink-0",
+              isReadonly
+                ? "bg-primary/20 text-primary cursor-default"
+                : "bg-primary text-primary-foreground"
+            )}
+          >
+            <Trophy className="w-4 h-4" />
+            {isReadonly ? "Classificados Confirmados" : "Confirmar e Gerar Mata-Mata"}
+          </Button>
+        </div>
       </div>
 
       {/* ── Group Cards Grid ── */}
