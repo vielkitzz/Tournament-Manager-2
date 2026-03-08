@@ -439,6 +439,27 @@ export default function BracketView({
     const awayTeam = getTeam(pair.leg1.awayTeamId);
     const winner = getTieResult(pair);
 
+    const getMatchTotalScore = (match: Match, side: "home" | "away") => {
+      const base = side === "home" ? (match.homeScore || 0) : (match.awayScore || 0);
+      const et = side === "home" ? (match.homeExtraTime || 0) : (match.awayExtraTime || 0);
+      return base + et;
+    };
+
+    const hasExtraTime = (match: Match) => match.played && ((match.homeExtraTime || 0) > 0 || (match.awayExtraTime || 0) > 0);
+    const hasPenalties = (match: Match) => match.played && match.homePenalties !== undefined;
+
+    const renderMatchFooter = (match: Match) => {
+      const parts: string[] = [];
+      if (hasExtraTime(match)) parts.push("AET");
+      if (hasPenalties(match)) parts.push(`Pên: ${match.homePenalties}×${match.awayPenalties}`);
+      if (parts.length === 0) return null;
+      return (
+        <div className="text-center py-0.5 bg-secondary/50 border-t border-border/10">
+          <span className="text-[9px] text-muted-foreground">{parts.join(" • ")}</span>
+        </div>
+      );
+    };
+
     return (
       <div key={pair.leg1.id} className="relative group/pair w-[180px] rounded-lg bg-secondary/30 border border-border overflow-hidden">
         {onRemoveMatch && !tournament.finalized && (
@@ -459,8 +480,9 @@ export default function BracketView({
               <span className="text-[8px] text-muted-foreground">Ida</span>
             </div>
           )}
-          <TeamRow team={homeTeam} score={pair.leg1.played ? pair.leg1.homeScore : undefined} isWinner={winner === pair.leg1.homeTeamId} borderBottom compact onEditTeam={() => setEditingTeam({ match: pair.leg1, side: "home" })} />
-          <TeamRow team={awayTeam} score={pair.leg1.played ? pair.leg1.awayScore : undefined} isWinner={winner === pair.leg1.awayTeamId} compact onEditTeam={() => setEditingTeam({ match: pair.leg1, side: "away" })} />
+          <TeamRow team={homeTeam} score={pair.leg1.played ? getMatchTotalScore(pair.leg1, "home") : undefined} isWinner={winner === pair.leg1.homeTeamId} borderBottom compact onEditTeam={() => setEditingTeam({ match: pair.leg1, side: "home" })} />
+          <TeamRow team={awayTeam} score={pair.leg1.played ? getMatchTotalScore(pair.leg1, "away") : undefined} isWinner={winner === pair.leg1.awayTeamId} compact onEditTeam={() => setEditingTeam({ match: pair.leg1, side: "away" })} />
+          {!pair.leg2 && renderMatchFooter(pair.leg1)}
         </button>
         {pair.leg2 && (
           <button
@@ -470,13 +492,9 @@ export default function BracketView({
             <div className="flex items-center gap-1 px-2 py-1 border-b border-border/20">
               <span className="text-[8px] text-muted-foreground">Volta</span>
             </div>
-            <TeamRow team={awayTeam} score={pair.leg2.played ? pair.leg2.homeScore : undefined} isWinner={winner === pair.leg1.awayTeamId} borderBottom compact onEditTeam={() => setEditingTeam({ match: pair.leg2!, side: "home" })} />
-            <TeamRow team={homeTeam} score={pair.leg2.played ? pair.leg2.awayScore : undefined} isWinner={winner === pair.leg1.homeTeamId} compact onEditTeam={() => setEditingTeam({ match: pair.leg2!, side: "away" })} />
-            {pair.leg2.played && pair.leg2.homePenalties !== undefined && (
-              <div className="text-center py-0.5 bg-secondary/50">
-                <span className="text-[9px] text-muted-foreground">Pên: {pair.leg2.awayPenalties}×{pair.leg2.homePenalties}</span>
-              </div>
-            )}
+            <TeamRow team={awayTeam} score={pair.leg2.played ? getMatchTotalScore(pair.leg2, "home") : undefined} isWinner={winner === pair.leg1.awayTeamId} borderBottom compact onEditTeam={() => setEditingTeam({ match: pair.leg2!, side: "home" })} />
+            <TeamRow team={homeTeam} score={pair.leg2.played ? getMatchTotalScore(pair.leg2, "away") : undefined} isWinner={winner === pair.leg1.homeTeamId} compact onEditTeam={() => setEditingTeam({ match: pair.leg2!, side: "away" })} />
+            {renderMatchFooter(pair.leg2)}
           </button>
         )}
       </div>
@@ -487,6 +505,11 @@ export default function BracketView({
     const winner = getSingleMatchWinner(match);
     const home = getTeam(match.homeTeamId);
     const away = getTeam(match.awayTeamId);
+    const homeTotal = match.played ? (match.homeScore || 0) + (match.homeExtraTime || 0) : undefined;
+    const awayTotal = match.played ? (match.awayScore || 0) + (match.awayExtraTime || 0) : undefined;
+
+    const hasET = match.played && ((match.homeExtraTime || 0) > 0 || (match.awayExtraTime || 0) > 0);
+    const hasPens = match.played && match.homePenalties !== undefined;
 
     return (
       <button
@@ -494,8 +517,15 @@ export default function BracketView({
         onClick={() => setSelectedMatch(match)}
         className="w-[180px] rounded-lg bg-secondary/30 border border-warning/30 hover:border-warning/60 transition-all text-left overflow-hidden"
       >
-        <TeamRow team={home} score={match.played ? match.homeScore : undefined} isWinner={winner === match.homeTeamId} borderBottom onEditTeam={() => setEditingTeam({ match, side: "home" })} />
-        <TeamRow team={away} score={match.played ? match.awayScore : undefined} isWinner={winner === match.awayTeamId} onEditTeam={() => setEditingTeam({ match, side: "away" })} />
+        <TeamRow team={home} score={homeTotal} isWinner={winner === match.homeTeamId} borderBottom onEditTeam={() => setEditingTeam({ match, side: "home" })} />
+        <TeamRow team={away} score={awayTotal} isWinner={winner === match.awayTeamId} onEditTeam={() => setEditingTeam({ match, side: "away" })} />
+        {(hasET || hasPens) && (
+          <div className="text-center py-0.5 bg-secondary/50 border-t border-border/10">
+            <span className="text-[9px] text-muted-foreground">
+              {[hasET && "AET", hasPens && `Pên: ${match.homePenalties}×${match.awayPenalties}`].filter(Boolean).join(" • ")}
+            </span>
+          </div>
+        )}
       </button>
     );
   };
@@ -592,22 +622,72 @@ export default function BracketView({
             const championTeam = champion ? getTeam(champion) : null;
             if (!championTeam) return null;
 
+            // Find runner-up
+            const runnerUp = finalPairs[0]
+              ? (champion === finalPairs[0].leg1.homeTeamId ? finalPairs[0].leg1.awayTeamId : finalPairs[0].leg1.homeTeamId)
+              : null;
+            const runnerUpTeam = runnerUp ? getTeam(runnerUp) : null;
+
+            // Find 3rd place winner
+            const thirdMatch = thirdPlaceMatches[0];
+            const thirdWinnerId = thirdMatch ? getSingleMatchWinner(thirdMatch) : null;
+            const thirdTeam = thirdWinnerId ? getTeam(thirdWinnerId) : null;
+
             return (
-              <div className="flex flex-col items-center justify-start pt-8 min-w-[110px]">
-                <div className="mb-2 text-center">
+              <div className="flex flex-col items-center justify-start pt-4 min-w-[140px]">
+                <div className="mb-3 text-center">
                   <span className="text-[11px] font-bold text-primary uppercase tracking-wider">Campeão</span>
                 </div>
-                <div className="flex flex-col items-center gap-1.5 p-3 rounded-lg bg-primary/10 border border-primary/30">
-                  <Trophy className="w-5 h-5 text-primary" />
-                  <div className="w-8 h-8 flex items-center justify-center">
+                <div className="flex flex-col items-center gap-2 p-4 rounded-xl bg-gradient-to-b from-primary/15 to-primary/5 border-2 border-primary/40 shadow-lg shadow-primary/10 relative overflow-hidden">
+                  {/* Decorative sparkle */}
+                  <div className="absolute top-0 left-0 w-full h-full bg-gradient-to-br from-primary/10 via-transparent to-primary/5 pointer-events-none" />
+                  <Trophy className="w-7 h-7 text-primary drop-shadow-sm relative z-10" />
+                  <div className="w-12 h-12 flex items-center justify-center relative z-10 rounded-full bg-background/60 border border-primary/20 shadow-sm">
                     {championTeam.logo ? (
-                      <img src={championTeam.logo} alt="" className="w-8 h-8 object-contain" />
+                      <img src={championTeam.logo} alt="" className="w-10 h-10 object-contain" />
                     ) : (
-                      <Shield className="w-5 h-5 text-muted-foreground" />
+                      <Shield className="w-6 h-6 text-muted-foreground" />
                     )}
                   </div>
-                  <span className="text-[11px] font-bold text-foreground text-center">{championTeam.abbreviation || championTeam.shortName}</span>
+                  <span className="text-sm font-bold text-foreground text-center relative z-10">
+                    {championTeam.name || championTeam.shortName}
+                  </span>
+                  <span className="text-[10px] text-primary font-semibold relative z-10">
+                    🏆 {tournament.year}
+                  </span>
                 </div>
+
+                {/* Runner-up & 3rd place */}
+                {(runnerUpTeam || thirdTeam) && (
+                  <div className="mt-3 flex flex-col gap-1.5 w-full">
+                    {runnerUpTeam && (
+                      <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-secondary/40 border border-border/50">
+                        <span className="text-[10px] font-bold text-muted-foreground w-4">2º</span>
+                        <div className="w-4 h-4 flex items-center justify-center shrink-0">
+                          {runnerUpTeam.logo ? (
+                            <img src={runnerUpTeam.logo} alt="" className="w-4 h-4 object-contain" />
+                          ) : (
+                            <Shield className="w-3 h-3 text-muted-foreground" />
+                          )}
+                        </div>
+                        <span className="text-[10px] text-muted-foreground truncate">{runnerUpTeam.abbreviation || runnerUpTeam.shortName}</span>
+                      </div>
+                    )}
+                    {thirdTeam && (
+                      <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-secondary/40 border border-border/50">
+                        <span className="text-[10px] font-bold text-muted-foreground w-4">3º</span>
+                        <div className="w-4 h-4 flex items-center justify-center shrink-0">
+                          {thirdTeam.logo ? (
+                            <img src={thirdTeam.logo} alt="" className="w-4 h-4 object-contain" />
+                          ) : (
+                            <Shield className="w-3 h-3 text-muted-foreground" />
+                          )}
+                        </div>
+                        <span className="text-[10px] text-muted-foreground truncate">{thirdTeam.abbreviation || thirdTeam.shortName}</span>
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
             );
           })()}
