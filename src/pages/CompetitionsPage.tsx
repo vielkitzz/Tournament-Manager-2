@@ -285,6 +285,7 @@ const CompetitionFolderNode = memo(function CompetitionFolderNode({
               onFolderDragStart={onFolderDragStart}
               navigate={navigate}
               onDeleteTournament={onDeleteTournament}
+              onDuplicateTournament={onDuplicateTournament}
               depth={depth + 1}
             />
           ))}
