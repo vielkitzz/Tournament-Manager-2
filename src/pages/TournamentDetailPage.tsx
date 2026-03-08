@@ -771,10 +771,26 @@ export default function TournamentDetailPage() {
             )}
           </div>
           {!isViewingPastSeason && tournament.finalized && (
-            <Button onClick={handleNewSeason} size="sm" className="gap-1.5 bg-primary text-primary-foreground">
-              <Plus className="w-3.5 h-3.5" />
-              Nova Temporada
-            </Button>
+            <div className="flex items-center gap-2">
+              {(tournament.settings.promotions || []).some((p) => p.type !== "playoff" && p.targetCompetition) && (
+                <Button
+                  onClick={() => {
+                    setAdvanceNextYear(String(tournament.year + 1));
+                    setShowAdvanceDialog(true);
+                  }}
+                  size="sm"
+                  variant="outline"
+                  className="gap-1.5"
+                >
+                  <ArrowRightLeft className="w-3.5 h-3.5" />
+                  Processar Acessos
+                </Button>
+              )}
+              <Button onClick={handleNewSeason} size="sm" className="gap-1.5 bg-primary text-primary-foreground">
+                <Plus className="w-3.5 h-3.5" />
+                Nova Temporada
+              </Button>
+            </div>
           )}
         </div>
       </div>
