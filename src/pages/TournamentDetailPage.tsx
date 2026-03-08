@@ -56,7 +56,7 @@ const formatLabels: Record<string, string> = {
 export default function TournamentDetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const { tournaments, teams, updateTournament, removeTournament, teamHistories } = useTournamentStore();
+  const { tournaments, teams, updateTournament, removeTournament, teamHistories, advanceSeasonAndProcessPromotions } = useTournamentStore();
   const tournament = tournaments.find((t) => t.id === id);
 
   // Track recently opened
