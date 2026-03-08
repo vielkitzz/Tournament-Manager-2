@@ -477,11 +477,17 @@ export default function TournamentDetailPage() {
     }
     // If the current season is finalized, save it before switching
     // If not finalized, just switch the year (current progress is lost)
+    const resetSettings = {
+      ...tournament.settings,
+      groupAssignments: undefined,
+      qualifiedTeamIds: undefined,
+    };
     updateTournament(tournament.id, {
       year: targetYear,
       matches: [],
       finalized: false,
       groupsFinalized: false,
+      settings: resetSettings,
     });
     setViewingYear(null);
     setNewSeasonYear("");
