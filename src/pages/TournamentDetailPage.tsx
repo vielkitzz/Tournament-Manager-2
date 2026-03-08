@@ -832,7 +832,7 @@ export default function TournamentDetailPage() {
                 </div>
               )}
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                {Array.from({ length: groupCount }, (_, i) => i + 1).map((groupNum) => (
+                {Array.from({ length: isViewingPastSeason && seasonData?.groupCount ? seasonData.groupCount : groupCount }, (_, i) => i + 1).map((groupNum) => (
                   <div key={groupNum} className="space-y-3">
                     <div className="flex items-center justify-between px-1">
                       <h3 className="font-display font-bold text-lg text-foreground">Grupo {String.fromCharCode(64 + groupNum)}</h3>
@@ -884,7 +884,7 @@ export default function TournamentDetailPage() {
                     </div>
                     <div className="rounded-xl border border-border bg-card shadow-sm overflow-hidden">
                       <StandingsTable
-                        standings={isViewingPastSeason ? seasonStandings : (standingsByGroup[groupNum] || [])}
+                        standings={isViewingPastSeason ? (seasonStandingsByGroup[groupNum] || seasonStandings) : (standingsByGroup[groupNum] || [])}
                         promotions={tournament.settings.promotions}
                         qualifyUntil={qualifiersPerGroup}
                         onRemoveTeam={!isViewingPastSeason && !tournament.finalized
