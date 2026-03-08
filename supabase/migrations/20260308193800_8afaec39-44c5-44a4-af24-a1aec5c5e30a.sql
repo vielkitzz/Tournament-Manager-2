@@ -1,0 +1,4 @@
+UPDATE tournaments 
+SET team_ids = '["cbb9acf3-2617-49ea-aa95-1aaf11055f35", "883ea94c-785d-488b-890c-73c2306e8ec5", "14514609-72ba-4a38-8efb-0a7387c19619", "69abc08e-937b-47bf-84ff-ff8e927ae3fa", "aab6dd94-2cde-46a6-b0e2-dd97c1022b58", "d4a1cdbb-8665-4a2f-8de5-66d36b6285cd", "402801ab-e5ce-4b46-8730-12dd0c92e639", "52e55e32-2039-4887-8efe-0a51200163b5", "65d2d9a8-301d-43dc-a46b-6607a224e97e", "25cf613a-1474-483b-bbc8-bbb2f859019b", "0a6972d2-aeda-49e8-9b7c-380926dcf54e", "e50ba532-01df-4f6a-9d4a-bab679123cdc"]'::jsonb,
+    number_of_teams = '12'
+WHERE id = 'bfd2810b-bc8d-439d-9814-118a6bbc979e';
