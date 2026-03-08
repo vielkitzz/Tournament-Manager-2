@@ -69,6 +69,7 @@ export interface SeasonRecord {
   matches?: Match[];
   groupCount?: number;
   teamIds?: string[];
+  settings?: TournamentSettings;
 }
 
 export interface Tournament {

@@ -110,6 +110,10 @@ export default function TournamentDetailPage() {
   const championDisplayName = championRecord?.championName || championTeam?.name;
   const championDisplayLogo = championRecord?.championLogo || championTeam?.logo;
 
+  const isLiga = tournament.format === "liga";
+  const isMataMata = tournament.format === "mata-mata";
+  const isGrupos = tournament.format === "grupos";
+
   // Map season standings to StandingRow[] (adding missing fields)
   const seasonStandings: import("@/lib/standings").StandingRow[] = (seasonData?.standings || []).map((s) => ({
     ...s,
@@ -117,9 +121,29 @@ export default function TournamentDetailPage() {
     goalDifference: s.goalsFor - s.goalsAgainst,
   }));
 
-  const isLiga = tournament.format === "liga";
-  const isMataMata = tournament.format === "mata-mata";
-  const isGrupos = tournament.format === "grupos";
+  // For past seasons with groups, build per-group standings
+  const seasonStandingsByGroup: Record<number, import("@/lib/standings").StandingRow[]> = {};
+  if (isViewingPastSeason && seasonData && isGrupos) {
+    const pastGroupCount = seasonData.groupCount || tournament.gruposQuantidade || 1;
+    // If standings have group info, use it directly
+    const hasGroupInfo = seasonData.standings.some((s) => s.group != null);
+    if (hasGroupInfo) {
+      for (let g = 1; g <= pastGroupCount; g++) {
+        seasonStandingsByGroup[g] = seasonStandings.filter((s) => (s as any).group === g);
+      }
+    } else {
+      // Derive from season matches
+      const pastMatches = seasonData.matches || [];
+      const pastSettings = seasonData.settings || tournament.settings;
+      for (let g = 1; g <= pastGroupCount; g++) {
+        const gMatches = pastMatches.filter((m) => m.group === g && (m.stage === "group" || !m.stage));
+        const gTeamIds = [...new Set(gMatches.flatMap((m) => [m.homeTeamId, m.awayTeamId]))].filter(Boolean);
+        if (gTeamIds.length > 0) {
+          seasonStandingsByGroup[g] = calculateStandings(gTeamIds, gMatches, pastSettings, resolvedTeamsForSeason);
+        }
+      }
+    }
+  }
 
   const settings = tournament.settings;
 
@@ -404,6 +428,7 @@ export default function TournamentDetailPage() {
       format: tournament.format,
       groupCount: isGrupos ? groupCount : undefined,
       teamIds: [...tournament.teamIds],
+      settings: { ...tournament.settings },
       standings: standings.map((s) => ({
         teamId: s.teamId,
         teamName: s.team?.name || "",
@@ -414,6 +439,12 @@ export default function TournamentDetailPage() {
         losses: s.losses,
         goalsFor: s.goalsFor,
         goalsAgainst: s.goalsAgainst,
+        group: isGrupos ? (() => {
+          for (const [g, ids] of Object.entries(currentAssignments)) {
+            if (ids.includes(s.teamId)) return parseInt(g);
+          }
+          return undefined;
+        })() : undefined,
       })),
       matches: [...(tournament.matches || [])],
     };
@@ -426,11 +457,17 @@ export default function TournamentDetailPage() {
   };
 
   const handleNewSeason = () => {
+    const resetSettings = {
+      ...tournament.settings,
+      groupAssignments: undefined,
+      qualifiedTeamIds: undefined,
+    };
     updateTournament(tournament.id, {
       year: tournament.year + 1,
       matches: [],
       finalized: false,
       groupsFinalized: false,
+      settings: resetSettings,
     });
     navigate(`/tournament/${tournament.id}/settings`);
     toast.success(`Nova temporada ${tournament.year + 1} criada! Edite as configurações.`);
@@ -464,11 +501,17 @@ export default function TournamentDetailPage() {
     }
     // If the current season is finalized, save it before switching
     // If not finalized, just switch the year (current progress is lost)
+    const resetSettings = {
+      ...tournament.settings,
+      groupAssignments: undefined,
+      qualifiedTeamIds: undefined,
+    };
     updateTournament(tournament.id, {
       year: targetYear,
       matches: [],
       finalized: false,
       groupsFinalized: false,
+      settings: resetSettings,
     });
     setViewingYear(null);
     setNewSeasonYear("");
@@ -789,7 +832,7 @@ export default function TournamentDetailPage() {
                 </div>
               )}
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                {Array.from({ length: groupCount }, (_, i) => i + 1).map((groupNum) => (
+                {Array.from({ length: isViewingPastSeason && seasonData?.groupCount ? seasonData.groupCount : groupCount }, (_, i) => i + 1).map((groupNum) => (
                   <div key={groupNum} className="space-y-3">
                     <div className="flex items-center justify-between px-1">
                       <h3 className="font-display font-bold text-lg text-foreground">Grupo {String.fromCharCode(64 + groupNum)}</h3>
@@ -841,7 +884,7 @@ export default function TournamentDetailPage() {
                     </div>
                     <div className="rounded-xl border border-border bg-card shadow-sm overflow-hidden">
                       <StandingsTable
-                        standings={isViewingPastSeason ? seasonStandings : (standingsByGroup[groupNum] || [])}
+                        standings={isViewingPastSeason ? (seasonStandingsByGroup[groupNum] || seasonStandings) : (standingsByGroup[groupNum] || [])}
                         promotions={tournament.settings.promotions}
                         qualifyUntil={qualifiersPerGroup}
                         onRemoveTeam={!isViewingPastSeason && !tournament.finalized
