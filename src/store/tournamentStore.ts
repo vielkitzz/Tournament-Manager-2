@@ -325,6 +325,57 @@ export const useTournamentStore = create<TournamentState>((set, get) => ({
     await db.from("team_folders").update({ parent_id: parentId }).eq("id", folderId).eq("user_id", userId);
   },
 
+  // Tournament Folders
+  addTournamentFolder: async (name) => {
+    const userId = get()._userId;
+    if (!userId) return;
+    const { data } = await db.from("tournament_folders").insert({ user_id: userId, name }).select().single();
+    if (data) {
+      set((s) => ({ tournamentFolders: [...s.tournamentFolders, { id: data.id, name: data.name, parentId: data.parent_id || null }] }));
+      return data.id;
+    }
+  },
+
+  renameTournamentFolder: async (id, name) => {
+    const userId = get()._userId;
+    if (!userId) return;
+    set((s) => ({ tournamentFolders: s.tournamentFolders.map((f) => (f.id === id ? { ...f, name } : f)) }));
+    await db.from("tournament_folders").update({ name }).eq("id", id).eq("user_id", userId);
+  },
+
+  removeTournamentFolder: async (id) => {
+    const userId = get()._userId;
+    if (!userId) return;
+    set((s) => ({
+      tournaments: s.tournaments.map((t) => (t.folderId === id ? { ...t, folderId: null } : t)),
+      tournamentFolders: s.tournamentFolders.filter((f) => f.id !== id),
+    }));
+    await db.from("tournaments").update({ folder_id: null }).eq("folder_id", id).eq("user_id", userId);
+    await db.from("tournament_folders").delete().eq("id", id).eq("user_id", userId);
+  },
+
+  moveTournamentToFolder: async (tournamentId, folderId) => {
+    const userId = get()._userId;
+    if (!userId) return;
+    set((s) => ({ tournaments: s.tournaments.map((t) => (t.id === tournamentId ? { ...t, folderId } : t)) }));
+    await db.from("tournaments").update({ folder_id: folderId }).eq("id", tournamentId).eq("user_id", userId);
+  },
+
+  moveTournamentFolderToFolder: async (folderId, parentId) => {
+    const userId = get()._userId;
+    if (!userId) return;
+    if (parentId === folderId) return;
+    const { tournamentFolders } = get();
+    let current = parentId;
+    while (current) {
+      if (current === folderId) return;
+      const parent = tournamentFolders.find((f) => f.id === current);
+      current = parent?.parentId || null;
+    }
+    set((s) => ({ tournamentFolders: s.tournamentFolders.map((f) => (f.id === folderId ? { ...f, parentId } : f)) }));
+    await db.from("tournament_folders").update({ parent_id: parentId }).eq("id", folderId).eq("user_id", userId);
+  },
+
   // Team Histories
   addTeamHistory: async (history) => {
     const userId = get()._userId;
