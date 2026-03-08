@@ -54,12 +54,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const signUp = useCallback(async (email: string, password: string) => {
-    const { error } = await supabase.auth.signUp({
+    const { data, error } = await supabase.auth.signUp({
       email,
       password,
       options: { emailRedirectTo: window.location.origin },
     });
-    return { error: error as Error | null };
+    return { error: error as Error | null, session: data?.session ?? null };
   }, []);
 
   const signIn = useCallback(async (email: string, password: string) => {
