@@ -110,6 +110,10 @@ export default function TournamentDetailPage() {
   const championDisplayName = championRecord?.championName || championTeam?.name;
   const championDisplayLogo = championRecord?.championLogo || championTeam?.logo;
 
+  const isLiga = tournament.format === "liga";
+  const isMataMata = tournament.format === "mata-mata";
+  const isGrupos = tournament.format === "grupos";
+
   // Map season standings to StandingRow[] (adding missing fields)
   const seasonStandings: import("@/lib/standings").StandingRow[] = (seasonData?.standings || []).map((s) => ({
     ...s,
@@ -140,10 +144,6 @@ export default function TournamentDetailPage() {
       }
     }
   }
-
-  const isLiga = tournament.format === "liga";
-  const isMataMata = tournament.format === "mata-mata";
-  const isGrupos = tournament.format === "grupos";
 
   const settings = tournament.settings;
 
