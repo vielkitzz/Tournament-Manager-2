@@ -90,6 +90,14 @@ export default function TournamentDetailPage() {
     ? tournament.seasons?.find((s) => s.year === viewingYear)
     : null;
 
+  // For past seasons, resolve teams for that season's year and use season's teamIds
+  const resolvedTeamsForSeason = isViewingPastSeason
+    ? teams.map((t) => resolveTeam(t, viewingYear!, teamHistories))
+    : resolvedTeams;
+  const seasonTeamIds = isViewingPastSeason && seasonData?.teamIds
+    ? seasonData.teamIds
+    : tournament.teamIds;
+
   const seasonRecordForYear = (tournament.seasons || []).find((s) => s.year === activeYear);
   const championRecord = isViewingPastSeason
     ? seasonData
