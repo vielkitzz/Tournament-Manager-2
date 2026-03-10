@@ -6,11 +6,12 @@ import appLogo from "@/assets/logo.svg";
 import ExportDialog from "@/components/ExportDialog";
 import ImportDialog from "@/components/ImportDialog";
 
+const dashboardItem = { to: "/", icon: LayoutDashboard, label: "Dashboard", end: true };
+
 const navSections = [
   {
     label: "NAVEGAR",
     items: [
-      { to: "/", icon: LayoutDashboard, label: "Dashboard", end: true },
       { to: "/competitions", icon: Trophy, label: "Competições", end: false },
       { to: "/teams", icon: Shield, label: "Times", end: false },
       { to: "/publish", icon: Share2, label: "Publicar", end: false },
