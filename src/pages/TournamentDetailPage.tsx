@@ -9,7 +9,6 @@ import {
   ArrowLeft,
   Plus,
   Trash2,
-  Share2,
   Download,
   LayoutGrid,
   Zap,
