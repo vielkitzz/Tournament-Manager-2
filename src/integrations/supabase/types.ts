@@ -311,6 +311,42 @@ export type Database = {
     }
     Functions: {
       check_logo_ownership: { Args: { object_name: string }; Returns: boolean }
+      get_tournament_by_share_token: {
+        Args: { p_token: string }
+        Returns: {
+          created_at: string | null
+          finalized: string | null
+          folder_id: string | null
+          format: string | null
+          groups_finalized: string | null
+          grupos_mata_mata_inicio: string | null
+          grupos_quantidade: string | null
+          grupos_turnos: string | null
+          id: string | null
+          liga_turnos: string | null
+          logo: string | null
+          logo_url: string | null
+          mata_mata_inicio: string | null
+          matches: Json | null
+          name: string | null
+          number_of_teams: string | null
+          seasons: Json | null
+          settings: string | null
+          sport: string | null
+          suico_jogos_liga: string | null
+          suico_mata_mata_inicio: string | null
+          suico_playoff_vagas: string | null
+          team_ids: Json | null
+          user_id: string | null
+          year: string | null
+        }[]
+        SetofOptions: {
+          from: "*"
+          to: "tournaments"
+          isOneToOne: false
+          isSetofReturn: true
+        }
+      }
     }
     Enums: {
       [_ in never]: never
