@@ -9,7 +9,6 @@ import {
   ArrowLeft,
   Plus,
   Trash2,
-  Share2,
   Download,
   LayoutGrid,
   Zap,
@@ -621,9 +620,8 @@ export default function TournamentDetailPage() {
   const optionIcons = [
     { icon: Pencil, label: "Editar Competição", action: () => navigate(`/tournament/${id}/edit`) },
     { icon: Settings, label: "Editar Sistemas", action: () => navigate(`/tournament/${id}/settings`) },
-    { icon: Users, label: "Times", action: () => navigate(`/tournament/${id}/teams${viewingYear ? `?season=${activeYear}` : ''}`) },
-    { icon: LayoutGrid, label: "Galeria", action: () => navigate(`/tournament/${id}/gallery`) },
-    { icon: Share2, label: "Compartilhar", action: () => navigate(`/tournament/${id}/publish`) },
+    { icon: Shield, label: "Times", action: () => navigate(`/tournament/${id}/teams${viewingYear ? `?season=${activeYear}` : ''}`) },
+    { icon: Trophy, label: "Galeria", action: () => navigate(`/tournament/${id}/gallery`) },
   ];
 
   return (

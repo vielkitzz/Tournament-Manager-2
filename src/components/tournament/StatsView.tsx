@@ -1,5 +1,6 @@
+import { useState } from "react";
 import { Match, Team, Tournament } from "@/types/tournament";
-import { Shield, Swords, ShieldCheck } from "lucide-react";
+import { Shield, Swords, ShieldCheck, TrendingUp, ChevronDown, ChevronUp } from "lucide-react";
 
 interface StatsViewProps {
   tournament: Tournament;
@@ -10,10 +11,14 @@ interface TeamStats {
   teamId: string;
   team?: Team;
   played: number;
+  wins: number;
+  draws: number;
+  losses: number;
   goalsFor: number;
   goalsAgainst: number;
   avgFor: number;
   avgAgainst: number;
+  winRate: number;
 }
 
 function computeStats(tournament: Tournament, teams: Team[]): TeamStats[] {
@@ -24,10 +29,14 @@ function computeStats(tournament: Tournament, teams: Team[]): TeamStats[] {
       teamId: tid,
       team: teams.find((t) => t.id === tid),
       played: 0,
+      wins: 0,
+      draws: 0,
+      losses: 0,
       goalsFor: 0,
       goalsAgainst: 0,
       avgFor: 0,
       avgAgainst: 0,
+      winRate: 0,
     });
   }
 
@@ -43,15 +52,29 @@ function computeStats(tournament: Tournament, teams: Team[]): TeamStats[] {
     home.goalsAgainst += m.awayScore;
     away.goalsFor += m.awayScore;
     away.goalsAgainst += m.homeScore;
+
+    if (m.homeScore > m.awayScore) {
+      home.wins++;
+      away.losses++;
+    } else if (m.awayScore > m.homeScore) {
+      away.wins++;
+      home.losses++;
+    } else {
+      home.draws++;
+      away.draws++;
+    }
   }
 
   for (const s of map.values()) {
     s.avgFor = s.played > 0 ? s.goalsFor / s.played : 0;
     s.avgAgainst = s.played > 0 ? s.goalsAgainst / s.played : 0;
+    s.winRate = s.played > 0 ? (s.wins / s.played) * 100 : 0;
   }
 
   return Array.from(map.values());
 }
+
+const INITIAL_COUNT = 5;
 
 function CompactRow({ stat, value, rank }: { stat: TeamStats; value: string; rank: number }) {
   return (
@@ -72,6 +95,45 @@ function CompactRow({ stat, value, rank }: { stat: TeamStats; value: string; ran
   );
 }
 
+interface StatCardProps {
+  icon: React.ElementType;
+  title: string;
+  items: TeamStats[];
+  valueAccessor: (s: TeamStats) => string;
+}
+
+function StatCard({ icon: Icon, title, items, valueAccessor }: StatCardProps) {
+  const [expanded, setExpanded] = useState(false);
+  const displayItems = expanded ? items : items.slice(0, INITIAL_COUNT);
+  const canExpand = items.length > INITIAL_COUNT;
+
+  return (
+    <div className="rounded-xl border border-border overflow-hidden">
+      <div className="flex items-center gap-2 px-3 py-2 bg-secondary/30 border-b border-border">
+        <Icon className="w-3.5 h-3.5 text-primary" />
+        <h3 className="text-xs font-bold text-foreground">{title}</h3>
+      </div>
+      <div className="divide-y divide-border/30">
+        {displayItems.map((s, i) => (
+          <CompactRow key={s.teamId} stat={s} rank={i + 1} value={valueAccessor(s)} />
+        ))}
+      </div>
+      {canExpand && (
+        <button
+          onClick={() => setExpanded(!expanded)}
+          className="w-full flex items-center justify-center gap-1 py-1.5 text-[11px] font-medium text-primary hover:bg-secondary/40 transition-colors border-t border-border/30"
+        >
+          {expanded ? (
+            <>Ver menos <ChevronUp className="w-3 h-3" /></>
+          ) : (
+            <>Ver mais <ChevronDown className="w-3 h-3" /></>
+          )}
+        </button>
+      )}
+    </div>
+  );
+}
+
 export default function StatsView({ tournament, teams }: StatsViewProps) {
   const stats = computeStats(tournament, teams);
   const hasMatches = tournament.matches.some((m) => m.played);
@@ -84,47 +146,37 @@ export default function StatsView({ tournament, teams }: StatsViewProps) {
     );
   }
 
-  const bestAttack = [...stats].sort((a, b) => b.goalsFor - a.goalsFor || a.played - b.played).slice(0, 5);
-  const bestDefense = [...stats].sort((a, b) => a.goalsAgainst - b.goalsAgainst || a.played - b.played).slice(0, 5);
-  const topScorers = [...stats].sort((a, b) => b.avgFor - a.avgFor).slice(0, 5);
+  const bestAttack = [...stats].sort((a, b) => b.goalsFor - a.goalsFor || a.played - b.played);
+  const bestDefense = [...stats].sort((a, b) => a.goalsAgainst - b.goalsAgainst || a.played - b.played);
+  const topAvgGoals = [...stats].sort((a, b) => b.avgFor - a.avgFor);
+  const topWinRate = [...stats].filter((s) => s.played > 0).sort((a, b) => b.winRate - a.winRate || b.wins - a.wins);
 
   return (
-    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-      <div className="rounded-xl border border-border overflow-hidden">
-        <div className="flex items-center gap-2 px-3 py-2 bg-secondary/30 border-b border-border">
-          <Swords className="w-3.5 h-3.5 text-primary" />
-          <h3 className="text-xs font-bold text-foreground">Melhor Ataque</h3>
-        </div>
-        <div className="divide-y divide-border/30">
-          {bestAttack.map((s, i) => (
-            <CompactRow key={s.teamId} stat={s} rank={i + 1} value={`${s.goalsFor}`} />
-          ))}
-        </div>
-      </div>
-
-      <div className="rounded-xl border border-border overflow-hidden">
-        <div className="flex items-center gap-2 px-3 py-2 bg-secondary/30 border-b border-border">
-          <ShieldCheck className="w-3.5 h-3.5 text-primary" />
-          <h3 className="text-xs font-bold text-foreground">Melhor Defesa</h3>
-        </div>
-        <div className="divide-y divide-border/30">
-          {bestDefense.map((s, i) => (
-            <CompactRow key={s.teamId} stat={s} rank={i + 1} value={`${s.goalsAgainst}`} />
-          ))}
-        </div>
-      </div>
-
-      <div className="rounded-xl border border-border overflow-hidden">
-        <div className="flex items-center gap-2 px-3 py-2 bg-secondary/30 border-b border-border">
-          <Swords className="w-3.5 h-3.5 text-primary" />
-          <h3 className="text-xs font-bold text-foreground">Média de Gols/Jogo</h3>
-        </div>
-        <div className="divide-y divide-border/30">
-          {topScorers.map((s, i) => (
-            <CompactRow key={s.teamId} stat={s} rank={i + 1} value={s.avgFor.toFixed(1)} />
-          ))}
-        </div>
-      </div>
+    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-2 gap-4">
+      <StatCard
+        icon={Swords}
+        title="Melhor Ataque"
+        items={bestAttack}
+        valueAccessor={(s) => `${s.goalsFor}`}
+      />
+      <StatCard
+        icon={ShieldCheck}
+        title="Melhor Defesa"
+        items={bestDefense}
+        valueAccessor={(s) => `${s.goalsAgainst}`}
+      />
+      <StatCard
+        icon={Swords}
+        title="Média de Gols/Jogo"
+        items={topAvgGoals}
+        valueAccessor={(s) => s.avgFor.toFixed(1)}
+      />
+      <StatCard
+        icon={TrendingUp}
+        title="Aproveitamento"
+        items={topWinRate}
+        valueAccessor={(s) => `${s.winRate.toFixed(0)}%`}
+      />
     </div>
   );
 }

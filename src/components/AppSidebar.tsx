@@ -6,11 +6,12 @@ import appLogo from "@/assets/logo.svg";
 import ExportDialog from "@/components/ExportDialog";
 import ImportDialog from "@/components/ImportDialog";
 
+const dashboardItem = { to: "/", icon: LayoutDashboard, label: "Dashboard", end: true };
+
 const navSections = [
   {
     label: "NAVEGAR",
     items: [
-      { to: "/", icon: LayoutDashboard, label: "Dashboard", end: true },
       { to: "/competitions", icon: Trophy, label: "Competições", end: false },
       { to: "/teams", icon: Shield, label: "Times", end: false },
       { to: "/publish", icon: Share2, label: "Publicar", end: false },
@@ -61,6 +62,19 @@ export default function AppSidebar({ onNavigate }: AppSidebarProps) {
 
       {/* Navigation */}
       <nav className="flex-1 px-3 space-y-5 overflow-y-auto">
+        {/* Dashboard standalone */}
+        <div>
+          <NavLink
+            to={dashboardItem.to}
+            end={dashboardItem.end}
+            onClick={onNavigate}
+            className={({ isActive }) => linkClasses(isActive)}
+          >
+            <dashboardItem.icon className="w-4 h-4 shrink-0" />
+            <span>{dashboardItem.label}</span>
+          </NavLink>
+        </div>
+
         {navSections.map((section) => (
           <div key={section.label}>
             <p className="text-[10px] font-bold text-muted-foreground/70 uppercase tracking-[0.15em] mb-1.5 px-3">
