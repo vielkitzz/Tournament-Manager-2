@@ -99,6 +99,12 @@ export function calculateStandings(
         case "Gols Marcados":
           diff = b.goalsFor - a.goalsFor;
           break;
+        case "Empates":
+          diff = b.draws - a.draws;
+          break;
+        case "Gols Sofridos":
+          diff = a.goalsAgainst - b.goalsAgainst;
+          break;
         case "Confronto Direto": {
           const h2h = matches.filter(
             (m) =>
