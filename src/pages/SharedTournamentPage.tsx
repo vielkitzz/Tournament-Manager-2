@@ -50,23 +50,14 @@ export default function SharedTournamentPage() {
     if (!token) { setError(true); setLoading(false); return; }
 
     const load = async () => {
-      const { data: pub } = await supabase
-        .from("published_tournaments")
-        .select("*")
-        .eq("share_token", token)
-        .maybeSingle();
+      const { data, error: rpcError } = await supabase
+        .rpc("get_tournament_by_share_token", { p_token: token });
 
-      if (!pub || !pub.tournament_id) { setError(true); setLoading(false); return; }
+      if (rpcError || !data || (data as any[]).length === 0) {
+        setError(true); setLoading(false); return;
+      }
 
-      const { data: t } = await supabase
-        .from("tournaments")
-        .select("*")
-        .eq("id", pub.tournament_id)
-        .maybeSingle();
-
-      if (!t) { setError(true); setLoading(false); return; }
-
-      setTournament(dbToTournament(t));
+      setTournament(dbToTournament((data as any[])[0]));
       setLoading(false);
     };
 
