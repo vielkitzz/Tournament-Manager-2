@@ -28,7 +28,7 @@ export function calculateStandings(
   
   const safeTiebreakers = Array.isArray(settings?.tiebreakers) 
     ? settings.tiebreakers 
-    : ["Pontos", "Vitórias", "Saldo de Gols", "Gols Marcados"];
+    : ["Pontos", "Vitórias", "Saldo de Gols", "Gols Marcados", "Empates", "Gols Sofridos", "Confronto Direto"];
 
   for (const tid of teamIds) {
     map.set(tid, {
@@ -98,6 +98,12 @@ export function calculateStandings(
           break;
         case "Gols Marcados":
           diff = b.goalsFor - a.goalsFor;
+          break;
+        case "Empates":
+          diff = b.draws - a.draws;
+          break;
+        case "Gols Sofridos":
+          diff = a.goalsAgainst - b.goalsAgainst;
           break;
         case "Confronto Direto": {
           const h2h = matches.filter(

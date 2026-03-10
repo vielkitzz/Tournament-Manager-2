@@ -33,7 +33,7 @@ export default function TournamentSettingsPage() {
     pointsWin: 3,
     pointsDraw: 1,
     pointsLoss: 0,
-    tiebreakers: ["Pontos", "Vitórias", "Saldo de Gols", "Gols Pró"],
+    tiebreakers: ["Pontos", "Vitórias", "Saldo de Gols", "Gols Marcados", "Empates", "Gols Sofridos", "Confronto Direto"],
     promotions: [],
     bestOfPosition: 3,
     bestOfQualifiers: 0,
