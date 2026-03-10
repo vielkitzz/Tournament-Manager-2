@@ -28,7 +28,7 @@ export function calculateStandings(
   
   const safeTiebreakers = Array.isArray(settings?.tiebreakers) 
     ? settings.tiebreakers 
-    : ["Pontos", "Vitórias", "Saldo de Gols", "Gols Marcados"];
+    : ["Pontos", "Vitórias", "Saldo de Gols", "Gols Marcados", "Empates", "Gols Sofridos", "Confronto Direto"];
 
   for (const tid of teamIds) {
     map.set(tid, {
