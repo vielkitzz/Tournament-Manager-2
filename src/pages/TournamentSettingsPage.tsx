@@ -1,5 +1,5 @@
 import { useParams, useNavigate } from "react-router-dom";
-import { ArrowLeft, Trophy, Pencil } from "lucide-react";
+import { ArrowLeft, Trophy, Pencil, Settings2, Scale, Swords, ShieldCheck, Zap, ListOrdered } from "lucide-react";
 import { useTournamentStore } from "@/store/tournamentStore";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
@@ -8,6 +8,42 @@ import { Button } from "@/components/ui/button";
 import { calculateStandings } from "@/lib/standings";
 import PromotionEditor from "@/components/tournament/PromotionEditor";
 import { STAGE_TEAM_COUNTS, KnockoutStage } from "@/types/tournament";
+
+function SectionCard({ icon: Icon, title, children, className = "" }: {
+  icon: React.ElementType;
+  title: string;
+  children: React.ReactNode;
+  className?: string;
+}) {
+  return (
+    <div className={`rounded-xl border border-border bg-card p-5 space-y-4 ${className}`}>
+      <div className="flex items-center gap-2.5">
+        <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center">
+          <Icon className="w-4 h-4 text-primary" />
+        </div>
+        <h2 className="text-sm font-semibold text-foreground">{title}</h2>
+      </div>
+      {children}
+    </div>
+  );
+}
+
+function SettingToggle({ label, description, checked, onChange }: {
+  label: string;
+  description?: string;
+  checked: boolean;
+  onChange: (v: boolean) => void;
+}) {
+  return (
+    <div className="flex items-center justify-between p-3 rounded-lg bg-secondary/40 hover:bg-secondary/60 transition-colors">
+      <div className="space-y-0.5">
+        <Label className="text-sm text-foreground cursor-pointer">{label}</Label>
+        {description && <p className="text-[11px] text-muted-foreground">{description}</p>}
+      </div>
+      <Switch checked={checked} onCheckedChange={onChange} />
+    </div>
+  );
+}
 
 export default function TournamentSettingsPage() {
   const { id } = useParams<{ id: string }>();
@@ -27,8 +63,6 @@ export default function TournamentSettingsPage() {
     );
   }
 
-  // REFORÇO ESTRUTURAL 1: Fundação Padrão Segura
-  // Se o settings vier nulo do banco, usamos estes valores de segurança
   const defaultSettings = {
     pointsWin: 3,
     pointsDraw: 1,
@@ -46,17 +80,10 @@ export default function TournamentSettingsPage() {
     rateInfluence: false,
   };
 
-  // Mescla o que veio do banco com o padrão seguro
   const settings = { ...defaultSettings, ...(tournament.settings || {}) };
-  
-  // REFORÇO ESTRUTURAL 2: Garante que tiebreakers seja sempre uma lista (Array)
-  const safeTiebreakers = Array.isArray(settings.tiebreakers) 
-    ? settings.tiebreakers 
-    : defaultSettings.tiebreakers;
-
+  const safeTiebreakers = Array.isArray(settings.tiebreakers) ? settings.tiebreakers : defaultSettings.tiebreakers;
   const standings = calculateStandings(tournament.teamIds, tournament.matches || [], settings, teams);
 
-  // Groups + knockout specific
   const isGrupos = tournament.format === "grupos";
   const groupCount = tournament.gruposQuantidade || 1;
   const startStage = (tournament.gruposMataMataInicio || "1/8") as KnockoutStage;
@@ -65,7 +92,6 @@ export default function TournamentSettingsPage() {
   const qualifiersPerGroup = Math.floor(qualifiersNeeded / groupCount);
   const remainderSlots = qualifiersNeeded - qualifiersPerGroup * groupCount;
 
-  // Compute per-group standings for grupos format
   const standingsByGroup: Record<number, import("@/lib/standings").StandingRow[]> = {};
   if (isGrupos) {
     const groupMatches = (tournament.matches || []).filter((m) => m.stage === "group" || !m.stage);
@@ -78,119 +104,166 @@ export default function TournamentSettingsPage() {
     }
   }
 
-  // How many "best of position X" slots are needed
   const currentBestOfQualifiers = settings.bestOfQualifiers ?? 0;
   const currentBestOfPosition = settings.bestOfPosition ?? 3;
-
   const isMataMata = tournament.format === "mata-mata" || tournament.format === "grupos";
+  const hasLeaguePhase = tournament.format === "liga" || tournament.format === "grupos" || tournament.format === "suico";
+
+  const formatLabel = {
+    liga: "Liga",
+    grupos: "Grupos + Mata-Mata",
+    "mata-mata": "Mata-Mata",
+    suico: "Suíço",
+  }[tournament.format] || tournament.format;
+
+  const update = (partial: Partial<typeof settings>) =>
+    updateTournament(tournament.id, { settings: { ...settings, ...partial } });
 
   return (
-    <div className="p-6 lg:p-8">
-      <div className="flex items-center gap-4 mb-6">
+    <div className="p-6 lg:p-8 max-w-7xl mx-auto">
+      {/* Header */}
+      <div className="flex items-center gap-4 mb-8">
         <button onClick={() => navigate(`/tournament/${id}`)} className="text-muted-foreground hover:text-foreground transition-colors">
           <ArrowLeft className="w-4 h-4" />
         </button>
-        <h1 className="text-xl font-display font-bold text-foreground flex-1">Editar Sistemas — {tournament.name}</h1>
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={() => navigate(`/tournament/${id}/edit`)}
-          className="gap-1.5"
-        >
+        <div className="flex-1 min-w-0">
+          <h1 className="text-xl font-display font-bold text-foreground truncate">Editar Sistemas</h1>
+          <div className="flex items-center gap-2 mt-1">
+            <span className="text-xs text-muted-foreground">{tournament.name}</span>
+            <span className="text-xs px-1.5 py-0.5 rounded bg-primary/10 text-primary font-medium">{formatLabel}</span>
+          </div>
+        </div>
+        <Button variant="outline" size="sm" onClick={() => navigate(`/tournament/${id}/edit`)} className="gap-1.5">
           <Pencil className="w-3.5 h-3.5" />
           Editar Competição
         </Button>
       </div>
 
-      <div className="space-y-5 max-w-2xl">
-        {/* Points */}
-        <div className="space-y-2">
-          <Label className="text-sm font-medium text-foreground">Pontuações</Label>
-          <div className="grid grid-cols-3 gap-3">
-            <div className="space-y-1">
-              <span className="text-xs text-muted-foreground">Vitória</span>
-              <Input
-                type="number"
-                value={settings.pointsWin}
-                onChange={(e) => updateTournament(tournament.id, { settings: { ...settings, pointsWin: parseInt(e.target.value) || 0 } })}
-                className="bg-secondary border-border"
-              />
-            </div>
-            <div className="space-y-1">
-              <span className="text-xs text-muted-foreground">Empate</span>
-              <Input
-                type="number"
-                value={settings.pointsDraw}
-                onChange={(e) => updateTournament(tournament.id, { settings: { ...settings, pointsDraw: parseInt(e.target.value) || 0 } })}
-                className="bg-secondary border-border"
-              />
-            </div>
-            <div className="space-y-1">
-              <span className="text-xs text-muted-foreground">Derrota</span>
-              <Input
-                type="number"
-                value={settings.pointsLoss}
-                onChange={(e) => updateTournament(tournament.id, { settings: { ...settings, pointsLoss: parseInt(e.target.value) || 0 } })}
-                className="bg-secondary border-border"
-              />
-            </div>
-          </div>
-        </div>
+      {/* Main grid */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
 
-        {/* Tiebreakers */}
-        <div className="space-y-2">
-          <Label className="text-sm font-medium text-foreground">Critérios de Desempate</Label>
-          <div className="space-y-1">
-            {safeTiebreakers.map((tb, i) => (
-              <div key={i} className="flex items-center gap-2 p-2 rounded-lg bg-secondary/50 text-sm text-foreground">
-                <span className="text-xs text-muted-foreground w-5">{i + 1}.</span>
-                <span className="flex-1">{tb}</span>
-                <button
-                  onClick={() => {
-                    if (i === 0) return;
-                    const arr = [...safeTiebreakers];
-                    [arr[i - 1], arr[i]] = [arr[i], arr[i - 1]];
-                    updateTournament(tournament.id, { settings: { ...settings, tiebreakers: arr } });
-                  }}
-                  className="text-xs text-muted-foreground hover:text-foreground"
-                >
-                  ▲
-                </button>
-                <button
-                  onClick={() => {
-                    if (i === safeTiebreakers.length - 1) return;
-                    const arr = [...safeTiebreakers];
-                    [arr[i], arr[i + 1]] = [arr[i + 1], arr[i]];
-                    updateTournament(tournament.id, { settings: { ...settings, tiebreakers: arr } });
-                  }}
-                  className="text-xs text-muted-foreground hover:text-foreground"
-                >
-                  ▼
-                </button>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        {/* Promotions */}
-        {(tournament.format === "liga" || tournament.format === "grupos") && (
-          <div className="space-y-2">
-            <Label className="text-sm font-medium text-foreground">Promoções / Rebaixamentos</Label>
-            <PromotionEditor
-              tournament={tournament}
-              standings={standings}
-              allTournaments={tournaments}
-              onUpdate={(promotions) => updateTournament(tournament.id, { settings: { ...settings, promotions } })}
-              standingsByGroup={isGrupos ? standingsByGroup : undefined}
-            />
-          </div>
+        {/* Points — only for formats with league phase */}
+        {hasLeaguePhase && (
+          <SectionCard icon={Trophy} title="Pontuações">
+            <div className="grid grid-cols-3 gap-3">
+              {([
+                { key: "pointsWin", label: "Vitória" },
+                { key: "pointsDraw", label: "Empate" },
+                { key: "pointsLoss", label: "Derrota" },
+              ] as const).map(({ key, label }) => (
+                <div key={key} className="space-y-1.5">
+                  <span className="text-xs text-muted-foreground">{label}</span>
+                  <Input
+                    type="number"
+                    value={settings[key]}
+                    onChange={(e) => update({ [key]: parseInt(e.target.value) || 0 })}
+                    className="bg-secondary border-border"
+                  />
+                </div>
+              ))}
+            </div>
+          </SectionCard>
         )}
 
-        {/* Groups → Knockout qualifiers info */}
+        {/* Tiebreakers — only for formats with league phase */}
+        {hasLeaguePhase && (
+          <SectionCard icon={ListOrdered} title="Critérios de Desempate">
+            <div className="space-y-1 max-h-[280px] overflow-y-auto pr-1">
+              {safeTiebreakers.map((tb, i) => (
+                <div key={i} className="flex items-center gap-2 p-2.5 rounded-lg bg-secondary/40 text-sm text-foreground group">
+                  <span className="text-[11px] text-muted-foreground w-5 font-mono">{i + 1}.</span>
+                  <span className="flex-1">{tb}</span>
+                  <div className="flex gap-0.5 opacity-50 group-hover:opacity-100 transition-opacity">
+                    <button
+                      onClick={() => {
+                        if (i === 0) return;
+                        const arr = [...safeTiebreakers];
+                        [arr[i - 1], arr[i]] = [arr[i], arr[i - 1]];
+                        update({ tiebreakers: arr });
+                      }}
+                      className="text-xs text-muted-foreground hover:text-foreground px-1"
+                    >▲</button>
+                    <button
+                      onClick={() => {
+                        if (i === safeTiebreakers.length - 1) return;
+                        const arr = [...safeTiebreakers];
+                        [arr[i], arr[i + 1]] = [arr[i + 1], arr[i]];
+                        update({ tiebreakers: arr });
+                      }}
+                      className="text-xs text-muted-foreground hover:text-foreground px-1"
+                    >▼</button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </SectionCard>
+        )}
+
+        {/* Knockout settings */}
+        {isMataMata && (
+          <SectionCard icon={Swords} title="Configurações do Mata-Mata">
+            <div className="space-y-2">
+              <SettingToggle
+                label="Jogos de Ida e Volta"
+                description="Disputar duas partidas por confronto"
+                checked={settings.knockoutLegMode === "home-away"}
+                onChange={(v) => update({ knockoutLegMode: v ? "home-away" : "single" })}
+              />
+              {settings.knockoutLegMode === "home-away" && (
+                <div className="ml-4">
+                  <SettingToggle
+                    label="Final em Jogo Único"
+                    description="Mesmo com ida/volta nas demais fases"
+                    checked={settings.finalSingleLeg ?? false}
+                    onChange={(v) => update({ finalSingleLeg: v })}
+                  />
+                </div>
+              )}
+              <SettingToggle
+                label="Disputa de 3º Lugar"
+                description="Jogo entre os perdedores das semis"
+                checked={settings.thirdPlaceMatch ?? false}
+                onChange={(v) => update({ thirdPlaceMatch: v })}
+              />
+            </div>
+          </SectionCard>
+        )}
+
+        {/* General rules */}
+        <SectionCard icon={Settings2} title="Regras Gerais">
+          <div className="space-y-2">
+            <SettingToggle
+              label="Regra dos gols fora"
+              checked={settings.awayGoalsRule}
+              onChange={(v) => update({ awayGoalsRule: v })}
+            />
+            <SettingToggle
+              label="Prorrogação"
+              checked={settings.extraTime}
+              onChange={(v) => update({ extraTime: v })}
+            />
+            {settings.extraTime && (
+              <div className="ml-4">
+                <SettingToggle
+                  label="Gol de ouro na prorrogação"
+                  checked={settings.goldenGoal}
+                  onChange={(v) => update({ goldenGoal: v })}
+                />
+              </div>
+            )}
+            <SettingToggle
+              label="Influência dos rates dos clubes"
+              description="Usar rating do time nas simulações"
+              checked={settings.rateInfluence}
+              onChange={(v) => update({ rateInfluence: v })}
+            />
+          </div>
+        </SectionCard>
+
+        {/* Groups → Knockout qualification */}
         {isGrupos && (
-          <div className="space-y-3 p-3 rounded-xl bg-secondary/50 border border-border">
-            <Label className="text-sm font-medium text-foreground">Classificação Grupos → Mata-Mata</Label>
-            <div className="text-xs text-muted-foreground space-y-1">
+          <SectionCard icon={ShieldCheck} title="Classificação Grupos → Mata-Mata" className="lg:col-span-2">
+            <div className="text-xs text-muted-foreground space-y-1.5 p-3 rounded-lg bg-secondary/30">
               <p>
                 Com <strong className="text-foreground">{groupCount} grupos</strong> e {totalKnockoutTeams} vagas no mata-mata ({
                   startStage
@@ -211,31 +284,30 @@ export default function TournamentSettingsPage() {
               )}
             </div>
 
-            {/* Best-of qualifiers */}
             {remainderSlots > 0 && (
-              <div className="space-y-2 pt-2 border-t border-border">
+              <div className="space-y-3 p-3 rounded-lg border border-border bg-secondary/20">
                 <p className="text-xs text-foreground font-medium">Melhores classificados por posição</p>
-                <div className="grid grid-cols-2 gap-2">
-                  <div className="space-y-1">
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-1.5">
                     <span className="text-xs text-muted-foreground">Posição (ex: 3 = 3ºs lugares)</span>
                     <Input
                       type="number"
                       value={currentBestOfPosition}
                       min={1}
                       max={10}
-                      onChange={(e) => updateTournament(tournament.id, { settings: { ...settings, bestOfPosition: parseInt(e.target.value) || 3 } })}
-                      className="bg-secondary border-border h-8 text-xs"
+                      onChange={(e) => update({ bestOfPosition: parseInt(e.target.value) || 3 })}
+                      className="bg-secondary border-border h-9 text-xs"
                     />
                   </div>
-                  <div className="space-y-1">
+                  <div className="space-y-1.5">
                     <span className="text-xs text-muted-foreground">Quantos melhor (ex: {remainderSlots})</span>
                     <Input
                       type="number"
                       value={currentBestOfQualifiers}
                       min={0}
                       max={groupCount}
-                      onChange={(e) => updateTournament(tournament.id, { settings: { ...settings, bestOfQualifiers: parseInt(e.target.value) || 0 } })}
-                      className="bg-secondary border-border h-8 text-xs"
+                      onChange={(e) => update({ bestOfQualifiers: parseInt(e.target.value) || 0 })}
+                      className="bg-secondary border-border h-9 text-xs"
                     />
                   </div>
                 </div>
@@ -246,84 +318,21 @@ export default function TournamentSettingsPage() {
                 )}
               </div>
             )}
-          </div>
+          </SectionCard>
         )}
 
-        {/* Mata-mata options */}
-        {isMataMata && (
-          <div className="space-y-3">
-            <Label className="text-sm font-medium text-foreground">Configurações do Mata-Mata</Label>
-            <div className="space-y-1">
-              <div className="flex items-center justify-between p-2 rounded-lg bg-secondary/50">
-                <div>
-                  <Label className="text-sm text-foreground">Jogos de Ida e Volta</Label>
-                  <p className="text-xs text-muted-foreground">Disputar duas partidas por confronto</p>
-                </div>
-                <Switch
-                  checked={settings.knockoutLegMode === "home-away"}
-                  onCheckedChange={(v) => updateTournament(tournament.id, { settings: { ...settings, knockoutLegMode: v ? "home-away" : "single" } })}
-                />
-              </div>
-              {settings.knockoutLegMode === "home-away" && (
-                <div className="flex items-center justify-between p-2 rounded-lg bg-secondary/50 ml-3">
-                  <div>
-                    <Label className="text-sm text-foreground">Final em Jogo Único</Label>
-                    <p className="text-xs text-muted-foreground">Mesmo com ida/volta nas demais fases</p>
-                  </div>
-                  <Switch
-                    checked={settings.finalSingleLeg ?? false}
-                    onCheckedChange={(v) => updateTournament(tournament.id, { settings: { ...settings, finalSingleLeg: v } })}
-                  />
-                </div>
-              )}
-              <div className="flex items-center justify-between p-2 rounded-lg bg-secondary/50">
-                <div>
-                  <Label className="text-sm text-foreground">Disputa de 3º Lugar</Label>
-                  <p className="text-xs text-muted-foreground">Jogo entre os perdedores das semis</p>
-                </div>
-                <Switch
-                  checked={settings.thirdPlaceMatch ?? false}
-                  onCheckedChange={(v) => updateTournament(tournament.id, { settings: { ...settings, thirdPlaceMatch: v } })}
-                />
-              </div>
-            </div>
-          </div>
+        {/* Promotions / Relegations */}
+        {(tournament.format === "liga" || tournament.format === "grupos") && (
+          <SectionCard icon={Zap} title="Promoções / Rebaixamentos" className="lg:col-span-2">
+            <PromotionEditor
+              tournament={tournament}
+              standings={standings}
+              allTournaments={tournaments}
+              onUpdate={(promotions) => update({ promotions })}
+              standingsByGroup={isGrupos ? standingsByGroup : undefined}
+            />
+          </SectionCard>
         )}
-
-        {/* General Toggles */}
-        <div className="space-y-3">
-          <Label className="text-sm font-medium text-foreground">Regras Gerais</Label>
-          <div className="space-y-1">
-            <div className="flex items-center justify-between p-2 rounded-lg bg-secondary/50">
-              <Label className="text-sm text-foreground">Regra dos gols fora</Label>
-              <Switch
-                checked={settings.awayGoalsRule}
-                onCheckedChange={(v) => updateTournament(tournament.id, { settings: { ...settings, awayGoalsRule: v } })}
-              />
-            </div>
-            <div className="flex items-center justify-between p-2 rounded-lg bg-secondary/50">
-              <Label className="text-sm text-foreground">Prorrogação</Label>
-              <Switch
-                checked={settings.extraTime}
-                onCheckedChange={(v) => updateTournament(tournament.id, { settings: { ...settings, extraTime: v } })}
-              />
-            </div>
-            <div className="flex items-center justify-between p-2 rounded-lg bg-secondary/50">
-              <Label className="text-sm text-foreground">Gol de ouro na prorrogação</Label>
-              <Switch
-                checked={settings.goldenGoal}
-                onCheckedChange={(v) => updateTournament(tournament.id, { settings: { ...settings, goldenGoal: v } })}
-              />
-            </div>
-            <div className="flex items-center justify-between p-2 rounded-lg bg-secondary/50">
-              <Label className="text-sm text-foreground">Influência dos rates dos clubes</Label>
-              <Switch
-                checked={settings.rateInfluence}
-                onCheckedChange={(v) => updateTournament(tournament.id, { settings: { ...settings, rateInfluence: v } })}
-              />
-            </div>
-          </div>
-        </div>
       </div>
     </div>
   );
