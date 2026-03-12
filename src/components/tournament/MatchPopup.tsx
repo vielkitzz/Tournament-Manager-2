@@ -295,13 +295,35 @@ export default function MatchPopup({
     });
   };
 
-  // Mini standings (only for non-knockout)
-  const miniStandings: (StandingRow & { position: number })[] = (() => {
-    if (isKnockout || !tournament || !allTeams) return [];
+  // Bottom standings logic
+  const bottomStandings: (StandingRow & { position: number })[] = (() => {
+    if (!tournament || !allTeams) return [];
+    // Mata-mata puro: nada
+    if (tournament.format === "mata-mata") return [];
+    // Knockout stage of grupos: nada
+    if (match.stage === "knockout") return [];
+
+    if (tournament.format === "grupos" && match.group) {
+      // Show only teams from this group
+      const groupTeamIds = tournament.teamIds.filter((tid) => {
+        const groupMatch = tournament.matches.find(
+          (m) => m.stage === "group" && m.group === match.group && (m.homeTeamId === tid || m.awayTeamId === tid)
+        );
+        return !!groupMatch;
+      });
+      const groupMatches = tournament.matches.filter((m) => m.stage === "group" && m.group === match.group);
+      const all = calculateStandings(groupTeamIds, groupMatches, tournament.settings, allTeams);
+      return all.map((s, i) => ({ ...s, position: i + 1 }));
+    }
+
+    // Liga or Suíço: full standings
     const all = calculateStandings(tournament.teamIds, tournament.matches, tournament.settings, allTeams);
-    const ids = [match.homeTeamId, match.awayTeamId];
-    return all.map((s, i) => ({ ...s, position: i + 1 })).filter((s) => ids.includes(s.teamId));
+    return all.map((s, i) => ({ ...s, position: i + 1 }));
   })();
+
+  const standingsTitle = tournament?.format === "grupos" && match.group
+    ? `Grupo ${String.fromCharCode(64 + match.group)}`
+    : "Classificação";
 
   const halfTabs: { key: HalfKey; label: string }[] = [
     { key: "h1", label: "1ºT" },
@@ -488,12 +510,13 @@ export default function MatchPopup({
           </div>
         )}
 
-        {/* Mini Standings (only non-knockout) */}
-        {miniStandings.length > 0 && (
+        {/* Standings Section */}
+        {bottomStandings.length > 0 && (
           <div className="px-6 pb-4">
-            <div className="rounded-lg border border-border overflow-hidden">
+            <p className="text-xs font-display font-bold text-muted-foreground mb-2">{standingsTitle}</p>
+            <div className="rounded-lg border border-border overflow-hidden max-h-48 overflow-y-auto">
               <table className="w-full text-xs">
-                <thead>
+                <thead className="sticky top-0">
                   <tr className="bg-secondary/50 text-muted-foreground">
                     <th className="py-1.5 px-2 text-left w-8">#</th>
                     <th className="py-1.5 px-2 text-left">Time</th>
@@ -508,10 +531,11 @@ export default function MatchPopup({
                   </tr>
                 </thead>
                 <tbody>
-                  {miniStandings.map((row) => {
+                  {bottomStandings.map((row) => {
                     const team = allTeams?.find((t) => t.id === row.teamId);
+                    const isMatchTeam = row.teamId === match.homeTeamId || row.teamId === match.awayTeamId;
                     return (
-                      <tr key={row.teamId} className="border-t border-border/50">
+                      <tr key={row.teamId} className={`border-t border-border/50 ${isMatchTeam ? "bg-primary/5 font-semibold" : ""}`}>
                         <td className="py-1.5 px-2 text-muted-foreground">{row.position}</td>
                         <td className="py-1.5 px-2">
                           <div className="flex items-center gap-2">
@@ -522,7 +546,7 @@ export default function MatchPopup({
                                 <Shield className="w-3.5 h-3.5 text-muted-foreground" />
                               )}
                             </div>
-                            <span className="text-foreground font-medium truncate">{team?.shortName || team?.name}</span>
+                            <span className="text-foreground truncate">{team?.abbreviation || team?.shortName || team?.name}</span>
                           </div>
                         </td>
                         <td className="py-1.5 px-2 text-center font-bold text-foreground">{row.points}</td>
