@@ -316,9 +316,10 @@ export default function MatchPopup({
       return all.map((s, i) => ({ ...s, position: i + 1 }));
     }
 
-    // Liga or Suíço: full standings
+    // Liga or Suíço: full standings, filter to match teams only
     const all = calculateStandings(tournament.teamIds, tournament.matches, tournament.settings, allTeams);
-    return all.map((s, i) => ({ ...s, position: i + 1 }));
+    const withPos = all.map((s, i) => ({ ...s, position: i + 1 }));
+    return withPos.filter((s) => s.teamId === match.homeTeamId || s.teamId === match.awayTeamId);
   })();
 
   const standingsTitle = tournament?.format === "grupos" && match.group
