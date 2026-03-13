@@ -550,9 +550,15 @@ export default function MatchPopup({
                   {bottomStandings.map((row) => {
                     const team = allTeams?.find((t) => t.id === row.teamId);
                     const isMatchTeam = row.teamId === match.homeTeamId || row.teamId === match.awayTeamId;
+                    const promo = tournament?.settings?.promotions?.find((p) => p.position === row.position);
                     return (
                       <tr key={row.teamId} className={`border-t border-border/50 ${isMatchTeam ? "bg-primary/5 font-semibold" : ""}`}>
-                        <td className="py-1.5 px-2 text-muted-foreground">{row.position}</td>
+                        <td
+                          className="py-1.5 px-2 text-muted-foreground"
+                          style={promo ? { borderLeft: `3px solid ${promo.color}` } : undefined}
+                        >
+                          {row.position}
+                        </td>
                         <td className="py-1.5 px-2">
                           <div className="flex items-center gap-2">
                             <div className="w-5 h-5 flex items-center justify-center shrink-0">
