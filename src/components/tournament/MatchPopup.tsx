@@ -295,6 +295,20 @@ export default function MatchPopup({
     });
   };
 
+  // Build a live version of matches that includes the current popup score
+  const liveMatches = (() => {
+    if (!tournament) return [];
+    const regularHome = scores.h1[0] + scores.h2[0];
+    const regularAway = scores.h1[1] + scores.h2[1];
+    const liveMatch: Match = {
+      ...match,
+      homeScore: regularHome,
+      awayScore: regularAway,
+      played: true,
+    };
+    return tournament.matches.map((m) => (m.id === match.id ? liveMatch : m));
+  })();
+
   // Bottom standings logic
   const bottomStandings: (StandingRow & { position: number })[] = (() => {
     if (!tournament || !allTeams) return [];
@@ -306,19 +320,19 @@ export default function MatchPopup({
     if (tournament.format === "grupos" && match.group) {
       // Show only teams from this group
       const groupTeamIds = tournament.teamIds.filter((tid) => {
-        const groupMatch = tournament.matches.find(
+        const groupMatch = liveMatches.find(
           (m) => m.stage === "group" && m.group === match.group && (m.homeTeamId === tid || m.awayTeamId === tid)
         );
         return !!groupMatch;
       });
-      const groupMatches = tournament.matches.filter((m) => m.stage === "group" && m.group === match.group);
+      const groupMatches = liveMatches.filter((m) => m.stage === "group" && m.group === match.group);
       const all = calculateStandings(groupTeamIds, groupMatches, tournament.settings, allTeams);
       const withPos = all.map((s, i) => ({ ...s, position: i + 1 }));
       return withPos.filter((s) => s.teamId === match.homeTeamId || s.teamId === match.awayTeamId);
     }
 
     // Liga or Suíço: full standings, filter to match teams only
-    const all = calculateStandings(tournament.teamIds, tournament.matches, tournament.settings, allTeams);
+    const all = calculateStandings(tournament.teamIds, liveMatches, tournament.settings, allTeams);
     const withPos = all.map((s, i) => ({ ...s, position: i + 1 }));
     return withPos.filter((s) => s.teamId === match.homeTeamId || s.teamId === match.awayTeamId);
   })();
