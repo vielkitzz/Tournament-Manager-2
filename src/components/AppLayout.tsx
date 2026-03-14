@@ -3,6 +3,7 @@ import { Outlet, useLocation } from "react-router-dom";
 import AppSidebar from "@/components/AppSidebar";
 import { AnimatePresence } from "framer-motion";
 import PageTransition from "@/components/PageTransition";
+import ThemeToggle from "@/components/ThemeToggle";
 import { Menu, X } from "lucide-react";
 
 export default function AppLayout() {
@@ -20,7 +21,7 @@ export default function AppLayout() {
           <Menu className="w-5 h-5" />
         </button>
         <span className="text-sm font-display font-bold text-foreground tracking-wide">TM2</span>
-        <div className="w-9" />
+        <ThemeToggle />
       </div>
 
       {/* Mobile overlay */}
@@ -50,7 +51,10 @@ export default function AppLayout() {
 
       {/* Main content */}
       {/* Bug fix #13: pt-16 ensures content is not hidden behind the fixed mobile header (h-14 = 56px) */}
-      <main className="flex-1 overflow-auto pt-16 lg:pt-0 min-w-0">
+      <main className="flex-1 overflow-auto pt-16 lg:pt-0 min-w-0 relative">
+        <div className="hidden lg:flex absolute top-4 right-4 z-10">
+          <ThemeToggle />
+        </div>
         <AnimatePresence mode="wait">
           <PageTransition key={location.pathname}>
             <Outlet />
