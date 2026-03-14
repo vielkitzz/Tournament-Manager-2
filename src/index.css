@@ -54,9 +54,50 @@
     --font-sans: Montserrat, ui-sans-serif, system-ui, sans-serif, Apple Color Emoji, Segoe UI Emoji, Segoe UI Symbol, Noto Color Emoji;
   }
 
-  .dark {
-    --background: 222 47% 8%;
-    --foreground: 210 40% 96%;
+  .light {
+    --background: 210 20% 96%;
+    --foreground: 222 47% 11%;
+
+    --card: 0 0% 100%;
+    --card-foreground: 222 47% 11%;
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 222 47% 11%;
+
+    --primary: 217 91% 50%;
+    --primary-foreground: 0 0% 100%;
+
+    --secondary: 214 20% 90%;
+    --secondary-foreground: 222 30% 30%;
+
+    --muted: 214 20% 92%;
+    --muted-foreground: 222 10% 45%;
+
+    --accent: 199 89% 42%;
+    --accent-foreground: 0 0% 100%;
+
+    --destructive: 0 72% 51%;
+    --destructive-foreground: 0 0% 98%;
+
+    --border: 214 20% 85%;
+    --input: 214 20% 85%;
+    --ring: 217 91% 50%;
+
+    --warning: 38 92% 50%;
+    --warning-foreground: 222 47% 8%;
+
+    --sidebar-background: 0 0% 100%;
+    --sidebar-foreground: 222 30% 20%;
+    --sidebar-primary: 217 91% 50%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 214 20% 93%;
+    --sidebar-accent-foreground: 222 30% 20%;
+    --sidebar-border: 214 20% 88%;
+    --sidebar-ring: 217 91% 50%;
+
+    --gradient-card: linear-gradient(180deg, hsl(0 0% 100%), hsl(210 20% 97%));
+    --shadow-glow: 0 0 30px hsl(217 91% 50% / 0.08);
+    --shadow-card: 0 4px 24px hsl(0 0% 0% / 0.06);
     --font-sans: Montserrat, ui-sans-serif, system-ui, sans-serif, Apple Color Emoji, Segoe UI Emoji, Segoe UI Symbol, Noto Color Emoji;
   }
 }
