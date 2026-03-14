@@ -35,7 +35,9 @@ interface AppSidebarProps {
 
 export default function AppSidebar({ onNavigate }: AppSidebarProps) {
   const { user, signOut } = useAuth();
+  const { theme } = useTheme();
   const navigate = useNavigate();
+  const appLogo = theme === "light" ? appLogoLight : appLogoDark;
 
   const handleSignOut = async () => {
     await signOut();
