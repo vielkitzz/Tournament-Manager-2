@@ -2,7 +2,9 @@ import { NavLink, useNavigate, Link } from "react-router-dom";
 import { Trophy, PlusCircle, Shield, LogOut, Download, Upload, Share2, Swords, LayoutDashboard } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
-import appLogo from "@/assets/logo.svg";
+import { useTheme } from "@/hooks/useTheme";
+import appLogoDark from "@/assets/logo.svg";
+import appLogoLight from "@/assets/logo-light.png";
 import ExportDialog from "@/components/ExportDialog";
 import ImportDialog from "@/components/ImportDialog";
 
