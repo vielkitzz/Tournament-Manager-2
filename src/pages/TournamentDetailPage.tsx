@@ -95,9 +95,20 @@ export default function TournamentDetailPage() {
 
   // Resolve teams based on the active year (current or past season)
   const resolvedTeams = teams.map((t) => resolveTeam(t, activeYear, teamHistories));
-  const seasonTeamIds = isViewingPastSeason && seasonData?.teamIds
-    ? seasonData.teamIds
-    : tournament.teamIds;
+  const seasonTeamIds = (() => {
+    if (!isViewingPastSeason) return tournament.teamIds;
+    if (seasonData?.teamIds) return seasonData.teamIds;
+    // Derive from season data if teamIds wasn't saved
+    if (seasonData) {
+      const fromStandings = seasonData.standings?.map(s => s.teamId).filter(Boolean) || [];
+      if (fromStandings.length > 0) return fromStandings;
+      const fromMatches = seasonData.matches
+        ? [...new Set(seasonData.matches.flatMap(m => [m.homeTeamId, m.awayTeamId]).filter(Boolean))]
+        : [];
+      return fromMatches;
+    }
+    return [];
+  })();
 
   const seasonRecordForYear = (tournament.seasons || []).find((s) => s.year === activeYear);
   const championRecord = isViewingPastSeason
