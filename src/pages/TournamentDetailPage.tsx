@@ -463,8 +463,11 @@ export default function TournamentDetailPage() {
       groupAssignments: undefined,
       qualifiedTeamIds: undefined,
     };
+    // Snapshot current teamIds so the new season starts fresh
+    // (finalization already saved the season record, but we ensure teamIds carry over as a copy)
     updateTournament(tournament.id, {
       year: tournament.year + 1,
+      teamIds: [...tournament.teamIds],
       matches: [],
       finalized: false,
       groupsFinalized: false,
