@@ -25,9 +25,21 @@ export default function TournamentTeamsPage() {
     : null;
 
   // Get the correct teamIds for the current context
-  const currentTeamIds = isEditingPastSeason && seasonData?.teamIds
-    ? seasonData.teamIds
-    : tournament?.teamIds || [];
+  // For past seasons: use saved teamIds, or derive from standings/matches, never fall back to current tournament.teamIds
+  const currentTeamIds = useMemo(() => {
+    if (!isEditingPastSeason) return tournament?.teamIds || [];
+    if (seasonData?.teamIds) return seasonData.teamIds;
+    // Derive from season standings or matches if teamIds wasn't saved
+    if (seasonData) {
+      const fromStandings = seasonData.standings?.map(s => s.teamId).filter(Boolean) || [];
+      if (fromStandings.length > 0) return fromStandings;
+      const fromMatches = seasonData.matches
+        ? [...new Set(seasonData.matches.flatMap(m => [m.homeTeamId, m.awayTeamId]).filter(Boolean))]
+        : [];
+      return fromMatches;
+    }
+    return []; // No season data found — don't fall back to current teamIds
+  }, [isEditingPastSeason, seasonData, tournament?.teamIds]);
 
   const available = useMemo(() => {
     if (!tournament) return [];
