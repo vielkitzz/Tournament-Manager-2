@@ -89,11 +89,21 @@ export default function TournamentTeamsPage() {
   const displayYear = seasonYear || tournament.year;
 
   const updateSeasonTeamIds = (newTeamIds: string[]) => {
-    if (isEditingPastSeason && seasonData) {
-      // Update the past season's teamIds within the seasons array
+    if (isEditingPastSeason) {
+      // Always update within seasons array for past seasons, never touch tournament.teamIds
       const updatedSeasons = (tournament.seasons || []).map((s) =>
         s.year === seasonYear ? { ...s, teamIds: newTeamIds } : s
       );
+      // If no season record exists for this year, create a minimal one
+      if (!seasonData) {
+        updatedSeasons.push({
+          year: seasonYear!,
+          championId: "",
+          championName: "",
+          standings: [],
+          teamIds: newTeamIds,
+        });
+      }
       updateTournament(tournament.id, { seasons: updatedSeasons });
     } else {
       // Update the current tournament's teamIds
