@@ -95,9 +95,20 @@ export default function TournamentDetailPage() {
 
   // Resolve teams based on the active year (current or past season)
   const resolvedTeams = teams.map((t) => resolveTeam(t, activeYear, teamHistories));
-  const seasonTeamIds = isViewingPastSeason && seasonData?.teamIds
-    ? seasonData.teamIds
-    : tournament.teamIds;
+  const seasonTeamIds = (() => {
+    if (!isViewingPastSeason) return tournament.teamIds;
+    if (seasonData?.teamIds) return seasonData.teamIds;
+    // Derive from season data if teamIds wasn't saved
+    if (seasonData) {
+      const fromStandings = seasonData.standings?.map(s => s.teamId).filter(Boolean) || [];
+      if (fromStandings.length > 0) return fromStandings;
+      const fromMatches = seasonData.matches
+        ? [...new Set(seasonData.matches.flatMap(m => [m.homeTeamId, m.awayTeamId]).filter(Boolean))]
+        : [];
+      return fromMatches;
+    }
+    return [];
+  })();
 
   const seasonRecordForYear = (tournament.seasons || []).find((s) => s.year === activeYear);
   const championRecord = isViewingPastSeason
@@ -463,8 +474,11 @@ export default function TournamentDetailPage() {
       groupAssignments: undefined,
       qualifiedTeamIds: undefined,
     };
+    // Snapshot current teamIds so the new season starts fresh
+    // (finalization already saved the season record, but we ensure teamIds carry over as a copy)
     updateTournament(tournament.id, {
       year: tournament.year + 1,
+      teamIds: [...tournament.teamIds],
       matches: [],
       finalized: false,
       groupsFinalized: false,
@@ -500,8 +514,41 @@ export default function TournamentDetailPage() {
       toast.error("Este ano já existe");
       return;
     }
-    // If the current season is finalized, save it before switching
-    // If not finalized, just switch the year (current progress is lost)
+
+    // If the current season has matches played, snapshot it as a season record before switching
+    const existingSeasons = [...(tournament.seasons || [])];
+    const currentHasData = (tournament.matches || []).some(m => m.played);
+    if (currentHasData && !tournament.finalized) {
+      // Auto-save current season as an unfinalized snapshot so teamIds/matches aren't lost
+      const alreadySaved = existingSeasons.some(s => s.year === tournament.year);
+      if (!alreadySaved) {
+        const currentStandings = calculateStandings(tournament.teamIds, tournament.matches || [], tournament.settings, resolvedTeams);
+        const snapshotRecord: SeasonRecord = {
+          year: tournament.year,
+          championId: currentStandings[0]?.teamId || "",
+          championName: currentStandings[0]?.team?.name || "",
+          championLogo: currentStandings[0]?.team?.logo,
+          format: tournament.format,
+          groupCount: isGrupos ? groupCount : undefined,
+          teamIds: [...tournament.teamIds],
+          settings: { ...tournament.settings },
+          standings: currentStandings.map((s) => ({
+            teamId: s.teamId,
+            teamName: s.team?.name || "",
+            teamLogo: s.team?.logo,
+            points: s.points,
+            wins: s.wins,
+            draws: s.draws,
+            losses: s.losses,
+            goalsFor: s.goalsFor,
+            goalsAgainst: s.goalsAgainst,
+          })),
+          matches: [...(tournament.matches || [])],
+        };
+        existingSeasons.push(snapshotRecord);
+      }
+    }
+
     const resetSettings = {
       ...tournament.settings,
       groupAssignments: undefined,
@@ -509,10 +556,12 @@ export default function TournamentDetailPage() {
     };
     updateTournament(tournament.id, {
       year: targetYear,
+      teamIds: [...tournament.teamIds],
       matches: [],
       finalized: false,
       groupsFinalized: false,
       settings: resetSettings,
+      seasons: existingSeasons,
     });
     setViewingYear(null);
     setNewSeasonYear("");
