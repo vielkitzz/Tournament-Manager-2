@@ -503,8 +503,41 @@ export default function TournamentDetailPage() {
       toast.error("Este ano já existe");
       return;
     }
-    // If the current season is finalized, save it before switching
-    // If not finalized, just switch the year (current progress is lost)
+
+    // If the current season has matches played, snapshot it as a season record before switching
+    const existingSeasons = [...(tournament.seasons || [])];
+    const currentHasData = (tournament.matches || []).some(m => m.played);
+    if (currentHasData && !tournament.finalized) {
+      // Auto-save current season as an unfinalized snapshot so teamIds/matches aren't lost
+      const alreadySaved = existingSeasons.some(s => s.year === tournament.year);
+      if (!alreadySaved) {
+        const currentStandings = calculateStandings(tournament.teamIds, tournament.matches || [], tournament.settings, resolvedTeams);
+        const snapshotRecord: SeasonRecord = {
+          year: tournament.year,
+          championId: currentStandings[0]?.teamId || "",
+          championName: currentStandings[0]?.team?.name || "",
+          championLogo: currentStandings[0]?.team?.logo,
+          format: tournament.format,
+          groupCount: isGrupos ? groupCount : undefined,
+          teamIds: [...tournament.teamIds],
+          settings: { ...tournament.settings },
+          standings: currentStandings.map((s) => ({
+            teamId: s.teamId,
+            teamName: s.team?.name || "",
+            teamLogo: s.team?.logo,
+            points: s.points,
+            wins: s.wins,
+            draws: s.draws,
+            losses: s.losses,
+            goalsFor: s.goalsFor,
+            goalsAgainst: s.goalsAgainst,
+          })),
+          matches: [...(tournament.matches || [])],
+        };
+        existingSeasons.push(snapshotRecord);
+      }
+    }
+
     const resetSettings = {
       ...tournament.settings,
       groupAssignments: undefined,
@@ -512,10 +545,12 @@ export default function TournamentDetailPage() {
     };
     updateTournament(tournament.id, {
       year: targetYear,
+      teamIds: [...tournament.teamIds],
       matches: [],
       finalized: false,
       groupsFinalized: false,
       settings: resetSettings,
+      seasons: existingSeasons,
     });
     setViewingYear(null);
     setNewSeasonYear("");
