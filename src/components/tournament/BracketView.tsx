@@ -36,8 +36,6 @@ function getStagesFromStart(start: KnockoutStage): string[] {
 
 /** Returns aggregate score for a home-away pair */
 function getAggregate(leg1: Match, leg2: Match): { home: number; away: number } {
-  // leg1: homeTeamId is "home team of the tie"
-  // leg2: homeTeamId is "away team of the tie" (reversed)
   const home = (leg1.homeScore || 0) + (leg1.homeExtraTime || 0) + (leg2.awayScore || 0) + (leg2.awayExtraTime || 0);
   const away = (leg1.awayScore || 0) + (leg1.awayExtraTime || 0) + (leg2.homeScore || 0) + (leg2.homeExtraTime || 0);
   return { home, away };
@@ -49,17 +47,14 @@ function getTieWinner(leg1: Match, leg2: Match, awayGoalsRule: boolean): string 
   if (agg.home > agg.away) return leg1.homeTeamId;
   if (agg.away > agg.home) return leg1.awayTeamId;
   
-  // Away goals rule: leg2 away goals = leg1 team's goals in leg2 (they're away in leg2)
   if (awayGoalsRule) {
-    const awayGoalsHome = (leg2.awayScore || 0) + (leg2.awayExtraTime || 0); // homeTeamId's away goals
-    const awayGoalsAway = (leg1.awayScore || 0) + (leg1.awayExtraTime || 0); // awayTeamId's away goals
+    const awayGoalsHome = (leg2.awayScore || 0) + (leg2.awayExtraTime || 0);
+    const awayGoalsAway = (leg1.awayScore || 0) + (leg1.awayExtraTime || 0);
     if (awayGoalsHome > awayGoalsAway) return leg1.homeTeamId;
     if (awayGoalsAway > awayGoalsHome) return leg1.awayTeamId;
   }
   
-  // Penalties in leg2
   if (leg2.homePenalties !== undefined && leg2.awayPenalties !== undefined) {
-    // leg2 home = awayTeamId of the tie, leg2 away = homeTeamId of the tie
     if (leg2.awayPenalties > leg2.homePenalties) return leg1.homeTeamId;
     if (leg2.homePenalties > leg2.awayPenalties) return leg1.awayTeamId;
   }
@@ -109,17 +104,14 @@ export default function BracketView({
   const startStage = tournament.mataMataInicio || "1/8";
   const stages = getStagesFromStart(startStage);
 
-  // Separate regular matches from third-place match
   const regularMatches = matches.filter((m) => !m.isThirdPlace);
   const thirdPlaceMatches = matches.filter((m) => m.isThirdPlace);
 
-  // Map rounds to stages
   const matchesByStage: Record<string, Match[]> = {};
   stages.forEach((stage, i) => {
     matchesByStage[stage] = regularMatches.filter((m) => m.round === i + 1);
   });
 
-  // For home-away: group by pairId
   function getPairs(stageMatches: Match[]): Array<{ leg1: Match; leg2: Match | null }> {
     const pairMap = new Map<string, { leg1?: Match; leg2?: Match }>();
     const singles: Match[] = [];
@@ -166,7 +158,6 @@ export default function BracketView({
     return winner === pair.leg1.homeTeamId ? pair.leg1.awayTeamId : pair.leg1.homeTeamId;
   };
 
-  // Check if all matches in the final stage are resolved
   const finalStage = stages[stages.length - 1];
   const finalMatchesList = matchesByStage[finalStage] || [];
   const finalPairs = getPairs(finalMatchesList);
@@ -182,7 +173,6 @@ export default function BracketView({
     let awayScore = result.total[1];
     let homePenalties: number | undefined;
     let awayPenalties: number | undefined;
-    // Only add penalties for single-leg knockout matches (not leg1 of a pair)
     if (homeScore === awayScore && !isLeg1OfPair) {
       homePenalties = Math.floor(Math.random() * 3) + 3;
       awayPenalties = homePenalties + (Math.random() > 0.5 ? 1 : -1);
@@ -271,15 +261,12 @@ export default function BracketView({
   const handleSimulateStage = (stage: string) => {
     const stageMatches = matchesByStage[stage]?.filter((m) => !m.played && m.homeTeamId && m.awayTeamId) || [];
     if (stageMatches.length === 0) return;
-    // First pass: simulate all leg1 matches and single matches
     const firstPass = stageMatches.map((match) => {
-      if (match.pairId && match.leg === 2) return match; // skip leg2 for now
+      if (match.pairId && match.leg === 2) return match;
       return simulateMatch(match, !!(match.pairId && match.leg === 1));
     });
-    // Second pass: simulate leg2 using the freshly simulated leg1
     const updated = firstPass.map((match) => {
       if (match.pairId && match.leg === 2 && !match.played) {
-        // Find leg1 from firstPass (already simulated) or from existing played matches
         const leg1 = firstPass.find((m) => m.pairId === match.pairId && m.leg === 1 && m.played)
           || matchesByStage[stage].find((m) => m.pairId === match.pairId && m.leg === 1 && m.played);
         if (leg1) return simulateLeg2(match, leg1);
@@ -434,6 +421,8 @@ export default function BracketView({
     }
   };
 
+  // ─── Render helpers ───
+
   const renderPair = (pair: { leg1: Match; leg2: Match | null }, pairIdx: number) => {
     const homeTeam = getTeam(pair.leg1.homeTeamId);
     const awayTeam = getTeam(pair.leg1.awayTeamId);
@@ -461,7 +450,7 @@ export default function BracketView({
     };
 
     return (
-      <div key={pair.leg1.id} className="relative group/pair w-[180px] rounded-lg bg-secondary/30 border border-border overflow-hidden">
+      <div key={pair.leg1.id} className="relative group/pair w-[220px] rounded-lg bg-secondary/30 border border-border overflow-hidden">
         {onRemoveMatch && !tournament.finalized && (
           <button
             onClick={(e) => { e.stopPropagation(); handleRemoveMatch(pair.leg1); }}
@@ -480,8 +469,8 @@ export default function BracketView({
               <span className="text-[8px] text-muted-foreground">Ida</span>
             </div>
           )}
-          <TeamRow team={homeTeam} score={pair.leg1.played ? getMatchTotalScore(pair.leg1, "home") : undefined} isWinner={winner === pair.leg1.homeTeamId} borderBottom compact onEditTeam={() => setEditingTeam({ match: pair.leg1, side: "home" })} />
-          <TeamRow team={awayTeam} score={pair.leg1.played ? getMatchTotalScore(pair.leg1, "away") : undefined} isWinner={winner === pair.leg1.awayTeamId} compact onEditTeam={() => setEditingTeam({ match: pair.leg1, side: "away" })} />
+          <TeamRow team={homeTeam} score={pair.leg1.played ? getMatchTotalScore(pair.leg1, "home") : undefined} isWinner={winner === pair.leg1.homeTeamId} borderBottom onEditTeam={() => setEditingTeam({ match: pair.leg1, side: "home" })} />
+          <TeamRow team={awayTeam} score={pair.leg1.played ? getMatchTotalScore(pair.leg1, "away") : undefined} isWinner={winner === pair.leg1.awayTeamId} onEditTeam={() => setEditingTeam({ match: pair.leg1, side: "away" })} />
           {!pair.leg2 && renderMatchFooter(pair.leg1)}
         </button>
         {pair.leg2 && (
@@ -492,8 +481,8 @@ export default function BracketView({
             <div className="flex items-center gap-1 px-2 py-1 border-b border-border/20">
               <span className="text-[8px] text-muted-foreground">Volta</span>
             </div>
-            <TeamRow team={awayTeam} score={pair.leg2.played ? getMatchTotalScore(pair.leg2, "home") : undefined} isWinner={winner === pair.leg1.awayTeamId} borderBottom compact onEditTeam={() => setEditingTeam({ match: pair.leg2!, side: "home" })} />
-            <TeamRow team={homeTeam} score={pair.leg2.played ? getMatchTotalScore(pair.leg2, "away") : undefined} isWinner={winner === pair.leg1.homeTeamId} compact onEditTeam={() => setEditingTeam({ match: pair.leg2!, side: "away" })} />
+            <TeamRow team={awayTeam} score={pair.leg2.played ? getMatchTotalScore(pair.leg2, "home") : undefined} isWinner={winner === pair.leg1.awayTeamId} borderBottom onEditTeam={() => setEditingTeam({ match: pair.leg2!, side: "home" })} />
+            <TeamRow team={homeTeam} score={pair.leg2.played ? getMatchTotalScore(pair.leg2, "away") : undefined} isWinner={winner === pair.leg1.homeTeamId} onEditTeam={() => setEditingTeam({ match: pair.leg2!, side: "away" })} />
             {renderMatchFooter(pair.leg2)}
           </button>
         )}
@@ -515,7 +504,7 @@ export default function BracketView({
       <button
         key={match.id}
         onClick={() => setSelectedMatch(match)}
-        className="w-[180px] rounded-lg bg-secondary/30 border border-warning/30 hover:border-warning/60 transition-all text-left overflow-hidden"
+        className="w-[220px] rounded-lg bg-secondary/30 border border-warning/30 hover:border-warning/60 transition-all text-left overflow-hidden"
       >
         <TeamRow team={home} score={homeTotal} isWinner={winner === match.homeTeamId} borderBottom onEditTeam={() => setEditingTeam({ match, side: "home" })} />
         <TeamRow team={away} score={awayTotal} isWinner={winner === match.awayTeamId} onEditTeam={() => setEditingTeam({ match, side: "away" })} />
@@ -530,170 +519,245 @@ export default function BracketView({
     );
   };
 
+  const renderStageColumn = (
+    stage: string,
+    stageIdx: number,
+    pairsSubset: Array<{ leg1: Match; leg2: Match | null }>,
+    columnKey: string,
+    options: { showActions?: boolean } = {}
+  ) => {
+    const { showActions = true } = options;
+    const isFinal = stageIdx === stages.length - 1;
+    const allStageMatches = matchesByStage[stage] || [];
+    const unplayed = allStageMatches.filter((m) => !m.played && m.homeTeamId && m.awayTeamId);
+    const allPairs = getPairs(allStageMatches);
+    const allStagePairsResolved = allPairs.length > 0 && allPairs.every((p) => getTieResult(p) !== null);
+    const nextStage = stages[stageIdx + 1];
+    const nextHasMatches = nextStage && (matchesByStage[nextStage]?.length || 0) > 0;
+
+    return (
+      <div key={columnKey} className="flex flex-col items-center" style={{ minWidth: 228 }}>
+        <div className="mb-2 flex items-center gap-1.5">
+          <span className="text-[11px] font-bold text-primary uppercase tracking-wider">
+            {STAGE_LABELS[stage] || stage}
+          </span>
+          {legMode === "home-away" && !isFinal && (
+            <span className="text-[9px] text-muted-foreground">(I/V)</span>
+          )}
+        </div>
+
+        {showActions && unplayed.length > 0 && (
+          <button
+            onClick={() => handleSimulateStage(stage)}
+            className="flex items-center gap-1 px-2 py-1 rounded-md bg-primary/10 text-primary hover:bg-primary/20 text-[10px] font-bold mb-2 transition-colors"
+          >
+            <Zap className="w-3 h-3" />
+            Simular ({unplayed.length})
+          </button>
+        )}
+
+        {showActions && allStagePairsResolved && nextStage && !nextHasMatches && (
+          <button
+            onClick={() => handleAdvanceStage(stageIdx)}
+            className="flex items-center gap-1 px-2 py-1 rounded-md bg-secondary text-foreground hover:bg-secondary/80 text-[10px] mb-2 transition-colors border border-border"
+          >
+            Avançar →
+          </button>
+        )}
+
+        <div className="flex flex-col justify-around flex-1 gap-2">
+          {pairsSubset.length === 0 ? (
+            <div className="w-[220px] p-3 rounded-lg border border-dashed border-border bg-secondary/20 text-center">
+              <span className="text-[10px] text-muted-foreground">Aguardando</span>
+            </div>
+          ) : (
+            pairsSubset.map((pair, i) => renderPair(pair, i))
+          )}
+        </div>
+
+        {showActions && onAddMatch && !tournament.finalized && (
+          <button
+            onClick={() => handleAddMatch(stageIdx)}
+            className="w-[220px] mt-2 p-2 rounded-lg border border-dashed border-border/60 hover:border-primary/40 bg-secondary/10 hover:bg-secondary/30 transition-colors flex items-center justify-center gap-1.5"
+          >
+            <Plus className="w-3 h-3 text-muted-foreground" />
+            <span className="text-[10px] text-muted-foreground">Adicionar Confronto</span>
+          </button>
+        )}
+      </div>
+    );
+  };
+
+  const renderChampionCard = () => {
+    const champion = finalPairs.length > 0 ? getTieResult(finalPairs[0]) : null;
+    const championTeam = champion ? getTeam(champion) : null;
+    if (!championTeam) return null;
+
+    const runnerUp = finalPairs[0]
+      ? (champion === finalPairs[0].leg1.homeTeamId ? finalPairs[0].leg1.awayTeamId : finalPairs[0].leg1.homeTeamId)
+      : null;
+    const runnerUpTeam = runnerUp ? getTeam(runnerUp) : null;
+
+    const thirdMatch = thirdPlaceMatches[0];
+    const thirdWinnerId = thirdMatch ? getSingleMatchWinner(thirdMatch) : null;
+    const thirdTeam = thirdWinnerId ? getTeam(thirdWinnerId) : null;
+
+    return (
+      <div className="flex flex-col items-center justify-start min-w-[140px]">
+        <div className="mb-3 text-center">
+          <span className="text-[11px] font-bold text-primary uppercase tracking-wider">Campeão</span>
+        </div>
+        <div className="flex flex-col items-center gap-2 p-4 rounded-xl bg-gradient-to-b from-primary/15 to-primary/5 border-2 border-primary/40 shadow-lg shadow-primary/10 relative overflow-hidden">
+          <div className="absolute top-0 left-0 w-full h-full bg-gradient-to-br from-primary/10 via-transparent to-primary/5 pointer-events-none" />
+          <Trophy className="w-7 h-7 text-primary drop-shadow-sm relative z-10" />
+          <div className="w-12 h-12 flex items-center justify-center relative z-10 rounded-full bg-background/60 border border-primary/20 shadow-sm">
+            {championTeam.logo ? (
+              <img src={championTeam.logo} alt="" className="w-10 h-10 object-contain" />
+            ) : (
+              <Shield className="w-6 h-6 text-muted-foreground" />
+            )}
+          </div>
+          <span className="text-sm font-bold text-foreground text-center relative z-10">
+            {championTeam.name || championTeam.shortName}
+          </span>
+          <span className="text-[10px] text-primary font-semibold relative z-10">
+            🏆 {tournament.year}
+          </span>
+        </div>
+
+        {(runnerUpTeam || thirdTeam) && (
+          <div className="mt-3 flex flex-col gap-1.5 w-full">
+            {runnerUpTeam && (
+              <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-secondary/40 border border-border/50">
+                <span className="text-[10px] font-bold text-muted-foreground w-4">2º</span>
+                <div className="w-4 h-4 flex items-center justify-center shrink-0">
+                  {runnerUpTeam.logo ? (
+                    <img src={runnerUpTeam.logo} alt="" className="w-4 h-4 object-contain" />
+                  ) : (
+                    <Shield className="w-3 h-3 text-muted-foreground" />
+                  )}
+                </div>
+                <span className="text-[10px] text-muted-foreground truncate">{runnerUpTeam.abbreviation || runnerUpTeam.shortName}</span>
+              </div>
+            )}
+            {thirdTeam && (
+              <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-secondary/40 border border-border/50">
+                <span className="text-[10px] font-bold text-muted-foreground w-4">3º</span>
+                <div className="w-4 h-4 flex items-center justify-center shrink-0">
+                  {thirdTeam.logo ? (
+                    <img src={thirdTeam.logo} alt="" className="w-4 h-4 object-contain" />
+                  ) : (
+                    <Shield className="w-3 h-3 text-muted-foreground" />
+                  )}
+                </div>
+                <span className="text-[10px] text-muted-foreground truncate">{thirdTeam.abbreviation || thirdTeam.shortName}</span>
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+    );
+  };
+
+  // ─── Main render ───
+
   return (
     <div className="space-y-4">
       <div className="overflow-x-auto pb-2">
-        <div className="flex gap-4 min-w-max items-start">
-          {stages.map((stage, stageIdx) => {
-            const stageMatchesList = matchesByStage[stage] || [];
-            const pairs = getPairs(stageMatchesList);
-            const unplayed = stageMatchesList.filter((m) => !m.played && m.homeTeamId && m.awayTeamId);
-            const allStagePairsResolved = pairs.length > 0 && pairs.every((p) => getTieResult(p) !== null);
-            const nextStage = stages[stageIdx + 1];
-            const nextHasMatches = nextStage && (matchesByStage[nextStage]?.length || 0) > 0;
-            const isFinal = stageIdx === stages.length - 1;
+        {(() => {
+          const preFinalStages = stages.slice(0, -1);
+          const finalStageKey = stages[stages.length - 1];
+          const finalStageIdx = stages.length - 1;
 
+          const firstStagePairs = preFinalStages.length > 0
+            ? getPairs(matchesByStage[preFinalStages[0]] || [])
+            : [];
+          const useBracketLayout = preFinalStages.length > 0 && firstStagePairs.length >= 2;
+
+          if (!useBracketLayout) {
+            // Linear layout for simple brackets
             return (
-              <div key={stage} className="flex flex-col items-center" style={{ minWidth: 188 }}>
-                <div className="mb-2 flex items-center gap-1.5">
-                  <span className="text-[11px] font-bold text-primary uppercase tracking-wider">
-                    {STAGE_LABELS[stage] || stage}
-                  </span>
-                  {legMode === "home-away" && !isFinal && (
-                    <span className="text-[9px] text-muted-foreground">(I/V)</span>
-                  )}
-                </div>
-
-                {unplayed.length > 0 && (
-                  <button
-                    onClick={() => handleSimulateStage(stage)}
-                    className="flex items-center gap-1 px-2 py-1 rounded-md bg-primary/10 text-primary hover:bg-primary/20 text-[10px] font-bold mb-2 transition-colors"
-                  >
-                    <Zap className="w-3 h-3" />
-                    Simular ({unplayed.length})
-                  </button>
-                )}
-
-                {allStagePairsResolved && nextStage && !nextHasMatches && (
-                  <button
-                    onClick={() => handleAdvanceStage(stageIdx)}
-                    className="flex items-center gap-1 px-2 py-1 rounded-md bg-secondary text-foreground hover:bg-secondary/80 text-[10px] mb-2 transition-colors border border-border"
-                  >
-                    Avançar →
-                  </button>
-                )}
-
-                <div className="flex flex-col gap-2 justify-center flex-1">
-                  {pairs.length === 0 ? (
-                    <div className="w-[180px] p-3 rounded-lg border border-dashed border-border bg-secondary/20 text-center">
-                      <span className="text-[10px] text-muted-foreground">Aguardando</span>
-                    </div>
-                  ) : (
-                    pairs.map((pair, i) => renderPair(pair, i))
-                  )}
-
-                  {onAddMatch && !tournament.finalized && (
-                    <button
-                      onClick={() => handleAddMatch(stageIdx)}
-                      className="w-[180px] p-2 rounded-lg border border-dashed border-border/60 hover:border-primary/40 bg-secondary/10 hover:bg-secondary/30 transition-colors flex items-center justify-center gap-1.5"
-                    >
-                      <Plus className="w-3 h-3 text-muted-foreground" />
-                      <span className="text-[10px] text-muted-foreground">Adicionar Confronto</span>
-                    </button>
-                  )}
-
-                  {isFinal && thirdPlaceMatches.length > 0 && (
-                    <div className="pt-2 mt-1 border-t border-border/40 w-[180px]">
-                      <div className="flex items-center gap-1.5 mb-1.5">
-                        <Medal className="w-3.5 h-3.5 text-warning" />
-                        <span className="text-[10px] font-bold text-foreground">3º Lugar</span>
-                        {thirdPlaceMatches.some((m) => !m.played) && (
-                          <button
-                            onClick={handleSimulateThirdPlace}
-                            className="ml-auto flex items-center gap-1 px-1.5 py-0.5 rounded bg-primary/10 text-primary hover:bg-primary/20 text-[9px] font-bold transition-colors"
-                          >
-                            <Zap className="w-2 h-2" />
-                            Simular
-                          </button>
-                        )}
-                      </div>
-                      <div className="flex flex-col gap-2">
-                        {thirdPlaceMatches.map(renderThirdPlaceMatch)}
-                      </div>
-                    </div>
-                  )}
-                </div>
+              <div className="flex gap-4 min-w-max items-start justify-center">
+                {stages.map((stage, stageIdx) => {
+                  const pairs = getPairs(matchesByStage[stage] || []);
+                  return renderStageColumn(stage, stageIdx, pairs, stage);
+                })}
+                {renderChampionCard()}
               </div>
             );
-          })}
+          }
 
-          {(() => {
-            const champion = finalPairs.length > 0 ? getTieResult(finalPairs[0]) : null;
-            const championTeam = champion ? getTeam(champion) : null;
-            if (!championTeam) return null;
+          // Two-sided bracket: left half → final ← right half
+          const leftColumns = preFinalStages.map((stage, i) => {
+            const allPairs = getPairs(matchesByStage[stage] || []);
+            return { stage, stageIdx: i, pairs: allPairs.slice(0, Math.ceil(allPairs.length / 2)) };
+          });
 
-            // Find runner-up
-            const runnerUp = finalPairs[0]
-              ? (champion === finalPairs[0].leg1.homeTeamId ? finalPairs[0].leg1.awayTeamId : finalPairs[0].leg1.homeTeamId)
-              : null;
-            const runnerUpTeam = runnerUp ? getTeam(runnerUp) : null;
+          const rightColumns = preFinalStages.map((stage, i) => {
+            const allPairs = getPairs(matchesByStage[stage] || []);
+            return { stage, stageIdx: i, pairs: allPairs.slice(Math.ceil(allPairs.length / 2)) };
+          });
 
-            // Find 3rd place winner
-            const thirdMatch = thirdPlaceMatches[0];
-            const thirdWinnerId = thirdMatch ? getSingleMatchWinner(thirdMatch) : null;
-            const thirdTeam = thirdWinnerId ? getTeam(thirdWinnerId) : null;
+          const maxPairs = Math.max(
+            ...leftColumns.map(c => c.pairs.length),
+            ...rightColumns.map(c => c.pairs.length),
+            1
+          );
+          const bracketHeight = Math.max(maxPairs * 130, 300);
 
-            return (
-              <div className="flex flex-col items-center justify-start pt-4 min-w-[140px]">
-                <div className="mb-3 text-center">
-                  <span className="text-[11px] font-bold text-primary uppercase tracking-wider">Campeão</span>
-                </div>
-                <div className="flex flex-col items-center gap-2 p-4 rounded-xl bg-gradient-to-b from-primary/15 to-primary/5 border-2 border-primary/40 shadow-lg shadow-primary/10 relative overflow-hidden">
-                  {/* Decorative sparkle */}
-                  <div className="absolute top-0 left-0 w-full h-full bg-gradient-to-br from-primary/10 via-transparent to-primary/5 pointer-events-none" />
-                  <Trophy className="w-7 h-7 text-primary drop-shadow-sm relative z-10" />
-                  <div className="w-12 h-12 flex items-center justify-center relative z-10 rounded-full bg-background/60 border border-primary/20 shadow-sm">
-                    {championTeam.logo ? (
-                      <img src={championTeam.logo} alt="" className="w-10 h-10 object-contain" />
-                    ) : (
-                      <Shield className="w-6 h-6 text-muted-foreground" />
-                    )}
-                  </div>
-                  <span className="text-sm font-bold text-foreground text-center relative z-10">
-                    {championTeam.name || championTeam.shortName}
-                  </span>
-                  <span className="text-[10px] text-primary font-semibold relative z-10">
-                    🏆 {tournament.year}
-                  </span>
-                </div>
+          return (
+            <div
+              className="flex gap-3 min-w-max items-stretch justify-center"
+              style={{ minHeight: bracketHeight }}
+            >
+              {/* Left bracket half */}
+              {leftColumns.map(({ stage, stageIdx, pairs }) =>
+                renderStageColumn(stage, stageIdx, pairs, `left-${stage}`, { showActions: true })
+              )}
 
-                {/* Runner-up & 3rd place */}
-                {(runnerUpTeam || thirdTeam) && (
-                  <div className="mt-3 flex flex-col gap-1.5 w-full">
-                    {runnerUpTeam && (
-                      <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-secondary/40 border border-border/50">
-                        <span className="text-[10px] font-bold text-muted-foreground w-4">2º</span>
-                        <div className="w-4 h-4 flex items-center justify-center shrink-0">
-                          {runnerUpTeam.logo ? (
-                            <img src={runnerUpTeam.logo} alt="" className="w-4 h-4 object-contain" />
-                          ) : (
-                            <Shield className="w-3 h-3 text-muted-foreground" />
-                          )}
-                        </div>
-                        <span className="text-[10px] text-muted-foreground truncate">{runnerUpTeam.abbreviation || runnerUpTeam.shortName}</span>
-                      </div>
-                    )}
-                    {thirdTeam && (
-                      <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-secondary/40 border border-border/50">
-                        <span className="text-[10px] font-bold text-muted-foreground w-4">3º</span>
-                        <div className="w-4 h-4 flex items-center justify-center shrink-0">
-                          {thirdTeam.logo ? (
-                            <img src={thirdTeam.logo} alt="" className="w-4 h-4 object-contain" />
-                          ) : (
-                            <Shield className="w-3 h-3 text-muted-foreground" />
-                          )}
-                        </div>
-                        <span className="text-[10px] text-muted-foreground truncate">{thirdTeam.abbreviation || thirdTeam.shortName}</span>
-                      </div>
-                    )}
+              {/* Center: Final + Third Place + Champion */}
+              <div className="flex flex-col items-center justify-center" style={{ minWidth: 240 }}>
+                {renderStageColumn(
+                  finalStageKey,
+                  finalStageIdx,
+                  getPairs(matchesByStage[finalStageKey] || []),
+                  `final-${finalStageKey}`
+                )}
+
+                {thirdPlaceMatches.length > 0 && (
+                  <div className="pt-3 mt-3 border-t border-border/40 w-[220px]">
+                    <div className="flex items-center gap-1.5 mb-1.5">
+                      <Medal className="w-3.5 h-3.5 text-warning" />
+                      <span className="text-[10px] font-bold text-foreground">3º Lugar</span>
+                      {thirdPlaceMatches.some((m) => !m.played) && (
+                        <button
+                          onClick={handleSimulateThirdPlace}
+                          className="ml-auto flex items-center gap-1 px-1.5 py-0.5 rounded bg-primary/10 text-primary hover:bg-primary/20 text-[9px] font-bold transition-colors"
+                        >
+                          <Zap className="w-2 h-2" />
+                          Simular
+                        </button>
+                      )}
+                    </div>
+                    <div className="flex flex-col gap-2">
+                      {thirdPlaceMatches.map(renderThirdPlaceMatch)}
+                    </div>
                   </div>
                 )}
+
+                <div className="mt-4">
+                  {renderChampionCard()}
+                </div>
               </div>
-            );
-          })()}
-        </div>
+
+              {/* Right bracket half (reversed stage order) */}
+              {[...rightColumns].reverse().map(({ stage, stageIdx, pairs }) =>
+                renderStageColumn(stage, stageIdx, pairs, `right-${stage}`, { showActions: false })
+              )}
+            </div>
+          );
+        })()}
       </div>
-
 
       {allFinalResolved && !tournament.finalized && onFinalize && (
         <div className="flex items-center justify-center gap-3 p-3 rounded-xl bg-primary/5 border border-primary/20">
@@ -705,7 +769,6 @@ export default function BracketView({
           </Button>
         </div>
       )}
-
 
       {selectedMatch && (
         <MatchPopup
@@ -729,7 +792,6 @@ export default function BracketView({
           allTeams={teams}
           side={editingTeam.side}
           onUpdate={(updated) => {
-            // Propagate team changes to paired leg and batch both updates
             if (updated.pairId) {
               const paired = matches.find((m) => m.pairId === updated.pairId && m.id !== updated.id);
               if (paired && onBatchUpdateMatches) {
@@ -745,7 +807,6 @@ export default function BracketView({
                   homeExtraTime: undefined,
                   awayExtraTime: undefined,
                 };
-                // Batch both updates in a single call to avoid stale state
                 const newMatches = matches.map((m) => {
                   if (m.id === updated.id) return updated;
                   if (m.id === pairedUpdated.id) return pairedUpdated;
@@ -769,28 +830,26 @@ function TeamRow({
   score,
   isWinner,
   borderBottom,
-  compact,
   onEditTeam,
 }: {
   team?: Team;
   score?: number;
   isWinner: boolean;
   borderBottom?: boolean;
-  compact?: boolean;
   onEditTeam: () => void;
 }) {
   return (
     <div className={cn(
-      "flex items-center justify-between px-2 py-1.5",
+      "flex items-center justify-between px-3 py-2",
       borderBottom && "border-b border-border/20",
       isWinner && "bg-primary/5"
     )}>
       <div className="flex items-center gap-2 min-w-0">
-        <div className="w-4 h-4 flex items-center justify-center shrink-0">
+        <div className="w-5 h-5 flex items-center justify-center shrink-0">
           {team?.logo ? (
-            <img src={team.logo} alt="" className="w-4 h-4 object-contain" />
+            <img src={team.logo} alt="" className="w-5 h-5 object-contain" />
           ) : (
-            <Shield className="w-3 h-3 text-muted-foreground" />
+            <Shield className="w-3.5 h-3.5 text-muted-foreground" />
           )}
         </div>
         <span className={cn(
