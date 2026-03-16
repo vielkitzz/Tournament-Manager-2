@@ -689,12 +689,25 @@ export default function BracketView({
           const useBracketLayout = preFinalStages.length > 0 && firstStagePairs.length >= 2;
 
           if (!useBracketLayout) {
-            // Linear layout for simple brackets
+            // Linear layout for simple brackets with connector lines
             return (
-              <div className="flex gap-4 min-w-max items-start justify-center">
+              <div className="flex min-w-max items-start justify-center">
                 {stages.map((stage, stageIdx) => {
                   const pairs = getPairs(matchesByStage[stage] || []);
-                  return renderStageColumn(stage, stageIdx, pairs, stage);
+                  return (
+                    <div key={stage} className="flex items-stretch">
+                      {renderStageColumn(stage, stageIdx, pairs, stage, { side: "left" })}
+                      {stageIdx < stages.length - 1 && (
+                        <div className="flex flex-col justify-around w-8 py-8">
+                          {pairs.map((_, i) => (
+                            <div key={i} className="flex-1 flex items-center">
+                              <div className="w-full border-t-2 border-border/40" />
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  );
                 })}
                 {renderChampionCard()}
               </div>
