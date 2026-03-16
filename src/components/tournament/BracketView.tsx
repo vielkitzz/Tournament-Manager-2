@@ -732,15 +732,43 @@ export default function BracketView({
           );
           const bracketHeight = Math.max(maxPairs * 130, 300);
 
+          const renderBracketConnectors = (pairCount: number, side: "left" | "right") => {
+            if (pairCount < 2) return (
+              <div className="flex flex-col justify-around w-6 py-8">
+                <div className="flex-1 flex items-center">
+                  <div className="w-full border-t-2 border-border/40" />
+                </div>
+              </div>
+            );
+            return (
+              <div className="flex flex-col justify-around w-6 py-8">
+                {Array.from({ length: Math.ceil(pairCount / 2) }).map((_, i) => (
+                  <div key={i} className="flex-1 flex flex-col items-stretch justify-center relative">
+                    <div className={cn(
+                      "absolute border-border/40",
+                      side === "left"
+                        ? "right-0 border-r-2 border-t-2 border-b-2 rounded-r-md left-1/2"
+                        : "left-0 border-l-2 border-t-2 border-b-2 rounded-l-md right-1/2",
+                      "top-1/4 bottom-1/4"
+                    )} />
+                  </div>
+                ))}
+              </div>
+            );
+          };
+
           return (
             <div
-              className="flex gap-3 min-w-max items-stretch justify-center"
+              className="flex min-w-max items-stretch justify-center"
               style={{ minHeight: bracketHeight }}
             >
               {/* Left bracket half */}
-              {leftColumns.map(({ stage, stageIdx, pairs }) =>
-                renderStageColumn(stage, stageIdx, pairs, `left-${stage}`, { showActions: true, side: "left" })
-              )}
+              {leftColumns.map(({ stage, stageIdx, pairs }, colIdx) => (
+                <div key={`left-${stage}`} className="flex items-stretch">
+                  {renderStageColumn(stage, stageIdx, pairs, `left-${stage}`, { showActions: true, side: "left" })}
+                  {renderBracketConnectors(pairs.length, "left")}
+                </div>
+              ))}
 
               {/* Center: Final + Third Place + Champion */}
               <div className="flex flex-col items-center justify-center" style={{ minWidth: 240 }}>
