@@ -92,8 +92,8 @@ export default function StandingsTable({ standings, promotions = [], qualifyUnti
             {standings.map((row, i) => {
               const pos = i + 1;
               const promo = getPromotion(pos);
-              const isEliminated = qualifyUntil !== undefined && pos > qualifyUntil;
-              const showDivider = qualifyUntil !== undefined && pos === qualifyUntil + 1;
+              const isEliminated = false;
+              const showDivider = false;
               const hasMatches = matches.length > 0;
 
               return (

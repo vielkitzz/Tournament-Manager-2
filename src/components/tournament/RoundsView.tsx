@@ -1,6 +1,6 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Match, Team, Tournament } from "@/types/tournament";
-import { Shield, ChevronLeft, ChevronRight, Play, Trophy, CheckCircle, Zap } from "lucide-react";
+import { Shield, ChevronLeft, ChevronRight, Trophy, CheckCircle, Zap } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { simulateFullMatch } from "@/lib/simulation";
 import MatchPopup from "./MatchPopup";
@@ -14,7 +14,7 @@ interface RoundsViewProps {
   onFinalize?: () => void;
 }
 
-export default function RoundsView({ tournament, teams, onUpdateMatch, onBatchUpdateMatches, onGenerateRounds, onFinalize }: RoundsViewProps) {
+export default function RoundsView({ tournament, teams, onUpdateMatch, onBatchUpdateMatches, onFinalize }: RoundsViewProps) {
   const matches = tournament.matches;
   const totalRounds = matches.length > 0 ? Math.max(...matches.map((m) => m.round)) : 0;
   // Default to the last round that has at least one played match
@@ -25,20 +25,13 @@ export default function RoundsView({ tournament, teams, onUpdateMatch, onBatchUp
   const [selectedMatch, setSelectedMatch] = useState<Match | null>(null);
 
   if (matches.length === 0) {
-    const hasEnoughTeams = tournament.teamIds.length >= 2;
     return (
       <div className="text-center py-12">
         <p className="text-sm text-muted-foreground mb-3">
-          {onGenerateRounds
-            ? (hasEnoughTeams ? "Gere as rodadas para começar" : `Adicione pelo menos 2 times (${tournament.teamIds.length} adicionados)`)
-            : "Os jogos serão gerados automaticamente ao definir os grupos."}
+          {tournament.teamIds.length < 2
+            ? `Adicione pelo menos 2 times (${tournament.teamIds.length} adicionados)`
+            : "Os jogos serão gerados automaticamente."}
         </p>
-        {onGenerateRounds && hasEnoughTeams && (
-          <Button onClick={onGenerateRounds} className="gap-2 bg-primary text-primary-foreground">
-            <Play className="w-4 h-4" />
-            Gerar Rodadas
-          </Button>
-        )}
       </div>
     );
   }

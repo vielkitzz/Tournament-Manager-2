@@ -62,9 +62,18 @@ export default function TournamentDetailPage() {
     if (id) trackTournamentOpen(id);
   }, [id]);
 
+  // Auto-generate rounds for liga format when teams exist but no matches
+  useEffect(() => {
+    if (!tournament || tournament.format !== "liga") return;
+    if (tournament.finalized) return;
+    if (tournament.teamIds.length < 2) return;
+    if ((tournament.matches || []).length > 0) return;
+    const turnos = tournament.ligaTurnos || 1;
+    const newMatches = generateRoundRobin(tournament.id, tournament.teamIds, turnos);
+    updateTournament(tournament.id, { matches: newMatches });
+  }, [tournament?.id, tournament?.teamIds?.length, tournament?.matches?.length, tournament?.format, tournament?.finalized]);
+
   // Resolve teams with historical logo/rate - deferred until activeYear is known
-
-
 
 
   const [activeTab, setActiveTab] = useState(tournament?.format === "mata-mata" ? "bracket" : "standings");
@@ -127,11 +136,15 @@ export default function TournamentDetailPage() {
   const isGrupos = tournament.format === "grupos";
 
   // Map season standings to StandingRow[] (adding missing fields)
-  const seasonStandings: import("@/lib/standings").StandingRow[] = (seasonData?.standings || []).map((s) => ({
-    ...s,
-    played: s.wins + s.draws + s.losses,
-    goalDifference: s.goalsFor - s.goalsAgainst,
-  }));
+  const seasonStandings: import("@/lib/standings").StandingRow[] = (seasonData?.standings || []).map((s) => {
+    const resolved = resolvedTeams.find((t) => t.id === s.teamId);
+    const fallbackTeam: import("@/types/tournament").Team = {
+      id: s.teamId, name: (s as any).teamName || "—", shortName: (s as any).teamName || "—",
+      abbreviation: (s as any).teamName || "—", logo: (s as any).teamLogo, colors: [], rate: 0,
+      isArchived: false,
+    };
+    return { ...s, played: s.wins + s.draws + s.losses, goalDifference: s.goalsFor - s.goalsAgainst, team: resolved || fallbackTeam };
+  });
 
   // For past seasons with groups, build per-group standings
   const seasonStandingsByGroup: Record<number, import("@/lib/standings").StandingRow[]> = {};
@@ -993,7 +1006,7 @@ export default function TournamentDetailPage() {
                 ];
                 updateTournament(tournament.id, { matches: newMatches });
               }}
-              onGenerateRounds={isGrupos ? undefined : () => autoGenerate()}
+              onGenerateRounds={undefined}
             />
           </div>
         </TabsContent>

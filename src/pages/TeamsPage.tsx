@@ -323,6 +323,7 @@ export default function TeamsPage() {
 
   const navigate = useNavigate();
   const [search, setSearch] = useState("");
+  const [sortBy, setSortBy] = useState<"name" | "rate">("name");
   const [openFolders, setOpenFolders] = useState<Set<string>>(() => new Set(folders.map(f => f.id)));
   const [editingFolderId, setEditingFolderId] = useState<string | null>(null);
   const [editingFolderName, setEditingFolderName] = useState("");
@@ -330,13 +331,19 @@ export default function TeamsPage() {
 
   const filteredTeams = useMemo(() => {
     const q = search.toLowerCase();
-    return teams.filter(
+    const filtered = teams.filter(
       (t) =>
         (t.name || "").toLowerCase().includes(q) ||
         (t.shortName || "").toLowerCase().includes(q) ||
         (t.abbreviation || "").toLowerCase().includes(q),
     );
-  }, [teams, search]);
+    if (sortBy === "rate") {
+      filtered.sort((a, b) => (b.rate ?? 0) - (a.rate ?? 0));
+    } else {
+      filtered.sort((a, b) => (a.name || "").localeCompare(b.name || ""));
+    }
+    return filtered;
+  }, [teams, search, sortBy]);
 
   // Auto-open folders containing search results
   useEffect(() => {
@@ -550,6 +557,22 @@ export default function TeamsPage() {
                 onChange={(e) => setSearch(e.target.value)}
                 className="pl-9 h-9"
               />
+            </div>
+          )}
+          {teams.length > 0 && (
+            <div className="flex items-center rounded-lg border border-border overflow-hidden shrink-0">
+              <button
+                onClick={() => setSortBy("name")}
+                className={`px-3 py-2 text-xs font-medium transition-colors ${sortBy === "name" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground hover:bg-secondary"}`}
+              >
+                A-Z
+              </button>
+              <button
+                onClick={() => setSortBy("rate")}
+                className={`px-3 py-2 text-xs font-medium transition-colors ${sortBy === "rate" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground hover:bg-secondary"}`}
+              >
+                Rate
+              </button>
             </div>
           )}
           <button

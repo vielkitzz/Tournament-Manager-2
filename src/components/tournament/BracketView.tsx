@@ -524,9 +524,9 @@ export default function BracketView({
     stageIdx: number,
     pairsSubset: Array<{ leg1: Match; leg2: Match | null }>,
     columnKey: string,
-    options: { showActions?: boolean } = {}
+    options: { showActions?: boolean; side?: "left" | "right" | "center" } = {}
   ) => {
-    const { showActions = true } = options;
+    const { showActions = true, side = "center" } = options;
     const isFinal = stageIdx === stages.length - 1;
     const allStageMatches = matchesByStage[stage] || [];
     const unplayed = allStageMatches.filter((m) => !m.played && m.homeTeamId && m.awayTeamId);
@@ -536,7 +536,7 @@ export default function BracketView({
     const nextHasMatches = nextStage && (matchesByStage[nextStage]?.length || 0) > 0;
 
     return (
-      <div key={columnKey} className="flex flex-col items-center" style={{ minWidth: 228 }}>
+      <div key={columnKey} className="flex flex-col items-center relative" style={{ minWidth: 228 }}>
         <div className="mb-2 flex items-center gap-1.5">
           <span className="text-[11px] font-bold text-primary uppercase tracking-wider">
             {STAGE_LABELS[stage] || stage}
@@ -571,7 +571,21 @@ export default function BracketView({
               <span className="text-[10px] text-muted-foreground">Aguardando</span>
             </div>
           ) : (
-            pairsSubset.map((pair, i) => renderPair(pair, i))
+            pairsSubset.map((pair, i) => (
+              <div key={pair.leg1.id} className="relative">
+                {renderPair(pair, i)}
+                {/* Connector lines */}
+                {!isFinal && side !== "center" && (
+                  <div
+                    className={cn(
+                      "absolute top-1/2 w-4 border-t-2 border-border/50",
+                      side === "left" ? "right-0 translate-x-full" : "left-0 -translate-x-full"
+                    )}
+                    style={{ marginTop: -1 }}
+                  />
+                )}
+              </div>
+            ))
           )}
         </div>
 
@@ -675,12 +689,25 @@ export default function BracketView({
           const useBracketLayout = preFinalStages.length > 0 && firstStagePairs.length >= 2;
 
           if (!useBracketLayout) {
-            // Linear layout for simple brackets
+            // Linear layout for simple brackets with connector lines
             return (
-              <div className="flex gap-4 min-w-max items-start justify-center">
+              <div className="flex min-w-max items-start justify-center">
                 {stages.map((stage, stageIdx) => {
                   const pairs = getPairs(matchesByStage[stage] || []);
-                  return renderStageColumn(stage, stageIdx, pairs, stage);
+                  return (
+                    <div key={stage} className="flex items-stretch">
+                      {renderStageColumn(stage, stageIdx, pairs, stage, { side: "left" })}
+                      {stageIdx < stages.length - 1 && (
+                        <div className="flex flex-col justify-around w-8 py-8">
+                          {pairs.map((_, i) => (
+                            <div key={i} className="flex-1 flex items-center">
+                              <div className="w-full border-t-2 border-border/40" />
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  );
                 })}
                 {renderChampionCard()}
               </div>
@@ -705,15 +732,43 @@ export default function BracketView({
           );
           const bracketHeight = Math.max(maxPairs * 130, 300);
 
+          const renderBracketConnectors = (pairCount: number, side: "left" | "right") => {
+            if (pairCount < 2) return (
+              <div className="flex flex-col justify-around w-6 py-8">
+                <div className="flex-1 flex items-center">
+                  <div className="w-full border-t-2 border-border/40" />
+                </div>
+              </div>
+            );
+            return (
+              <div className="flex flex-col justify-around w-6 py-8">
+                {Array.from({ length: Math.ceil(pairCount / 2) }).map((_, i) => (
+                  <div key={i} className="flex-1 flex flex-col items-stretch justify-center relative">
+                    <div className={cn(
+                      "absolute border-border/40",
+                      side === "left"
+                        ? "right-0 border-r-2 border-t-2 border-b-2 rounded-r-md left-1/2"
+                        : "left-0 border-l-2 border-t-2 border-b-2 rounded-l-md right-1/2",
+                      "top-1/4 bottom-1/4"
+                    )} />
+                  </div>
+                ))}
+              </div>
+            );
+          };
+
           return (
             <div
-              className="flex gap-3 min-w-max items-stretch justify-center"
+              className="flex min-w-max items-stretch justify-center"
               style={{ minHeight: bracketHeight }}
             >
               {/* Left bracket half */}
-              {leftColumns.map(({ stage, stageIdx, pairs }) =>
-                renderStageColumn(stage, stageIdx, pairs, `left-${stage}`, { showActions: true })
-              )}
+              {leftColumns.map(({ stage, stageIdx, pairs }, colIdx) => (
+                <div key={`left-${stage}`} className="flex items-stretch">
+                  {renderStageColumn(stage, stageIdx, pairs, `left-${stage}`, { showActions: true, side: "left" })}
+                  {renderBracketConnectors(pairs.length, "left")}
+                </div>
+              ))}
 
               {/* Center: Final + Third Place + Champion */}
               <div className="flex flex-col items-center justify-center" style={{ minWidth: 240 }}>
@@ -721,7 +776,8 @@ export default function BracketView({
                   finalStageKey,
                   finalStageIdx,
                   getPairs(matchesByStage[finalStageKey] || []),
-                  `final-${finalStageKey}`
+                  `final-${finalStageKey}`,
+                  { side: "center" }
                 )}
 
                 {thirdPlaceMatches.length > 0 && (
@@ -751,9 +807,12 @@ export default function BracketView({
               </div>
 
               {/* Right bracket half (reversed stage order) */}
-              {[...rightColumns].reverse().map(({ stage, stageIdx, pairs }) =>
-                renderStageColumn(stage, stageIdx, pairs, `right-${stage}`, { showActions: false })
-              )}
+              {[...rightColumns].reverse().map(({ stage, stageIdx, pairs }, colIdx) => (
+                <div key={`right-${stage}`} className="flex items-stretch">
+                  {renderBracketConnectors(pairs.length, "right")}
+                  {renderStageColumn(stage, stageIdx, pairs, `right-${stage}`, { showActions: false, side: "right" })}
+                </div>
+              ))}
             </div>
           );
         })()}
