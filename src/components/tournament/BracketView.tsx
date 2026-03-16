@@ -807,9 +807,12 @@ export default function BracketView({
               </div>
 
               {/* Right bracket half (reversed stage order) */}
-              {[...rightColumns].reverse().map(({ stage, stageIdx, pairs }) =>
-                renderStageColumn(stage, stageIdx, pairs, `right-${stage}`, { showActions: false, side: "right" })
-              )}
+              {[...rightColumns].reverse().map(({ stage, stageIdx, pairs }, colIdx) => (
+                <div key={`right-${stage}`} className="flex items-stretch">
+                  {renderBracketConnectors(pairs.length, "right")}
+                  {renderStageColumn(stage, stageIdx, pairs, `right-${stage}`, { showActions: false, side: "right" })}
+                </div>
+              ))}
             </div>
           );
         })()}
