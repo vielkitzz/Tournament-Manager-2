@@ -132,7 +132,7 @@ export default function TournamentDetailPage() {
     const fallbackTeam: import("@/types/tournament").Team = {
       id: s.teamId, name: (s as any).teamName || "—", shortName: (s as any).teamName || "—",
       abbreviation: (s as any).teamName || "—", logo: (s as any).teamLogo, colors: [], rate: 0,
-      primaryColor: "", secondaryColor: "", isArchived: false,
+      isArchived: false,
     };
     return { ...s, played: s.wins + s.draws + s.losses, goalDifference: s.goalsFor - s.goalsAgainst, team: resolved || fallbackTeam };
   });
