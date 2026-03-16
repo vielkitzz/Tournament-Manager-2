@@ -726,7 +726,7 @@ export default function BracketView({
             >
               {/* Left bracket half */}
               {leftColumns.map(({ stage, stageIdx, pairs }) =>
-                renderStageColumn(stage, stageIdx, pairs, `left-${stage}`, { showActions: true })
+                renderStageColumn(stage, stageIdx, pairs, `left-${stage}`, { showActions: true, side: "left" })
               )}
 
               {/* Center: Final + Third Place + Champion */}
@@ -735,7 +735,8 @@ export default function BracketView({
                   finalStageKey,
                   finalStageIdx,
                   getPairs(matchesByStage[finalStageKey] || []),
-                  `final-${finalStageKey}`
+                  `final-${finalStageKey}`,
+                  { side: "center" }
                 )}
 
                 {thirdPlaceMatches.length > 0 && (
@@ -766,7 +767,7 @@ export default function BracketView({
 
               {/* Right bracket half (reversed stage order) */}
               {[...rightColumns].reverse().map(({ stage, stageIdx, pairs }) =>
-                renderStageColumn(stage, stageIdx, pairs, `right-${stage}`, { showActions: false })
+                renderStageColumn(stage, stageIdx, pairs, `right-${stage}`, { showActions: false, side: "right" })
               )}
             </div>
           );
