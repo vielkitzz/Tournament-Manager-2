@@ -14,7 +14,7 @@ interface RoundsViewProps {
   onFinalize?: () => void;
 }
 
-export default function RoundsView({ tournament, teams, onUpdateMatch, onBatchUpdateMatches, onGenerateRounds, onFinalize }: RoundsViewProps) {
+export default function RoundsView({ tournament, teams, onUpdateMatch, onBatchUpdateMatches, onFinalize }: RoundsViewProps) {
   const matches = tournament.matches;
   const totalRounds = matches.length > 0 ? Math.max(...matches.map((m) => m.round)) : 0;
   // Default to the last round that has at least one played match

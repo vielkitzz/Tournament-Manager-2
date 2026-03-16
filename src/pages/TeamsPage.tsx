@@ -559,6 +559,22 @@ export default function TeamsPage() {
               />
             </div>
           )}
+          {teams.length > 0 && (
+            <div className="flex items-center rounded-lg border border-border overflow-hidden shrink-0">
+              <button
+                onClick={() => setSortBy("name")}
+                className={`px-3 py-2 text-xs font-medium transition-colors ${sortBy === "name" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground hover:bg-secondary"}`}
+              >
+                A-Z
+              </button>
+              <button
+                onClick={() => setSortBy("rate")}
+                className={`px-3 py-2 text-xs font-medium transition-colors ${sortBy === "rate" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground hover:bg-secondary"}`}
+              >
+                Rate
+              </button>
+            </div>
+          )}
           <button
             onClick={handleAddFolder}
             title="Nova pasta"
