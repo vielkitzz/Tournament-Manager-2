@@ -331,13 +331,19 @@ export default function TeamsPage() {
 
   const filteredTeams = useMemo(() => {
     const q = search.toLowerCase();
-    return teams.filter(
+    const filtered = teams.filter(
       (t) =>
         (t.name || "").toLowerCase().includes(q) ||
         (t.shortName || "").toLowerCase().includes(q) ||
         (t.abbreviation || "").toLowerCase().includes(q),
     );
-  }, [teams, search]);
+    if (sortBy === "rate") {
+      filtered.sort((a, b) => (b.rate ?? 0) - (a.rate ?? 0));
+    } else {
+      filtered.sort((a, b) => (a.name || "").localeCompare(b.name || ""));
+    }
+    return filtered;
+  }, [teams, search, sortBy]);
 
   // Auto-open folders containing search results
   useEffect(() => {
