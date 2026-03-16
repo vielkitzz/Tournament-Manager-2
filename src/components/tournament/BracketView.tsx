@@ -524,9 +524,9 @@ export default function BracketView({
     stageIdx: number,
     pairsSubset: Array<{ leg1: Match; leg2: Match | null }>,
     columnKey: string,
-    options: { showActions?: boolean } = {}
+    options: { showActions?: boolean; side?: "left" | "right" | "center" } = {}
   ) => {
-    const { showActions = true } = options;
+    const { showActions = true, side = "center" } = options;
     const isFinal = stageIdx === stages.length - 1;
     const allStageMatches = matchesByStage[stage] || [];
     const unplayed = allStageMatches.filter((m) => !m.played && m.homeTeamId && m.awayTeamId);
@@ -536,7 +536,7 @@ export default function BracketView({
     const nextHasMatches = nextStage && (matchesByStage[nextStage]?.length || 0) > 0;
 
     return (
-      <div key={columnKey} className="flex flex-col items-center" style={{ minWidth: 228 }}>
+      <div key={columnKey} className="flex flex-col items-center relative" style={{ minWidth: 228 }}>
         <div className="mb-2 flex items-center gap-1.5">
           <span className="text-[11px] font-bold text-primary uppercase tracking-wider">
             {STAGE_LABELS[stage] || stage}
@@ -571,7 +571,21 @@ export default function BracketView({
               <span className="text-[10px] text-muted-foreground">Aguardando</span>
             </div>
           ) : (
-            pairsSubset.map((pair, i) => renderPair(pair, i))
+            pairsSubset.map((pair, i) => (
+              <div key={pair.leg1.id} className="relative">
+                {renderPair(pair, i)}
+                {/* Connector lines */}
+                {!isFinal && side !== "center" && (
+                  <div
+                    className={cn(
+                      "absolute top-1/2 w-4 border-t-2 border-border/50",
+                      side === "left" ? "right-0 translate-x-full" : "left-0 -translate-x-full"
+                    )}
+                    style={{ marginTop: -1 }}
+                  />
+                )}
+              </div>
+            ))
           )}
         </div>
 
