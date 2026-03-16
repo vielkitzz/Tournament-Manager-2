@@ -131,6 +131,7 @@ export default function TournamentDetailPage() {
     ...s,
     played: s.wins + s.draws + s.losses,
     goalDifference: s.goalsFor - s.goalsAgainst,
+    team: resolvedTeams.find((t) => t.id === s.teamId) || { id: s.teamId, name: (s as any).teamName || "—", shortName: (s as any).teamName || "—", abbreviation: (s as any).teamName || "—", logo: (s as any).teamLogo, colors: [], rate: 0, foundingYear: "", primaryColor: "", secondaryColor: "", isArchived: false },
   }));
 
   // For past seasons with groups, build per-group standings
