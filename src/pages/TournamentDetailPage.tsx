@@ -994,7 +994,7 @@ export default function TournamentDetailPage() {
                 ];
                 updateTournament(tournament.id, { matches: newMatches });
               }}
-              onGenerateRounds={isGrupos ? undefined : () => autoGenerate()}
+              onGenerateRounds={undefined}
             />
           </div>
         </TabsContent>
