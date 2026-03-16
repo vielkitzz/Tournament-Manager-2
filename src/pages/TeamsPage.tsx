@@ -323,6 +323,7 @@ export default function TeamsPage() {
 
   const navigate = useNavigate();
   const [search, setSearch] = useState("");
+  const [sortBy, setSortBy] = useState<"name" | "rate">("name");
   const [openFolders, setOpenFolders] = useState<Set<string>>(() => new Set(folders.map(f => f.id)));
   const [editingFolderId, setEditingFolderId] = useState<string | null>(null);
   const [editingFolderName, setEditingFolderName] = useState("");
