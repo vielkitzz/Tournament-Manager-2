@@ -374,7 +374,14 @@ export default function TournamentDetailPage() {
 
   const handleFinalizeSeason = () => {
     if (standings.length === 0) return;
-    
+
+    // Check if all matches are played
+    const allMatches = tournament.matches || [];
+    const hasUnplayedMatches = allMatches.some(m => !m.played);
+    if (hasUnplayedMatches) {
+      toast.error("Todos os jogos precisam ser simulados antes de finalizar a temporada.");
+      return;
+    }
     // Determine champion from knockout bracket if it exists and is finished
     let championTeamId = standings[0].teamId;
     let championName = standings[0].team?.name || "Desconhecido";
