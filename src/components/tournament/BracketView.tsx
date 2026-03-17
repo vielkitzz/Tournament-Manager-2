@@ -691,6 +691,59 @@ export default function BracketView({
     );
   };
 
+  // ─── Connector component ───
+  const BracketConnector = ({ pairCount, side }: { pairCount: number; side: "left" | "right" }) => {
+    if (pairCount <= 0) return <div className="w-8" />;
+    
+    // Each pair of matches feeds into one match in the next round
+    const groups = [];
+    for (let i = 0; i < pairCount; i += 2) {
+      groups.push(i + 1 < pairCount ? 2 : 1);
+    }
+
+    return (
+      <div className="flex flex-col justify-around w-10 relative" style={{ minHeight: pairCount * 80 }}>
+        {groups.map((count, gi) => (
+          <div key={gi} className="flex-1 flex items-center relative">
+            {count === 2 ? (
+              // Two matches merging into one: draw bracket shape
+              <svg className="w-full h-full" preserveAspectRatio="none" viewBox="0 0 40 100">
+                {side === "left" ? (
+                  <>
+                    {/* Top horizontal line */}
+                    <line x1="0" y1="25" x2="20" y2="25" stroke="hsl(var(--border))" strokeWidth="2" />
+                    {/* Bottom horizontal line */}
+                    <line x1="0" y1="75" x2="20" y2="75" stroke="hsl(var(--border))" strokeWidth="2" />
+                    {/* Vertical connecting line */}
+                    <line x1="20" y1="25" x2="20" y2="75" stroke="hsl(var(--border))" strokeWidth="2" />
+                    {/* Middle horizontal line going right */}
+                    <line x1="20" y1="50" x2="40" y2="50" stroke="hsl(var(--border))" strokeWidth="2" />
+                  </>
+                ) : (
+                  <>
+                    {/* Top horizontal line */}
+                    <line x1="40" y1="25" x2="20" y2="25" stroke="hsl(var(--border))" strokeWidth="2" />
+                    {/* Bottom horizontal line */}
+                    <line x1="40" y1="75" x2="20" y2="75" stroke="hsl(var(--border))" strokeWidth="2" />
+                    {/* Vertical connecting line */}
+                    <line x1="20" y1="25" x2="20" y2="75" stroke="hsl(var(--border))" strokeWidth="2" />
+                    {/* Middle horizontal line going left */}
+                    <line x1="20" y1="50" x2="0" y2="50" stroke="hsl(var(--border))" strokeWidth="2" />
+                  </>
+                )}
+              </svg>
+            ) : (
+              // Single match: just a straight horizontal line
+              <svg className="w-full h-full" preserveAspectRatio="none" viewBox="0 0 40 100">
+                <line x1="0" y1="50" x2="40" y2="50" stroke="hsl(var(--border))" strokeWidth="2" />
+              </svg>
+            )}
+          </div>
+        ))}
+      </div>
+    );
+  };
+
   // ─── Main render ───
 
   return (
@@ -707,22 +760,16 @@ export default function BracketView({
           const useBracketLayout = preFinalStages.length > 0 && firstStagePairs.length >= 2;
 
           if (!useBracketLayout) {
-            // Linear layout for simple brackets with connector lines
+            // Linear layout
             return (
-              <div className="flex min-w-max items-start justify-center">
+              <div className="flex min-w-max items-center justify-center gap-0">
                 {stages.map((stage, stageIdx) => {
                   const pairs = getPairs(matchesByStage[stage] || []);
                   return (
-                    <div key={stage} className="flex items-stretch">
+                    <div key={stage} className="flex items-center">
                       {renderStageColumn(stage, stageIdx, pairs, stage, { side: "left" })}
                       {stageIdx < stages.length - 1 && (
-                        <div className="flex flex-col justify-around w-8 py-8">
-                          {pairs.map((_, i) => (
-                            <div key={i} className="flex-1 flex items-center">
-                              <div className="w-full border-t-2 border-border/40" />
-                            </div>
-                          ))}
-                        </div>
+                        <BracketConnector pairCount={Math.max(pairs.length, 1)} side="left" />
                       )}
                     </div>
                   );
@@ -743,48 +790,13 @@ export default function BracketView({
             return { stage, stageIdx: i, pairs: allPairs.slice(Math.ceil(allPairs.length / 2)) };
           });
 
-          const maxPairs = Math.max(
-            ...leftColumns.map(c => c.pairs.length),
-            ...rightColumns.map(c => c.pairs.length),
-            1
-          );
-          const bracketHeight = Math.max(maxPairs * 130, 300);
-
-          const renderBracketConnectors = (pairCount: number, side: "left" | "right") => {
-            if (pairCount < 2) return (
-              <div className="flex flex-col justify-around w-6 py-8">
-                <div className="flex-1 flex items-center">
-                  <div className="w-full border-t-2 border-border/40" />
-                </div>
-              </div>
-            );
-            return (
-              <div className="flex flex-col justify-around w-6 py-8">
-                {Array.from({ length: Math.ceil(pairCount / 2) }).map((_, i) => (
-                  <div key={i} className="flex-1 flex flex-col items-stretch justify-center relative">
-                    <div className={cn(
-                      "absolute border-border/40",
-                      side === "left"
-                        ? "right-0 border-r-2 border-t-2 border-b-2 rounded-r-md left-1/2"
-                        : "left-0 border-l-2 border-t-2 border-b-2 rounded-l-md right-1/2",
-                      "top-1/4 bottom-1/4"
-                    )} />
-                  </div>
-                ))}
-              </div>
-            );
-          };
-
           return (
-            <div
-              className="flex min-w-max items-stretch justify-center"
-              style={{ minHeight: bracketHeight }}
-            >
+            <div className="flex min-w-max items-center justify-center">
               {/* Left bracket half */}
-              {leftColumns.map(({ stage, stageIdx, pairs }, colIdx) => (
-                <div key={`left-${stage}`} className="flex items-stretch">
+              {leftColumns.map(({ stage, stageIdx, pairs }) => (
+                <div key={`left-${stage}`} className="flex items-center">
                   {renderStageColumn(stage, stageIdx, pairs, `left-${stage}`, { showActions: true, side: "left" })}
-                  {renderBracketConnectors(pairs.length, "left")}
+                  <BracketConnector pairCount={pairs.length} side="left" />
                 </div>
               ))}
 
@@ -825,9 +837,9 @@ export default function BracketView({
               </div>
 
               {/* Right bracket half (reversed stage order) */}
-              {[...rightColumns].reverse().map(({ stage, stageIdx, pairs }, colIdx) => (
-                <div key={`right-${stage}`} className="flex items-stretch">
-                  {renderBracketConnectors(pairs.length, "right")}
+              {[...rightColumns].reverse().map(({ stage, stageIdx, pairs }) => (
+                <div key={`right-${stage}`} className="flex items-center">
+                  <BracketConnector pairCount={pairs.length} side="right" />
                   {renderStageColumn(stage, stageIdx, pairs, `right-${stage}`, { showActions: true, side: "right" })}
                 </div>
               ))}
