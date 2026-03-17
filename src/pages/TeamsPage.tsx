@@ -605,6 +605,27 @@ export default function TeamsPage() {
           onDragOver={(e) => e.preventDefault()}
           onDrop={(e) => handleRootDrop(e as unknown as DragEvent)}
         >
+          {/* When searching, show all results flat (outside folders) */}
+          {search.trim() ? (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
+              {filteredTeams.map((team, index) => (
+                <motion.div
+                  key={team.id}
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: index * 0.03 }}
+                >
+                  <TeamCard
+                    team={team}
+                    onEdit={() => navigate(`/teams/create?edit=${team.id}`)}
+                    onDuplicate={(e) => handleDuplicate(e, team)}
+                    onDelete={() => handleDelete(team.id, team.name)}
+                  />
+                </motion.div>
+              ))}
+            </div>
+          ) : (
+          <>
           {/* Folders */}
           {rootFolders.map((folder) => (
             <FolderNode
@@ -680,6 +701,8 @@ export default function TeamsPage() {
               <Search className="w-10 h-10 text-muted-foreground/30 mx-auto mb-3" />
               <p className="text-muted-foreground text-sm">Nenhum time encontrado para "{search}"</p>
             </div>
+          )}
+          </>
           )}
         </div>
       )}
