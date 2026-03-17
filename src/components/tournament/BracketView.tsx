@@ -856,16 +856,21 @@ export default function BracketView({
         })()}
       </div>
 
-      {allFinalResolved && !tournament.finalized && onFinalize && (
-        <div className="flex items-center justify-center gap-3 p-3 rounded-xl bg-primary/5 border border-primary/20">
-          <Trophy className="w-4 h-4 text-primary" />
-          <span className="text-sm font-medium text-foreground">Chaveamento concluído!</span>
-          <Button onClick={onFinalize} size="sm" className="gap-1.5 bg-primary text-primary-foreground">
-            <Trophy className="w-3.5 h-3.5" />
-            Finalizar
-          </Button>
-        </div>
-      )}
+      {(() => {
+        const allMatchesPlayed = matches.length > 0 && matches.filter(m => !m.isThirdPlace).every(m => m.played);
+        const canFinalize = allFinalResolved && allMatchesPlayed;
+        if (!canFinalize || tournament.finalized || !onFinalize) return null;
+        return (
+          <div className="flex items-center justify-center gap-3 p-3 rounded-xl bg-primary/5 border border-primary/20">
+            <Trophy className="w-4 h-4 text-primary" />
+            <span className="text-sm font-medium text-foreground">Chaveamento concluído!</span>
+            <Button onClick={onFinalize} size="sm" className="gap-1.5 bg-primary text-primary-foreground">
+              <Trophy className="w-3.5 h-3.5" />
+              Finalizar
+            </Button>
+          </div>
+        );
+      })()}
 
       {selectedMatch && (
         <MatchPopup
