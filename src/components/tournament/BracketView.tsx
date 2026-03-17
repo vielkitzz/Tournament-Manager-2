@@ -566,27 +566,65 @@ export default function BracketView({
         )}
 
         <div className="flex flex-col justify-around flex-1 gap-2">
-          {pairsSubset.length === 0 ? (
-            <div className="w-[220px] p-3 rounded-lg border border-dashed border-border bg-secondary/20 text-center">
-              <span className="text-[10px] text-muted-foreground">Aguardando</span>
-            </div>
-          ) : (
-            pairsSubset.map((pair, i) => (
-              <div key={pair.leg1.id} className="relative">
-                {renderPair(pair, i)}
-                {/* Connector lines */}
-                {!isFinal && side !== "center" && (
-                  <div
-                    className={cn(
-                      "absolute top-1/2 w-4 border-t-2 border-border/50",
-                      side === "left" ? "right-0 translate-x-full" : "left-0 -translate-x-full"
+          {(() => {
+            // Calculate expected slots for this stage
+            const expectedSlots = (() => {
+              if (pairsSubset.length > 0) return pairsSubset.length;
+              // Derive from previous stage pairs count
+              if (stageIdx === 0) return 0;
+              const prevStage = stages[stageIdx - 1];
+              const prevPairs = getPairs(matchesByStage[prevStage] || []);
+              if (side === "left") return Math.ceil(Math.ceil(prevPairs.length / 2) / 2);
+              if (side === "right") return Math.ceil(Math.floor(prevPairs.length / 2) / 2);
+              return Math.ceil(prevPairs.length / 2);
+            })();
+
+            const slots = pairsSubset.length > 0
+              ? pairsSubset.map((pair, i) => (
+                  <div key={pair.leg1.id} className="relative">
+                    {renderPair(pair, i)}
+                    {!isFinal && side !== "center" && (
+                      <div
+                        className={cn(
+                          "absolute top-1/2 w-4 border-t-2 border-border/50",
+                          side === "left" ? "right-0 translate-x-full" : "left-0 -translate-x-full"
+                        )}
+                        style={{ marginTop: -1 }}
+                      />
                     )}
-                    style={{ marginTop: -1 }}
-                  />
-                )}
-              </div>
-            ))
-          )}
+                  </div>
+                ))
+              : Array.from({ length: Math.max(expectedSlots, 1) }).map((_, i) => (
+                  <div key={`empty-${columnKey}-${i}`} className="relative">
+                    <div className="w-[220px] rounded-lg bg-secondary/20 border border-dashed border-border overflow-hidden">
+                      <div className={cn("flex items-center justify-between px-3 py-2 border-b border-border/20")}>
+                        <div className="flex items-center gap-2 min-w-0">
+                          <Shield className="w-3.5 h-3.5 text-muted-foreground/30" />
+                          <span className="text-xs text-muted-foreground/40">A definir</span>
+                        </div>
+                        <span className="text-xs font-mono w-4 text-center text-muted-foreground/20">—</span>
+                      </div>
+                      <div className="flex items-center justify-between px-3 py-2">
+                        <div className="flex items-center gap-2 min-w-0">
+                          <Shield className="w-3.5 h-3.5 text-muted-foreground/30" />
+                          <span className="text-xs text-muted-foreground/40">A definir</span>
+                        </div>
+                        <span className="text-xs font-mono w-4 text-center text-muted-foreground/20">—</span>
+                      </div>
+                    </div>
+                    {!isFinal && side !== "center" && (
+                      <div
+                        className={cn(
+                          "absolute top-1/2 w-4 border-t-2 border-border/30",
+                          side === "left" ? "right-0 translate-x-full" : "left-0 -translate-x-full"
+                        )}
+                        style={{ marginTop: -1 }}
+                      />
+                    )}
+                  </div>
+                ));
+            return slots;
+          })()}
         </div>
 
         {showActions && onAddMatch && !tournament.finalized && (
