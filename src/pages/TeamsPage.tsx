@@ -702,6 +702,8 @@ export default function TeamsPage() {
               <p className="text-muted-foreground text-sm">Nenhum time encontrado para "{search}"</p>
             </div>
           )}
+          </>
+          )}
         </div>
       )}
     </div>
