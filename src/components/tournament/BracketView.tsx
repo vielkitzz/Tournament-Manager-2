@@ -848,7 +848,7 @@ export default function BracketView({
               {[...rightColumns].reverse().map(({ stage, stageIdx, pairs }, colIdx) => (
                 <div key={`right-${stage}`} className="flex items-stretch">
                   {renderBracketConnectors(pairs.length, "right")}
-                  {renderStageColumn(stage, stageIdx, pairs, `right-${stage}`, { showActions: false, side: "right" })}
+                  {renderStageColumn(stage, stageIdx, pairs, `right-${stage}`, { showActions: true, side: "right" })}
                 </div>
               ))}
             </div>
