@@ -1,9 +1,10 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { Shield, X } from "lucide-react";
 import { StandingRow } from "@/lib/standings";
 import { PromotionRule, Match, Team } from "@/types/tournament";
 import { cn } from "@/lib/utils";
 import TeamStatsPopup from "./TeamStatsPopup";
+import ScreenshotButton from "@/components/ScreenshotButton";
 import {
   Tooltip,
   TooltipContent,
