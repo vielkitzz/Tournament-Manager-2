@@ -75,6 +75,7 @@ export default function BracketView({
   const matches = tournament.matches || [];
   const [selectedMatch, setSelectedMatch] = useState<Match | null>(null);
   const [editingTeam, setEditingTeam] = useState<{ match: Match; side: "home" | "away" } | null>(null);
+  const bracketRef = useRef<HTMLDivElement>(null);
 
   const getTeam = (id: string) => teams.find((t) => t.id === id);
 
