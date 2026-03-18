@@ -65,8 +65,10 @@ export default function RoundsView({ tournament, teams, onUpdateMatch, onBatchUp
     }
   };
 
+  const roundsRef = useRef<HTMLDivElement>(null);
+
   return (
-    <div className="space-y-4">
+    <div className="space-y-4" ref={roundsRef}>
       {/* Round navigation */}
       <div className="flex items-center justify-center gap-4">
         <button
