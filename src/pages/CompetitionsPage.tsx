@@ -63,82 +63,98 @@ const CompetitionCard = memo(function CompetitionCard({
   };
 
   return (
-    <div
-      draggable
-      onDragStart={handleDragStart}
-      onClick={onNavigate}
-      className="group cursor-pointer"
-    >
-      <motion.div
-        whileHover={{ y: -2, boxShadow: "0 8px 30px hsl(var(--primary) / 0.12)" }}
-        className="h-[120px] p-5 rounded-xl card-gradient border border-border hover:border-primary/30 transition-all relative cursor-grab active:cursor-grabbing"
-      >
-        <div className="flex items-start gap-4 h-full">
-          <GripVertical className="w-3.5 h-3.5 text-muted-foreground/50 shrink-0 mt-3" />
-          <div className="w-11 h-11 rounded-lg bg-secondary/60 flex items-center justify-center shrink-0">
-            {tournament.logo ? (
-              <img src={tournament.logo} alt="" className="w-9 h-9 object-contain rounded" />
-            ) : (
-              <Trophy className="w-5 h-5 text-muted-foreground" />
-            )}
-          </div>
-          <div className="min-w-0 flex-1 flex flex-col justify-center">
-            <h3 className="font-display font-bold text-foreground text-sm truncate leading-tight">
-              {tournament.name}
-            </h3>
-            <p className="text-xs text-primary mt-1">
-              {tournament.sport} <span className="text-muted-foreground mx-0.5">·</span> {tournament.year}
-            </p>
-            <p className="text-[11px] text-muted-foreground mt-0.5">
-              {formatLabels[tournament.format]} · {tournament.numberOfTeams} times
-            </p>
-          </div>
-          <div className="flex flex-col gap-1 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
-            <button
-              onClick={(e) => { e.stopPropagation(); onNavigate(); }}
-              className="p-1.5 rounded-md hover:bg-secondary text-muted-foreground hover:text-foreground transition-colors"
-              title="Editar"
-            >
-              <Pencil className="w-3.5 h-3.5" />
-            </button>
-            <button
-              onClick={(e) => { e.stopPropagation(); onDuplicate(); }}
-              className="p-1.5 rounded-md hover:bg-secondary text-muted-foreground hover:text-foreground transition-colors"
-              title="Duplicar"
-            >
-              <Copy className="w-3.5 h-3.5" />
-            </button>
-            <AlertDialog>
-              <AlertDialogTrigger asChild>
+    <ContextMenu>
+      <ContextMenuTrigger asChild>
+        <div
+          draggable
+          onDragStart={handleDragStart}
+          onClick={onNavigate}
+          className="group cursor-pointer"
+        >
+          <motion.div
+            whileHover={{ y: -2, boxShadow: "0 8px 30px hsl(var(--primary) / 0.12)" }}
+            className="h-[120px] p-5 rounded-xl card-gradient border border-border hover:border-primary/30 transition-all relative cursor-grab active:cursor-grabbing"
+          >
+            <div className="flex items-start gap-4 h-full">
+              <GripVertical className="w-3.5 h-3.5 text-muted-foreground/50 shrink-0 mt-3" />
+              <div className="w-11 h-11 rounded-lg bg-secondary/60 flex items-center justify-center shrink-0">
+                {tournament.logo ? (
+                  <img src={tournament.logo} alt="" className="w-9 h-9 object-contain rounded" />
+                ) : (
+                  <Trophy className="w-5 h-5 text-muted-foreground" />
+                )}
+              </div>
+              <div className="min-w-0 flex-1 flex flex-col justify-center">
+                <h3 className="font-display font-bold text-foreground text-sm truncate leading-tight">
+                  {tournament.name}
+                </h3>
+                <p className="text-xs text-primary mt-1">
+                  {tournament.sport} <span className="text-muted-foreground mx-0.5">·</span> {tournament.year}
+                </p>
+                <p className="text-[11px] text-muted-foreground mt-0.5">
+                  {formatLabels[tournament.format]} · {tournament.numberOfTeams} times
+                </p>
+              </div>
+              <div className="flex flex-col gap-1 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
                 <button
-                  onClick={(e) => e.stopPropagation()}
-                  className="p-1.5 rounded-md hover:bg-destructive/20 text-muted-foreground hover:text-destructive transition-colors"
+                  onClick={(e) => { e.stopPropagation(); onNavigate(); }}
+                  className="p-1.5 rounded-md hover:bg-secondary text-muted-foreground hover:text-foreground transition-colors"
+                  title="Editar"
                 >
-                  <Trash2 className="w-3.5 h-3.5" />
+                  <Pencil className="w-3.5 h-3.5" />
                 </button>
-              </AlertDialogTrigger>
-              <AlertDialogContent onClick={(e) => e.stopPropagation()}>
-                <AlertDialogHeader>
-                  <AlertDialogTitle>Excluir "{tournament.name}"?</AlertDialogTitle>
-                  <AlertDialogDescription>
-                    Esta ação não pode ser desfeita. Todos os dados da competição serão perdidos.
-                  </AlertDialogDescription>
-                </AlertDialogHeader>
-                <AlertDialogFooter>
-                  <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                  <AlertDialogAction
-                    onClick={onDelete}
-                    className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                  >
-                    Excluir
-                  </AlertDialogAction>
-                </AlertDialogFooter>
-              </AlertDialogContent>
-            </AlertDialog>
-          </div>
+                <button
+                  onClick={(e) => { e.stopPropagation(); onDuplicate(); }}
+                  className="p-1.5 rounded-md hover:bg-secondary text-muted-foreground hover:text-foreground transition-colors"
+                  title="Duplicar"
+                >
+                  <Copy className="w-3.5 h-3.5" />
+                </button>
+                <AlertDialog>
+                  <AlertDialogTrigger asChild>
+                    <button
+                      onClick={(e) => e.stopPropagation()}
+                      className="p-1.5 rounded-md hover:bg-destructive/20 text-muted-foreground hover:text-destructive transition-colors"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </button>
+                  </AlertDialogTrigger>
+                  <AlertDialogContent onClick={(e) => e.stopPropagation()}>
+                    <AlertDialogHeader>
+                      <AlertDialogTitle>Excluir "{tournament.name}"?</AlertDialogTitle>
+                      <AlertDialogDescription>
+                        Esta ação não pode ser desfeita. Todos os dados da competição serão perdidos.
+                      </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                      <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                      <AlertDialogAction
+                        onClick={onDelete}
+                        className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                      >
+                        Excluir
+                      </AlertDialogAction>
+                    </AlertDialogFooter>
+                  </AlertDialogContent>
+                </AlertDialog>
+              </div>
+            </div>
+          </motion.div>
         </div>
-      </motion.div>
-    </div>
+      </ContextMenuTrigger>
+      <ContextMenuContent>
+        <ContextMenuItem onClick={onNavigate}>
+          <Pencil className="w-3.5 h-3.5 mr-2" /> Abrir
+        </ContextMenuItem>
+        <ContextMenuItem onClick={onDuplicate}>
+          <Copy className="w-3.5 h-3.5 mr-2" /> Duplicar
+        </ContextMenuItem>
+        <ContextMenuSeparator />
+        <ContextMenuItem onClick={onDelete} className="text-destructive focus:text-destructive">
+          <Trash2 className="w-3.5 h-3.5 mr-2" /> Excluir
+        </ContextMenuItem>
+      </ContextMenuContent>
+    </ContextMenu>
   );
 });
 
