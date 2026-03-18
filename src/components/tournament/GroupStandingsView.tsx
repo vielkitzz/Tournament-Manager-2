@@ -13,6 +13,7 @@ export default function GroupStandingsView({
   groupCount,
   standingsByGroup,
 }: GroupStandingsViewProps) {
+  const groupsRef = useRef<HTMLDivElement>(null);
   if (groupCount === 0) {
     return (
       <div className="text-center py-12">
