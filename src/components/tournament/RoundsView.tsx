@@ -1,9 +1,10 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Match, Team, Tournament } from "@/types/tournament";
 import { Shield, ChevronLeft, ChevronRight, Trophy, CheckCircle, Zap } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { simulateFullMatch } from "@/lib/simulation";
 import MatchPopup from "./MatchPopup";
+import ScreenshotButton from "@/components/ScreenshotButton";
 
 interface RoundsViewProps {
   tournament: Tournament;
@@ -17,12 +18,12 @@ interface RoundsViewProps {
 export default function RoundsView({ tournament, teams, onUpdateMatch, onBatchUpdateMatches, onFinalize }: RoundsViewProps) {
   const matches = tournament.matches;
   const totalRounds = matches.length > 0 ? Math.max(...matches.map((m) => m.round)) : 0;
-  // Default to the last round that has at least one played match
   const lastPlayedRound = matches.length > 0
     ? Math.max(...matches.filter((m) => m.played).map((m) => m.round), 1)
     : 1;
   const [currentRound, setCurrentRound] = useState(lastPlayedRound);
   const [selectedMatch, setSelectedMatch] = useState<Match | null>(null);
+  const roundsRef = useRef<HTMLDivElement>(null);
 
   if (matches.length === 0) {
     return (
@@ -65,7 +66,7 @@ export default function RoundsView({ tournament, teams, onUpdateMatch, onBatchUp
   };
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-4" ref={roundsRef}>
       {/* Round navigation */}
       <div className="flex items-center justify-center gap-4">
         <button
@@ -85,7 +86,7 @@ export default function RoundsView({ tournament, teams, onUpdateMatch, onBatchUp
         >
           <ChevronRight className="w-5 h-5" />
         </button>
-        {unplayedInRound.length > 0 && (
+         {unplayedInRound.length > 0 && (
           <button
             onClick={handleSimulateRound}
             title={`Simular ${unplayedInRound.length} ${unplayedInRound.length === 1 ? "jogo" : "jogos"}`}
@@ -94,6 +95,7 @@ export default function RoundsView({ tournament, teams, onUpdateMatch, onBatchUp
             <Zap className="w-4 h-4" />
           </button>
         )}
+        <ScreenshotButton targetRef={roundsRef as any} filename={`rodada-${currentRound}.png`} />
       </div>
 
       {/* Simulate round button */}

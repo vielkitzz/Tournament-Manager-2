@@ -1,6 +1,8 @@
+import { useRef } from "react";
 import { StandingRow } from "@/lib/standings";
 import { Shield } from "lucide-react";
 import { cn } from "@/lib/utils";
+import ScreenshotButton from "@/components/ScreenshotButton";
 
 interface GroupStandingsViewProps {
   groupCount: number;
@@ -11,6 +13,7 @@ export default function GroupStandingsView({
   groupCount,
   standingsByGroup,
 }: GroupStandingsViewProps) {
+  const groupsRef = useRef<HTMLDivElement>(null);
   if (groupCount === 0) {
     return (
       <div className="text-center py-12">
@@ -29,7 +32,11 @@ export default function GroupStandingsView({
       : "grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4";
 
   return (
-    <div className={cn("grid gap-4", gridCols)}>
+    <div>
+      <div className="flex justify-end mb-2">
+        <ScreenshotButton targetRef={groupsRef as any} filename="fase-de-grupos.png" />
+      </div>
+      <div className={cn("grid gap-4", gridCols)} ref={groupsRef}>
       {Array.from({ length: groupCount }, (_, i) => i + 1).map((groupNum) => {
         const standings = standingsByGroup[groupNum] || [];
         return (
@@ -91,6 +98,7 @@ export default function GroupStandingsView({
           </div>
         );
       })}
+      </div>
     </div>
   );
 }

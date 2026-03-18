@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { Match, Team, Tournament, KnockoutStage, STAGE_TEAM_COUNTS } from "@/types/tournament";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { simulateFullMatch, simulateHalf } from "@/lib/simulation";
 import MatchPopup from "./MatchPopup";
 import BracketTeamEditor from "./BracketTeamEditor";
+import ScreenshotButton from "@/components/ScreenshotButton";
 
 interface BracketViewProps {
   tournament: Tournament;
@@ -74,6 +75,7 @@ export default function BracketView({
   const matches = tournament.matches || [];
   const [selectedMatch, setSelectedMatch] = useState<Match | null>(null);
   const [editingTeam, setEditingTeam] = useState<{ match: Match; side: "home" | "away" } | null>(null);
+  const bracketRef = useRef<HTMLDivElement>(null);
 
   const getTeam = (id: string) => teams.find((t) => t.id === id);
 
@@ -748,7 +750,10 @@ export default function BracketView({
 
   return (
     <div className="space-y-4">
-      <div className="overflow-x-auto pb-2">
+      <div className="flex justify-end">
+        <ScreenshotButton targetRef={bracketRef as any} filename="chaveamento.png" />
+      </div>
+      <div className="overflow-x-auto pb-2" ref={bracketRef}>
         {(() => {
           const preFinalStages = stages.slice(0, -1);
           const finalStageKey = stages[stages.length - 1];

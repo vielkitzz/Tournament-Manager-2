@@ -1,9 +1,10 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { Shield, X } from "lucide-react";
 import { StandingRow } from "@/lib/standings";
 import { PromotionRule, Match, Team } from "@/types/tournament";
 import { cn } from "@/lib/utils";
 import TeamStatsPopup from "./TeamStatsPopup";
+import ScreenshotButton from "@/components/ScreenshotButton";
 import {
   Tooltip,
   TooltipContent,
@@ -22,6 +23,7 @@ interface StandingsTableProps {
 
 export default function StandingsTable({ standings, promotions = [], qualifyUntil, onRemoveTeam, matches = [], allTeams = [] }: StandingsTableProps) {
   const [selectedTeamId, setSelectedTeamId] = useState<string | null>(null);
+  const tableRef = useRef<HTMLDivElement>(null);
 
   if (standings.length === 0) {
     return (
@@ -71,7 +73,10 @@ export default function StandingsTable({ standings, promotions = [], qualifyUnti
 
   return (
     <TooltipProvider delayDuration={200}>
-      <div className="overflow-x-auto">
+      <div className="overflow-x-auto" ref={tableRef}>
+        <div className="flex justify-end px-2 py-1">
+          <ScreenshotButton targetRef={tableRef as any} filename="classificacao.png" />
+        </div>
         <table className="w-full text-sm">
           <thead>
             <tr className="border-b border-border text-muted-foreground text-xs">
