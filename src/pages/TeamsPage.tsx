@@ -56,76 +56,92 @@ const TeamCard = memo(function TeamCard({
   };
 
   return (
-    <div
-      draggable
-      onDragStart={handleDragStart}
-      className="p-3 rounded-xl card-gradient border border-border hover:border-primary/40 transition-all relative overflow-hidden group cursor-grab active:cursor-grabbing"
-    >
-      <div className="absolute left-0 top-0 bottom-0 w-1.5 rounded-l-xl overflow-hidden flex flex-col">
-        {(team.colors.length > 0 ? team.colors : ["hsl(var(--primary))", "hsl(var(--secondary))"]).map((c, i) => (
-          <div key={i} className="flex-1" style={{ backgroundColor: c }} />
-        ))}
-      </div>
-      <div className="flex items-center gap-2 pl-2">
-        <GripVertical className="w-3.5 h-3.5 text-muted-foreground/50 shrink-0" />
-        <div className="w-10 h-10 flex items-center justify-center shrink-0">
-          {team.logo ? (
-            <img
-              src={team.logo}
-              alt=""
-              className="w-10 h-10 object-contain"
-              onError={(e) => {
-                e.currentTarget.style.display = "none";
-                e.currentTarget.nextElementSibling?.classList.remove("hidden");
-              }}
-            />
-          ) : null}
-          <Shield className={`w-5 h-5 text-muted-foreground ${team.logo ? "hidden" : ""}`} />
-        </div>
-        <div className="min-w-0 flex-1">
-          <h3 className="font-display font-bold text-foreground text-sm truncate">{team.name}</h3>
-          <p className="text-xs text-primary font-mono">{(team.rate ?? 0).toFixed(2)}</p>
-        </div>
-        <div className="flex flex-col gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-          <button
-            onClick={onEdit}
-            className="p-1.5 rounded-md hover:bg-secondary text-muted-foreground hover:text-foreground"
-          >
-            <Pencil className="w-3.5 h-3.5" />
-          </button>
-          <button
-            onClick={onDuplicate}
-            className="p-1.5 rounded-md hover:bg-secondary text-muted-foreground hover:text-foreground"
-          >
-            <Copy className="w-3.5 h-3.5" />
-          </button>
-          <AlertDialog>
-            <AlertDialogTrigger asChild>
-              <button className="p-1.5 rounded-md hover:bg-destructive/20 text-muted-foreground hover:text-destructive">
-                <Trash2 className="w-3.5 h-3.5" />
+    <ContextMenu>
+      <ContextMenuTrigger asChild>
+        <div
+          draggable
+          onDragStart={handleDragStart}
+          className="p-3 rounded-xl card-gradient border border-border hover:border-primary/40 transition-all relative overflow-hidden group cursor-grab active:cursor-grabbing"
+        >
+          <div className="absolute left-0 top-0 bottom-0 w-1.5 rounded-l-xl overflow-hidden flex flex-col">
+            {(team.colors.length > 0 ? team.colors : ["hsl(var(--primary))", "hsl(var(--secondary))"]).map((c, i) => (
+              <div key={i} className="flex-1" style={{ backgroundColor: c }} />
+            ))}
+          </div>
+          <div className="flex items-center gap-2 pl-2">
+            <GripVertical className="w-3.5 h-3.5 text-muted-foreground/50 shrink-0" />
+            <div className="w-10 h-10 flex items-center justify-center shrink-0">
+              {team.logo ? (
+                <img
+                  src={team.logo}
+                  alt=""
+                  className="w-10 h-10 object-contain"
+                  onError={(e) => {
+                    e.currentTarget.style.display = "none";
+                    e.currentTarget.nextElementSibling?.classList.remove("hidden");
+                  }}
+                />
+              ) : null}
+              <Shield className={`w-5 h-5 text-muted-foreground ${team.logo ? "hidden" : ""}`} />
+            </div>
+            <div className="min-w-0 flex-1">
+              <h3 className="font-display font-bold text-foreground text-sm truncate">{team.name}</h3>
+              <p className="text-xs text-primary font-mono">{(team.rate ?? 0).toFixed(2)}</p>
+            </div>
+            <div className="flex flex-col gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+              <button
+                onClick={onEdit}
+                className="p-1.5 rounded-md hover:bg-secondary text-muted-foreground hover:text-foreground"
+              >
+                <Pencil className="w-3.5 h-3.5" />
               </button>
-            </AlertDialogTrigger>
-            <AlertDialogContent>
-              <AlertDialogHeader>
-                <AlertDialogTitle>Excluir "{team.name}"?</AlertDialogTitle>
-                <AlertDialogDescription>
-                  Esta ação não pode ser desfeita. Se este time estiver em competições ativas, você será avisado após a exclusão.
-                </AlertDialogDescription>
-              </AlertDialogHeader>
-              <AlertDialogFooter>
-                <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                <AlertDialogAction
-                  onClick={onDelete}
-                  className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                >
-                  Excluir mesmo assim
-                </AlertDialogAction>
-              </AlertDialogFooter>
-            </AlertDialogContent>
-          </AlertDialog>
+              <button
+                onClick={onDuplicate}
+                className="p-1.5 rounded-md hover:bg-secondary text-muted-foreground hover:text-foreground"
+              >
+                <Copy className="w-3.5 h-3.5" />
+              </button>
+              <AlertDialog>
+                <AlertDialogTrigger asChild>
+                  <button className="p-1.5 rounded-md hover:bg-destructive/20 text-muted-foreground hover:text-destructive">
+                    <Trash2 className="w-3.5 h-3.5" />
+                  </button>
+                </AlertDialogTrigger>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>Excluir "{team.name}"?</AlertDialogTitle>
+                    <AlertDialogDescription>
+                      Esta ação não pode ser desfeita. Se este time estiver em competições ativas, você será avisado após a exclusão.
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                    <AlertDialogAction
+                      onClick={onDelete}
+                      className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                    >
+                      Excluir mesmo assim
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
+            </div>
+          </div>
         </div>
-      </div>
-    </div>
+      </ContextMenuTrigger>
+      <ContextMenuContent>
+        <ContextMenuItem onClick={onEdit}>
+          <Pencil className="w-3.5 h-3.5 mr-2" /> Editar
+        </ContextMenuItem>
+        <ContextMenuItem onClick={(e) => onDuplicate(e as any)}>
+          <Copy className="w-3.5 h-3.5 mr-2" /> Duplicar
+        </ContextMenuItem>
+        <ContextMenuSeparator />
+        <ContextMenuItem onClick={onDelete} className="text-destructive focus:text-destructive">
+          <Trash2 className="w-3.5 h-3.5 mr-2" /> Excluir
+        </ContextMenuItem>
+      </ContextMenuContent>
+    </ContextMenu>
   );
 });
 
