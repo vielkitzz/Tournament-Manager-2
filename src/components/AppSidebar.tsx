@@ -92,16 +92,24 @@ export default function AppSidebar({ onNavigate }: AppSidebarProps) {
             </p>
             <div className="space-y-0.5">
               {section.items.map((item) => (
-                <NavLink
-                  key={item.to}
-                  to={item.to}
-                  end={item.end}
-                  onClick={onNavigate}
-                  className={({ isActive }) => linkClasses(isActive)}
-                >
-                  <item.icon className="w-4 h-4 shrink-0" />
-                  <span>{item.label}</span>
-                </NavLink>
+                <ContextMenu key={item.to}>
+                  <ContextMenuTrigger asChild>
+                    <NavLink
+                      to={item.to}
+                      end={item.end}
+                      onClick={onNavigate}
+                      className={({ isActive }) => linkClasses(isActive)}
+                    >
+                      <item.icon className="w-4 h-4 shrink-0" />
+                      <span>{item.label}</span>
+                    </NavLink>
+                  </ContextMenuTrigger>
+                  <ContextMenuContent>
+                    <ContextMenuItem onClick={() => navigate(item.to)}>
+                      <ExternalLink className="w-3.5 h-3.5 mr-2" /> Abrir {item.label}
+                    </ContextMenuItem>
+                  </ContextMenuContent>
+                </ContextMenu>
               ))}
             </div>
           </div>
