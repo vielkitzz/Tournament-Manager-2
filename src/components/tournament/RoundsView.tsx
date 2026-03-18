@@ -18,12 +18,12 @@ interface RoundsViewProps {
 export default function RoundsView({ tournament, teams, onUpdateMatch, onBatchUpdateMatches, onFinalize }: RoundsViewProps) {
   const matches = tournament.matches;
   const totalRounds = matches.length > 0 ? Math.max(...matches.map((m) => m.round)) : 0;
-  // Default to the last round that has at least one played match
   const lastPlayedRound = matches.length > 0
     ? Math.max(...matches.filter((m) => m.played).map((m) => m.round), 1)
     : 1;
   const [currentRound, setCurrentRound] = useState(lastPlayedRound);
   const [selectedMatch, setSelectedMatch] = useState<Match | null>(null);
+  const roundsRef = useRef<HTMLDivElement>(null);
 
   if (matches.length === 0) {
     return (
