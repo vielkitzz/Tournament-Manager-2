@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { simulateFullMatch, simulateHalf } from "@/lib/simulation";
 import MatchPopup from "./MatchPopup";
 import BracketTeamEditor from "./BracketTeamEditor";
+import ScreenshotButton from "@/components/ScreenshotButton";
 
 interface BracketViewProps {
   tournament: Tournament;
