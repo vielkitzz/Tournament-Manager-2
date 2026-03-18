@@ -88,7 +88,7 @@ export default function RoundsView({ tournament, teams, onUpdateMatch, onBatchUp
         >
           <ChevronRight className="w-5 h-5" />
         </button>
-        {unplayedInRound.length > 0 && (
+         {unplayedInRound.length > 0 && (
           <button
             onClick={handleSimulateRound}
             title={`Simular ${unplayedInRound.length} ${unplayedInRound.length === 1 ? "jogo" : "jogos"}`}
@@ -97,6 +97,7 @@ export default function RoundsView({ tournament, teams, onUpdateMatch, onBatchUp
             <Zap className="w-4 h-4" />
           </button>
         )}
+        <ScreenshotButton targetRef={roundsRef as any} filename={`rodada-${currentRound}.png`} />
       </div>
 
       {/* Simulate round button */}
