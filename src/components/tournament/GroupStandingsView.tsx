@@ -98,6 +98,7 @@ export default function GroupStandingsView({
           </div>
         );
       })}
+      </div>
     </div>
   );
 }
