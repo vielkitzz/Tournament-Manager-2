@@ -1,6 +1,8 @@
+import { useRef } from "react";
 import { StandingRow } from "@/lib/standings";
 import { Shield } from "lucide-react";
 import { cn } from "@/lib/utils";
+import ScreenshotButton from "@/components/ScreenshotButton";
 
 interface GroupStandingsViewProps {
   groupCount: number;
