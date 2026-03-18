@@ -23,6 +23,7 @@ interface StandingsTableProps {
 
 export default function StandingsTable({ standings, promotions = [], qualifyUntil, onRemoveTeam, matches = [], allTeams = [] }: StandingsTableProps) {
   const [selectedTeamId, setSelectedTeamId] = useState<string | null>(null);
+  const tableRef = useRef<HTMLDivElement>(null);
 
   if (standings.length === 0) {
     return (
