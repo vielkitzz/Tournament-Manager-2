@@ -1,9 +1,10 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Match, Team, Tournament } from "@/types/tournament";
 import { Shield, ChevronLeft, ChevronRight, Trophy, CheckCircle, Zap } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { simulateFullMatch } from "@/lib/simulation";
 import MatchPopup from "./MatchPopup";
+import ScreenshotButton from "@/components/ScreenshotButton";
 
 interface RoundsViewProps {
   tournament: Tournament;
