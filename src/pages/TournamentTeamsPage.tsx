@@ -249,27 +249,39 @@ export default function TournamentTeamsPage() {
                   const team = teams.find((t) => t.id === tid);
                   if (!team) return null;
                   return (
-                    <div
-                      key={tid}
-                      className="flex items-center gap-2 px-3 py-2 rounded-lg bg-secondary/40 border border-border hover:border-primary/30 transition-all cursor-pointer group"
-                      onClick={() => navigate(`/teams/create?edit=${tid}`)}
-                    >
-                      <div className="w-6 h-6 flex items-center justify-center shrink-0">
-                        {team.logo ? (
-                          <img src={team.logo} alt="" className="w-6 h-6 object-contain" />
-                        ) : (
-                          <Shield className="w-4 h-4 text-muted-foreground" />
-                        )}
-                      </div>
-                      <span className="text-foreground text-sm font-medium flex-1 truncate">{team.name}</span>
-                      <span className="text-[10px] text-muted-foreground font-mono">{(team.rate ?? 0).toFixed(1)}</span>
-                      <button
-                        onClick={(e) => { e.stopPropagation(); removeTeamFromTournament(tid, team.name); }}
-                        className="p-1 rounded hover:bg-destructive/20 text-muted-foreground hover:text-destructive opacity-0 group-hover:opacity-100 transition-all"
-                      >
-                        <X className="w-3.5 h-3.5" />
-                      </button>
-                    </div>
+                    <ContextMenu key={tid}>
+                      <ContextMenuTrigger asChild>
+                        <div
+                          className="flex items-center gap-2 px-3 py-2 rounded-lg bg-secondary/40 border border-border hover:border-primary/30 transition-all cursor-pointer group"
+                          onClick={() => navigate(`/teams/create?edit=${tid}`)}
+                        >
+                          <div className="w-6 h-6 flex items-center justify-center shrink-0">
+                            {team.logo ? (
+                              <img src={team.logo} alt="" className="w-6 h-6 object-contain" />
+                            ) : (
+                              <Shield className="w-4 h-4 text-muted-foreground" />
+                            )}
+                          </div>
+                          <span className="text-foreground text-sm font-medium flex-1 truncate">{team.name}</span>
+                          <span className="text-[10px] text-muted-foreground font-mono">{(team.rate ?? 0).toFixed(1)}</span>
+                          <button
+                            onClick={(e) => { e.stopPropagation(); removeTeamFromTournament(tid, team.name); }}
+                            className="p-1 rounded hover:bg-destructive/20 text-muted-foreground hover:text-destructive opacity-0 group-hover:opacity-100 transition-all"
+                          >
+                            <X className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                      </ContextMenuTrigger>
+                      <ContextMenuContent>
+                        <ContextMenuItem onClick={() => navigate(`/teams/create?edit=${tid}`)}>
+                          <Shield className="w-3.5 h-3.5 mr-2" /> Editar Time
+                        </ContextMenuItem>
+                        <ContextMenuSeparator />
+                        <ContextMenuItem onClick={() => removeTeamFromTournament(tid, team.name)} className="text-destructive focus:text-destructive">
+                          <X className="w-3.5 h-3.5 mr-2" /> Remover da Competição
+                        </ContextMenuItem>
+                      </ContextMenuContent>
+                    </ContextMenu>
                   );
                 })}
               </div>
