@@ -293,9 +293,10 @@ export default function TournamentDetailPage() {
 
   // ─── Confirm manual qualifiers & generate knockout ───────────────────────
   const qualifiersPerGroup = (() => {
-    const startStage = tournament.gruposMataMataInicio || "1/8";
+    const startStage = isSuico
+      ? (tournament.suicoMataMataInicio || "1/8")
+      : (tournament.gruposMataMataInicio || "1/8");
     const stageTotal = STAGE_TEAM_COUNTS[startStage] || 8;
-    // Total knockout teams = stage size, capped by number of tournament teams
     return Math.max(2, Math.min(stageTotal, tournament.teamIds.length));
   })();
 
