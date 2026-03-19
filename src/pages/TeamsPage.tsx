@@ -588,7 +588,7 @@ export default function TeamsPage() {
     toast.success(folderId ? "Time movido para a pasta!" : "Time removido da pasta!");
   }, [moveTeamToFolder]);
 
-
+  const handleRootDrop = useCallback(
     (e: DragEvent) => {
       e.preventDefault();
       setDragOverFolder(null);
