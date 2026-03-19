@@ -715,6 +715,8 @@ export default function TeamsPage() {
               navigate={navigate}
               onDuplicate={handleDuplicate}
               onDeleteTeam={handleDelete}
+              allFolders={folders}
+              onMoveToFolder={handleMoveToFolder}
             />
           ))}
 
