@@ -1014,11 +1014,31 @@ export default function TournamentDetailPage() {
                   </Button>
                 </div>
               )}
+              {isSuico && !tournament.groupsFinalized && suicoLeagueMatches.length > 0 && (
+                <div className="p-4 rounded-xl bg-primary/5 border border-primary/20 flex flex-col sm:flex-row items-center justify-between gap-4">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
+                      <Zap className="w-5 h-5 text-primary" />
+                    </div>
+                    <div>
+                      <p className="text-sm font-bold text-foreground">Fase de Liga em andamento</p>
+                      <p className="text-xs text-muted-foreground">
+                        {allSuicoLeagueMatchesPlayed ? "Todos os jogos concluídos! Confirme os classificados para os play-offs." : "Acompanhe a classificação em tempo real."}
+                      </p>
+                    </div>
+                  </div>
+                  {allSuicoLeagueMatchesPlayed && (
+                    <Button onClick={() => setActiveTab("bracket")} size="sm" className="gap-1.5 bg-primary text-primary-foreground w-full sm:w-auto">
+                      Confirmar Classificados
+                    </Button>
+                  )}
+                </div>
+              )}
               <div className="rounded-xl border border-border bg-card shadow-sm overflow-hidden">
                 <StandingsTable
                   standings={isViewingPastSeason ? seasonStandings : standings}
                   promotions={tournament.settings.promotions}
-                  matches={isViewingPastSeason ? (seasonData?.matches || []) : tournament.matches}
+                  matches={isViewingPastSeason ? (seasonData?.matches || []) : (isSuico ? suicoLeagueMatches : tournament.matches)}
                   allTeams={resolvedTeams}
                 />
               </div>
