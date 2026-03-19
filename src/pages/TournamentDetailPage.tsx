@@ -65,15 +65,22 @@ export default function TournamentDetailPage() {
     if (id) trackTournamentOpen(id);
   }, [id]);
 
-  // Auto-generate rounds for liga format when teams exist but no matches
+  // Auto-generate rounds for liga/suico format when teams exist but no matches
   useEffect(() => {
-    if (!tournament || tournament.format !== "liga") return;
+    if (!tournament) return;
+    if (tournament.format !== "liga" && tournament.format !== "suico") return;
     if (tournament.finalized) return;
     if (tournament.teamIds.length < 2) return;
     if ((tournament.matches || []).length > 0) return;
-    const turnos = tournament.ligaTurnos || 1;
-    const newMatches = generateRoundRobin(tournament.id, tournament.teamIds, turnos);
-    updateTournament(tournament.id, { matches: newMatches });
+    if (tournament.format === "suico") {
+      const rounds = tournament.suicoJogosLiga || 8;
+      const newMatches = generateSwissLeagueMatches(tournament.id, tournament.teamIds, rounds);
+      updateTournament(tournament.id, { matches: newMatches });
+    } else {
+      const turnos = tournament.ligaTurnos || 1;
+      const newMatches = generateRoundRobin(tournament.id, tournament.teamIds, turnos);
+      updateTournament(tournament.id, { matches: newMatches });
+    }
   }, [tournament?.id, tournament?.teamIds?.length, tournament?.matches?.length, tournament?.format, tournament?.finalized]);
 
   // Resolve teams with historical logo/rate - deferred until activeYear is known
