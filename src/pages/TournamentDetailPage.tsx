@@ -704,6 +704,11 @@ export default function TournamentDetailPage() {
       updateTournament(tournament.id, { matches: newMatches });
       const byeCount = newMatches.filter((m) => m.awayTeamId === "").length;
       toast.success(`${newMatches.length} jogos gerados!${byeCount > 0 ? ` (${byeCount} BYE automático)` : ""}`);
+    } else if (tournament.format === "suico") {
+      const rounds = tournament.suicoJogosLiga || 8;
+      const matches = generateSwissLeagueMatches(tournament.id, tournament.teamIds, rounds);
+      updateTournament(tournament.id, { matches });
+      toast.success(`${matches.length} jogos da fase de liga gerados!`);
     }
   };
 
