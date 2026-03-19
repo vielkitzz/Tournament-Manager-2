@@ -144,6 +144,8 @@ export default function TournamentDetailPage() {
   const isLiga = tournament.format === "liga";
   const isMataMata = tournament.format === "mata-mata";
   const isGrupos = tournament.format === "grupos";
+  const isSuico = tournament.format === "suico";
+  const hasKnockout = isMataMata || isGrupos || isSuico;
 
   // Map season standings to StandingRow[] (adding missing fields)
   const seasonStandings: import("@/lib/standings").StandingRow[] = (seasonData?.standings || []).map((s) => {
