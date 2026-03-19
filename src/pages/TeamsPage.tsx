@@ -680,6 +680,8 @@ export default function TeamsPage() {
                     onEdit={() => navigate(`/teams/create?edit=${team.id}`)}
                     onDuplicate={(e) => handleDuplicate(e, team)}
                     onDelete={() => handleDelete(team.id, team.name)}
+                    folders={folders}
+                    onMoveToFolder={handleMoveToFolder}
                   />
                 </motion.div>
               ))}
