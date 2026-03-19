@@ -200,24 +200,6 @@ export default function RoundsView({ tournament, teams, onUpdateMatch, onBatchUp
         );
       })()}
 
-      {/* Finalize banner */}
-      {allPlayed && !tournament.finalized && onFinalize && (
-        <div className="flex items-center justify-center gap-3 p-4 rounded-xl bg-primary/5 border border-primary/20">
-          <CheckCircle className="w-5 h-5 text-primary" />
-          <span className="text-sm font-medium text-foreground">Todas as rodadas foram jogadas!</span>
-          <Button onClick={onFinalize} size="sm" className="gap-1.5 bg-primary text-primary-foreground">
-            <Trophy className="w-4 h-4" />
-            Finalizar Temporada
-          </Button>
-        </div>
-      )}
-
-      {tournament.finalized && (
-        <div className="flex items-center justify-center gap-2 p-3 rounded-xl bg-primary/5 border border-primary/20">
-          <Trophy className="w-4 h-4 text-primary" />
-          <span className="text-sm font-medium text-foreground">Temporada {tournament.year} finalizada</span>
-        </div>
-      )}
 
       {/* Match Popup */}
       {selectedMatch && (
