@@ -883,7 +883,7 @@ export default function TournamentDetailPage() {
             {!isMataMata && (
               <TabsTrigger value="rounds" className="data-[state=active]:bg-card data-[state=active]:shadow-sm text-xs lg:text-sm">Jogos</TabsTrigger>
             )}
-            {(isMataMata || isGrupos) && (
+            {hasKnockout && (
               <TabsTrigger value="bracket" className="data-[state=active]:bg-card data-[state=active]:shadow-sm text-xs lg:text-sm">Chaveamento</TabsTrigger>
             )}
             <TabsTrigger value="stats" className="data-[state=active]:bg-card data-[state=active]:shadow-sm text-xs lg:text-sm">Estatísticas</TabsTrigger>
