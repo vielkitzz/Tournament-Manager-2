@@ -429,6 +429,7 @@ export default function TournamentDetailPage() {
     toast.success(`${topTeams.length} times classificados para os play-offs! ${newMatches.length} jogos gerados.`);
   };
 
+  const handleFinalizeSeason = () => {
     if (standings.length === 0) return;
 
     // Check if all matches are played
