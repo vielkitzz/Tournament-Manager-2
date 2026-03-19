@@ -184,11 +184,11 @@ export default function TournamentDetailPage() {
 
   const settings = tournament.settings;
 
-  // For grupos format, separate group and knockout matches
-  const groupMatches = isGrupos
+  // For grupos/suico format, separate group and knockout matches
+  const groupMatches = (isGrupos || isSuico)
     ? (tournament.matches || []).filter((m) => m.stage === "group" || (!m.stage && !m.isThirdPlace))
     : tournament.matches || [];
-  const knockoutMatches = isGrupos
+  const knockoutMatches = (isGrupos || isSuico)
     ? (tournament.matches || []).filter((m) => m.stage === "knockout")
     : [];
 
@@ -226,18 +226,26 @@ export default function TournamentDetailPage() {
     }
   }
 
+  // Swiss standings: all teams in a single league
+  const suicoLeagueMatches = isSuico ? groupMatches : [];
+
   const standings = isGrupos
     ? Object.values(standingsByGroup).flat()
+    : isSuico
+    ? calculateStandings(tournament.teamIds, suicoLeagueMatches, settings, resolvedTeams)
     : calculateStandings(tournament.teamIds, tournament.matches || [], settings, resolvedTeams);
 
   const allGroupMatchesPlayed = isGrupos && groupMatches.length > 0 && groupMatches.every((m) => m.played);
+  const allSuicoLeagueMatchesPlayed = isSuico && suicoLeagueMatches.length > 0 && suicoLeagueMatches.every((m) => m.played);
 
   const groupTournament = isGrupos
     ? { ...tournament, matches: groupMatches }
+    : isSuico
+    ? { ...tournament, matches: suicoLeagueMatches }
     : tournament;
 
-  const knockoutTournament = isGrupos
-    ? { ...tournament, matches: knockoutMatches, mataMataInicio: tournament.gruposMataMataInicio || "1/8" }
+  const knockoutTournament = (isGrupos || isSuico)
+    ? { ...tournament, matches: knockoutMatches, mataMataInicio: isSuico ? (tournament.suicoMataMataInicio || "1/8") : (tournament.gruposMataMataInicio || "1/8") }
     : tournament;
 
   // ─── Group management functions ───
