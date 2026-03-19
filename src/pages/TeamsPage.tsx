@@ -333,6 +333,8 @@ const FolderNode = memo(function FolderNode({
               navigate={navigate}
               onDuplicate={onDuplicate}
               onDeleteTeam={onDeleteTeam}
+              allFolders={allFolders}
+              onMoveToFolder={onMoveToFolder}
               depth={depth + 1}
             />
           ))}
@@ -346,6 +348,8 @@ const FolderNode = memo(function FolderNode({
                   onEdit={() => navigate(`/teams/create?edit=${team.id}`)}
                   onDuplicate={(e) => onDuplicate(e, team)}
                   onDelete={() => onDeleteTeam(team.id, team.name)}
+                  folders={allFolders}
+                  onMoveToFolder={onMoveToFolder}
                 />
               ))}
             </div>
