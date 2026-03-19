@@ -1075,10 +1075,10 @@ export default function TournamentDetailPage() {
           </div>
         </TabsContent>
 
-        {(isMataMata || isGrupos) && (
+        {hasKnockout && (
           <TabsContent value="bracket" className="mt-0 outline-none">
             <div className="space-y-6">
-           {(isMataMata || isGrupos) && (
+           {hasKnockout && (
                 <div className="space-y-4">
                   {isGrupos && !tournament.groupsFinalized && allGroupMatchesPlayed && (
                     <div className="flex items-center justify-between p-3 rounded-lg border border-border bg-card">
@@ -1091,7 +1091,18 @@ export default function TournamentDetailPage() {
                       </Button>
                     </div>
                   )}
-                  {isGrupos && tournament.groupsFinalized && (
+                  {isSuico && !tournament.groupsFinalized && allSuicoLeagueMatchesPlayed && (
+                    <div className="flex items-center justify-between p-3 rounded-lg border border-border bg-card">
+                      <span className="text-sm text-muted-foreground">
+                        Fase de liga concluída. Confirme os classificados para os play-offs.
+                      </span>
+                      <Button onClick={() => handleConfirmSwissQualifiers()} size="sm" className="gap-1.5">
+                        <Trophy className="w-3.5 h-3.5" />
+                        Confirmar Classificados
+                      </Button>
+                    </div>
+                  )}
+                  {(isGrupos || isSuico) && tournament.groupsFinalized && (
                     <div className="flex items-center justify-between p-3 rounded-lg border border-border bg-card">
                       <span className="text-sm text-muted-foreground">
                         Classificados confirmados
@@ -1101,7 +1112,7 @@ export default function TournamentDetailPage() {
                       </Button>
                     </div>
                   )}
-                  {(isMataMata || isGrupos) && !tournament.finalized && tournament.teamIds.length >= 2 && (
+                  {hasKnockout && !tournament.finalized && tournament.teamIds.length >= 2 && (
                     <div className="flex justify-end">
                       <Button onClick={() => autoGenerate()} size="sm" variant="outline" className="gap-1.5">
                         <Shuffle className="w-3.5 h-3.5" />
@@ -1111,7 +1122,7 @@ export default function TournamentDetailPage() {
                   )}
                   <BracketView
                     tournament={isViewingPastSeason
-                      ? { ...tournament, matches: (seasonData?.matches || []).filter((m) => m.stage === "knockout" || m.isThirdPlace), mataMataInicio: isGrupos ? (tournament.gruposMataMataInicio || "1/8") : tournament.mataMataInicio }
+                      ? { ...tournament, matches: (seasonData?.matches || []).filter((m) => m.stage === "knockout" || m.isThirdPlace), mataMataInicio: isSuico ? (tournament.suicoMataMataInicio || "1/8") : isGrupos ? (tournament.gruposMataMataInicio || "1/8") : tournament.mataMataInicio }
                       : knockoutTournament}
                     teams={resolvedTeams}
                     onUpdateMatch={(updated) => {
@@ -1119,7 +1130,7 @@ export default function TournamentDetailPage() {
                       updateTournament(tournament.id, { matches: newMatches });
                     }}
                     onBatchUpdateMatches={(updatedMatches) => {
-                      const tagged = updatedMatches.map((m) => ({ ...m, stage: (isGrupos ? "knockout" : m.stage) as any }));
+                      const tagged = updatedMatches.map((m) => ({ ...m, stage: ((isGrupos || isSuico) ? "knockout" : m.stage) as any }));
                       const existingIds = new Set((tournament.matches || []).map((m) => m.id));
                       const updates = tagged.filter((m) => existingIds.has(m.id));
                       const additions = tagged.filter((m) => !existingIds.has(m.id));
@@ -1136,7 +1147,7 @@ export default function TournamentDetailPage() {
                     onGenerateBracket={() => autoGenerate()}
                     onFinalize={handleFinalizeSeason}
                     onAddMatch={(match) => {
-                      const tagged = { ...match, stage: (isGrupos ? "knockout" : match.stage) as any };
+                      const tagged = { ...match, stage: ((isGrupos || isSuico) ? "knockout" : match.stage) as any };
                       updateTournament(tournament.id, { matches: [...(tournament.matches || []), tagged] });
                     }}
                     onRemoveMatch={(matchId, pairId) => {
