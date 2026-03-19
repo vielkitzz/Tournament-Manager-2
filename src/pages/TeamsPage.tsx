@@ -48,11 +48,15 @@ const TeamCard = memo(function TeamCard({
   onEdit,
   onDuplicate,
   onDelete,
+  folders,
+  onMoveToFolder,
 }: {
   team: Team;
   onEdit: () => void;
   onDuplicate: (e: React.MouseEvent) => void;
   onDelete: () => void;
+  folders: TeamFolder[];
+  onMoveToFolder: (teamId: string, folderId: string | null) => void;
 }) {
   const handleDragStart = (e: DragEvent) => {
     e.dataTransfer.setData("team-id", team.id);
