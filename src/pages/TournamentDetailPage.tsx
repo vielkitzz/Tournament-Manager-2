@@ -393,7 +393,42 @@ export default function TournamentDetailPage() {
     toast.success(`${selectedTeamIds.length} times classificados! ${newMatches.length} jogos de mata-mata gerados.`);
   };
 
-  const handleFinalizeSeason = () => {
+  const handleConfirmSwissQualifiers = () => {
+    const playoffSlots = tournament.suicoPlayoffVagas || 8;
+    const startStage = tournament.suicoMataMataInicio || "1/8";
+    const topTeams = standings.slice(0, playoffSlots).map(s => s.teamId);
+    
+    if (topTeams.length < 2) {
+      toast.error("Selecione pelo menos 2 times para os play-offs.");
+      return;
+    }
+
+    const legMode = settings.knockoutLegMode || "single";
+    const newMatches: Match[] = [];
+
+    // Seed: 1st vs last, 2nd vs second-last, etc.
+    for (let i = 0; i < Math.floor(topTeams.length / 2); i++) {
+      const home = topTeams[i];
+      const away = topTeams[topTeams.length - 1 - i];
+      if (legMode === "home-away") {
+        const pairId = crypto.randomUUID();
+        newMatches.push({ id: crypto.randomUUID(), tournamentId: tournament.id, round: 1, homeTeamId: home, awayTeamId: away, homeScore: 0, awayScore: 0, played: false, stage: "knockout", leg: 1, pairId });
+        newMatches.push({ id: crypto.randomUUID(), tournamentId: tournament.id, round: 1, homeTeamId: away, awayTeamId: home, homeScore: 0, awayScore: 0, played: false, stage: "knockout", leg: 2, pairId });
+      } else {
+        newMatches.push({ id: crypto.randomUUID(), tournamentId: tournament.id, round: 1, homeTeamId: home, awayTeamId: away, homeScore: 0, awayScore: 0, played: false, stage: "knockout" });
+      }
+    }
+
+    const allMatches = [...(tournament.matches || []), ...newMatches];
+    const updatedSettings = { ...settings, qualifiedTeamIds: topTeams };
+    updateTournament(tournament.id, {
+      matches: allMatches,
+      groupsFinalized: true,
+      settings: updatedSettings,
+    });
+    toast.success(`${topTeams.length} times classificados para os play-offs! ${newMatches.length} jogos gerados.`);
+  };
+
     if (standings.length === 0) return;
 
     // Check if all matches are played
