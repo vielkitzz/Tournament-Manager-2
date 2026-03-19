@@ -44,6 +44,7 @@ import { calculateStandings } from "@/lib/standings";
 import { generateRoundRobin } from "@/lib/roundRobin";
 import { Match, SeasonRecord, STAGE_TEAM_COUNTS, KnockoutStage } from "@/types/tournament";
 import { trackTournamentOpen } from "@/lib/recentTournaments";
+import ScreenshotButton from "@/components/ScreenshotButton";
 
 const formatLabels: Record<string, string> = {
   liga: "Pontos Corridos",
