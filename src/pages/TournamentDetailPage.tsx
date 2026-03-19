@@ -452,7 +452,7 @@ export default function TournamentDetailPage() {
       const finalRound = activeStages.length;
       
       const finalMatches = (tournament.matches || []).filter(
-        (m) => !m.isThirdPlace && m.round === finalRound && (isGrupos ? m.stage === "knockout" : true)
+        (m) => !m.isThirdPlace && m.round === finalRound && ((isGrupos || isSuico) ? m.stage === "knockout" : true)
       );
       
       if (finalMatches.length > 0) {
