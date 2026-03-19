@@ -19,9 +19,10 @@ interface StandingsTableProps {
   onRemoveTeam?: (teamId: string) => void;
   matches?: Match[];
   allTeams?: Team[];
+  hideScreenshot?: boolean;
 }
 
-export default function StandingsTable({ standings, promotions = [], qualifyUntil, onRemoveTeam, matches = [], allTeams = [] }: StandingsTableProps) {
+export default function StandingsTable({ standings, promotions = [], qualifyUntil, onRemoveTeam, matches = [], allTeams = [], hideScreenshot }: StandingsTableProps) {
   const [selectedTeamId, setSelectedTeamId] = useState<string | null>(null);
   const tableRef = useRef<HTMLDivElement>(null);
 
