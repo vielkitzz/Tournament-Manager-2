@@ -12,6 +12,7 @@ import {
   FolderOpen,
   ChevronRight,
   GripVertical,
+  FolderInput,
 } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Input } from "@/components/ui/input";
@@ -35,6 +36,9 @@ import {
   ContextMenuContent,
   ContextMenuItem,
   ContextMenuSeparator,
+  ContextMenuSub,
+  ContextMenuSubContent,
+  ContextMenuSubTrigger,
   ContextMenuTrigger,
 } from "@/components/ui/context-menu";
 
@@ -44,11 +48,15 @@ const TeamCard = memo(function TeamCard({
   onEdit,
   onDuplicate,
   onDelete,
+  folders,
+  onMoveToFolder,
 }: {
   team: Team;
   onEdit: () => void;
   onDuplicate: (e: React.MouseEvent) => void;
   onDelete: () => void;
+  folders: TeamFolder[];
+  onMoveToFolder: (teamId: string, folderId: string | null) => void;
 }) {
   const handleDragStart = (e: DragEvent) => {
     e.dataTransfer.setData("team-id", team.id);
@@ -136,6 +144,27 @@ const TeamCard = memo(function TeamCard({
         <ContextMenuItem onClick={(e) => onDuplicate(e as any)}>
           <Copy className="w-3.5 h-3.5 mr-2" /> Duplicar
         </ContextMenuItem>
+        {folders.length > 0 && (
+          <ContextMenuSub>
+            <ContextMenuSubTrigger>
+              <FolderInput className="w-3.5 h-3.5 mr-2" /> Mover para pasta
+            </ContextMenuSubTrigger>
+            <ContextMenuSubContent className="max-h-60 overflow-y-auto">
+              {team.folderId && (
+                <ContextMenuItem onClick={() => onMoveToFolder(team.id, null)}>
+                  <FolderOpen className="w-3.5 h-3.5 mr-2 text-muted-foreground" /> Remover da pasta
+                </ContextMenuItem>
+              )}
+              {folders
+                .filter((f) => f.id !== team.folderId)
+                .map((f) => (
+                  <ContextMenuItem key={f.id} onClick={() => onMoveToFolder(team.id, f.id)}>
+                    <Folder className="w-3.5 h-3.5 mr-2 text-primary" /> {f.name}
+                  </ContextMenuItem>
+                ))}
+            </ContextMenuSubContent>
+          </ContextMenuSub>
+        )}
         <ContextMenuSeparator />
         <ContextMenuItem onClick={onDelete} className="text-destructive focus:text-destructive">
           <Trash2 className="w-3.5 h-3.5 mr-2" /> Excluir
@@ -166,6 +195,8 @@ interface FolderNodeProps {
   navigate: (path: string) => void;
   onDuplicate: (e: React.MouseEvent, team: Team) => void;
   onDeleteTeam: (id: string, name: string) => void;
+  allFolders: TeamFolder[];
+  onMoveToFolder: (teamId: string, folderId: string | null) => void;
   depth?: number;
 }
 
@@ -191,6 +222,8 @@ const FolderNode = memo(function FolderNode({
   navigate,
   onDuplicate,
   onDeleteTeam,
+  allFolders,
+  onMoveToFolder,
   depth = 0,
 }: FolderNodeProps) {
   const isOpen = openFolders.has(folder.id);
@@ -300,6 +333,8 @@ const FolderNode = memo(function FolderNode({
               navigate={navigate}
               onDuplicate={onDuplicate}
               onDeleteTeam={onDeleteTeam}
+              allFolders={allFolders}
+              onMoveToFolder={onMoveToFolder}
               depth={depth + 1}
             />
           ))}
@@ -313,6 +348,8 @@ const FolderNode = memo(function FolderNode({
                   onEdit={() => navigate(`/teams/create?edit=${team.id}`)}
                   onDuplicate={(e) => onDuplicate(e, team)}
                   onDelete={() => onDeleteTeam(team.id, team.name)}
+                  folders={allFolders}
+                  onMoveToFolder={onMoveToFolder}
                 />
               ))}
             </div>
@@ -546,6 +583,11 @@ export default function TeamsPage() {
     e.dataTransfer.effectAllowed = "move";
   }, []);
 
+  const handleMoveToFolder = useCallback((teamId: string, folderId: string | null) => {
+    moveTeamToFolder(teamId, folderId);
+    toast.success(folderId ? "Time movido para a pasta!" : "Time removido da pasta!");
+  }, [moveTeamToFolder]);
+
   const handleRootDrop = useCallback(
     (e: DragEvent) => {
       e.preventDefault();
@@ -643,6 +685,8 @@ export default function TeamsPage() {
                     onEdit={() => navigate(`/teams/create?edit=${team.id}`)}
                     onDuplicate={(e) => handleDuplicate(e, team)}
                     onDelete={() => handleDelete(team.id, team.name)}
+                    folders={folders}
+                    onMoveToFolder={handleMoveToFolder}
                   />
                 </motion.div>
               ))}
@@ -676,6 +720,8 @@ export default function TeamsPage() {
               navigate={navigate}
               onDuplicate={handleDuplicate}
               onDeleteTeam={handleDelete}
+              allFolders={folders}
+              onMoveToFolder={handleMoveToFolder}
             />
           ))}
 
@@ -693,6 +739,8 @@ export default function TeamsPage() {
                   onEdit={() => navigate(`/teams/create?edit=${team.id}`)}
                   onDuplicate={(e) => handleDuplicate(e, team)}
                   onDelete={() => handleDelete(team.id, team.name)}
+                  folders={folders}
+                  onMoveToFolder={handleMoveToFolder}
                 />
               </motion.div>
             ))}

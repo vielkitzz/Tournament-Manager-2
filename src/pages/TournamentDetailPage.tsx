@@ -45,11 +45,13 @@ import { generateRoundRobin } from "@/lib/roundRobin";
 import { Match, SeasonRecord, STAGE_TEAM_COUNTS, KnockoutStage } from "@/types/tournament";
 import { trackTournamentOpen } from "@/lib/recentTournaments";
 import ScreenshotButton from "@/components/ScreenshotButton";
+import { generateSwissLeagueMatches } from "@/lib/swissRounds";
 
 const formatLabels: Record<string, string> = {
   liga: "Pontos Corridos",
   mataMata: "Mata-Mata",
   grupos: "Grupos + Mata-Mata",
+  suico: "Sistema Suíço",
 };
 
 export default function TournamentDetailPage() {
@@ -63,15 +65,22 @@ export default function TournamentDetailPage() {
     if (id) trackTournamentOpen(id);
   }, [id]);
 
-  // Auto-generate rounds for liga format when teams exist but no matches
+  // Auto-generate rounds for liga/suico format when teams exist but no matches
   useEffect(() => {
-    if (!tournament || tournament.format !== "liga") return;
+    if (!tournament) return;
+    if (tournament.format !== "liga" && tournament.format !== "suico") return;
     if (tournament.finalized) return;
     if (tournament.teamIds.length < 2) return;
     if ((tournament.matches || []).length > 0) return;
-    const turnos = tournament.ligaTurnos || 1;
-    const newMatches = generateRoundRobin(tournament.id, tournament.teamIds, turnos);
-    updateTournament(tournament.id, { matches: newMatches });
+    if (tournament.format === "suico") {
+      const rounds = tournament.suicoJogosLiga || 8;
+      const newMatches = generateSwissLeagueMatches(tournament.id, tournament.teamIds, rounds);
+      updateTournament(tournament.id, { matches: newMatches });
+    } else {
+      const turnos = tournament.ligaTurnos || 1;
+      const newMatches = generateRoundRobin(tournament.id, tournament.teamIds, turnos);
+      updateTournament(tournament.id, { matches: newMatches });
+    }
   }, [tournament?.id, tournament?.teamIds?.length, tournament?.matches?.length, tournament?.format, tournament?.finalized]);
 
   // Resolve teams with historical logo/rate - deferred until activeYear is known
@@ -135,6 +144,8 @@ export default function TournamentDetailPage() {
   const isLiga = tournament.format === "liga";
   const isMataMata = tournament.format === "mata-mata";
   const isGrupos = tournament.format === "grupos";
+  const isSuico = tournament.format === "suico";
+  const hasKnockout = isMataMata || isGrupos || isSuico;
 
   // Map season standings to StandingRow[] (adding missing fields)
   const seasonStandings: import("@/lib/standings").StandingRow[] = (seasonData?.standings || []).map((s) => {
@@ -173,11 +184,11 @@ export default function TournamentDetailPage() {
 
   const settings = tournament.settings;
 
-  // For grupos format, separate group and knockout matches
-  const groupMatches = isGrupos
+  // For grupos/suico format, separate group and knockout matches
+  const groupMatches = (isGrupos || isSuico)
     ? (tournament.matches || []).filter((m) => m.stage === "group" || (!m.stage && !m.isThirdPlace))
     : tournament.matches || [];
-  const knockoutMatches = isGrupos
+  const knockoutMatches = (isGrupos || isSuico)
     ? (tournament.matches || []).filter((m) => m.stage === "knockout")
     : [];
 
@@ -215,18 +226,26 @@ export default function TournamentDetailPage() {
     }
   }
 
+  // Swiss standings: all teams in a single league
+  const suicoLeagueMatches = isSuico ? groupMatches : [];
+
   const standings = isGrupos
     ? Object.values(standingsByGroup).flat()
+    : isSuico
+    ? calculateStandings(tournament.teamIds, suicoLeagueMatches, settings, resolvedTeams)
     : calculateStandings(tournament.teamIds, tournament.matches || [], settings, resolvedTeams);
 
   const allGroupMatchesPlayed = isGrupos && groupMatches.length > 0 && groupMatches.every((m) => m.played);
+  const allSuicoLeagueMatchesPlayed = isSuico && suicoLeagueMatches.length > 0 && suicoLeagueMatches.every((m) => m.played);
 
   const groupTournament = isGrupos
     ? { ...tournament, matches: groupMatches }
+    : isSuico
+    ? { ...tournament, matches: suicoLeagueMatches }
     : tournament;
 
-  const knockoutTournament = isGrupos
-    ? { ...tournament, matches: knockoutMatches, mataMataInicio: tournament.gruposMataMataInicio || "1/8" }
+  const knockoutTournament = (isGrupos || isSuico)
+    ? { ...tournament, matches: knockoutMatches, mataMataInicio: isSuico ? (tournament.suicoMataMataInicio || "1/8") : (tournament.gruposMataMataInicio || "1/8") }
     : tournament;
 
   // ─── Group management functions ───
@@ -274,9 +293,10 @@ export default function TournamentDetailPage() {
 
   // ─── Confirm manual qualifiers & generate knockout ───────────────────────
   const qualifiersPerGroup = (() => {
-    const startStage = tournament.gruposMataMataInicio || "1/8";
+    const startStage = isSuico
+      ? (tournament.suicoMataMataInicio || "1/8")
+      : (tournament.gruposMataMataInicio || "1/8");
     const stageTotal = STAGE_TEAM_COUNTS[startStage] || 8;
-    // Total knockout teams = stage size, capped by number of tournament teams
     return Math.max(2, Math.min(stageTotal, tournament.teamIds.length));
   })();
 
@@ -373,6 +393,42 @@ export default function TournamentDetailPage() {
     toast.success(`${selectedTeamIds.length} times classificados! ${newMatches.length} jogos de mata-mata gerados.`);
   };
 
+  const handleConfirmSwissQualifiers = () => {
+    const playoffSlots = tournament.suicoPlayoffVagas || 8;
+    const startStage = tournament.suicoMataMataInicio || "1/8";
+    const topTeams = standings.slice(0, playoffSlots).map(s => s.teamId);
+    
+    if (topTeams.length < 2) {
+      toast.error("Selecione pelo menos 2 times para os play-offs.");
+      return;
+    }
+
+    const legMode = settings.knockoutLegMode || "single";
+    const newMatches: Match[] = [];
+
+    // Seed: 1st vs last, 2nd vs second-last, etc.
+    for (let i = 0; i < Math.floor(topTeams.length / 2); i++) {
+      const home = topTeams[i];
+      const away = topTeams[topTeams.length - 1 - i];
+      if (legMode === "home-away") {
+        const pairId = crypto.randomUUID();
+        newMatches.push({ id: crypto.randomUUID(), tournamentId: tournament.id, round: 1, homeTeamId: home, awayTeamId: away, homeScore: 0, awayScore: 0, played: false, stage: "knockout", leg: 1, pairId });
+        newMatches.push({ id: crypto.randomUUID(), tournamentId: tournament.id, round: 1, homeTeamId: away, awayTeamId: home, homeScore: 0, awayScore: 0, played: false, stage: "knockout", leg: 2, pairId });
+      } else {
+        newMatches.push({ id: crypto.randomUUID(), tournamentId: tournament.id, round: 1, homeTeamId: home, awayTeamId: away, homeScore: 0, awayScore: 0, played: false, stage: "knockout" });
+      }
+    }
+
+    const allMatches = [...(tournament.matches || []), ...newMatches];
+    const updatedSettings = { ...settings, qualifiedTeamIds: topTeams };
+    updateTournament(tournament.id, {
+      matches: allMatches,
+      groupsFinalized: true,
+      settings: updatedSettings,
+    });
+    toast.success(`${topTeams.length} times classificados para os play-offs! ${newMatches.length} jogos gerados.`);
+  };
+
   const handleFinalizeSeason = () => {
     if (standings.length === 0) return;
 
@@ -388,15 +444,15 @@ export default function TournamentDetailPage() {
     let championName = standings[0].team?.name || "Desconhecido";
     let championLogo = standings[0].team?.logo;
 
-    if (isMataMata || isGrupos) {
+    if (isMataMata || isGrupos || isSuico) {
       const stages = ["1/64", "1/32", "1/16", "1/8", "1/4", "1/2"];
-      const startStage = (isGrupos ? tournament.gruposMataMataInicio : tournament.mataMataInicio) || "1/8";
+      const startStage = isSuico ? (tournament.suicoMataMataInicio || "1/8") : (isGrupos ? tournament.gruposMataMataInicio : tournament.mataMataInicio) || "1/8";
       const idx = stages.indexOf(startStage);
       const activeStages = idx >= 0 ? stages.slice(idx) : ["1/2"];
       const finalRound = activeStages.length;
       
       const finalMatches = (tournament.matches || []).filter(
-        (m) => !m.isThirdPlace && m.round === finalRound && (isGrupos ? m.stage === "knockout" : true)
+        (m) => !m.isThirdPlace && m.round === finalRound && ((isGrupos || isSuico) ? m.stage === "knockout" : true)
       );
       
       if (finalMatches.length > 0) {
@@ -684,6 +740,11 @@ export default function TournamentDetailPage() {
       updateTournament(tournament.id, { matches: newMatches });
       const byeCount = newMatches.filter((m) => m.awayTeamId === "").length;
       toast.success(`${newMatches.length} jogos gerados!${byeCount > 0 ? ` (${byeCount} BYE automático)` : ""}`);
+    } else if (tournament.format === "suico") {
+      const rounds = tournament.suicoJogosLiga || 8;
+      const matches = generateSwissLeagueMatches(tournament.id, tournament.teamIds, rounds);
+      updateTournament(tournament.id, { matches });
+      toast.success(`${matches.length} jogos da fase de liga gerados!`);
     }
   };
 
@@ -858,7 +919,7 @@ export default function TournamentDetailPage() {
             {!isMataMata && (
               <TabsTrigger value="rounds" className="data-[state=active]:bg-card data-[state=active]:shadow-sm text-xs lg:text-sm">Jogos</TabsTrigger>
             )}
-            {(isMataMata || isGrupos) && (
+            {hasKnockout && (
               <TabsTrigger value="bracket" className="data-[state=active]:bg-card data-[state=active]:shadow-sm text-xs lg:text-sm">Chaveamento</TabsTrigger>
             )}
             <TabsTrigger value="stats" className="data-[state=active]:bg-card data-[state=active]:shadow-sm text-xs lg:text-sm">Estatísticas</TabsTrigger>
@@ -989,11 +1050,31 @@ export default function TournamentDetailPage() {
                   </Button>
                 </div>
               )}
+              {isSuico && !tournament.groupsFinalized && suicoLeagueMatches.length > 0 && (
+                <div className="p-4 rounded-xl bg-primary/5 border border-primary/20 flex flex-col sm:flex-row items-center justify-between gap-4">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
+                      <Zap className="w-5 h-5 text-primary" />
+                    </div>
+                    <div>
+                      <p className="text-sm font-bold text-foreground">Fase de Liga em andamento</p>
+                      <p className="text-xs text-muted-foreground">
+                        {allSuicoLeagueMatchesPlayed ? "Todos os jogos concluídos! Confirme os classificados para os play-offs." : "Acompanhe a classificação em tempo real."}
+                      </p>
+                    </div>
+                  </div>
+                  {allSuicoLeagueMatchesPlayed && (
+                    <Button onClick={() => setActiveTab("bracket")} size="sm" className="gap-1.5 bg-primary text-primary-foreground w-full sm:w-auto">
+                      Confirmar Classificados
+                    </Button>
+                  )}
+                </div>
+              )}
               <div className="rounded-xl border border-border bg-card shadow-sm overflow-hidden">
                 <StandingsTable
                   standings={isViewingPastSeason ? seasonStandings : standings}
                   promotions={tournament.settings.promotions}
-                  matches={isViewingPastSeason ? (seasonData?.matches || []) : tournament.matches}
+                  matches={isViewingPastSeason ? (seasonData?.matches || []) : (isSuico ? suicoLeagueMatches : tournament.matches)}
                   allTeams={resolvedTeams}
                 />
               </div>
@@ -1030,10 +1111,10 @@ export default function TournamentDetailPage() {
           </div>
         </TabsContent>
 
-        {(isMataMata || isGrupos) && (
+        {hasKnockout && (
           <TabsContent value="bracket" className="mt-0 outline-none">
             <div className="space-y-6">
-           {(isMataMata || isGrupos) && (
+           {hasKnockout && (
                 <div className="space-y-4">
                   {isGrupos && !tournament.groupsFinalized && allGroupMatchesPlayed && (
                     <div className="flex items-center justify-between p-3 rounded-lg border border-border bg-card">
@@ -1046,7 +1127,18 @@ export default function TournamentDetailPage() {
                       </Button>
                     </div>
                   )}
-                  {isGrupos && tournament.groupsFinalized && (
+                  {isSuico && !tournament.groupsFinalized && allSuicoLeagueMatchesPlayed && (
+                    <div className="flex items-center justify-between p-3 rounded-lg border border-border bg-card">
+                      <span className="text-sm text-muted-foreground">
+                        Fase de liga concluída. Confirme os classificados para os play-offs.
+                      </span>
+                      <Button onClick={() => handleConfirmSwissQualifiers()} size="sm" className="gap-1.5">
+                        <Trophy className="w-3.5 h-3.5" />
+                        Confirmar Classificados
+                      </Button>
+                    </div>
+                  )}
+                  {(isGrupos || isSuico) && tournament.groupsFinalized && (
                     <div className="flex items-center justify-between p-3 rounded-lg border border-border bg-card">
                       <span className="text-sm text-muted-foreground">
                         Classificados confirmados
@@ -1056,7 +1148,7 @@ export default function TournamentDetailPage() {
                       </Button>
                     </div>
                   )}
-                  {(isMataMata || isGrupos) && !tournament.finalized && tournament.teamIds.length >= 2 && (
+                  {hasKnockout && !tournament.finalized && tournament.teamIds.length >= 2 && (
                     <div className="flex justify-end">
                       <Button onClick={() => autoGenerate()} size="sm" variant="outline" className="gap-1.5">
                         <Shuffle className="w-3.5 h-3.5" />
@@ -1066,7 +1158,7 @@ export default function TournamentDetailPage() {
                   )}
                   <BracketView
                     tournament={isViewingPastSeason
-                      ? { ...tournament, matches: (seasonData?.matches || []).filter((m) => m.stage === "knockout" || m.isThirdPlace), mataMataInicio: isGrupos ? (tournament.gruposMataMataInicio || "1/8") : tournament.mataMataInicio }
+                      ? { ...tournament, matches: (seasonData?.matches || []).filter((m) => m.stage === "knockout" || m.isThirdPlace), mataMataInicio: isSuico ? (tournament.suicoMataMataInicio || "1/8") : isGrupos ? (tournament.gruposMataMataInicio || "1/8") : tournament.mataMataInicio }
                       : knockoutTournament}
                     teams={resolvedTeams}
                     onUpdateMatch={(updated) => {
@@ -1074,7 +1166,7 @@ export default function TournamentDetailPage() {
                       updateTournament(tournament.id, { matches: newMatches });
                     }}
                     onBatchUpdateMatches={(updatedMatches) => {
-                      const tagged = updatedMatches.map((m) => ({ ...m, stage: (isGrupos ? "knockout" : m.stage) as any }));
+                      const tagged = updatedMatches.map((m) => ({ ...m, stage: ((isGrupos || isSuico) ? "knockout" : m.stage) as any }));
                       const existingIds = new Set((tournament.matches || []).map((m) => m.id));
                       const updates = tagged.filter((m) => existingIds.has(m.id));
                       const additions = tagged.filter((m) => !existingIds.has(m.id));
@@ -1091,7 +1183,7 @@ export default function TournamentDetailPage() {
                     onGenerateBracket={() => autoGenerate()}
                     onFinalize={handleFinalizeSeason}
                     onAddMatch={(match) => {
-                      const tagged = { ...match, stage: (isGrupos ? "knockout" : match.stage) as any };
+                      const tagged = { ...match, stage: ((isGrupos || isSuico) ? "knockout" : match.stage) as any };
                       updateTournament(tournament.id, { matches: [...(tournament.matches || []), tagged] });
                     }}
                     onRemoveMatch={(matchId, pairId) => {
