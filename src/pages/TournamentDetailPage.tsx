@@ -408,9 +408,9 @@ export default function TournamentDetailPage() {
     let championName = standings[0].team?.name || "Desconhecido";
     let championLogo = standings[0].team?.logo;
 
-    if (isMataMata || isGrupos) {
+    if (isMataMata || isGrupos || isSuico) {
       const stages = ["1/64", "1/32", "1/16", "1/8", "1/4", "1/2"];
-      const startStage = (isGrupos ? tournament.gruposMataMataInicio : tournament.mataMataInicio) || "1/8";
+      const startStage = isSuico ? (tournament.suicoMataMataInicio || "1/8") : (isGrupos ? tournament.gruposMataMataInicio : tournament.mataMataInicio) || "1/8";
       const idx = stages.indexOf(startStage);
       const activeStages = idx >= 0 ? stages.slice(idx) : ["1/2"];
       const finalRound = activeStages.length;
