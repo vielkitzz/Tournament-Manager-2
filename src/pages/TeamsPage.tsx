@@ -583,7 +583,12 @@ export default function TeamsPage() {
     e.dataTransfer.effectAllowed = "move";
   }, []);
 
-  const handleRootDrop = useCallback(
+  const handleMoveToFolder = useCallback((teamId: string, folderId: string | null) => {
+    moveTeamToFolder(teamId, folderId);
+    toast.success(folderId ? "Time movido para a pasta!" : "Time removido da pasta!");
+  }, [moveTeamToFolder]);
+
+
     (e: DragEvent) => {
       e.preventDefault();
       setDragOverFolder(null);
