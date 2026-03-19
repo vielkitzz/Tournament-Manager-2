@@ -73,10 +73,11 @@ export default function StandingsTable({ standings, promotions = [], qualifyUnti
 
   return (
     <TooltipProvider delayDuration={200}>
-      <div className="overflow-x-auto" ref={tableRef}>
+      <div ref={tableRef}>
         <div className="flex justify-end px-2 py-1">
-          <ScreenshotButton targetRef={tableRef as any} filename="classificacao.png" />
+          <ScreenshotButton targetRef={tableRef as any} filename="classificacao.png" discrete />
         </div>
+        <div className="overflow-x-auto">
         <table className="w-full text-sm">
           <thead>
             <tr className="border-b border-border text-muted-foreground text-xs">
@@ -209,6 +210,7 @@ export default function StandingsTable({ standings, promotions = [], qualifyUnti
           matches={matches}
           allTeams={allTeams}
         />
+        </div>
       </div>
     </TooltipProvider>
   );
