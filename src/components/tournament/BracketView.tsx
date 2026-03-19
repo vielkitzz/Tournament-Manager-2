@@ -750,6 +750,22 @@ export default function BracketView({
 
   return (
     <div className="space-y-4">
+      {/* Finalize banner - top */}
+      {(() => {
+        const allMatchesPlayed = matches.length > 0 && matches.filter(m => !m.isThirdPlace).every(m => m.played);
+        const canFinalize = allFinalResolved && allMatchesPlayed;
+        if (!canFinalize || tournament.finalized || !onFinalize) return null;
+        return (
+          <div className="flex items-center justify-center gap-3 p-3 rounded-xl bg-primary/5 border border-primary/20">
+            <Trophy className="w-4 h-4 text-primary" />
+            <span className="text-sm font-medium text-foreground">Chaveamento concluído!</span>
+            <Button onClick={onFinalize} size="sm" className="gap-1.5 bg-primary text-primary-foreground">
+              <Trophy className="w-3.5 h-3.5" />
+              Finalizar
+            </Button>
+          </div>
+        );
+      })()}
       <div className="flex justify-end mb-1">
         <ScreenshotButton targetRef={bracketRef as any} filename="chaveamento.png" discrete />
       </div>
