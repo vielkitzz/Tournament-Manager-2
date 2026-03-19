@@ -969,6 +969,7 @@ export default function TournamentDetailPage() {
                                 : undefined}
                               matches={isViewingPastSeason ? (seasonData?.matches || []).filter(m => m.group === groupNum) : tournament.matches.filter(m => m.group === groupNum)}
                               allTeams={resolvedTeams}
+                              hideScreenshot
                             />
                           </div>
                         </div>

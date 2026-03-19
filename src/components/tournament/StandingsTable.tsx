@@ -19,9 +19,10 @@ interface StandingsTableProps {
   onRemoveTeam?: (teamId: string) => void;
   matches?: Match[];
   allTeams?: Team[];
+  hideScreenshot?: boolean;
 }
 
-export default function StandingsTable({ standings, promotions = [], qualifyUntil, onRemoveTeam, matches = [], allTeams = [] }: StandingsTableProps) {
+export default function StandingsTable({ standings, promotions = [], qualifyUntil, onRemoveTeam, matches = [], allTeams = [], hideScreenshot }: StandingsTableProps) {
   const [selectedTeamId, setSelectedTeamId] = useState<string | null>(null);
   const tableRef = useRef<HTMLDivElement>(null);
 
@@ -74,9 +75,11 @@ export default function StandingsTable({ standings, promotions = [], qualifyUnti
   return (
     <TooltipProvider delayDuration={200}>
       <div ref={tableRef}>
-        <div className="flex justify-end px-2 py-1">
-          <ScreenshotButton targetRef={tableRef as any} filename="classificacao.png" discrete />
-        </div>
+        {!hideScreenshot && (
+          <div className="flex justify-end px-2 py-1">
+            <ScreenshotButton targetRef={tableRef as any} filename="classificacao.png" discrete />
+          </div>
+        )}
         <div className="overflow-x-auto">
         <table className="w-full text-sm">
           <thead>
