@@ -5,11 +5,40 @@ export async function captureScreenshot(element: HTMLElement, filename: string =
   try {
     toast.info("Capturando imagem...");
 
-    // Force the element to render at full size for capture (no clipping)
+    // Save and override styles to prevent scrollbars and clipping
     const originalOverflow = element.style.overflow;
     const originalMaxHeight = element.style.maxHeight;
+    const originalMaxWidth = element.style.maxWidth;
+    const originalWidth = element.style.width;
+    const originalHeight = element.style.height;
+
+    // Also fix all scrollable children
+    const scrollableChildren: { el: HTMLElement; overflow: string; maxHeight: string }[] = [];
+    element.querySelectorAll("*").forEach((child) => {
+      const el = child as HTMLElement;
+      const style = getComputedStyle(el);
+      if (style.overflow === "auto" || style.overflow === "scroll" ||
+          style.overflowX === "auto" || style.overflowX === "scroll" ||
+          style.overflowY === "auto" || style.overflowY === "scroll") {
+        scrollableChildren.push({
+          el,
+          overflow: el.style.overflow,
+          maxHeight: el.style.maxHeight,
+        });
+        el.style.overflow = "visible";
+        el.style.maxHeight = "none";
+      }
+    });
+
     element.style.overflow = "visible";
     element.style.maxHeight = "none";
+    element.style.maxWidth = "none";
+
+    // Wait a frame for layout recalc
+    await new Promise((r) => requestAnimationFrame(r));
+
+    const captureWidth = element.scrollWidth;
+    const captureHeight = element.scrollHeight;
 
     const dataUrl = await toPng(element, {
       backgroundColor: getComputedStyle(document.documentElement).getPropertyValue("--background")
@@ -17,17 +46,25 @@ export async function captureScreenshot(element: HTMLElement, filename: string =
         : "#0a0a0a",
       cacheBust: true,
       pixelRatio: 2,
-      width: element.scrollWidth,
-      height: element.scrollHeight,
+      width: captureWidth,
+      height: captureHeight,
       style: {
         overflow: "visible",
         maxHeight: "none",
+        maxWidth: "none",
       },
     });
 
     // Restore original styles
     element.style.overflow = originalOverflow;
     element.style.maxHeight = originalMaxHeight;
+    element.style.maxWidth = originalMaxWidth;
+    element.style.width = originalWidth;
+    element.style.height = originalHeight;
+    scrollableChildren.forEach(({ el, overflow, maxHeight }) => {
+      el.style.overflow = overflow;
+      el.style.maxHeight = maxHeight;
+    });
 
     // Copy to clipboard
     try {
@@ -37,7 +74,6 @@ export async function captureScreenshot(element: HTMLElement, filename: string =
       ]);
       toast.success("Imagem copiada para a área de transferência!");
     } catch {
-      // Fallback: try share, then download
       try {
         const blob = await (await fetch(dataUrl)).blob();
         const file = new File([blob], filename, { type: "image/png" });
@@ -48,8 +84,6 @@ export async function captureScreenshot(element: HTMLElement, filename: string =
       } catch {
         // Fall through to download
       }
-
-      // Download fallback
       const link = document.createElement("a");
       link.download = filename;
       link.href = dataUrl;
