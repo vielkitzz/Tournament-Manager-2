@@ -195,6 +195,8 @@ interface FolderNodeProps {
   navigate: (path: string) => void;
   onDuplicate: (e: React.MouseEvent, team: Team) => void;
   onDeleteTeam: (id: string, name: string) => void;
+  allFolders: TeamFolder[];
+  onMoveToFolder: (teamId: string, folderId: string | null) => void;
   depth?: number;
 }
 
