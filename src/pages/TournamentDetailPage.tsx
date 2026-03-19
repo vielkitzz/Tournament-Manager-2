@@ -45,11 +45,13 @@ import { generateRoundRobin } from "@/lib/roundRobin";
 import { Match, SeasonRecord, STAGE_TEAM_COUNTS, KnockoutStage } from "@/types/tournament";
 import { trackTournamentOpen } from "@/lib/recentTournaments";
 import ScreenshotButton from "@/components/ScreenshotButton";
+import { generateSwissLeagueMatches } from "@/lib/swissRounds";
 
 const formatLabels: Record<string, string> = {
   liga: "Pontos Corridos",
   mataMata: "Mata-Mata",
   grupos: "Grupos + Mata-Mata",
+  suico: "Sistema Suíço",
 };
 
 export default function TournamentDetailPage() {
