@@ -1048,14 +1048,6 @@ export default function TournamentDetailPage() {
             </div>
           ) : (
             <div className="space-y-4">
-              {!isViewingPastSeason && !tournament.finalized && isLiga && standings.length > 0 && standings.every(s => s.played > 0) && (
-                <div className="flex justify-end">
-                  <Button onClick={handleFinalizeSeason} className="gap-2 bg-primary text-primary-foreground">
-                    <Trophy className="w-4 h-4" />
-                    Finalizar Temporada
-                  </Button>
-                </div>
-              )}
               {isSuico && !tournament.groupsFinalized && suicoLeagueMatches.length > 0 && (
                 <div className="p-4 rounded-xl bg-primary/5 border border-primary/20 flex flex-col sm:flex-row items-center justify-between gap-4">
                   <div className="flex items-center gap-3">

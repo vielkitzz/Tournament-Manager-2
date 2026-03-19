@@ -214,7 +214,7 @@ export default function FriendlyMatchPage() {
   // Team selector
   if (!started) {
     return (
-      <div className="max-w-3xl mx-auto space-y-6 px-4">
+      <div className="max-w-3xl mx-auto space-y-6 px-4 flex flex-col items-center justify-center min-h-[calc(100vh-4rem)]">
         <div className="text-center space-y-1">
           <Swords className="w-8 h-8 text-primary mx-auto" />
           <h1 className="text-xl font-display font-bold text-foreground">Amistoso</h1>
