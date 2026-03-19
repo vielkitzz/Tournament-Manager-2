@@ -924,6 +924,12 @@ export default function TournamentDetailPage() {
             )}
             <TabsTrigger value="stats" className="data-[state=active]:bg-card data-[state=active]:shadow-sm text-xs lg:text-sm">Estatísticas</TabsTrigger>
           </TabsList>
+          {!isViewingPastSeason && !tournament.finalized && isLiga && standings.length > 0 && standings.every(s => s.played > 0) && (
+            <Button onClick={handleFinalizeSeason} size="sm" className="gap-1.5 bg-primary text-primary-foreground">
+              <Trophy className="w-4 h-4" />
+              Finalizar Temporada
+            </Button>
+          )}
         </div>
 
         <TabsContent value="standings" className="mt-0 outline-none">
@@ -1042,14 +1048,6 @@ export default function TournamentDetailPage() {
             </div>
           ) : (
             <div className="space-y-4">
-              {!isViewingPastSeason && !tournament.finalized && isLiga && standings.length > 0 && standings.every(s => s.played > 0) && (
-                <div className="flex justify-end">
-                  <Button onClick={handleFinalizeSeason} className="gap-2 bg-primary text-primary-foreground">
-                    <Trophy className="w-4 h-4" />
-                    Finalizar Temporada
-                  </Button>
-                </div>
-              )}
               {isSuico && !tournament.groupsFinalized && suicoLeagueMatches.length > 0 && (
                 <div className="p-4 rounded-xl bg-primary/5 border border-primary/20 flex flex-col sm:flex-row items-center justify-between gap-4">
                   <div className="flex items-center gap-3">
