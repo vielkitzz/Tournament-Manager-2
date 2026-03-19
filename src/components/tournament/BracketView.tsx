@@ -750,8 +750,8 @@ export default function BracketView({
 
   return (
     <div className="space-y-4">
-      <div className="flex justify-end">
-        <ScreenshotButton targetRef={bracketRef as any} filename="chaveamento.png" />
+      <div className="flex justify-end mb-1">
+        <ScreenshotButton targetRef={bracketRef as any} filename="chaveamento.png" discrete />
       </div>
       <div className="overflow-x-auto pb-2" ref={bracketRef}>
         {(() => {

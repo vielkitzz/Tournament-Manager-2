@@ -210,6 +210,7 @@ export default function StandingsTable({ standings, promotions = [], qualifyUnti
           matches={matches}
           allTeams={allTeams}
         />
+        </div>
       </div>
     </TooltipProvider>
   );
