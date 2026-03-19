@@ -144,6 +144,27 @@ const TeamCard = memo(function TeamCard({
         <ContextMenuItem onClick={(e) => onDuplicate(e as any)}>
           <Copy className="w-3.5 h-3.5 mr-2" /> Duplicar
         </ContextMenuItem>
+        {folders.length > 0 && (
+          <ContextMenuSub>
+            <ContextMenuSubTrigger>
+              <FolderInput className="w-3.5 h-3.5 mr-2" /> Mover para pasta
+            </ContextMenuSubTrigger>
+            <ContextMenuSubContent className="max-h-60 overflow-y-auto">
+              {team.folderId && (
+                <ContextMenuItem onClick={() => onMoveToFolder(team.id, null)}>
+                  <FolderOpen className="w-3.5 h-3.5 mr-2 text-muted-foreground" /> Remover da pasta
+                </ContextMenuItem>
+              )}
+              {folders
+                .filter((f) => f.id !== team.folderId)
+                .map((f) => (
+                  <ContextMenuItem key={f.id} onClick={() => onMoveToFolder(team.id, f.id)}>
+                    <Folder className="w-3.5 h-3.5 mr-2 text-primary" /> {f.name}
+                  </ContextMenuItem>
+                ))}
+            </ContextMenuSubContent>
+          </ContextMenuSub>
+        )}
         <ContextMenuSeparator />
         <ContextMenuItem onClick={onDelete} className="text-destructive focus:text-destructive">
           <Trash2 className="w-3.5 h-3.5 mr-2" /> Excluir
