@@ -110,7 +110,7 @@ export default function TeamStatsPopup({ open, onClose, team, standing, matches,
 
   const toggleCompareTeam = (tid: string) => {
     setCompareTeamIds((prev) =>
-      prev.includes(tid) ? prev.filter((id) => id !== tid) : prev.length < 3 ? [...prev, tid] : prev
+      prev.includes(tid) ? prev.filter((id) => id !== tid) : [...prev, tid]
     );
   };
 
@@ -348,16 +348,14 @@ export default function TeamStatsPopup({ open, onClose, team, standing, matches,
 
             <TabsContent value="compare" className="mt-0 space-y-4">
               <div>
-                <p className="text-xs text-muted-foreground mb-2">Selecione até 3 times para comparar:</p>
-                <div className="flex flex-wrap gap-1.5 max-h-28 overflow-y-auto">
-                  {allStandings.filter((s) => s.teamId !== team.id).map((s) => {
-                    const t = s.team;
-                    if (!t) return null;
-                    const isSelected = compareTeamIds.includes(s.teamId);
+                <p className="text-xs text-muted-foreground mb-2">Selecione times para comparar:</p>
+                <div className="flex flex-wrap gap-1.5 max-h-36 overflow-y-auto">
+                  {allTeams.filter((t) => t.id !== team.id).map((t) => {
+                    const isSelected = compareTeamIds.includes(t.id);
                     return (
                       <button
-                        key={s.teamId}
-                        onClick={() => toggleCompareTeam(s.teamId)}
+                        key={t.id}
+                        onClick={() => toggleCompareTeam(t.id)}
                         className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs border transition-colors ${
                           isSelected
                             ? "border-primary bg-primary/10 text-primary"

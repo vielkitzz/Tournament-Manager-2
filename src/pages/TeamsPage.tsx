@@ -15,6 +15,7 @@ import {
   FolderInput,
   ArrowUp,
   ArrowDown,
+  ChevronsDownUp,
 } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Input } from "@/components/ui/input";
@@ -685,6 +686,15 @@ export default function TeamsPage() {
                 Rate
               </button>
             </div>
+          )}
+          {folders.length > 0 && (
+            <button
+              onClick={() => setOpenFolders(new Set())}
+              title="Fechar todas as pastas"
+              className="p-2 rounded-lg border border-border hover:bg-secondary text-muted-foreground hover:text-foreground transition-colors shrink-0"
+            >
+              <ChevronsDownUp className="w-4 h-4" />
+            </button>
           )}
           <button
             onClick={handleAddFolder}
