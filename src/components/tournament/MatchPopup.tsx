@@ -466,14 +466,12 @@ export default function MatchPopup({
                     <button
                       key={i}
                       onClick={() => togglePenalty("home", i)}
-                      className={`w-7 h-7 rounded-full border-2 transition-all text-xs font-bold ${
+                      className={`w-7 h-7 rounded-full border-2 transition-all ${
                         p === true
-                          ? "bg-primary border-primary text-primary-foreground"
-                          : "bg-destructive border-destructive text-destructive-foreground"
+                          ? "bg-primary border-primary"
+                          : "bg-destructive border-destructive"
                       }`}
-                    >
-                      {p ? "✓" : "✗"}
-                    </button>
+                    />
                   ))}
                 </div>
                 <span className="text-lg font-bold text-foreground w-8 text-center">{penaltyScore("home")}</span>
