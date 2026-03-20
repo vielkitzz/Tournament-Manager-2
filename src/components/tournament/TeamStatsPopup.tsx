@@ -1,5 +1,5 @@
 import { useState, useMemo } from "react";
-import { Shield, Trophy, TrendingUp, TrendingDown, Minus, Swords, Users, BarChart3 } from "lucide-react";
+import { Shield, TrendingUp, TrendingDown, Minus, Swords, Users, BarChart3 } from "lucide-react";
 import { Team, Match } from "@/types/tournament";
 import { StandingRow } from "@/lib/standings";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -22,72 +22,91 @@ export default function TeamStatsPopup({ open, onClose, team, standing, matches,
   const [h2hTeamId, setH2hTeamId] = useState<string | null>(null);
   const [compareTeamIds, setCompareTeamIds] = useState<string[]>([]);
 
+  const teamId = team?.id;
+
   const teamMatches = useMemo(() => {
-    if (!team) return [];
-    return matches.filter(
-      (m) => m.played && (m.homeTeamId === team.id || m.awayTeamId === team.id)
-    );
-  }, [matches, team]);
+    if (!teamId) return [];
+    return matches.filter((m) => m.played && (m.homeTeamId === teamId || m.awayTeamId === teamId));
+  }, [matches, teamId]);
 
   const wins = useMemo(() => {
-    if (!team) return [];
+    if (!teamId) return [];
     return teamMatches.filter((m) => {
-      const isHome = m.homeTeamId === team.id;
+      const isHome = m.homeTeamId === teamId;
       return isHome ? m.homeScore > m.awayScore : m.awayScore > m.homeScore;
     });
-  }, [teamMatches, team]);
+  }, [teamMatches, teamId]);
 
   const draws = useMemo(() => teamMatches.filter((m) => m.homeScore === m.awayScore), [teamMatches]);
 
   const losses = useMemo(() => {
-    if (!team) return [];
+    if (!teamId) return [];
     return teamMatches.filter((m) => {
-      const isHome = m.homeTeamId === team.id;
+      const isHome = m.homeTeamId === teamId;
       return isHome ? m.homeScore < m.awayScore : m.awayScore < m.homeScore;
     });
-  }, [teamMatches, team]);
+  }, [teamMatches, teamId]);
 
   const opponents = useMemo(() => {
-    if (!team) return [];
+    if (!teamId) return [];
     const oppIds = new Set<string>();
     teamMatches.forEach((m) => {
-      oppIds.add(m.homeTeamId === team.id ? m.awayTeamId : m.homeTeamId);
+      oppIds.add(m.homeTeamId === teamId ? m.awayTeamId : m.homeTeamId);
     });
     return Array.from(oppIds).map((id) => allTeams.find((t) => t.id === id)).filter(Boolean) as Team[];
-  }, [teamMatches, team, allTeams]);
+  }, [teamMatches, teamId, allTeams]);
 
   const h2hData = useMemo(() => {
-    if (!h2hTeamId || !team) return null;
+    if (!h2hTeamId || !teamId) return null;
     const h2hMatches = teamMatches.filter(
       (m) => m.homeTeamId === h2hTeamId || m.awayTeamId === h2hTeamId
     );
     let w = 0, d = 0, l = 0, gf = 0, ga = 0;
     h2hMatches.forEach((m) => {
-      const isHome = m.homeTeamId === team.id;
+      const isHome = m.homeTeamId === teamId;
       const tg = isHome ? m.homeScore : m.awayScore;
       const og = isHome ? m.awayScore : m.homeScore;
-      gf += tg;
-      ga += og;
-      if (tg > og) w++;
-      else if (tg === og) d++;
-      else l++;
+      gf += tg; ga += og;
+      if (tg > og) w++; else if (tg === og) d++; else l++;
     });
     return { matches: h2hMatches, wins: w, draws: d, losses: l, goalsFor: gf, goalsAgainst: ga };
-  }, [h2hTeamId, teamMatches, team]);
+  }, [h2hTeamId, teamMatches, teamId]);
 
   const compareData = useMemo(() => {
     if (compareTeamIds.length === 0) return [];
-    return compareTeamIds.map((cid) => {
-      const cStanding = allStandings.find((s) => s.teamId === cid);
-      const cTeam = allTeams.find((t) => t.id === cid);
-      return { team: cTeam, standing: cStanding };
-    }).filter((c) => c.team && c.standing);
+    return compareTeamIds.map((cid) => ({
+      team: allTeams.find((t) => t.id === cid),
+      standing: allStandings.find((s) => s.teamId === cid),
+    })).filter((c) => c.team && c.standing) as { team: Team; standing: StandingRow }[];
   }, [compareTeamIds, allStandings, allTeams]);
 
   if (!team || !standing) return null;
 
+  const getOpponent = (m: Match) => {
+    const oppId = m.homeTeamId === team.id ? m.awayTeamId : m.homeTeamId;
+    return allTeams.find((t) => t.id === oppId);
+  };
 
+  const getScore = (m: Match) => {
+    const isHome = m.homeTeamId === team.id;
+    return isHome ? `${m.homeScore}–${m.awayScore}` : `${m.awayScore}–${m.homeScore}`;
+  };
+
+  const getResult = (m: Match) => {
+    const isHome = m.homeTeamId === team.id;
+    const tg = isHome ? m.homeScore : m.awayScore;
+    const og = isHome ? m.awayScore : m.homeScore;
+    if (tg > og) return "W";
+    if (tg < og) return "L";
+    return "D";
+  };
+
+  const winRate = standing.played > 0 ? (standing.wins / standing.played) * 100 : 0;
+  const maxPoints = standing.played * 3;
+  const pointsRate = maxPoints > 0 ? (standing.points / maxPoints) * 100 : 0;
+  const recentForm = teamMatches.slice(-5).map(getResult);
   const h2hTeam = h2hTeamId ? allTeams.find((t) => t.id === h2hTeamId) : null;
+  const position = allStandings.findIndex((s) => s.teamId === team.id) + 1;
 
   const toggleCompareTeam = (tid: string) => {
     setCompareTeamIds((prev) =>
@@ -118,8 +137,6 @@ export default function TeamStatsPopup({ open, onClose, team, standing, matches,
     );
   };
 
-  const position = allStandings.findIndex((s) => s.teamId === team.id) + 1;
-
   return (
     <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
       <DialogContent className="max-w-lg p-0 gap-0 overflow-hidden">
@@ -145,7 +162,6 @@ export default function TeamStatsPopup({ open, onClose, team, standing, matches,
                   )}
                 </div>
               </div>
-              {/* Form */}
               <div className="flex gap-0.5 shrink-0">
                 {recentForm.map((r, i) => (
                   <div
@@ -164,7 +180,6 @@ export default function TeamStatsPopup({ open, onClose, team, standing, matches,
           </DialogHeader>
         </div>
 
-        {/* Tabs */}
         <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1">
           <div className="border-b border-border px-4">
             <TabsList className="bg-transparent h-9 p-0 gap-0">
@@ -181,9 +196,7 @@ export default function TeamStatsPopup({ open, onClose, team, standing, matches,
           </div>
 
           <div className="p-4 max-h-[60vh] overflow-y-auto">
-            {/* Overview Tab */}
             <TabsContent value="overview" className="mt-0 space-y-4">
-              {/* Stats grid */}
               <div className="grid grid-cols-4 gap-2">
                 {[
                   { label: "Pts", value: standing.points, color: "text-primary" },
@@ -198,7 +211,6 @@ export default function TeamStatsPopup({ open, onClose, team, standing, matches,
                 ))}
               </div>
 
-              {/* Progress bars */}
               <div className="space-y-3">
                 <div>
                   <div className="flex justify-between text-xs mb-1">
@@ -216,7 +228,6 @@ export default function TeamStatsPopup({ open, onClose, team, standing, matches,
                 </div>
               </div>
 
-              {/* Extra stats */}
               <div className="grid grid-cols-3 gap-2">
                 {[
                   { label: "Jogos", value: standing.played },
@@ -237,7 +248,6 @@ export default function TeamStatsPopup({ open, onClose, team, standing, matches,
                 </span>
               </div>
 
-              {/* Match breakdown */}
               <div className="space-y-2">
                 <details className="group">
                   <summary className="flex items-center gap-2 cursor-pointer text-xs font-semibold text-emerald-500 hover:text-emerald-400 py-1">
@@ -263,7 +273,6 @@ export default function TeamStatsPopup({ open, onClose, team, standing, matches,
               </div>
             </TabsContent>
 
-            {/* H2H Tab */}
             <TabsContent value="h2h" className="mt-0 space-y-4">
               <div>
                 <p className="text-xs text-muted-foreground mb-2">Selecione um adversário:</p>
@@ -289,7 +298,6 @@ export default function TeamStatsPopup({ open, onClose, team, standing, matches,
 
               {h2hData && h2hTeam && (
                 <div className="space-y-3">
-                  {/* H2H header */}
                   <div className="flex items-center justify-center gap-4 py-3">
                     <div className="flex items-center gap-2">
                       <div className="w-8 h-8 flex items-center justify-center">
@@ -306,7 +314,6 @@ export default function TeamStatsPopup({ open, onClose, team, standing, matches,
                     </div>
                   </div>
 
-                  {/* H2H stats */}
                   <div className="grid grid-cols-3 gap-2">
                     <div className="text-center p-2.5 rounded-xl bg-emerald-500/10 border border-emerald-500/20">
                       <p className="text-xl font-bold text-emerald-500">{h2hData.wins}</p>
@@ -327,7 +334,6 @@ export default function TeamStatsPopup({ open, onClose, team, standing, matches,
                     <span className="font-bold text-foreground">{h2hData.goalsFor} – {h2hData.goalsAgainst}</span>
                   </div>
 
-                  {/* H2H matches */}
                   <div className="space-y-1">
                     <p className="text-xs font-semibold text-muted-foreground mb-1">Confrontos</p>
                     {renderMatchList(h2hData.matches, "Nenhum confronto")}
@@ -340,7 +346,6 @@ export default function TeamStatsPopup({ open, onClose, team, standing, matches,
               )}
             </TabsContent>
 
-            {/* Compare Tab */}
             <TabsContent value="compare" className="mt-0 space-y-4">
               <div>
                 <p className="text-xs text-muted-foreground mb-2">Selecione até 3 times para comparar:</p>
