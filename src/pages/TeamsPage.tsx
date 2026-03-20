@@ -199,6 +199,9 @@ interface FolderNodeProps {
   onDeleteTeam: (id: string, name: string) => void;
   allFolders: TeamFolder[];
   onMoveToFolder: (teamId: string, folderId: string | null) => void;
+  onMoveFolder: (folderId: string, direction: "up" | "down") => void;
+  siblingCount: number;
+  siblingIndex: number;
   depth?: number;
 }
 
