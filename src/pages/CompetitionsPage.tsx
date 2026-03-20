@@ -13,6 +13,10 @@ import {
   ChevronRight,
   GripVertical,
   Copy,
+  FolderInput,
+  ArrowUp,
+  ArrowDown,
+  ChevronsDownUp,
 } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Input } from "@/components/ui/input";
@@ -36,6 +40,9 @@ import {
   ContextMenuContent,
   ContextMenuItem,
   ContextMenuSeparator,
+  ContextMenuSub,
+  ContextMenuSubContent,
+  ContextMenuSubTrigger,
   ContextMenuTrigger,
 } from "@/components/ui/context-menu";
 
@@ -51,11 +58,15 @@ const CompetitionCard = memo(function CompetitionCard({
   onNavigate,
   onDelete,
   onDuplicate,
+  folders,
+  onMoveToFolder,
 }: {
   tournament: Tournament;
   onNavigate: () => void;
   onDelete: () => void;
   onDuplicate: () => void;
+  folders: TournamentFolder[];
+  onMoveToFolder: (tournamentId: string, folderId: string | null) => void;
 }) {
   const handleDragStart = (e: DragEvent) => {
     e.dataTransfer.setData("tournament-id", tournament.id);
@@ -149,6 +160,27 @@ const CompetitionCard = memo(function CompetitionCard({
         <ContextMenuItem onClick={onDuplicate}>
           <Copy className="w-3.5 h-3.5 mr-2" /> Duplicar
         </ContextMenuItem>
+        {folders.length > 0 && (
+          <ContextMenuSub>
+            <ContextMenuSubTrigger>
+              <FolderInput className="w-3.5 h-3.5 mr-2" /> Mover para pasta
+            </ContextMenuSubTrigger>
+            <ContextMenuSubContent className="max-h-60 overflow-y-auto">
+              {tournament.folderId && (
+                <ContextMenuItem onClick={() => onMoveToFolder(tournament.id, null)}>
+                  <FolderOpen className="w-3.5 h-3.5 mr-2 text-muted-foreground" /> Remover da pasta
+                </ContextMenuItem>
+              )}
+              {folders
+                .filter((f) => f.id !== tournament.folderId)
+                .map((f) => (
+                  <ContextMenuItem key={f.id} onClick={() => onMoveToFolder(tournament.id, f.id)}>
+                    <Folder className="w-3.5 h-3.5 mr-2 text-primary" /> {f.name}
+                  </ContextMenuItem>
+                ))}
+            </ContextMenuSubContent>
+          </ContextMenuSub>
+        )}
         <ContextMenuSeparator />
         <ContextMenuItem onClick={onDelete} className="text-destructive focus:text-destructive">
           <Trash2 className="w-3.5 h-3.5 mr-2" /> Excluir
@@ -179,6 +211,11 @@ interface FolderNodeProps {
   navigate: (path: string) => void;
   onDeleteTournament: (id: string, name: string) => void;
   onDuplicateTournament: (id: string) => void;
+  allFolders: TournamentFolder[];
+  onMoveToFolder: (tournamentId: string, folderId: string | null) => void;
+  onMoveFolder: (folderId: string, direction: "up" | "down") => void;
+  siblingCount: number;
+  siblingIndex: number;
   depth?: number;
 }
 
@@ -203,6 +240,11 @@ const CompetitionFolderNode = memo(function CompetitionFolderNode({
   navigate,
   onDeleteTournament,
   onDuplicateTournament,
+  allFolders,
+  onMoveToFolder,
+  onMoveFolder,
+  siblingCount,
+  siblingIndex,
   depth = 0,
 }: FolderNodeProps) {
   const isOpen = openFolders.has(folder.id);
@@ -251,6 +293,24 @@ const CompetitionFolderNode = memo(function CompetitionFolderNode({
         <span className="text-[10px] text-muted-foreground">{folderTournaments.length}</span>
 
         <div className="flex items-center gap-0.5" onClick={(e) => e.stopPropagation()}>
+          {siblingIndex > 0 && (
+            <button
+              onClick={() => onMoveFolder(folder.id, "up")}
+              className="p-1 rounded hover:bg-secondary text-muted-foreground hover:text-foreground"
+              title="Mover para cima"
+            >
+              <ArrowUp className="w-3 h-3" />
+            </button>
+          )}
+          {siblingIndex < siblingCount - 1 && (
+            <button
+              onClick={() => onMoveFolder(folder.id, "down")}
+              className="p-1 rounded hover:bg-secondary text-muted-foreground hover:text-foreground"
+              title="Mover para baixo"
+            >
+              <ArrowDown className="w-3 h-3" />
+            </button>
+          )}
           <button
             onClick={() => onEdit(folder.id, folder.name)}
             className="p-1 rounded hover:bg-secondary text-muted-foreground hover:text-foreground"
@@ -286,7 +346,7 @@ const CompetitionFolderNode = memo(function CompetitionFolderNode({
 
       {isOpen && (
         <div className="p-3 space-y-3">
-          {childFolders.map((child) => (
+          {childFolders.map((child, i) => (
             <CompetitionFolderNode
               key={child.id}
               folder={child}
@@ -309,6 +369,11 @@ const CompetitionFolderNode = memo(function CompetitionFolderNode({
               navigate={navigate}
               onDeleteTournament={onDeleteTournament}
               onDuplicateTournament={onDuplicateTournament}
+              allFolders={allFolders}
+              onMoveToFolder={onMoveToFolder}
+              onMoveFolder={onMoveFolder}
+              siblingCount={childFolders.length}
+              siblingIndex={i}
               depth={depth + 1}
             />
           ))}
@@ -321,6 +386,8 @@ const CompetitionFolderNode = memo(function CompetitionFolderNode({
                   onNavigate={() => navigate(`/tournament/${t.id}`)}
                   onDelete={() => onDeleteTournament(t.id, t.name)}
                   onDuplicate={() => onDuplicateTournament(t.id)}
+                  folders={allFolders}
+                  onMoveToFolder={onMoveToFolder}
                 />
               ))}
             </div>
@@ -527,6 +594,27 @@ export default function CompetitionsPage() {
     e.dataTransfer.effectAllowed = "move";
   }, []);
 
+  const handleMoveToFolder = useCallback((tournamentId: string, folderId: string | null) => {
+    moveTournamentToFolder(tournamentId, folderId);
+    toast.success(folderId ? "Competição movida para a pasta!" : "Competição removida da pasta!");
+  }, [moveTournamentToFolder]);
+
+  const handleMoveFolder = useCallback((folderId: string, direction: "up" | "down") => {
+    const { tournamentFolders: currentFolders } = useTournamentStore.getState();
+    const folder = currentFolders.find((f) => f.id === folderId);
+    if (!folder) return;
+    const siblings = currentFolders.filter((f) => (f.parentId || null) === (folder.parentId || null));
+    const idx = siblings.findIndex((f) => f.id === folderId);
+    const swapIdx = direction === "up" ? idx - 1 : idx + 1;
+    if (swapIdx < 0 || swapIdx >= siblings.length) return;
+    const swapFolder = siblings[swapIdx];
+    const fullIdx1 = currentFolders.findIndex((f) => f.id === folderId);
+    const fullIdx2 = currentFolders.findIndex((f) => f.id === swapFolder.id);
+    const newFolders = [...currentFolders];
+    [newFolders[fullIdx1], newFolders[fullIdx2]] = [newFolders[fullIdx2], newFolders[fullIdx1]];
+    useTournamentStore.setState({ tournamentFolders: newFolders });
+  }, []);
+
   const handleRootDrop = useCallback(
     (e: DragEvent) => {
       e.preventDefault();
@@ -557,6 +645,15 @@ export default function CompetitionsPage() {
           <p className="text-sm text-muted-foreground mt-1">Gerencie suas competições</p>
         </div>
         <div className="flex items-center gap-2">
+          {tournamentFolders.length > 0 && (
+            <button
+              onClick={() => setOpenFolders(new Set())}
+              title="Fechar todas as pastas"
+              className="p-2 rounded-lg border border-border hover:bg-secondary text-muted-foreground hover:text-foreground transition-colors shrink-0"
+            >
+              <ChevronsDownUp className="w-4 h-4" />
+            </button>
+          )}
           <motion.button
             whileHover={{ scale: 1.02 }}
             whileTap={{ scale: 0.98 }}
@@ -613,7 +710,7 @@ export default function CompetitionsPage() {
           {/* Folders */}
           {rootFolders.length > 0 && (
             <div className="space-y-3 mb-6">
-              {rootFolders.map((folder) => (
+              {rootFolders.map((folder, i) => (
                 <CompetitionFolderNode
                   key={folder.id}
                   folder={folder}
@@ -639,6 +736,11 @@ export default function CompetitionsPage() {
                   navigate={navigate}
                   onDeleteTournament={handleDelete}
                   onDuplicateTournament={handleDuplicate}
+                  allFolders={tournamentFolders}
+                  onMoveToFolder={handleMoveToFolder}
+                  onMoveFolder={handleMoveFolder}
+                  siblingCount={rootFolders.length}
+                  siblingIndex={i}
                 />
               ))}
             </div>
@@ -658,6 +760,8 @@ export default function CompetitionsPage() {
                   onNavigate={() => navigate(`/tournament/${t.id}`)}
                   onDelete={() => handleDelete(t.id, t.name)}
                   onDuplicate={() => handleDuplicate(t.id)}
+                  folders={tournamentFolders}
+                  onMoveToFolder={handleMoveToFolder}
                 />
               </motion.div>
             ))}
