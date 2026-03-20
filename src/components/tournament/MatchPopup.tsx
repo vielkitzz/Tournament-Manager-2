@@ -518,7 +518,7 @@ export default function MatchPopup({
               </p>
             )}
 
-            <p className="text-[10px] text-muted-foreground text-center">Clique nas bolas para editar manualmente</p>
+            
           </div>
         )}
 
