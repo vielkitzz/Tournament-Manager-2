@@ -229,6 +229,9 @@ const FolderNode = memo(function FolderNode({
   onDeleteTeam,
   allFolders,
   onMoveToFolder,
+  onMoveFolder,
+  siblingCount,
+  siblingIndex,
   depth = 0,
 }: FolderNodeProps) {
   const isOpen = openFolders.has(folder.id);
