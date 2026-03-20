@@ -282,6 +282,24 @@ const FolderNode = memo(function FolderNode({
         <span className="text-[10px] text-muted-foreground">{folderTeams.length}</span>
 
         <div className="flex items-center gap-0.5" onClick={(e) => e.stopPropagation()}>
+          {siblingIndex > 0 && (
+            <button
+              onClick={() => onMoveFolder(folder.id, "up")}
+              className="p-1 rounded hover:bg-secondary text-muted-foreground hover:text-foreground"
+              title="Mover para cima"
+            >
+              <ArrowUp className="w-3 h-3" />
+            </button>
+          )}
+          {siblingIndex < siblingCount - 1 && (
+            <button
+              onClick={() => onMoveFolder(folder.id, "down")}
+              className="p-1 rounded hover:bg-secondary text-muted-foreground hover:text-foreground"
+              title="Mover para baixo"
+            >
+              <ArrowDown className="w-3 h-3" />
+            </button>
+          )}
           <button
             onClick={() => onEdit(folder.id, folder.name)}
             className="p-1 rounded hover:bg-secondary text-muted-foreground hover:text-foreground"
