@@ -22,6 +22,68 @@ export default function TeamStatsPopup({ open, onClose, team, standing, matches,
   const [h2hTeamId, setH2hTeamId] = useState<string | null>(null);
   const [compareTeamIds, setCompareTeamIds] = useState<string[]>([]);
 
+  const teamMatches = useMemo(() => {
+    if (!team) return [];
+    return matches.filter(
+      (m) => m.played && (m.homeTeamId === team.id || m.awayTeamId === team.id)
+    );
+  }, [matches, team]);
+
+  const wins = useMemo(() => {
+    if (!team) return [];
+    return teamMatches.filter((m) => {
+      const isHome = m.homeTeamId === team.id;
+      return isHome ? m.homeScore > m.awayScore : m.awayScore > m.homeScore;
+    });
+  }, [teamMatches, team]);
+
+  const draws = useMemo(() => teamMatches.filter((m) => m.homeScore === m.awayScore), [teamMatches]);
+
+  const losses = useMemo(() => {
+    if (!team) return [];
+    return teamMatches.filter((m) => {
+      const isHome = m.homeTeamId === team.id;
+      return isHome ? m.homeScore < m.awayScore : m.awayScore < m.homeScore;
+    });
+  }, [teamMatches, team]);
+
+  const opponents = useMemo(() => {
+    if (!team) return [];
+    const oppIds = new Set<string>();
+    teamMatches.forEach((m) => {
+      oppIds.add(m.homeTeamId === team.id ? m.awayTeamId : m.homeTeamId);
+    });
+    return Array.from(oppIds).map((id) => allTeams.find((t) => t.id === id)).filter(Boolean) as Team[];
+  }, [teamMatches, team, allTeams]);
+
+  const h2hData = useMemo(() => {
+    if (!h2hTeamId || !team) return null;
+    const h2hMatches = teamMatches.filter(
+      (m) => m.homeTeamId === h2hTeamId || m.awayTeamId === h2hTeamId
+    );
+    let w = 0, d = 0, l = 0, gf = 0, ga = 0;
+    h2hMatches.forEach((m) => {
+      const isHome = m.homeTeamId === team.id;
+      const tg = isHome ? m.homeScore : m.awayScore;
+      const og = isHome ? m.awayScore : m.homeScore;
+      gf += tg;
+      ga += og;
+      if (tg > og) w++;
+      else if (tg === og) d++;
+      else l++;
+    });
+    return { matches: h2hMatches, wins: w, draws: d, losses: l, goalsFor: gf, goalsAgainst: ga };
+  }, [h2hTeamId, teamMatches, team]);
+
+  const compareData = useMemo(() => {
+    if (compareTeamIds.length === 0) return [];
+    return compareTeamIds.map((cid) => {
+      const cStanding = allStandings.find((s) => s.teamId === cid);
+      const cTeam = allTeams.find((t) => t.id === cid);
+      return { team: cTeam, standing: cStanding };
+    }).filter((c) => c.team && c.standing);
+  }, [compareTeamIds, allStandings, allTeams]);
+
   if (!team || !standing) return null;
 
   const teamMatches = matches.filter(
