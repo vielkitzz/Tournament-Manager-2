@@ -7,7 +7,9 @@ import { Label } from "@/components/ui/label";
 import { useAuth } from "@/hooks/useAuth";
 import { Navigate } from "react-router-dom";
 import { toast } from "sonner";
-import appLogo from "@/assets/logo.svg";
+import appLogoDark from "@/assets/logo.svg";
+import appLogoLight from "@/assets/logo-light.png";
+import { useTheme } from "@/hooks/useTheme";
 
 export default function AuthPage() {
   const { signIn, signUp, signInAnonymously, signInWithGoogle, user } = useAuth();
