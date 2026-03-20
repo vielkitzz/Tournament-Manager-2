@@ -751,8 +751,10 @@ export default function TeamsPage() {
               onDeleteTeam={handleDelete}
               allFolders={folders}
               onMoveToFolder={handleMoveToFolder}
+              onMoveFolder={handleMoveFolder}
+              siblingCount={rootFolders.length}
+              siblingIndex={i}
             />
-          ))}
 
           {/* Unfoldered teams */}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
