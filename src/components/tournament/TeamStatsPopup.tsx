@@ -110,7 +110,7 @@ export default function TeamStatsPopup({ open, onClose, team, standing, matches,
 
   const toggleCompareTeam = (tid: string) => {
     setCompareTeamIds((prev) =>
-      prev.includes(tid) ? prev.filter((id) => id !== tid) : prev.length < 3 ? [...prev, tid] : prev
+      prev.includes(tid) ? prev.filter((id) => id !== tid) : [...prev, tid]
     );
   };
 
