@@ -336,7 +336,7 @@ const FolderNode = memo(function FolderNode({
       {isOpen && (
         <div className="p-3 space-y-3">
           {/* Child folders */}
-          {childFolders.map((child) => (
+          {childFolders.map((child, i) => (
             <FolderNode
               key={child.id}
               folder={child}
