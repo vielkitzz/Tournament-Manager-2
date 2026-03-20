@@ -86,88 +86,8 @@ export default function TeamStatsPopup({ open, onClose, team, standing, matches,
 
   if (!team || !standing) return null;
 
-  const teamMatches = matches.filter(
-    (m) => m.played && (m.homeTeamId === team.id || m.awayTeamId === team.id)
-  );
-
-  const wins = teamMatches.filter((m) => {
-    const isHome = m.homeTeamId === team.id;
-    return isHome ? m.homeScore > m.awayScore : m.awayScore > m.homeScore;
-  });
-
-  const draws = teamMatches.filter((m) => m.homeScore === m.awayScore);
-
-  const losses = teamMatches.filter((m) => {
-    const isHome = m.homeTeamId === team.id;
-    return isHome ? m.homeScore < m.awayScore : m.awayScore < m.homeScore;
-  });
-
-  const getOpponent = (m: Match) => {
-    const oppId = m.homeTeamId === team.id ? m.awayTeamId : m.homeTeamId;
-    return allTeams.find((t) => t.id === oppId);
-  };
-
-  const getScore = (m: Match) => {
-    const isHome = m.homeTeamId === team.id;
-    return isHome ? `${m.homeScore}–${m.awayScore}` : `${m.awayScore}–${m.homeScore}`;
-  };
-
-  const getResult = (m: Match) => {
-    const isHome = m.homeTeamId === team.id;
-    const teamGoals = isHome ? m.homeScore : m.awayScore;
-    const oppGoals = isHome ? m.awayScore : m.homeScore;
-    if (teamGoals > oppGoals) return "W";
-    if (teamGoals < oppGoals) return "L";
-    return "D";
-  };
-
-  const winRate = standing.played > 0 ? ((standing.wins / standing.played) * 100) : 0;
-  const maxPoints = standing.played * 3;
-  const pointsRate = maxPoints > 0 ? ((standing.points / maxPoints) * 100) : 0;
-
-  // Form: last 5 matches
-  const recentForm = teamMatches.slice(-5).map(getResult);
-
-  // Opponents played against (for H2H selection)
-  const opponents = useMemo(() => {
-    const oppIds = new Set<string>();
-    teamMatches.forEach((m) => {
-      oppIds.add(m.homeTeamId === team.id ? m.awayTeamId : m.homeTeamId);
-    });
-    return Array.from(oppIds).map((id) => allTeams.find((t) => t.id === id)).filter(Boolean) as Team[];
-  }, [teamMatches, team.id, allTeams]);
-
-  // H2H data
-  const h2hData = useMemo(() => {
-    if (!h2hTeamId) return null;
-    const h2hMatches = teamMatches.filter(
-      (m) => m.homeTeamId === h2hTeamId || m.awayTeamId === h2hTeamId
-    );
-    let w = 0, d = 0, l = 0, gf = 0, ga = 0;
-    h2hMatches.forEach((m) => {
-      const isHome = m.homeTeamId === team.id;
-      const tg = isHome ? m.homeScore : m.awayScore;
-      const og = isHome ? m.awayScore : m.homeScore;
-      gf += tg;
-      ga += og;
-      if (tg > og) w++;
-      else if (tg === og) d++;
-      else l++;
-    });
-    return { matches: h2hMatches, wins: w, draws: d, losses: l, goalsFor: gf, goalsAgainst: ga };
-  }, [h2hTeamId, teamMatches, team.id]);
 
   const h2hTeam = h2hTeamId ? allTeams.find((t) => t.id === h2hTeamId) : null;
-
-  // Compare data
-  const compareData = useMemo(() => {
-    if (compareTeamIds.length === 0) return [];
-    return compareTeamIds.map((cid) => {
-      const cStanding = allStandings.find((s) => s.teamId === cid);
-      const cTeam = allTeams.find((t) => t.id === cid);
-      return { team: cTeam, standing: cStanding };
-    }).filter((c) => c.team && c.standing);
-  }, [compareTeamIds, allStandings, allTeams]);
 
   const toggleCompareTeam = (tid: string) => {
     setCompareTeamIds((prev) =>
