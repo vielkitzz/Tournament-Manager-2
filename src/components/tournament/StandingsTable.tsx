@@ -212,6 +212,7 @@ export default function StandingsTable({ standings, promotions = [], qualifyUnti
           standing={selectedStanding}
           matches={matches}
           allTeams={allTeams}
+          allStandings={standings}
         />
         </div>
       </div>

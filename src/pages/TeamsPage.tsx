@@ -13,6 +13,8 @@ import {
   ChevronRight,
   GripVertical,
   FolderInput,
+  ArrowUp,
+  ArrowDown,
 } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Input } from "@/components/ui/input";
@@ -197,6 +199,9 @@ interface FolderNodeProps {
   onDeleteTeam: (id: string, name: string) => void;
   allFolders: TeamFolder[];
   onMoveToFolder: (teamId: string, folderId: string | null) => void;
+  onMoveFolder: (folderId: string, direction: "up" | "down") => void;
+  siblingCount: number;
+  siblingIndex: number;
   depth?: number;
 }
 
@@ -224,6 +229,9 @@ const FolderNode = memo(function FolderNode({
   onDeleteTeam,
   allFolders,
   onMoveToFolder,
+  onMoveFolder,
+  siblingCount,
+  siblingIndex,
   depth = 0,
 }: FolderNodeProps) {
   const isOpen = openFolders.has(folder.id);
@@ -274,6 +282,24 @@ const FolderNode = memo(function FolderNode({
         <span className="text-[10px] text-muted-foreground">{folderTeams.length}</span>
 
         <div className="flex items-center gap-0.5" onClick={(e) => e.stopPropagation()}>
+          {siblingIndex > 0 && (
+            <button
+              onClick={() => onMoveFolder(folder.id, "up")}
+              className="p-1 rounded hover:bg-secondary text-muted-foreground hover:text-foreground"
+              title="Mover para cima"
+            >
+              <ArrowUp className="w-3 h-3" />
+            </button>
+          )}
+          {siblingIndex < siblingCount - 1 && (
+            <button
+              onClick={() => onMoveFolder(folder.id, "down")}
+              className="p-1 rounded hover:bg-secondary text-muted-foreground hover:text-foreground"
+              title="Mover para baixo"
+            >
+              <ArrowDown className="w-3 h-3" />
+            </button>
+          )}
           <button
             onClick={() => onEdit(folder.id, folder.name)}
             className="p-1 rounded hover:bg-secondary text-muted-foreground hover:text-foreground"
@@ -310,7 +336,7 @@ const FolderNode = memo(function FolderNode({
       {isOpen && (
         <div className="p-3 space-y-3">
           {/* Child folders */}
-          {childFolders.map((child) => (
+          {childFolders.map((child, i) => (
             <FolderNode
               key={child.id}
               folder={child}
@@ -335,6 +361,9 @@ const FolderNode = memo(function FolderNode({
               onDeleteTeam={onDeleteTeam}
               allFolders={allFolders}
               onMoveToFolder={onMoveToFolder}
+              onMoveFolder={onMoveFolder}
+              siblingCount={childFolders.length}
+              siblingIndex={i}
               depth={depth + 1}
             />
           ))}
@@ -588,6 +617,23 @@ export default function TeamsPage() {
     toast.success(folderId ? "Time movido para a pasta!" : "Time removido da pasta!");
   }, [moveTeamToFolder]);
 
+  const handleMoveFolder = useCallback((folderId: string, direction: "up" | "down") => {
+    const { folders: currentFolders } = useTournamentStore.getState();
+    const folder = currentFolders.find((f) => f.id === folderId);
+    if (!folder) return;
+    const siblings = currentFolders.filter((f) => (f.parentId || null) === (folder.parentId || null));
+    const idx = siblings.findIndex((f) => f.id === folderId);
+    const swapIdx = direction === "up" ? idx - 1 : idx + 1;
+    if (swapIdx < 0 || swapIdx >= siblings.length) return;
+    const swapFolder = siblings[swapIdx];
+    // Swap positions in the full folders array
+    const fullIdx1 = currentFolders.findIndex((f) => f.id === folderId);
+    const fullIdx2 = currentFolders.findIndex((f) => f.id === swapFolder.id);
+    const newFolders = [...currentFolders];
+    [newFolders[fullIdx1], newFolders[fullIdx2]] = [newFolders[fullIdx2], newFolders[fullIdx1]];
+    useTournamentStore.setState({ folders: newFolders });
+  }, []);
+
   const handleRootDrop = useCallback(
     (e: DragEvent) => {
       e.preventDefault();
@@ -694,7 +740,7 @@ export default function TeamsPage() {
           ) : (
           <>
           {/* Folders */}
-          {rootFolders.map((folder) => (
+          {rootFolders.map((folder, i) => (
             <FolderNode
               key={folder.id}
               folder={folder}
@@ -722,9 +768,11 @@ export default function TeamsPage() {
               onDeleteTeam={handleDelete}
               allFolders={folders}
               onMoveToFolder={handleMoveToFolder}
+              onMoveFolder={handleMoveFolder}
+              siblingCount={rootFolders.length}
+              siblingIndex={i}
             />
           ))}
-
           {/* Unfoldered teams */}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
             {unfolderedTeams.map((team, index) => (
