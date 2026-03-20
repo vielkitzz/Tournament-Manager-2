@@ -277,7 +277,7 @@ export default function TournamentSettingsPage() {
               </p>
               <p>→ <strong className="text-foreground">{qualifiersPerGroup} classificados diretos</strong> por grupo ({qualifiersPerGroup * groupCount} times)</p>
               {remainderSlots > 0 && (
-                <p className="text-yellow-600 dark:text-yellow-400">→ Ainda faltam <strong>{remainderSlots} vaga(s)</strong> — configure abaixo os melhores classificados por posição</p>
+                <p className="text-warning">→ Ainda faltam <strong>{remainderSlots} vaga(s)</strong> — configure abaixo os melhores classificados por posição</p>
               )}
               {remainderSlots === 0 && (
                 <p className="text-primary">→ Vagas exatas: {qualifiersPerGroup} por grupo ✓</p>
