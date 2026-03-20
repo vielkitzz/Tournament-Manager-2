@@ -173,7 +173,7 @@ export default function CreateTeamPage() {
   const displayLogo = previewUrl;
 
   return (
-    <div className="p-6 lg:p-8 max-w-lg">
+    <div className="p-6 lg:p-10 max-w-lg">
       <button
         onClick={() => navigate("/teams")}
         className="flex items-center gap-2 text-muted-foreground hover:text-foreground transition-colors mb-6"

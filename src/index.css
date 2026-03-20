@@ -39,6 +39,10 @@
     --warning: 38 92% 50%;
     --warning-foreground: 222 47% 8%;
 
+    --success: 152 69% 40%;
+    --info: 262 60% 55%;
+    --highlight: 38 92% 50%;
+
     --sidebar-background: 222 45% 10%;
     --sidebar-foreground: 210 40% 96%;
     --sidebar-primary: 217 91% 60%;
@@ -85,6 +89,10 @@
 
     --warning: 38 92% 50%;
     --warning-foreground: 222 47% 8%;
+
+    --success: 152 69% 31%;
+    --info: 262 60% 45%;
+    --highlight: 38 92% 42%;
 
     --sidebar-background: 0 0% 100%;
     --sidebar-foreground: 222 30% 20%;
