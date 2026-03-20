@@ -13,6 +13,8 @@ import { useTheme } from "@/hooks/useTheme";
 
 export default function AuthPage() {
   const { signIn, signUp, signInAnonymously, signInWithGoogle, user } = useAuth();
+  const { theme } = useTheme();
+  const appLogo = theme === "light" ? appLogoLight : appLogoDark;
   const [isLogin, setIsLogin] = useState(true);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");

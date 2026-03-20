@@ -606,11 +606,11 @@ export default function TeamsPage() {
   );
 
   return (
-    <div className="p-6 lg:p-8">
+    <div className="p-6 lg:p-10 max-w-7xl mx-auto">
       <div className="mb-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-display font-bold text-foreground uppercase tracking-wide">Meus Times</h1>
-          <p className="text-sm text-muted-foreground mt-1">Arraste times entre pastas</p>
+          <h1 className="text-2xl font-display font-bold text-foreground tracking-tight">Meus Times</h1>
+          <p className="text-sm text-muted-foreground mt-1">Gerencie e organize seus times</p>
         </div>
         <div className="flex items-center gap-2">
           {teams.length > 0 && (

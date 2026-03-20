@@ -43,9 +43,9 @@ export default function DashboardPage() {
 
   const stats = [
     { label: "Competições", value: tournaments.length, icon: Trophy, color: "text-primary" },
-    { label: "Times", value: teams.length, icon: Shield, color: "text-emerald-500" },
-    { label: "Jogos Realizados", value: totalMatches, icon: Swords, color: "text-amber-500" },
-    { label: "Temporadas", value: totalSeasons, icon: Calendar, color: "text-violet-500" },
+    { label: "Times", value: teams.length, icon: Shield, color: "text-success" },
+    { label: "Jogos Realizados", value: totalMatches, icon: Swords, color: "text-highlight" },
+    { label: "Temporadas", value: totalSeasons, icon: Calendar, color: "text-info" },
   ];
 
   const greeting = () => {

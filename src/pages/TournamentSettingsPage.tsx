@@ -120,7 +120,7 @@ export default function TournamentSettingsPage() {
     updateTournament(tournament.id, { settings: { ...settings, ...partial } });
 
   return (
-    <div className="p-6 lg:p-8 max-w-7xl mx-auto">
+    <div className="p-6 lg:p-10 max-w-7xl mx-auto">
       {/* Header */}
       <div className="flex items-center gap-4 mb-8">
         <button onClick={() => navigate(`/tournament/${id}`)} className="text-muted-foreground hover:text-foreground transition-colors">

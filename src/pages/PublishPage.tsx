@@ -118,9 +118,9 @@ export default function PublishPage() {
   };
 
   return (
-    <div className="p-6 lg:p-8">
+    <div className="p-6 lg:p-10 max-w-7xl mx-auto">
       <div className="mb-8">
-        <h1 className="text-2xl font-display font-bold text-foreground uppercase tracking-wide">
+        <h1 className="text-2xl font-display font-bold text-foreground tracking-tight">
           Publicar Competições
         </h1>
         <p className="text-sm text-muted-foreground mt-1">
