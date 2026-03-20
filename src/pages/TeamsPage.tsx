@@ -617,6 +617,23 @@ export default function TeamsPage() {
     toast.success(folderId ? "Time movido para a pasta!" : "Time removido da pasta!");
   }, [moveTeamToFolder]);
 
+  const handleMoveFolder = useCallback((folderId: string, direction: "up" | "down") => {
+    const { folders: currentFolders } = useTournamentStore.getState();
+    const folder = currentFolders.find((f) => f.id === folderId);
+    if (!folder) return;
+    const siblings = currentFolders.filter((f) => (f.parentId || null) === (folder.parentId || null));
+    const idx = siblings.findIndex((f) => f.id === folderId);
+    const swapIdx = direction === "up" ? idx - 1 : idx + 1;
+    if (swapIdx < 0 || swapIdx >= siblings.length) return;
+    const swapFolder = siblings[swapIdx];
+    // Swap positions in the full folders array
+    const fullIdx1 = currentFolders.findIndex((f) => f.id === folderId);
+    const fullIdx2 = currentFolders.findIndex((f) => f.id === swapFolder.id);
+    const newFolders = [...currentFolders];
+    [newFolders[fullIdx1], newFolders[fullIdx2]] = [newFolders[fullIdx2], newFolders[fullIdx1]];
+    useTournamentStore.setState({ folders: newFolders });
+  }, []);
+
   const handleRootDrop = useCallback(
     (e: DragEvent) => {
       e.preventDefault();
