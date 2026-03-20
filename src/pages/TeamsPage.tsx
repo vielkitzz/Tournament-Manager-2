@@ -361,6 +361,9 @@ const FolderNode = memo(function FolderNode({
               onDeleteTeam={onDeleteTeam}
               allFolders={allFolders}
               onMoveToFolder={onMoveToFolder}
+              onMoveFolder={onMoveFolder}
+              siblingCount={childFolders.length}
+              siblingIndex={i}
               depth={depth + 1}
             />
           ))}
