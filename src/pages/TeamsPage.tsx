@@ -723,7 +723,7 @@ export default function TeamsPage() {
           ) : (
           <>
           {/* Folders */}
-          {rootFolders.map((folder) => (
+          {rootFolders.map((folder, i) => (
             <FolderNode
               key={folder.id}
               folder={folder}
