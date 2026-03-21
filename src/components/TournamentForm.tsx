@@ -29,6 +29,7 @@ import { uploadLogo } from "@/lib/storageUtils";
 interface TournamentFormProps {
   onSuccess?: () => void;
   editTournament?: Tournament;
+  initialTemplate?: TournamentTemplate;
 }
 
 export default function TournamentForm({ onSuccess, editTournament }: TournamentFormProps) {
