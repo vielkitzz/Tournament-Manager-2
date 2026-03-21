@@ -53,19 +53,19 @@ export default function TournamentForm({ onSuccess, editTournament, initialTempl
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Liga
-  const [ligaTurnos, setLigaTurnos] = useState<"1" | "2">((editTournament?.ligaTurnos?.toString() || "2") as "1" | "2");
+  const [ligaTurnos, setLigaTurnos] = useState<"1" | "2">((editTournament?.ligaTurnos?.toString() || tpl?.ligaTurnos?.toString() || "2") as "1" | "2");
   // Grupos
-  const [gruposQtd, setGruposQtd] = useState((editTournament?.gruposQuantidade || 4).toString());
-  const [gruposTurnos, setGruposTurnos] = useState<"1" | "2" | "3" | "4">((editTournament?.gruposTurnos?.toString() || "2") as any);
-  const [gruposMataMata, setGruposMataMata] = useState<KnockoutStage>(editTournament?.gruposMataMataInicio || "1/8");
+  const [gruposQtd, setGruposQtd] = useState((editTournament?.gruposQuantidade || tpl?.gruposQuantidade || 4).toString());
+  const [gruposTurnos, setGruposTurnos] = useState<"1" | "2" | "3" | "4">((editTournament?.gruposTurnos?.toString() || tpl?.gruposTurnos?.toString() || "2") as any);
+  const [gruposMataMata, setGruposMataMata] = useState<KnockoutStage>(editTournament?.gruposMataMataInicio || tpl?.gruposMataMataInicio || "1/8");
   // Mata-mata
-  const [mataMataInicio, setMataMataInicio] = useState<KnockoutStage>(editTournament?.mataMataInicio || "1/16");
+  const [mataMataInicio, setMataMataInicio] = useState<KnockoutStage>(editTournament?.mataMataInicio || tpl?.mataMataInicio || "1/16");
   // Knockout leg mode
-  const [knockoutLegMode, setKnockoutLegMode] = useState<KnockoutLegMode>(editTournament?.settings?.knockoutLegMode || "single");
+  const [knockoutLegMode, setKnockoutLegMode] = useState<KnockoutLegMode>(editTournament?.settings?.knockoutLegMode || tpl?.knockoutLegMode || "single");
   // Suíço
-  const [suicoJogosLiga, setSuicoJogosLiga] = useState((editTournament?.suicoJogosLiga || 8).toString());
-  const [suicoMataMataInicio, setSuicoMataMataInicio] = useState<KnockoutStage>(editTournament?.suicoMataMataInicio || "1/8");
-  const [suicoPlayoffVagas, setSuicoPlayoffVagas] = useState((editTournament?.suicoPlayoffVagas || 8).toString());
+  const [suicoJogosLiga, setSuicoJogosLiga] = useState((editTournament?.suicoJogosLiga || tpl?.suicoJogosLiga || 8).toString());
+  const [suicoMataMataInicio, setSuicoMataMataInicio] = useState<KnockoutStage>(editTournament?.suicoMataMataInicio || tpl?.suicoMataMataInicio || "1/8");
+  const [suicoPlayoffVagas, setSuicoPlayoffVagas] = useState((editTournament?.suicoPlayoffVagas || tpl?.suicoPlayoffVagas || 8).toString());
 
   // Bug fix #2: Sync form fields when editTournament loads from Supabase
   // (useState initializes only once; if data arrives late, fields stay empty)
