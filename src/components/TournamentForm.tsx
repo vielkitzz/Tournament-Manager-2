@@ -32,15 +32,17 @@ interface TournamentFormProps {
   initialTemplate?: TournamentTemplate;
 }
 
-export default function TournamentForm({ onSuccess, editTournament }: TournamentFormProps) {
+export default function TournamentForm({ onSuccess, editTournament, initialTemplate }: TournamentFormProps) {
   const { addTournament, updateTournament } = useTournamentStore();
   const isEdit = !!editTournament;
+  // Use template values as defaults when provided
+  const tpl = initialTemplate;
 
-  const [name, setName] = useState(editTournament?.name || "");
-  const [sport, setSport] = useState(editTournament?.sport || "Futebol");
+  const [name, setName] = useState(editTournament?.name || tpl?.name || "");
+  const [sport, setSport] = useState(editTournament?.sport || tpl?.sport || "Futebol");
   const [year, setYear] = useState((editTournament?.year || new Date().getFullYear()).toString());
-  const [format, setFormat] = useState<TournamentFormat | "">(editTournament?.format || "");
-  const [numberOfTeams, setNumberOfTeams] = useState((editTournament?.numberOfTeams || 16).toString());
+  const [format, setFormat] = useState<TournamentFormat | "">(editTournament?.format || tpl?.format || "");
+  const [numberOfTeams, setNumberOfTeams] = useState((editTournament?.numberOfTeams || tpl?.numberOfTeams || 16).toString());
 
   // Logo state — no base64, use Storage URLs + temporary Object URLs
   const [logoUrl, setLogoUrl] = useState<string | undefined>(editTournament?.logo);
