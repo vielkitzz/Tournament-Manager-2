@@ -144,7 +144,7 @@ export default function TournamentForm({ onSuccess, editTournament, initialTempl
 
       const settings = isEdit
         ? { ...editTournament!.settings, knockoutLegMode }
-        : { ...DEFAULT_SETTINGS, knockoutLegMode };
+        : { ...DEFAULT_SETTINGS, ...(tpl?.settings || {}), knockoutLegMode };
 
       if (isEdit) {
         const updates: Partial<Tournament> = {
