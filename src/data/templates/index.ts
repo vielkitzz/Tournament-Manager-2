@@ -1,6 +1,10 @@
 import { FIFA_TEMPLATES } from "./templates-fifa";
 import { CONMEBOL_TEMPLATES } from "./templates-conmebol";
 import { UEFA_TEMPLATES } from "./templates-uefa";
+import { AFC_TEMPLATES } from "./templates-afc";
+import { CONCACAF_TEMPLATES } from "./templates-concacaf";
+import { CAF_TEMPLATES } from "./templates-caf";
+import { OFC_TEMPLATES } from "./templates-ofc";
 import type { TournamentTemplate, TemplateRegion, CompetitionGroup } from "./types";
 
 export type { TournamentTemplate, TemplateRegion, CompetitionGroup } from "./types";
@@ -9,10 +13,14 @@ export const ALL_TEMPLATES: TournamentTemplate[] = [
   ...FIFA_TEMPLATES,
   ...CONMEBOL_TEMPLATES,
   ...UEFA_TEMPLATES,
+  ...AFC_TEMPLATES,
+  ...CONCACAF_TEMPLATES,
+  ...CAF_TEMPLATES,
+  ...OFC_TEMPLATES,
 ];
 
 export function getRegions(): TemplateRegion[] {
-  return ["Mundo", "Europa", "América do Sul"];
+  return ["Mundo", "Europa", "América do Sul", "Ásia", "América do Norte", "África", "Oceania"];
 }
 
 export function getCompetitionsByRegion(region: TemplateRegion): CompetitionGroup[] {

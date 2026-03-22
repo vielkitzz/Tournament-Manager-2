@@ -27,7 +27,7 @@ export interface TournamentTemplate {
   suicoPlayoffVagas?: number;
 }
 
-export type TemplateRegion = "Mundo" | "Europa" | "América do Sul";
+export type TemplateRegion = "Mundo" | "Europa" | "América do Sul" | "Ásia" | "América do Norte" | "África" | "Oceania";
 
 export interface CompetitionGroup {
   originalName: string;
