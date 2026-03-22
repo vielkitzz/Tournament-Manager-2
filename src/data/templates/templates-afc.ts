@@ -1,0 +1,273 @@
+import type { TournamentTemplate } from "./types";
+
+export const AFC_TEMPLATES: TournamentTemplate[] = [
+  // ===================== COPA DA ÁSIA (AFC Asian Cup) =====================
+  // 1956-1968: 4 times, mata-mata (semifinal + final)
+  {
+    id: "asian-cup-1956",
+    name: "Copa da Ásia 1956-1968",
+    originalName: "AFC Asian Cup",
+    region: "Ásia",
+    era: "1956-1968",
+    sport: "Futebol",
+    format: "mata-mata",
+    numberOfTeams: 4,
+    mataMataInicio: "1/4",
+    knockoutLegMode: "single",
+    settings: {
+      thirdPlaceMatch: true,
+      extraTime: true,
+    },
+  },
+  // 1972-1980: 6 times, grupo único (liga) com classificação final
+  {
+    id: "asian-cup-1972",
+    name: "Copa da Ásia 1972-1980",
+    originalName: "AFC Asian Cup",
+    region: "Ásia",
+    era: "1972-1980",
+    sport: "Futebol",
+    format: "liga",
+    numberOfTeams: 6,
+    ligaTurnos: 1,
+    settings: {
+      thirdPlaceMatch: false,
+      extraTime: false,
+    },
+  },
+  // 1984-1988: 10 times, 2 grupos de 5 + final
+  {
+    id: "asian-cup-1984",
+    name: "Copa da Ásia 1984-1988",
+    originalName: "AFC Asian Cup",
+    region: "Ásia",
+    era: "1984-1988",
+    sport: "Futebol",
+    format: "grupos",
+    numberOfTeams: 10,
+    gruposQuantidade: 2,
+    gruposTurnos: 1,
+    gruposMataMataInicio: "1/2",
+    knockoutLegMode: "single",
+    settings: {
+      thirdPlaceMatch: true,
+      extraTime: true,
+    },
+  },
+  // 1992-2000: 12 times, 3 grupos de 4 + quartas
+  {
+    id: "asian-cup-1992",
+    name: "Copa da Ásia 1992-2000",
+    originalName: "AFC Asian Cup",
+    region: "Ásia",
+    era: "1992-2000",
+    sport: "Futebol",
+    format: "grupos",
+    numberOfTeams: 12,
+    gruposQuantidade: 3,
+    gruposTurnos: 1,
+    gruposMataMataInicio: "1/8",
+    knockoutLegMode: "single",
+    settings: {
+      thirdPlaceMatch: true,
+      extraTime: true,
+    },
+  },
+  // 2004-2023: 16 times, 4 grupos de 4 + quartas
+  {
+    id: "asian-cup-2004",
+    name: "Copa da Ásia 2004-2023",
+    originalName: "AFC Asian Cup",
+    region: "Ásia",
+    era: "2004-2023",
+    sport: "Futebol",
+    format: "grupos",
+    numberOfTeams: 16,
+    gruposQuantidade: 4,
+    gruposTurnos: 1,
+    gruposMataMataInicio: "1/8",
+    knockoutLegMode: "single",
+    settings: {
+      thirdPlaceMatch: true,
+      extraTime: true,
+      bestOfQualifiers: 4,
+      bestOfPosition: 3,
+    },
+  },
+  // 2027+: 24 times, 6 grupos de 4 + oitavas
+  {
+    id: "asian-cup-2027",
+    name: "Copa da Ásia 2027+",
+    originalName: "AFC Asian Cup",
+    region: "Ásia",
+    era: "2027-Presente",
+    sport: "Futebol",
+    format: "grupos",
+    numberOfTeams: 24,
+    gruposQuantidade: 6,
+    gruposTurnos: 1,
+    gruposMataMataInicio: "1/16",
+    knockoutLegMode: "single",
+    settings: {
+      thirdPlaceMatch: true,
+      extraTime: true,
+      bestOfQualifiers: 4,
+      bestOfPosition: 3,
+    },
+  },
+
+  // ===================== AFC CHALLENGE CUP =====================
+  // 2006-2008: 8 times, 2 grupos de 4 + semifinais
+  {
+    id: "afc-challenge-2006",
+    name: "AFC Challenge Cup 2006-2008",
+    originalName: "AFC Challenge Cup",
+    region: "Ásia",
+    era: "2006-2008",
+    sport: "Futebol",
+    format: "grupos",
+    numberOfTeams: 8,
+    gruposQuantidade: 2,
+    gruposTurnos: 1,
+    gruposMataMataInicio: "1/4",
+    knockoutLegMode: "single",
+    settings: {
+      thirdPlaceMatch: true,
+      extraTime: true,
+    },
+  },
+  // 2010-2014: 8 times, 2 grupos de 4 + semis
+  {
+    id: "afc-challenge-2010",
+    name: "AFC Challenge Cup 2010-2014",
+    originalName: "AFC Challenge Cup",
+    region: "Ásia",
+    era: "2010-2014",
+    sport: "Futebol",
+    format: "grupos",
+    numberOfTeams: 8,
+    gruposQuantidade: 2,
+    gruposTurnos: 1,
+    gruposMataMataInicio: "1/4",
+    knockoutLegMode: "single",
+    settings: {
+      thirdPlaceMatch: true,
+      extraTime: true,
+    },
+  },
+
+  // ===================== AFC CHAMPIONS LEAGUE ELITE =====================
+  // 1967-1971: Asian Champion Club Tournament, 4-6 times, mata-mata
+  {
+    id: "afc-cl-1967",
+    name: "Asian Club Championship 1967-1971",
+    originalName: "AFC Champions League Elite",
+    region: "Ásia",
+    era: "1967-1971",
+    sport: "Futebol",
+    format: "mata-mata",
+    numberOfTeams: 4,
+    mataMataInicio: "1/4",
+    knockoutLegMode: "home-away",
+    settings: {
+      extraTime: true,
+    },
+  },
+  // 1985-2002: Asian Club Championship / Asian Champions League, expansão
+  {
+    id: "afc-cl-1985",
+    name: "Asian Club Championship 1985-2002",
+    originalName: "AFC Champions League Elite",
+    region: "Ásia",
+    era: "1985-2002",
+    sport: "Futebol",
+    format: "grupos",
+    numberOfTeams: 16,
+    gruposQuantidade: 4,
+    gruposTurnos: 1,
+    gruposMataMataInicio: "1/8",
+    knockoutLegMode: "home-away",
+    settings: {
+      extraTime: true,
+      finalSingleLeg: true,
+    },
+  },
+  // 2003-2023: AFC Champions League, 32 times, 8 grupos de 4 + oitavas
+  {
+    id: "afc-cl-2003",
+    name: "AFC Champions League 2003-2023",
+    originalName: "AFC Champions League Elite",
+    region: "Ásia",
+    era: "2003-2023",
+    sport: "Futebol",
+    format: "grupos",
+    numberOfTeams: 32,
+    gruposQuantidade: 8,
+    gruposTurnos: 1,
+    gruposMataMataInicio: "1/16",
+    knockoutLegMode: "home-away",
+    settings: {
+      extraTime: true,
+      finalSingleLeg: true,
+    },
+  },
+  // 2024+: AFC Champions League Elite, formato suíço
+  {
+    id: "afc-cle-2024",
+    name: "AFC Champions League Elite 2024+",
+    originalName: "AFC Champions League Elite",
+    region: "Ásia",
+    era: "2024-Presente",
+    sport: "Futebol",
+    format: "suico",
+    numberOfTeams: 24,
+    suicoJogosLiga: 8,
+    suicoMataMataInicio: "1/16",
+    suicoPlayoffVagas: 8,
+    knockoutLegMode: "home-away",
+    settings: {
+      extraTime: true,
+      finalSingleLeg: true,
+    },
+  },
+
+  // ===================== AFC CHAMPIONS LEAGUE TWO =====================
+  // 2004-2023: AFC Cup, 32 times, grupos + mata-mata
+  {
+    id: "afc-cup-2004",
+    name: "AFC Cup 2004-2023",
+    originalName: "AFC Champions League Two",
+    region: "Ásia",
+    era: "2004-2023",
+    sport: "Futebol",
+    format: "grupos",
+    numberOfTeams: 32,
+    gruposQuantidade: 8,
+    gruposTurnos: 1,
+    gruposMataMataInicio: "1/16",
+    knockoutLegMode: "home-away",
+    settings: {
+      extraTime: true,
+      finalSingleLeg: true,
+    },
+  },
+  // 2024+: AFC Champions League Two
+  {
+    id: "afc-cl2-2024",
+    name: "AFC Champions League Two 2024+",
+    originalName: "AFC Champions League Two",
+    region: "Ásia",
+    era: "2024-Presente",
+    sport: "Futebol",
+    format: "suico",
+    numberOfTeams: 24,
+    suicoJogosLiga: 6,
+    suicoMataMataInicio: "1/16",
+    suicoPlayoffVagas: 8,
+    knockoutLegMode: "home-away",
+    settings: {
+      extraTime: true,
+      finalSingleLeg: true,
+    },
+  },
+];
