@@ -19,6 +19,10 @@ const REGION_ICONS: Record<string, React.ReactNode> = {
   "Mundo": <Globe className="w-6 h-6" />,
   "Europa": <MapPin className="w-6 h-6" />,
   "América do Sul": <MapPin className="w-6 h-6" />,
+  "Ásia": <MapPin className="w-6 h-6" />,
+  "América do Norte": <MapPin className="w-6 h-6" />,
+  "África": <MapPin className="w-6 h-6" />,
+  "Oceania": <MapPin className="w-6 h-6" />,
 };
 
 const slideIn = {
