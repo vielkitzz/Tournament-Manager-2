@@ -31,6 +31,7 @@ export interface PromotionRule {
   type: "promotion" | "relegation" | "playoff";
   color: string;
   targetCompetition: string;
+  targetCompetitionId?: string;
 }
 
 export interface Match {
