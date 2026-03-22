@@ -10,7 +10,6 @@ interface PromotionEditorProps {
   standings: StandingRow[];
   allTournaments: Tournament[];
   onUpdate: (promotions: PromotionRule[]) => void;
-  /** For grupos format: per-group standings */
   standingsByGroup?: Record<number, StandingRow[]>;
 }
 
@@ -40,12 +39,19 @@ export default function PromotionEditor({
   const [editingPos, setEditingPos] = useState<number | null>(null);
   const [editType, setEditType] = useState<"promotion" | "relegation" | "playoff">("promotion");
   const [editColor, setEditColor] = useState(ZONE_COLORS[0].value);
-  const [editTarget, setEditTarget] = useState("");
+  const [editTargetId, setEditTargetId] = useState("");
   const [customHex, setCustomHex] = useState("");
 
   const handleSave = (pos: number) => {
+    const targetTournament = otherTournaments.find((t) => t.id === editTargetId);
     const filtered = promotions.filter((p) => p.position !== pos);
-    filtered.push({ position: pos, type: editType, color: editColor, targetCompetition: editTarget });
+    filtered.push({
+      position: pos,
+      type: editType,
+      color: editColor,
+      targetCompetition: targetTournament?.name || "",
+      targetCompetitionId: editTargetId || undefined,
+    });
     filtered.sort((a, b) => a.position - b.position);
     onUpdate(filtered);
     setEditingPos(null);
@@ -60,12 +66,12 @@ export default function PromotionEditor({
     if (existing) {
       setEditType(existing.type);
       setEditColor(existing.color);
-      setEditTarget(existing.targetCompetition);
+      setEditTargetId(existing.targetCompetitionId || "");
       setCustomHex(existing.color);
     } else {
       setEditType("promotion");
       setEditColor(ZONE_COLORS[0].value);
-      setEditTarget("");
+      setEditTargetId("");
       setCustomHex(ZONE_COLORS[0].value);
     }
     setEditingPos(pos);
@@ -76,6 +82,14 @@ export default function PromotionEditor({
     if (/^#[0-9A-Fa-f]{6}$/.test(hex)) {
       setEditColor(hex);
     }
+  };
+
+  const getTargetName = (promo: PromotionRule) => {
+    if (promo.targetCompetitionId) {
+      const t = allTournaments.find((x) => x.id === promo.targetCompetitionId);
+      return t ? t.name : promo.targetCompetition;
+    }
+    return promo.targetCompetition;
   };
 
   const renderPositionTable = (rows: StandingRow[], label?: string) => (
@@ -125,7 +139,7 @@ export default function PromotionEditor({
                     >
                       <span className="w-2 h-2 rounded-full" style={{ backgroundColor: promo.color }} />
                       {promo.type === "promotion" ? "Promoção" : promo.type === "relegation" ? "Rebaixamento" : "Playoff"}
-                      {promo.targetCompetition && ` → ${promo.targetCompetition}`}
+                      {getTargetName(promo) && ` → ${getTargetName(promo)}`}
                     </span>
                   )}
                 </td>
@@ -160,7 +174,6 @@ export default function PromotionEditor({
           <div className={cn("grid gap-3", gridCols)}>
             {Array.from({ length: groupCount }, (_, i) => i + 1).map((g) => {
               let groupStandings = standingsByGroup?.[g] || [];
-              // Generate placeholder rows if no real standings
               if (groupStandings.length === 0 && teamsPerGroup > 0) {
                 groupStandings = Array.from({ length: teamsPerGroup }, (_, j) => ({
                   teamId: `placeholder-${g}-${j}`,
@@ -234,13 +247,13 @@ export default function PromotionEditor({
           <div className="space-y-1">
             <span className="text-[11px] text-muted-foreground">Competição destino:</span>
             <select
-              value={editTarget}
-              onChange={(e) => setEditTarget(e.target.value)}
+              value={editTargetId}
+              onChange={(e) => setEditTargetId(e.target.value)}
               className="w-full text-xs bg-secondary border border-border rounded px-2 py-1.5 text-foreground"
             >
               <option value="">Nenhuma</option>
               {otherTournaments.map((t) => (
-                <option key={t.id} value={t.name}>{t.name}</option>
+                <option key={t.id} value={t.id}>{t.name} ({t.year})</option>
               ))}
             </select>
           </div>

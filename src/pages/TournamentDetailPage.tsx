@@ -542,7 +542,100 @@ export default function TournamentDetailPage() {
       finalized: true,
       seasons: [...existingSeasons, seasonRecord],
     });
+
+    // ── Execute promotion/relegation transfers ──
+    executePromotionRelegation(standings, standingsByGroup);
+
     toast.success(`Temporada ${tournament.year} finalizada! ${championName} é o campeão!`);
+  };
+
+  /** Execute promotion/relegation: move teams between competitions */
+  const executePromotionRelegation = (
+    finalStandings: import("@/lib/standings").StandingRow[],
+    groupStandings?: Record<number, import("@/lib/standings").StandingRow[]>,
+  ) => {
+    const promotions = tournament.settings.promotions || [];
+    if (promotions.length === 0) return;
+
+    // Collect teams to move: { teamId, targetTournamentId, type }
+    const transfers: { teamId: string; targetId: string; type: string }[] = [];
+
+    for (const promo of promotions) {
+      if (!promo.targetCompetitionId) continue;
+      const targetTournament = tournaments.find((t) => t.id === promo.targetCompetitionId);
+      if (!targetTournament) continue;
+
+      if (isGrupos && groupStandings) {
+        // Apply per-group: position within each group
+        for (const gStandings of Object.values(groupStandings)) {
+          const teamAtPos = gStandings[promo.position - 1];
+          if (teamAtPos) {
+            transfers.push({ teamId: teamAtPos.teamId, targetId: targetTournament.id, type: promo.type });
+          }
+        }
+      } else {
+        const teamAtPos = finalStandings[promo.position - 1];
+        if (teamAtPos) {
+          transfers.push({ teamId: teamAtPos.teamId, targetId: targetTournament.id, type: promo.type });
+        }
+      }
+    }
+
+    if (transfers.length === 0) return;
+
+    // Group transfers by target tournament
+    const byTarget = new Map<string, string[]>();
+    const teamsLeavingThis = new Set<string>();
+
+    for (const tr of transfers) {
+      if (!byTarget.has(tr.targetId)) byTarget.set(tr.targetId, []);
+      byTarget.get(tr.targetId)!.push(tr.teamId);
+      // Relegation/promotion means the team leaves this competition
+      teamsLeavingThis.add(tr.teamId);
+    }
+
+    // Remove transferred teams from this tournament's teamIds for next season
+    const updatedTeamIds = tournament.teamIds.filter((id) => !teamsLeavingThis.has(id));
+
+    // Also check: does any OTHER tournament have promotion rules pointing TO this tournament?
+    // If so, grab those teams and add them here
+    const teamsComingIn: string[] = [];
+    for (const otherT of tournaments) {
+      if (otherT.id === tournament.id) continue;
+      if (!otherT.finalized) continue;
+      const otherPromos = otherT.settings.promotions || [];
+      for (const op of otherPromos) {
+        if (op.targetCompetitionId !== tournament.id) continue;
+        // Find team at that position in the other tournament's standings
+        const otherStandings = calculateStandings(otherT.teamIds, otherT.matches || [], otherT.settings, resolvedTeams);
+        const teamAtPos = otherStandings[op.position - 1];
+        if (teamAtPos && !updatedTeamIds.includes(teamAtPos.teamId)) {
+          teamsComingIn.push(teamAtPos.teamId);
+        }
+      }
+    }
+
+    // Update this tournament
+    updateTournament(tournament.id, {
+      teamIds: [...updatedTeamIds, ...teamsComingIn],
+      numberOfTeams: updatedTeamIds.length + teamsComingIn.length,
+    });
+
+    // Update target tournaments: add transferred teams
+    for (const [targetId, teamIds] of byTarget) {
+      const target = tournaments.find((t) => t.id === targetId);
+      if (!target) continue;
+      const newTargetTeamIds = [...new Set([...target.teamIds, ...teamIds])];
+      updateTournament(targetId, {
+        teamIds: newTargetTeamIds,
+        numberOfTeams: newTargetTeamIds.length,
+      });
+    }
+
+    const totalMoved = transfers.length + teamsComingIn.length;
+    if (totalMoved > 0) {
+      toast.info(`${transfers.length} time(s) transferido(s) entre competições por promoção/rebaixamento.`);
+    }
   };
 
   const handleNewSeason = () => {
