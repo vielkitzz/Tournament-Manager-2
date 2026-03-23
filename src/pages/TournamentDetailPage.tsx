@@ -591,43 +591,7 @@ export default function TournamentDetailPage() {
       teamsLeavingThis.add(tr.teamId);
     }
 
-    // Remove transferred teams from this tournament's teamIds for next season
-    const updatedTeamIds = tournament.teamIds.filter((id) => !teamsLeavingThis.has(id));
-
-    // Also check: does any OTHER tournament have promotion rules pointing TO this tournament?
-    // If so, grab those teams and add them here
-    const teamsComingIn: string[] = [];
-    for (const otherT of tournaments) {
-      if (otherT.id === tournament.id) continue;
-      if (!otherT.finalized) continue;
-      const otherPromos = otherT.settings.promotions || [];
-      for (const op of otherPromos) {
-        if (op.targetCompetitionId !== tournament.id) continue;
-        // Find team at that position in the other tournament's standings
-        const otherStandings = calculateStandings(otherT.teamIds, otherT.matches || [], otherT.settings, resolvedTeams);
-        const teamAtPos = otherStandings[op.position - 1];
-        if (teamAtPos && !updatedTeamIds.includes(teamAtPos.teamId)) {
-          teamsComingIn.push(teamAtPos.teamId);
-        }
-      }
-    }
-
-    // Update this tournament
-    updateTournament(tournament.id, {
-      teamIds: [...updatedTeamIds, ...teamsComingIn],
-      numberOfTeams: updatedTeamIds.length + teamsComingIn.length,
-    });
-
-    // Update target tournaments: add transferred teams
-    for (const [targetId, teamIds] of byTarget) {
-      const target = tournaments.find((t) => t.id === targetId);
-      if (!target) continue;
-      const newTargetTeamIds = [...new Set([...target.teamIds, ...teamIds])];
-      updateTournament(targetId, {
-        teamIds: newTargetTeamIds,
-        numberOfTeams: newTargetTeamIds.length,
-      });
-    }
+    return { teamsLeaving: teamsLeavingThis, transfersByTarget: byTarget };
 
     const totalMoved = transfers.length + teamsComingIn.length;
     if (totalMoved > 0) {
