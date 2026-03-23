@@ -631,16 +631,8 @@ export default function TournamentDetailPage() {
 
       nextTeamIds = [...nextTeamIds, ...teamsComingIn];
 
-      // Update target tournaments' next season rosters too
-      for (const [targetId, teamIds] of transfersByTarget) {
-        const target = tournaments.find((t) => t.id === targetId);
-        if (!target) continue;
-        const newTargetTeamIds = [...new Set([...target.teamIds, ...teamIds])];
-        updateTournament(targetId, {
-          teamIds: newTargetTeamIds,
-          numberOfTeams: newTargetTeamIds.length,
-        });
-      }
+      // NOTE: We do NOT update target tournaments here.
+      // Each tournament pulls incoming teams when IT creates its own new season (lines above).
 
       const totalMoved = teamsLeaving.size + teamsComingIn.length;
       if (totalMoved > 0) {
