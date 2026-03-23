@@ -543,9 +543,6 @@ export default function TournamentDetailPage() {
       seasons: [...existingSeasons, seasonRecord],
     });
 
-    // ── Execute promotion/relegation transfers ──
-    executePromotionRelegation(standings, standingsByGroup);
-
     toast.success(`Temporada ${tournament.year} finalizada! ${championName} é o campeão!`);
   };
 
