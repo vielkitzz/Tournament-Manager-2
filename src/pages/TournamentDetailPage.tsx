@@ -543,9 +543,6 @@ export default function TournamentDetailPage() {
       seasons: [...existingSeasons, seasonRecord],
     });
 
-    // ── Execute promotion/relegation transfers ──
-    executePromotionRelegation(standings, standingsByGroup);
-
     toast.success(`Temporada ${tournament.year} finalizada! ${championName} é o campeão!`);
   };
 
@@ -594,48 +591,8 @@ export default function TournamentDetailPage() {
       teamsLeavingThis.add(tr.teamId);
     }
 
-    // Remove transferred teams from this tournament's teamIds for next season
-    const updatedTeamIds = tournament.teamIds.filter((id) => !teamsLeavingThis.has(id));
+    return { teamsLeaving: teamsLeavingThis, transfersByTarget: byTarget };
 
-    // Also check: does any OTHER tournament have promotion rules pointing TO this tournament?
-    // If so, grab those teams and add them here
-    const teamsComingIn: string[] = [];
-    for (const otherT of tournaments) {
-      if (otherT.id === tournament.id) continue;
-      if (!otherT.finalized) continue;
-      const otherPromos = otherT.settings.promotions || [];
-      for (const op of otherPromos) {
-        if (op.targetCompetitionId !== tournament.id) continue;
-        // Find team at that position in the other tournament's standings
-        const otherStandings = calculateStandings(otherT.teamIds, otherT.matches || [], otherT.settings, resolvedTeams);
-        const teamAtPos = otherStandings[op.position - 1];
-        if (teamAtPos && !updatedTeamIds.includes(teamAtPos.teamId)) {
-          teamsComingIn.push(teamAtPos.teamId);
-        }
-      }
-    }
-
-    // Update this tournament
-    updateTournament(tournament.id, {
-      teamIds: [...updatedTeamIds, ...teamsComingIn],
-      numberOfTeams: updatedTeamIds.length + teamsComingIn.length,
-    });
-
-    // Update target tournaments: add transferred teams
-    for (const [targetId, teamIds] of byTarget) {
-      const target = tournaments.find((t) => t.id === targetId);
-      if (!target) continue;
-      const newTargetTeamIds = [...new Set([...target.teamIds, ...teamIds])];
-      updateTournament(targetId, {
-        teamIds: newTargetTeamIds,
-        numberOfTeams: newTargetTeamIds.length,
-      });
-    }
-
-    const totalMoved = transfers.length + teamsComingIn.length;
-    if (totalMoved > 0) {
-      toast.info(`${transfers.length} time(s) transferido(s) entre competições por promoção/rebaixamento.`);
-    }
   };
 
   const handleNewSeason = () => {
@@ -644,11 +601,57 @@ export default function TournamentDetailPage() {
       groupAssignments: undefined,
       qualifiedTeamIds: undefined,
     };
-    // Snapshot current teamIds so the new season starts fresh
-    // (finalization already saved the season record, but we ensure teamIds carry over as a copy)
+
+    // Start with current roster
+    let nextTeamIds = [...tournament.teamIds];
+
+    // Execute promotion/relegation for the NEW season
+    const result = executePromotionRelegation(standings, standingsByGroup);
+    if (result) {
+      const { teamsLeaving, transfersByTarget } = result;
+
+      // Remove relegated/promoted-out teams from this tournament's next season
+      nextTeamIds = nextTeamIds.filter((id) => !teamsLeaving.has(id));
+
+      // Check: does any OTHER finalized tournament have rules pointing TO this tournament?
+      const teamsComingIn: string[] = [];
+      for (const otherT of tournaments) {
+        if (otherT.id === tournament.id) continue;
+        if (!otherT.finalized) continue;
+        const otherPromos = otherT.settings.promotions || [];
+        for (const op of otherPromos) {
+          if (op.targetCompetitionId !== tournament.id) continue;
+          const otherStandings = calculateStandings(otherT.teamIds, otherT.matches || [], otherT.settings, resolvedTeams);
+          const teamAtPos = otherStandings[op.position - 1];
+          if (teamAtPos && !nextTeamIds.includes(teamAtPos.teamId)) {
+            teamsComingIn.push(teamAtPos.teamId);
+          }
+        }
+      }
+
+      nextTeamIds = [...nextTeamIds, ...teamsComingIn];
+
+      // Update target tournaments' next season rosters too
+      for (const [targetId, teamIds] of transfersByTarget) {
+        const target = tournaments.find((t) => t.id === targetId);
+        if (!target) continue;
+        const newTargetTeamIds = [...new Set([...target.teamIds, ...teamIds])];
+        updateTournament(targetId, {
+          teamIds: newTargetTeamIds,
+          numberOfTeams: newTargetTeamIds.length,
+        });
+      }
+
+      const totalMoved = teamsLeaving.size + teamsComingIn.length;
+      if (totalMoved > 0) {
+        toast.info(`${teamsLeaving.size} time(s) transferido(s) entre competições por promoção/rebaixamento.`);
+      }
+    }
+
     updateTournament(tournament.id, {
       year: tournament.year + 1,
-      teamIds: [...tournament.teamIds],
+      teamIds: nextTeamIds,
+      numberOfTeams: nextTeamIds.length,
       matches: [],
       finalized: false,
       groupsFinalized: false,
