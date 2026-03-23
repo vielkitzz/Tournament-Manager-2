@@ -42,7 +42,7 @@ import GroupDrawDialog from "@/components/tournament/GroupDrawDialog";
 import StatsView from "@/components/tournament/StatsView";
 import { calculateStandings } from "@/lib/standings";
 import { generateRoundRobin } from "@/lib/roundRobin";
-import { Match, SeasonRecord, STAGE_TEAM_COUNTS, KnockoutStage } from "@/types/tournament";
+import { Match, SeasonRecord, STAGE_TEAM_COUNTS, KnockoutStage, PromotionRule } from "@/types/tournament";
 import { trackTournamentOpen } from "@/lib/recentTournaments";
 import ScreenshotButton from "@/components/ScreenshotButton";
 import { generateSwissLeagueMatches } from "@/lib/swissRounds";
@@ -613,16 +613,37 @@ export default function TournamentDetailPage() {
       // Remove relegated/promoted-out teams from this tournament's next season
       nextTeamIds = nextTeamIds.filter((id) => !teamsLeaving.has(id));
 
-      // Check: does any OTHER finalized tournament have rules pointing TO this tournament?
+      // Check: does any OTHER tournament have rules pointing TO this tournament?
+      // We look at the most recent finalized season snapshot (in case the other tournament already advanced its year)
       const teamsComingIn: string[] = [];
       for (const otherT of tournaments) {
         if (otherT.id === tournament.id) continue;
-        if (!otherT.finalized) continue;
-        const otherPromos = otherT.settings.promotions || [];
-        for (const op of otherPromos) {
+
+        // Find promotion rules pointing to this tournament — check current settings AND last season's settings
+        const otherSeasons = otherT.seasons || [];
+        const lastSeason = otherSeasons.length > 0 ? otherSeasons[otherSeasons.length - 1] : null;
+
+        // Try current tournament state first (if it's finalized and hasn't reset yet)
+        // Then fall back to the last season snapshot
+        let sourcePromos: PromotionRule[] = [];
+        let sourceStandings: import("@/lib/standings").StandingRow[] = [];
+
+        if (otherT.finalized && (otherT.matches || []).length > 0) {
+          // Tournament is still finalized with its matches intact
+          sourcePromos = otherT.settings.promotions || [];
+          sourceStandings = calculateStandings(otherT.teamIds, otherT.matches || [], otherT.settings, resolvedTeams);
+        } else if (lastSeason) {
+          // Tournament already advanced — use the last season snapshot
+          const seasonSettings = lastSeason.settings || otherT.settings;
+          sourcePromos = seasonSettings.promotions || [];
+          const seasonTeamIds = lastSeason.teamIds || lastSeason.standings.map(s => s.teamId);
+          const seasonMatches = lastSeason.matches || [];
+          sourceStandings = calculateStandings(seasonTeamIds, seasonMatches, seasonSettings, resolvedTeams);
+        }
+
+        for (const op of sourcePromos) {
           if (op.targetCompetitionId !== tournament.id) continue;
-          const otherStandings = calculateStandings(otherT.teamIds, otherT.matches || [], otherT.settings, resolvedTeams);
-          const teamAtPos = otherStandings[op.position - 1];
+          const teamAtPos = sourceStandings[op.position - 1];
           if (teamAtPos && !nextTeamIds.includes(teamAtPos.teamId)) {
             teamsComingIn.push(teamAtPos.teamId);
           }
