@@ -687,7 +687,7 @@ export default function TournamentDetailPage() {
           settings: previousSeason.settings || tournament.settings,
           numberOfTeams: previousSeason.teamIds?.length || tournament.numberOfTeams,
           finalized: true,
-          groupsFinalized: previousSeason.groupsFinalized ?? false,
+          groupsFinalized: false,
           seasons: updatedSeasons,
         });
         setViewingYear(null);
