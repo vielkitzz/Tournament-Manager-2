@@ -593,10 +593,6 @@ export default function TournamentDetailPage() {
 
     return { teamsLeaving: teamsLeavingThis, transfersByTarget: byTarget };
 
-    const totalMoved = transfers.length + teamsComingIn.length;
-    if (totalMoved > 0) {
-      toast.info(`${transfers.length} time(s) transferido(s) entre competições por promoção/rebaixamento.`);
-    }
   };
 
   const handleNewSeason = () => {
