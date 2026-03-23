@@ -677,12 +677,28 @@ export default function TournamentDetailPage() {
   const handleDeleteSeason = (year: number) => {
     const updatedSeasons = (tournament.seasons || []).filter((s) => s.year !== year);
     if (year === tournament.year) {
-      updateTournament(tournament.id, {
-        matches: [],
-        finalized: false,
-        groupsFinalized: false,
-        seasons: updatedSeasons,
-      });
+      // Revert to the most recent saved season, or just reset if none exist
+      const previousSeason = [...updatedSeasons].sort((a, b) => b.year - a.year)[0];
+      if (previousSeason) {
+        updateTournament(tournament.id, {
+          year: previousSeason.year,
+          teamIds: previousSeason.teamIds || tournament.teamIds,
+          matches: previousSeason.matches || [],
+          settings: previousSeason.settings || tournament.settings,
+          numberOfTeams: previousSeason.teamIds?.length || tournament.numberOfTeams,
+          finalized: true,
+          groupsFinalized: previousSeason.groupsFinalized ?? false,
+          seasons: updatedSeasons,
+        });
+        setViewingYear(null);
+      } else {
+        updateTournament(tournament.id, {
+          matches: [],
+          finalized: false,
+          groupsFinalized: false,
+          seasons: updatedSeasons,
+        });
+      }
     } else {
       updateTournament(tournament.id, { seasons: updatedSeasons });
     }
