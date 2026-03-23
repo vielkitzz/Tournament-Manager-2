@@ -42,7 +42,7 @@ import GroupDrawDialog from "@/components/tournament/GroupDrawDialog";
 import StatsView from "@/components/tournament/StatsView";
 import { calculateStandings } from "@/lib/standings";
 import { generateRoundRobin } from "@/lib/roundRobin";
-import { Match, SeasonRecord, STAGE_TEAM_COUNTS, KnockoutStage } from "@/types/tournament";
+import { Match, SeasonRecord, STAGE_TEAM_COUNTS, KnockoutStage, PromotionRule } from "@/types/tournament";
 import { trackTournamentOpen } from "@/lib/recentTournaments";
 import ScreenshotButton from "@/components/ScreenshotButton";
 import { generateSwissLeagueMatches } from "@/lib/swissRounds";
