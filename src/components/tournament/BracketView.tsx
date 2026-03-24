@@ -720,7 +720,7 @@ export default function BracketView({
           <span className="text-sm font-bold text-foreground text-center relative z-10">
             {championTeam.name || championTeam.shortName}
           </span>
-          <span className="text-[10px] text-primary font-semibold relative z-10">🏆 {tournament.year}</span>
+          <span className="text-[12px] text-primary font-semibold relative z-10">{tournament.year}</span>
         </div>
 
         {(runnerUpTeam || thirdTeam) && (
