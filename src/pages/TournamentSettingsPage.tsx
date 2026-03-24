@@ -1,5 +1,15 @@
 import { useParams, useNavigate } from "react-router-dom";
-import { ArrowLeft, Trophy, Pencil, Settings2, Scale, Swords, ShieldCheck, Zap, ListOrdered } from "lucide-react";
+import {
+  ArrowLeft,
+  Trophy,
+  Pencil,
+  Settings2,
+  Scale,
+  Swords,
+  ShieldCheck,
+  ArrowUpDown,
+  ListOrdered,
+} from "lucide-react";
 import { useTournamentStore } from "@/store/tournamentStore";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
@@ -9,7 +19,12 @@ import { calculateStandings } from "@/lib/standings";
 import PromotionEditor from "@/components/tournament/PromotionEditor";
 import { STAGE_TEAM_COUNTS, KnockoutStage } from "@/types/tournament";
 
-function SectionCard({ icon: Icon, title, children, className = "" }: {
+function SectionCard({
+  icon: Icon,
+  title,
+  children,
+  className = "",
+}: {
   icon: React.ElementType;
   title: string;
   children: React.ReactNode;
@@ -28,7 +43,12 @@ function SectionCard({ icon: Icon, title, children, className = "" }: {
   );
 }
 
-function SettingToggle({ label, description, checked, onChange }: {
+function SettingToggle({
+  label,
+  description,
+  checked,
+  onChange,
+}: {
   label: string;
   description?: string;
   checked: boolean;
@@ -67,7 +87,15 @@ export default function TournamentSettingsPage() {
     pointsWin: 3,
     pointsDraw: 1,
     pointsLoss: 0,
-    tiebreakers: ["Pontos", "Vitórias", "Saldo de Gols", "Gols Marcados", "Empates", "Gols Sofridos", "Confronto Direto"],
+    tiebreakers: [
+      "Pontos",
+      "Vitórias",
+      "Saldo de Gols",
+      "Gols Marcados",
+      "Empates",
+      "Gols Sofridos",
+      "Confronto Direto",
+    ],
     promotions: [],
     bestOfPosition: 3,
     bestOfQualifiers: 0,
@@ -107,14 +135,16 @@ export default function TournamentSettingsPage() {
   const currentBestOfQualifiers = settings.bestOfQualifiers ?? 0;
   const currentBestOfPosition = settings.bestOfPosition ?? 3;
   const isMataMata = tournament.format === "mata-mata" || tournament.format === "grupos";
-  const hasLeaguePhase = tournament.format === "liga" || tournament.format === "grupos" || tournament.format === "suico";
+  const hasLeaguePhase =
+    tournament.format === "liga" || tournament.format === "grupos" || tournament.format === "suico";
 
-  const formatLabel = {
-    liga: "Liga",
-    grupos: "Grupos + Mata-Mata",
-    "mata-mata": "Mata-Mata",
-    suico: "Suíço",
-  }[tournament.format] || tournament.format;
+  const formatLabel =
+    {
+      liga: "Liga",
+      grupos: "Grupos + Mata-Mata",
+      "mata-mata": "Mata-Mata",
+      suico: "Suíço",
+    }[tournament.format] || tournament.format;
 
   const update = (partial: Partial<typeof settings>) =>
     updateTournament(tournament.id, { settings: { ...settings, ...partial } });
@@ -123,7 +153,10 @@ export default function TournamentSettingsPage() {
     <div className="p-6 lg:p-10 max-w-7xl mx-auto">
       {/* Header */}
       <div className="flex items-center gap-4 mb-8">
-        <button onClick={() => navigate(`/tournament/${id}`)} className="text-muted-foreground hover:text-foreground transition-colors">
+        <button
+          onClick={() => navigate(`/tournament/${id}`)}
+          className="text-muted-foreground hover:text-foreground transition-colors"
+        >
           <ArrowLeft className="w-4 h-4" />
         </button>
         <div className="flex-1 min-w-0">
@@ -141,16 +174,17 @@ export default function TournamentSettingsPage() {
 
       {/* Main grid */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
-
         {/* Points — only for formats with league phase */}
         {hasLeaguePhase && (
           <SectionCard icon={Trophy} title="Pontuações">
             <div className="grid grid-cols-3 gap-3">
-              {([
-                { key: "pointsWin", label: "Vitória" },
-                { key: "pointsDraw", label: "Empate" },
-                { key: "pointsLoss", label: "Derrota" },
-              ] as const).map(({ key, label }) => (
+              {(
+                [
+                  { key: "pointsWin", label: "Vitória" },
+                  { key: "pointsDraw", label: "Empate" },
+                  { key: "pointsLoss", label: "Derrota" },
+                ] as const
+              ).map(({ key, label }) => (
                 <div key={key} className="space-y-1.5">
                   <span className="text-xs text-muted-foreground">{label}</span>
                   <Input
@@ -170,7 +204,10 @@ export default function TournamentSettingsPage() {
           <SectionCard icon={ListOrdered} title="Critérios de Desempate">
             <div className="space-y-1 max-h-[280px] overflow-y-auto pr-1">
               {safeTiebreakers.map((tb, i) => (
-                <div key={i} className="flex items-center gap-2 p-2.5 rounded-lg bg-secondary/40 text-sm text-foreground group">
+                <div
+                  key={i}
+                  className="flex items-center gap-2 p-2.5 rounded-lg bg-secondary/40 text-sm text-foreground group"
+                >
                   <span className="text-[11px] text-muted-foreground w-5 font-mono">{i + 1}.</span>
                   <span className="flex-1">{tb}</span>
                   <div className="flex gap-0.5 opacity-50 group-hover:opacity-100 transition-opacity">
@@ -182,7 +219,9 @@ export default function TournamentSettingsPage() {
                         update({ tiebreakers: arr });
                       }}
                       className="text-xs text-muted-foreground hover:text-foreground px-1"
-                    >▲</button>
+                    >
+                      ▲
+                    </button>
                     <button
                       onClick={() => {
                         if (i === safeTiebreakers.length - 1) return;
@@ -191,7 +230,9 @@ export default function TournamentSettingsPage() {
                         update({ tiebreakers: arr });
                       }}
                       className="text-xs text-muted-foreground hover:text-foreground px-1"
-                    >▼</button>
+                    >
+                      ▼
+                    </button>
                   </div>
                 </div>
               ))}
@@ -265,23 +306,28 @@ export default function TournamentSettingsPage() {
           <SectionCard icon={ShieldCheck} title="Classificação Grupos → Mata-Mata" className="lg:col-span-2">
             <div className="text-xs text-muted-foreground space-y-1.5 p-3 rounded-lg bg-secondary/30">
               <p>
-                Com <strong className="text-foreground">{groupCount} grupos</strong> e {totalKnockoutTeams} vagas no mata-mata ({
-                  startStage
-                    .replace("1/64", "32-avos de final")
-                    .replace("1/32", "16-avos de final")
-                    .replace("1/16", "oitavas de final")
-                    .replace("1/8", "quartas de final")
-                    .replace("1/4", "semifinal")
-                    .replace("1/2", "final")
-                }):
+                Com <strong className="text-foreground">{groupCount} grupos</strong> e {totalKnockoutTeams} vagas no
+                mata-mata (
+                {startStage
+                  .replace("1/64", "32-avos de final")
+                  .replace("1/32", "16-avos de final")
+                  .replace("1/16", "oitavas de final")
+                  .replace("1/8", "quartas de final")
+                  .replace("1/4", "semifinal")
+                  .replace("1/2", "final")}
+                ):
               </p>
-              <p>→ <strong className="text-foreground">{qualifiersPerGroup} classificados diretos</strong> por grupo ({qualifiersPerGroup * groupCount} times)</p>
+              <p>
+                → <strong className="text-foreground">{qualifiersPerGroup} classificados diretos</strong> por grupo (
+                {qualifiersPerGroup * groupCount} times)
+              </p>
               {remainderSlots > 0 && (
-                <p className="text-warning">→ Ainda faltam <strong>{remainderSlots} vaga(s)</strong> — configure abaixo os melhores classificados por posição</p>
+                <p className="text-warning">
+                  → Ainda faltam <strong>{remainderSlots} vaga(s)</strong> — configure abaixo os melhores classificados
+                  por posição
+                </p>
               )}
-              {remainderSlots === 0 && (
-                <p className="text-primary">→ Vagas exatas: {qualifiersPerGroup} por grupo ✓</p>
-              )}
+              {remainderSlots === 0 && <p className="text-primary">→ Vagas exatas: {qualifiersPerGroup} por grupo ✓</p>}
             </div>
 
             {remainderSlots > 0 && (
@@ -313,7 +359,8 @@ export default function TournamentSettingsPage() {
                 </div>
                 {currentBestOfQualifiers > 0 && (
                   <p className="text-[11px] text-primary">
-                    Os {currentBestOfQualifiers} melhores {currentBestOfPosition}ºs lugares de todos os grupos se classificam
+                    Os {currentBestOfQualifiers} melhores {currentBestOfPosition}ºs lugares de todos os grupos se
+                    classificam
                   </p>
                 )}
               </div>
@@ -323,7 +370,7 @@ export default function TournamentSettingsPage() {
 
         {/* Promotions / Relegations */}
         {(tournament.format === "liga" || tournament.format === "grupos") && (
-          <SectionCard icon={Zap} title="Promoções / Rebaixamentos" className="lg:col-span-2">
+          <SectionCard icon={ArrowUpDown} title="Promoções / Rebaixamentos" className="lg:col-span-2">
             <PromotionEditor
               tournament={tournament}
               standings={standings}
