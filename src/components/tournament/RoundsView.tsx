@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { Match, Team, Tournament } from "@/types/tournament";
-import { Shield, ChevronLeft, ChevronRight, Trophy, CheckCircle, Zap } from "lucide-react";
+import { Shield, ChevronLeft, ChevronRight, Trophy, CheckCircle, Play } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { simulateFullMatch } from "@/lib/simulation";
 import MatchPopup from "./MatchPopup";
@@ -15,12 +15,16 @@ interface RoundsViewProps {
   onFinalize?: () => void;
 }
 
-export default function RoundsView({ tournament, teams, onUpdateMatch, onBatchUpdateMatches, onFinalize }: RoundsViewProps) {
+export default function RoundsView({
+  tournament,
+  teams,
+  onUpdateMatch,
+  onBatchUpdateMatches,
+  onFinalize,
+}: RoundsViewProps) {
   const matches = tournament.matches;
   const totalRounds = matches.length > 0 ? Math.max(...matches.map((m) => m.round)) : 0;
-  const lastPlayedRound = matches.length > 0
-    ? Math.max(...matches.filter((m) => m.played).map((m) => m.round), 1)
-    : 1;
+  const lastPlayedRound = matches.length > 0 ? Math.max(...matches.filter((m) => m.played).map((m) => m.round), 1) : 1;
   const [currentRound, setCurrentRound] = useState(lastPlayedRound);
   const [selectedMatch, setSelectedMatch] = useState<Match | null>(null);
   const roundsRef = useRef<HTMLDivElement>(null);
@@ -67,7 +71,6 @@ export default function RoundsView({ tournament, teams, onUpdateMatch, onBatchUp
 
   return (
     <div className="space-y-4" ref={roundsRef}>
-
       {tournament.finalized && (
         <div className="flex items-center justify-center gap-2 p-3 rounded-xl bg-primary/5 border border-primary/20">
           <Trophy className="w-4 h-4 text-primary" />
@@ -93,13 +96,13 @@ export default function RoundsView({ tournament, teams, onUpdateMatch, onBatchUp
         >
           <ChevronRight className="w-5 h-5" />
         </button>
-         {unplayedInRound.length > 0 && (
+        {unplayedInRound.length > 0 && (
           <button
             onClick={handleSimulateRound}
             title={`Simular ${unplayedInRound.length} ${unplayedInRound.length === 1 ? "jogo" : "jogos"}`}
             className="p-1.5 rounded-lg bg-primary/10 text-primary hover:bg-primary/20 transition-colors"
           >
-            <Zap className="w-4 h-4" />
+            <Play className="w-4 h-4" />
           </button>
         )}
         <ScreenshotButton targetRef={roundsRef as any} filename={`rodada-${currentRound}.png`} />
@@ -182,13 +185,8 @@ export default function RoundsView({ tournament, teams, onUpdateMatch, onBatchUp
           );
         }
 
-        return (
-          <div className="space-y-2">
-            {roundMatches.map(renderMatch)}
-          </div>
-        );
+        return <div className="space-y-2">{roundMatches.map(renderMatch)}</div>;
       })()}
-
 
       {/* Match Popup */}
       {selectedMatch && (
