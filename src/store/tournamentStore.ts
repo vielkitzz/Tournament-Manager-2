@@ -95,6 +95,7 @@ function tournamentToDb(tournament: Tournament, userId: string) {
     suico_jogos_liga: (tournament as any).suicoJogosLiga || null,
     suico_mata_mata_inicio: (tournament as any).suicoMataMataInicio || null,
     suico_playoff_vagas: (tournament as any).suicoPlayoffVagas || null,
+    preliminary_phases: (tournament.preliminaryPhases || []) as unknown as Json,
   };
 }
 
