@@ -26,6 +26,7 @@ const PublishPage = lazy(() => import("@/pages/PublishPage"));
 const FriendlyMatchPage = lazy(() => import("@/pages/FriendlyMatchPage"));
 const AuthPage = lazy(() => import("@/pages/AuthPage"));
 const SharedTournamentPage = lazy(() => import("@/pages/SharedTournamentPage"));
+const PreliminaryPhasesPage = lazy(() => import("@/pages/PreliminaryPhasesPage"));
 const NotFound = lazy(() => import("@/pages/NotFound"));
 
 function PageFallback() {
