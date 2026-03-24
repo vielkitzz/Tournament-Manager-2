@@ -122,6 +122,7 @@ function updatesToDb(updates: Partial<Tournament>): Record<string, any> {
   if ((updates as any).suicoJogosLiga !== undefined) dbUpdates.suico_jogos_liga = (updates as any).suicoJogosLiga;
   if ((updates as any).suicoMataMataInicio !== undefined) dbUpdates.suico_mata_mata_inicio = (updates as any).suicoMataMataInicio;
   if ((updates as any).suicoPlayoffVagas !== undefined) dbUpdates.suico_playoff_vagas = (updates as any).suicoPlayoffVagas;
+  if (updates.preliminaryPhases !== undefined) dbUpdates.preliminary_phases = updates.preliminaryPhases as unknown as Json;
   return dbUpdates;
 }
 
