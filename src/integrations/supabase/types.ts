@@ -239,6 +239,7 @@ export type Database = {
           matches: Json | null
           name: string | null
           number_of_teams: string | null
+          preliminary_phases: Json | null
           seasons: Json | null
           settings: string | null
           sport: string | null
@@ -266,6 +267,7 @@ export type Database = {
           matches?: Json | null
           name?: string | null
           number_of_teams?: string | null
+          preliminary_phases?: Json | null
           seasons?: Json | null
           settings?: string | null
           sport?: string | null
@@ -293,6 +295,7 @@ export type Database = {
           matches?: Json | null
           name?: string | null
           number_of_teams?: string | null
+          preliminary_phases?: Json | null
           seasons?: Json | null
           settings?: string | null
           sport?: string | null
@@ -330,6 +333,7 @@ export type Database = {
           matches: Json | null
           name: string | null
           number_of_teams: string | null
+          preliminary_phases: Json | null
           seasons: Json | null
           settings: string | null
           sport: string | null

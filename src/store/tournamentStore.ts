@@ -1,5 +1,5 @@
 import { create } from "zustand";
-import { Tournament, Team, TeamFolder, TournamentFolder, TournamentSettings, Match, SeasonRecord } from "@/types/tournament";
+import { Tournament, Team, TeamFolder, TournamentFolder, TournamentSettings, Match, SeasonRecord, PreliminaryPhase } from "@/types/tournament";
 import { supabase } from "@/integrations/supabase/client";
 import { Json } from "@/integrations/supabase/types";
 import { TeamHistory } from "@/lib/teamHistoryUtils";
@@ -40,6 +40,7 @@ function dbToTournament(row: any): Tournament {
     suicoJogosLiga: row.suico_jogos_liga || undefined,
     suicoMataMataInicio: row.suico_mata_mata_inicio as Tournament["suicoMataMataInicio"],
     suicoPlayoffVagas: row.suico_playoff_vagas || undefined,
+    preliminaryPhases: parseJsonField<PreliminaryPhase[]>(row.preliminary_phases, []),
   };
 }
 
@@ -94,6 +95,7 @@ function tournamentToDb(tournament: Tournament, userId: string) {
     suico_jogos_liga: (tournament as any).suicoJogosLiga || null,
     suico_mata_mata_inicio: (tournament as any).suicoMataMataInicio || null,
     suico_playoff_vagas: (tournament as any).suicoPlayoffVagas || null,
+    preliminary_phases: (tournament.preliminaryPhases || []) as unknown as Json,
   };
 }
 
@@ -120,6 +122,7 @@ function updatesToDb(updates: Partial<Tournament>): Record<string, any> {
   if ((updates as any).suicoJogosLiga !== undefined) dbUpdates.suico_jogos_liga = (updates as any).suicoJogosLiga;
   if ((updates as any).suicoMataMataInicio !== undefined) dbUpdates.suico_mata_mata_inicio = (updates as any).suicoMataMataInicio;
   if ((updates as any).suicoPlayoffVagas !== undefined) dbUpdates.suico_playoff_vagas = (updates as any).suicoPlayoffVagas;
+  if (updates.preliminaryPhases !== undefined) dbUpdates.preliminary_phases = updates.preliminaryPhases as unknown as Json;
   return dbUpdates;
 }
 
