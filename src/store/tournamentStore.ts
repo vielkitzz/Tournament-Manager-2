@@ -40,6 +40,7 @@ function dbToTournament(row: any): Tournament {
     suicoJogosLiga: row.suico_jogos_liga || undefined,
     suicoMataMataInicio: row.suico_mata_mata_inicio as Tournament["suicoMataMataInicio"],
     suicoPlayoffVagas: row.suico_playoff_vagas || undefined,
+    preliminaryPhases: parseJsonField<PreliminaryPhase[]>(row.preliminary_phases, []),
   };
 }
 
