@@ -878,7 +878,7 @@ export default function BracketView({
           });
 
           return (
-            <div className="flex items-center items-center justify-start">
+            <div className="flex min-w-max items-center justify-start lg:justify-center mx-auto">
               {/* Left bracket half */}
               {leftColumns.map(({ stage, stageIdx, pairs }) => (
                 <div key={`left-${stage}`} className="flex items-center">
