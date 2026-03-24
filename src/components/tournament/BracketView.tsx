@@ -899,8 +899,8 @@ export default function BracketView({
 
                 {thirdPlaceMatches.length > 0 && (
                   <div className="pt-3 mt-3 border-t border-border/40 w-[220px]">
-                    {/* Ajustado: justify-start para centralizar e a cor do ícone para bronze */}
-                    <div className="flex items-center justify-start gap-1.5 mb-1.5 relative">
+                    {/* Container com justify-center para o texto ficar no meio */}
+                    <div className="flex items-center justify-center gap-1.5 mb-1.5 relative w-full">
                       <Medal className="w-3.5 h-3.5" style={{ color: "#CD7F32" }} />
                       <span className="text-[10px] font-bold" style={{ color: "#3c83f6" }}>
                         3º LUGAR
@@ -909,7 +909,7 @@ export default function BracketView({
                       {thirdPlaceMatches.some((m) => !m.played) && (
                         <button
                           onClick={handleSimulateThirdPlace}
-                          // Ajustado: absolute e right-0 para o botão não quebrar a centralização do texto
+                          // O absolute right-0 tira o botão do fluxo, então ele não empurra o texto
                           className="absolute right-0 flex items-center gap-1 px-1.5 py-0.5 rounded bg-primary/10 text-primary hover:bg-primary/20 text-[9px] font-bold transition-colors"
                         >
                           <Zap className="w-2 h-2" />
