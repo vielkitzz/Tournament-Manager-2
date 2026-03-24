@@ -676,7 +676,7 @@ export default function BracketView({
         {showActions && onAddMatch && !tournament.finalized && (
           <button
             onClick={() => handleAddMatch(stageIdx)}
-            className="w-[220px] mt-2 p-2 rounded-lg border border-dashed border-border/60 hover:border-primary/40 bg-secondary/10 hover:bg-secondary/30 transition-colors flex items-center justify-center gap-1.5"
+            className="w-[220px] mt-2 p-2 rounded-lg border border-dashed border-border/60 hover:border-primary/40 bg-secondary/10 hover:bg-secondary/30 transition-colors flex items-center justify-start gap-1.5"
           >
             <Plus className="w-3 h-3 text-muted-foreground" />
             <span className="text-[10px] text-muted-foreground">Adicionar Confronto</span>
@@ -710,7 +710,7 @@ export default function BracketView({
         <div className="flex flex-col items-center gap-2 p-4 rounded-xl bg-gradient-to-b from-primary/15 to-primary/5 border-2 border-primary/40 shadow-lg shadow-primary/10 relative overflow-hidden">
           <div className="absolute top-0 left-0 w-full h-full bg-gradient-to-br from-primary/10 via-transparent to-primary/5 pointer-events-none" />
           <Trophy className="w-7 h-7 text-primary drop-shadow-sm relative z-10" />
-          <div className="w-12 h-12 flex items-center justify-center relative z-10 rounded-full bg-background/60 border border-primary/20 shadow-sm">
+          <div className="w-12 h-12 flex items-center justify-start relative z-10 rounded-full bg-background/60 border border-primary/20 shadow-sm">
             {championTeam.logo ? (
               <img src={championTeam.logo} alt="" className="w-10 h-10 object-contain" />
             ) : (
@@ -728,7 +728,7 @@ export default function BracketView({
             {runnerUpTeam && (
               <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-secondary/40 border border-border/50">
                 <span className="text-[10px] font-bold text-muted-foreground w-4">2º</span>
-                <div className="w-4 h-4 flex items-center justify-center shrink-0">
+                <div className="w-4 h-4 flex items-center justify-start shrink-0">
                   {runnerUpTeam.logo ? (
                     <img src={runnerUpTeam.logo} alt="" className="w-4 h-4 object-contain" />
                   ) : (
@@ -743,7 +743,7 @@ export default function BracketView({
             {thirdTeam && (
               <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-secondary/40 border border-border/50">
                 <span className="text-[10px] font-bold text-muted-foreground w-4">3º</span>
-                <div className="w-4 h-4 flex items-center justify-center shrink-0">
+                <div className="w-4 h-4 flex items-center justify-start shrink-0">
                   {thirdTeam.logo ? (
                     <img src={thirdTeam.logo} alt="" className="w-4 h-4 object-contain" />
                   ) : (
@@ -824,7 +824,7 @@ export default function BracketView({
         const canFinalize = allFinalResolved && allMatchesPlayed;
         if (!canFinalize || tournament.finalized || !onFinalize) return null;
         return (
-          <div className="flex items-center justify-center gap-3 p-3 rounded-xl bg-primary/5 border border-primary/20">
+          <div className="flex items-center justify-start gap-3 p-3 rounded-xl bg-primary/5 border border-primary/20">
             <Trophy className="w-4 h-4 text-primary" />
             <span className="text-sm font-medium text-foreground">Chaveamento concluído!</span>
             <Button onClick={onFinalize} size="sm" className="gap-1.5 bg-primary text-primary-foreground">
@@ -849,7 +849,7 @@ export default function BracketView({
           if (!useBracketLayout) {
             // Linear layout
             return (
-              <div className="flex min-w-max items-center justify-center gap-0">
+              <div className="flex items-center items-center justify-start gap-0">
                 {stages.map((stage, stageIdx) => {
                   const pairs = getPairs(matchesByStage[stage] || []);
                   return (
@@ -878,7 +878,7 @@ export default function BracketView({
           });
 
           return (
-            <div className="flex min-w-max items-center justify-center">
+            <div className="flex items-center items-center justify-start">
               {/* Left bracket half */}
               {leftColumns.map(({ stage, stageIdx, pairs }) => (
                 <div key={`left-${stage}`} className="flex items-center">
@@ -888,7 +888,7 @@ export default function BracketView({
               ))}
 
               {/* Center: Final + Third Place + Champion */}
-              <div className="flex flex-col items-center justify-center" style={{ minWidth: 240 }}>
+              <div className="flex flex-col items-center justify-start" style={{ minWidth: 240 }}>
                 {renderStageColumn(
                   finalStageKey,
                   finalStageIdx,
@@ -899,8 +899,8 @@ export default function BracketView({
 
                 {thirdPlaceMatches.length > 0 && (
                   <div className="pt-3 mt-3 border-t border-border/40 w-[220px]">
-                    {/* Ajustado: justify-center para centralizar e a cor do ícone para bronze */}
-                    <div className="flex items-center justify-center gap-1.5 mb-1.5 relative">
+                    {/* Ajustado: justify-start para centralizar e a cor do ícone para bronze */}
+                    <div className="flex items-center justify-start gap-1.5 mb-1.5 relative">
                       <Medal className="w-3.5 h-3.5" style={{ color: "#CD7F32" }} />
                       <span className="text-[10px] font-bold" style={{ color: "#3c83f6" }}>
                         3º LUGAR
@@ -1013,7 +1013,7 @@ function TeamRow({
       )}
     >
       <div className="flex items-center gap-2 min-w-0">
-        <div className="w-5 h-5 flex items-center justify-center shrink-0">
+        <div className="w-5 h-5 flex items-center justify-start shrink-0">
           {team?.logo ? (
             <img src={team.logo} alt="" className="w-5 h-5 object-contain" />
           ) : (
