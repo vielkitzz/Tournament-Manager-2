@@ -899,13 +899,16 @@ export default function BracketView({
 
                 {thirdPlaceMatches.length > 0 && (
                   <div className="pt-3 mt-3 border-t border-border/40 w-[220px]">
-                    <div className="flex items-center gap-1.5 mb-1.5">
-                      <Medal className="w-3.5 h-3.5 text-warning" />
+                    {/* Ajustado: justify-center para centralizar e a cor do ícone para bronze */}
+                    <div className="flex items-center justify-center gap-1.5 mb-1.5 relative">
+                      <Medal className="w-3.5 h-3.5" style={{ color: "#CD7F32" }} />
                       <span className="text-[10px] font-bold text-foreground">3º LUGAR</span>
+
                       {thirdPlaceMatches.some((m) => !m.played) && (
                         <button
                           onClick={handleSimulateThirdPlace}
-                          className="ml-auto flex items-center gap-1 px-1.5 py-0.5 rounded bg-primary/10 text-primary hover:bg-primary/20 text-[9px] font-bold transition-colors"
+                          // Ajustado: absolute e right-0 para o botão não quebrar a centralização do texto
+                          className="absolute right-0 flex items-center gap-1 px-1.5 py-0.5 rounded bg-primary/10 text-primary hover:bg-primary/20 text-[9px] font-bold transition-colors"
                         >
                           <Zap className="w-2 h-2" />
                           Simular
