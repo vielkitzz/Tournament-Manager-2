@@ -703,7 +703,7 @@ export default function BracketView({
     const thirdTeam = thirdWinnerId ? getTeam(thirdWinnerId) : null;
 
     return (
-      <div className="flex flex-col items-center justify-start min-w-[140px]">
+      <div className="flex flex-col items-stretch justify-start w-[140px] flex-shrink-0">
         <div className="mb-3 text-center">
           <span className="text-[11px] font-bold text-primary uppercase tracking-wider">Campeão</span>
         </div>
