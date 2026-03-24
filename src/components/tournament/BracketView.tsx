@@ -902,7 +902,9 @@ export default function BracketView({
                     {/* Ajustado: justify-center para centralizar e a cor do ícone para bronze */}
                     <div className="flex items-center justify-center gap-1.5 mb-1.5 relative">
                       <Medal className="w-3.5 h-3.5" style={{ color: "#CD7F32" }} />
-                      <span className="text-[10px] font-bold text-foreground">3º LUGAR</span>
+                      <span className="text-[10px] font-bold" style={{ color: "#3c83f6" }}>
+                        3º LUGAR
+                      </span>
 
                       {thirdPlaceMatches.some((m) => !m.played) && (
                         <button
