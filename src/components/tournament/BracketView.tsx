@@ -710,7 +710,7 @@ export default function BracketView({
         <div className="flex flex-col items-center gap-2 p-4 rounded-xl bg-gradient-to-b from-primary/15 to-primary/5 border-2 border-primary/40 shadow-lg shadow-primary/10 relative overflow-hidden">
           <div className="absolute top-0 left-0 w-full h-full bg-gradient-to-br from-primary/10 via-transparent to-primary/5 pointer-events-none" />
           <Trophy className="w-7 h-7 text-primary drop-shadow-sm relative z-10" />
-          <div className="w-12 h-12 flex items-center justify-start relative z-10 rounded-full bg-background/60 border border-primary/20 shadow-sm">
+          <div className="w-12 h-12 flex items-center justify-center relative z-10 rounded-full bg-background/60 border border-primary/20 shadow-sm">
             {championTeam.logo ? (
               <img src={championTeam.logo} alt="" className="w-10 h-10 object-contain" />
             ) : (
