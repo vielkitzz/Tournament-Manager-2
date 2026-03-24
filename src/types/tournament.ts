@@ -73,6 +73,29 @@ export interface SeasonRecord {
   settings?: TournamentSettings;
 }
 
+export type PreliminaryPhaseFormat = "mata-mata" | "grupos";
+
+export interface PreliminaryPhase {
+  id: string;
+  name: string;
+  order: number;
+  format: PreliminaryPhaseFormat;
+  numberOfTeams: number;
+  qualifiedCount: number;
+  legMode: KnockoutLegMode;
+  // For grupos format
+  groupCount?: number;
+  groupTurnos?: 1 | 2;
+  // State
+  teamIds: string[];
+  matches: Match[];
+  finalized: boolean;
+  qualifiedTeamIds: string[];
+  // Groups format state
+  groupAssignments?: Record<string, string[]>;
+  groupsFinalized?: boolean;
+}
+
 export interface Tournament {
   id: string;
   name: string;
@@ -100,6 +123,8 @@ export interface Tournament {
   suicoJogosLiga?: number;
   suicoMataMataInicio?: KnockoutStage;
   suicoPlayoffVagas?: number;
+  // Preliminary phases
+  preliminaryPhases?: PreliminaryPhase[];
 }
 
 export interface TournamentFolder {
