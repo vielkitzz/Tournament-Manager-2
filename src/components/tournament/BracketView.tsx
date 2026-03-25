@@ -505,12 +505,14 @@ export default function BracketView({
             score={pair.leg1.played ? getMatchTotalScore(pair.leg1, "home") : undefined}
             isWinner={winner === pair.leg1.homeTeamId}
             borderBottom
+            hideEdit={!!tournament.finalized}
             onEditTeam={() => setEditingTeam({ match: pair.leg1, side: "home" })}
           />
           <TeamRow
             team={awayTeam}
             score={pair.leg1.played ? getMatchTotalScore(pair.leg1, "away") : undefined}
             isWinner={winner === pair.leg1.awayTeamId}
+            hideEdit={!!tournament.finalized}
             onEditTeam={() => setEditingTeam({ match: pair.leg1, side: "away" })}
           />
           {!pair.leg2 && renderMatchFooter(pair.leg1)}
@@ -528,13 +530,15 @@ export default function BracketView({
               score={pair.leg2.played ? getMatchTotalScore(pair.leg2, "home") : undefined}
               isWinner={winner === pair.leg1.awayTeamId}
               borderBottom
-              onEditTeam={() => setEditingTeam({ match: pair.leg2!, side: "home" })}
+              hideEdit={!!tournament.finalized}
+            onEditTeam={() => setEditingTeam({ match: pair.leg2!, side: "home" })}
             />
             <TeamRow
               team={homeTeam}
               score={pair.leg2.played ? getMatchTotalScore(pair.leg2, "away") : undefined}
               isWinner={winner === pair.leg1.homeTeamId}
-              onEditTeam={() => setEditingTeam({ match: pair.leg2!, side: "away" })}
+              hideEdit={!!tournament.finalized}
+            onEditTeam={() => setEditingTeam({ match: pair.leg2!, side: "away" })}
             />
             {renderMatchFooter(pair.leg2)}
           </button>
@@ -564,13 +568,15 @@ export default function BracketView({
           score={homeTotal}
           isWinner={winner === match.homeTeamId}
           borderBottom
-          onEditTeam={() => setEditingTeam({ match, side: "home" })}
+          hideEdit={!!tournament.finalized}
+            onEditTeam={() => setEditingTeam({ match, side: "home" })}
         />
         <TeamRow
           team={away}
           score={awayTotal}
           isWinner={winner === match.awayTeamId}
-          onEditTeam={() => setEditingTeam({ match, side: "away" })}
+          hideEdit={!!tournament.finalized}
+            onEditTeam={() => setEditingTeam({ match, side: "away" })}
         />
         {(hasET || hasPens) && (
           <div className="text-center py-0.5 bg-secondary/50 border-t border-border/10">
