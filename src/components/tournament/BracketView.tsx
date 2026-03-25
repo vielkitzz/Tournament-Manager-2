@@ -897,7 +897,7 @@ export default function BracketView({
       <div className="flex justify-end mb-1">
         <ScreenshotButton targetRef={bracketRef as any} filename="chaveamento.png" discrete />
       </div>
-      <div className="overflow-x-auto pb-2" ref={bracketRef}>
+      <div className="overflow-x-auto overflow-y-hidden pb-2" ref={bracketRef}>
         {(() => {
           const preFinalStages = stages.slice(0, -1);
           const finalStageKey = stages[stages.length - 1];
