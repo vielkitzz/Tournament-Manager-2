@@ -9,10 +9,9 @@ import ExportDialog from "@/components/ExportDialog";
 import ImportDialog from "@/components/ImportDialog";
 
 const navSections = [
+  {
     label: "INÍCIO",
-    items: [
-      { to: "/", icon: LayoutDashboard, label: "Dashboard", end: false },
-    ],
+    items: [{ to: "/", icon: LayoutDashboard, label: "Dashboard", end: false }],
   },
   {
     label: "NAVEGAR",
@@ -63,7 +62,11 @@ export default function AppSidebar({ onNavigate }: AppSidebarProps) {
       {/* Logo */}
       <div className="px-5 pt-6 pb-6 flex items-center gap-2.5">
         <Link to="/" onClick={onNavigate}>
-          <img src={appLogo} alt="TM2" className="h-8 object-contain cursor-pointer hover:opacity-80 transition-opacity" />
+          <img
+            src={appLogo}
+            alt="TM2"
+            className="h-8 object-contain cursor-pointer hover:opacity-80 transition-opacity"
+          />
         </Link>
       </div>
 
@@ -133,9 +136,7 @@ export default function AppSidebar({ onNavigate }: AppSidebarProps) {
       {/* Footer */}
       <div className="p-3 mx-3 mb-3 rounded-lg bg-secondary/40 space-y-2">
         {user && (
-          <p className="text-[11px] text-muted-foreground text-center truncate px-1">
-            {user.email || "Conta anônima"}
-          </p>
+          <p className="text-[11px] text-muted-foreground text-center truncate px-1">{user.email || "Conta anônima"}</p>
         )}
         <button
           onClick={handleSignOut}
