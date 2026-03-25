@@ -8,9 +8,12 @@ import appLogoLight from "@/assets/logo-light.png";
 import ExportDialog from "@/components/ExportDialog";
 import ImportDialog from "@/components/ImportDialog";
 
-const dashboardItem = { to: "/", icon: LayoutDashboard, label: "Dashboard", end: true };
-
 const navSections = [
+    label: "INÍCIO",
+    items: [
+      { to: "/", icon: LayoutDashboard, label: "Dashboard", end: false },
+    ],
+  },
   {
     label: "NAVEGAR",
     items: [
