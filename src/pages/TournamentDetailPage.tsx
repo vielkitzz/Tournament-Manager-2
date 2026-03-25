@@ -15,6 +15,7 @@ import {
   Pencil,
   Shuffle,
 } from "lucide-react";
+import PreliminaryPhasesIcon from "@/components/icons/PreliminaryPhasesIcon";
 import { useTournamentStore } from "@/store/tournamentStore";
 import { resolveTeam } from "@/lib/teamHistoryUtils";
 import { Button } from "@/components/ui/button";
