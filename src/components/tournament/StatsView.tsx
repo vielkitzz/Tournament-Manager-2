@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Match, Team, Tournament } from "@/types/tournament";
 import { Shield, Swords, ShieldCheck, TrendingUp, ChevronDown, ChevronUp } from "lucide-react";
+import SoccerBallIcon from "@/components/icons/SoccerBallIcon";
 
 interface StatsViewProps {
   tournament: Tournament;
