@@ -901,9 +901,9 @@ export default function BracketView({
                   <div className="pt-3 mt-3 border-t border-border/40 w-[220px]">
                     {/* Container com justify-center para o texto ficar no meio */}
                     <div className="flex items-center justify-center gap-1.5 mb-1.5 relative w-full">
-                      <Medal className="w-3.5 h-3.5" style={{ color: "#CD7F32" }} />
-                      <span className="text-[10px] font-bold" style={{ color: "#3c83f6" }}>
-                        3º LUGAR
+                      <Medal className="w-3.5 h-3.5 text-highlight" />
+                      <span className="text-[10px] font-bold text-primary">
+                        3º Lugar
                       </span>
 
                       {thirdPlaceMatches.some((m) => !m.played) && (
