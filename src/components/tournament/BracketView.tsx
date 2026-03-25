@@ -705,7 +705,7 @@ export default function BracketView({
     return (
       <div className="flex flex-col items-stretch justify-start w-[140px] flex-shrink-0">
         <div className="mb-3 text-center">
-          <span className="text-[11px] font-bold text-primary uppercase tracking-wider">Campeão</span>
+          <span className="text-[11px] font-bold text-primary tracking-tight">Campeão</span>
         </div>
         <div className="flex flex-col items-center gap-2 p-4 rounded-xl bg-gradient-to-b from-primary/15 to-primary/5 border-2 border-primary/40 shadow-lg shadow-primary/10 relative overflow-hidden">
           <div className="absolute top-0 left-0 w-full h-full bg-gradient-to-br from-primary/10 via-transparent to-primary/5 pointer-events-none" />
