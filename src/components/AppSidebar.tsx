@@ -57,6 +57,8 @@ export default function AppSidebar({ onNavigate }: AppSidebarProps) {
   const actionBtnClasses =
     "w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-[13px] font-medium text-muted-foreground hover:text-foreground hover:bg-secondary/60 transition-all duration-150";
 
+  const dashboardItem = navSections[0].items[0];
+
   return (
     <aside className="w-60 h-screen bg-sidebar border-r border-sidebar-border flex flex-col overflow-y-auto">
       {/* Logo */}
