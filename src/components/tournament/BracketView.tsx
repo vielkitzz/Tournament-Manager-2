@@ -517,7 +517,7 @@ export default function BracketView({
         </button>
         {pair.leg2 && (
           <button
-            className="w-full text-left hover:bg-secondary/20 transition-colors"
+            className="w-full text-left hover:bg-secondary/30 transition-all duration-150"
             onClick={() => setSelectedMatch(pair.leg2)}
           >
             <div className="flex items-center gap-1 px-2 py-1 border-b border-border/20">
