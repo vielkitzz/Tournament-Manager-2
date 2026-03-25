@@ -16,6 +16,7 @@ import {
   Pencil,
   Shuffle,
 } from "lucide-react";
+import PreliminaryPhasesIcon from "@/components/icons/PreliminaryPhasesIcon";
 import { useTournamentStore } from "@/store/tournamentStore";
 import { resolveTeam } from "@/lib/teamHistoryUtils";
 import { Button } from "@/components/ui/button";
@@ -877,7 +878,7 @@ export default function TournamentDetailPage() {
     { icon: Pencil, label: "Editar Competição", action: () => navigate(`/tournament/${id}/edit`) },
     { icon: Settings, label: "Editar Sistemas", action: () => navigate(`/tournament/${id}/settings`) },
     { icon: Shield, label: "Times", action: () => navigate(`/tournament/${id}/teams${viewingYear ? `?season=${activeYear}` : ''}`) },
-    { icon: Zap, label: "Fases Preliminares", action: () => navigate(`/tournament/${id}/preliminary`) },
+    { icon: PreliminaryPhasesIcon, label: "Fases Preliminares", action: () => navigate(`/tournament/${id}/preliminary`) },
     { icon: Trophy, label: "Galeria", action: () => navigate(`/tournament/${id}/gallery`) },
   ];
 
