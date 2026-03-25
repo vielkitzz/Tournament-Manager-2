@@ -492,7 +492,7 @@ export default function BracketView({
           </button>
         )}
         <button
-          className="w-full text-left hover:bg-secondary/20 transition-colors"
+          className="w-full text-left hover:bg-secondary/30 transition-all duration-150"
           onClick={() => setSelectedMatch(pair.leg1)}
         >
           {pair.leg2 && (
