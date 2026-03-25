@@ -764,60 +764,59 @@ export default function BracketView({
     }
 
     return (
-      <div className="flex flex-col items-stretch justify-start w-[140px] flex-shrink-0">
-        <div className="mb-3 text-center">
+      <div className="flex flex-col items-stretch justify-start w-[220px] flex-shrink-0">
+        <div className="mb-2 text-center">
           <span className="text-[11px] font-bold text-primary tracking-tight">Campeão</span>
         </div>
-        <div className="flex flex-col items-center gap-2 p-4 rounded-xl bg-gradient-to-b from-primary/15 to-primary/5 border-2 border-primary/40 shadow-lg shadow-primary/10 relative overflow-hidden">
-          <div className="absolute top-0 left-0 w-full h-full bg-gradient-to-br from-primary/10 via-transparent to-primary/5 pointer-events-none" />
-          <Trophy className="w-7 h-7 text-primary drop-shadow-sm relative z-10" />
-          <div className="w-12 h-12 flex items-center justify-center relative z-10 rounded-full bg-background/60 border border-primary/20 shadow-sm">
-            {championTeam.logo ? (
-              <img src={championTeam.logo} alt="" className="w-10 h-10 object-contain" />
-            ) : (
-              <Shield className="w-6 h-6 text-muted-foreground" />
-            )}
+        <div className="rounded-lg border-2 border-primary/40 bg-gradient-to-b from-primary/10 to-secondary/30 overflow-hidden shadow-lg shadow-primary/10">
+          {/* Champion row */}
+          <div className="flex items-center gap-2.5 px-3 py-2.5 bg-primary/5">
+            <Trophy className="w-4 h-4 text-primary shrink-0" />
+            <div className="w-6 h-6 flex items-center justify-center shrink-0">
+              {championTeam.logo ? (
+                <img src={championTeam.logo} alt="" className="w-6 h-6 object-contain" />
+              ) : (
+                <Shield className="w-4 h-4 text-muted-foreground" />
+              )}
+            </div>
+            <span className="text-xs font-bold text-foreground truncate flex-1">
+              {championTeam.name || championTeam.shortName}
+            </span>
+            <span className="text-[10px] text-primary font-semibold">{tournament.year}</span>
           </div>
-          <span className="text-sm font-bold text-foreground text-center relative z-10">
-            {championTeam.name || championTeam.shortName}
-          </span>
-          <span className="text-[12px] text-primary font-semibold relative z-10">{tournament.year}</span>
+          {/* Runner-up row */}
+          {runnerUpTeam && (
+            <div className="flex items-center gap-2.5 px-3 py-2 border-t border-border/20">
+              <span className="text-[10px] font-bold text-muted-foreground w-4 text-center">2º</span>
+              <div className="w-5 h-5 flex items-center justify-center shrink-0">
+                {runnerUpTeam.logo ? (
+                  <img src={runnerUpTeam.logo} alt="" className="w-5 h-5 object-contain" />
+                ) : (
+                  <Shield className="w-3.5 h-3.5 text-muted-foreground/50" />
+                )}
+              </div>
+              <span className="text-xs text-muted-foreground truncate">
+                {runnerUpTeam.abbreviation || runnerUpTeam.shortName}
+              </span>
+            </div>
+          )}
+          {/* Third place row */}
+          {thirdTeam && (
+            <div className="flex items-center gap-2.5 px-3 py-2 border-t border-border/20">
+              <span className="text-[10px] font-bold text-highlight w-4 text-center">3º</span>
+              <div className="w-5 h-5 flex items-center justify-center shrink-0">
+                {thirdTeam.logo ? (
+                  <img src={thirdTeam.logo} alt="" className="w-5 h-5 object-contain" />
+                ) : (
+                  <Shield className="w-3.5 h-3.5 text-muted-foreground/50" />
+                )}
+              </div>
+              <span className="text-xs text-muted-foreground truncate">
+                {thirdTeam.abbreviation || thirdTeam.shortName}
+              </span>
+            </div>
+          )}
         </div>
-
-        {(runnerUpTeam || thirdTeam) && (
-          <div className="mt-3 flex flex-col gap-1.5 w-full">
-            {runnerUpTeam && (
-              <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-secondary/40 border border-border/50">
-                <span className="text-[10px] font-bold text-muted-foreground w-4">2º</span>
-                <div className="w-4 h-4 flex items-center justify-start shrink-0">
-                  {runnerUpTeam.logo ? (
-                    <img src={runnerUpTeam.logo} alt="" className="w-4 h-4 object-contain" />
-                  ) : (
-                    <Shield className="w-3 h-3 text-muted-foreground" />
-                  )}
-                </div>
-                <span className="text-[10px] text-muted-foreground truncate">
-                  {runnerUpTeam.abbreviation || runnerUpTeam.shortName}
-                </span>
-              </div>
-            )}
-            {thirdTeam && (
-              <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-secondary/40 border border-border/50">
-                <span className="text-[10px] font-bold text-muted-foreground w-4">3º</span>
-                <div className="w-4 h-4 flex items-center justify-start shrink-0">
-                  {thirdTeam.logo ? (
-                    <img src={thirdTeam.logo} alt="" className="w-4 h-4 object-contain" />
-                  ) : (
-                    <Shield className="w-3 h-3 text-muted-foreground" />
-                  )}
-                </div>
-                <span className="text-[10px] text-muted-foreground truncate">
-                  {thirdTeam.abbreviation || thirdTeam.shortName}
-                </span>
-              </div>
-            )}
-          </div>
-        )}
       </div>
     );
   };
