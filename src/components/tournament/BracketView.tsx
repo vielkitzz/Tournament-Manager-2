@@ -997,17 +997,19 @@ function TeamRow({
   isWinner,
   borderBottom,
   onEditTeam,
+  hideEdit,
 }: {
   team?: Team;
   score?: number;
   isWinner: boolean;
   borderBottom?: boolean;
   onEditTeam: () => void;
+  hideEdit?: boolean;
 }) {
   return (
     <div
       className={cn(
-        "flex items-center justify-between px-3 py-2",
+        "flex items-center justify-between px-3 py-2 transition-colors",
         borderBottom && "border-b border-border/20",
         isWinner && "bg-primary/5",
       )}
@@ -1017,7 +1019,7 @@ function TeamRow({
           {team?.logo ? (
             <img src={team.logo} alt="" className="w-5 h-5 object-contain" />
           ) : (
-            <Shield className="w-3.5 h-3.5 text-muted-foreground" />
+            <Shield className="w-3.5 h-3.5 text-muted-foreground/50" />
           )}
         </div>
         <span className={cn("text-xs truncate", isWinner ? "font-bold text-foreground" : "text-muted-foreground")}>
@@ -1037,15 +1039,17 @@ function TeamRow({
         >
           {score !== undefined ? score : "—"}
         </span>
-        <button
-          onClick={(e) => {
-            e.stopPropagation();
-            onEditTeam();
-          }}
-          className="p-1 rounded hover:bg-secondary text-muted-foreground/40 hover:text-primary transition-colors"
-        >
-          <UserPlus className="w-2.5 h-2.5" />
-        </button>
+        {!hideEdit && (
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              onEditTeam();
+            }}
+            className="p-1 rounded hover:bg-secondary text-muted-foreground/30 hover:text-primary transition-colors"
+          >
+            <UserPlus className="w-2.5 h-2.5" />
+          </button>
+        )}
       </div>
     </div>
   );
