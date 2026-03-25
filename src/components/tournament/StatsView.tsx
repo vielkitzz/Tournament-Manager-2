@@ -167,7 +167,7 @@ export default function StatsView({ tournament, teams }: StatsViewProps) {
         valueAccessor={(s) => `${s.goalsAgainst}`}
       />
       <StatCard
-        icon={Swords}
+        icon={SoccerBallIcon}
         title="Média de Gols/Jogo"
         items={topAvgGoals}
         valueAccessor={(s) => s.avgFor.toFixed(1)}
