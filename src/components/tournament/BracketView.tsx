@@ -2,7 +2,7 @@ import { useState, useRef } from "react";
 import { Match, Team, Tournament, KnockoutStage, STAGE_TEAM_COUNTS } from "@/types/tournament";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
-import { Shield, Play, Zap, Trophy, Medal, UserPlus, Shuffle, Plus, Trash2 } from "lucide-react";
+import { Shield, Zap, Trophy, Medal, UserPlus, Shuffle, Plus, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { simulateFullMatch, simulateHalf } from "@/lib/simulation";
 import MatchPopup from "./MatchPopup";
@@ -492,7 +492,7 @@ export default function BracketView({
           </button>
         )}
         <button
-          className="w-full text-left hover:bg-secondary/20 transition-colors"
+          className="w-full text-left hover:bg-secondary/30 transition-all duration-150"
           onClick={() => setSelectedMatch(pair.leg1)}
         >
           {pair.leg2 && (
@@ -505,19 +505,21 @@ export default function BracketView({
             score={pair.leg1.played ? getMatchTotalScore(pair.leg1, "home") : undefined}
             isWinner={winner === pair.leg1.homeTeamId}
             borderBottom
+            hideEdit={!!tournament.finalized}
             onEditTeam={() => setEditingTeam({ match: pair.leg1, side: "home" })}
           />
           <TeamRow
             team={awayTeam}
             score={pair.leg1.played ? getMatchTotalScore(pair.leg1, "away") : undefined}
             isWinner={winner === pair.leg1.awayTeamId}
+            hideEdit={!!tournament.finalized}
             onEditTeam={() => setEditingTeam({ match: pair.leg1, side: "away" })}
           />
           {!pair.leg2 && renderMatchFooter(pair.leg1)}
         </button>
         {pair.leg2 && (
           <button
-            className="w-full text-left hover:bg-secondary/20 transition-colors"
+            className="w-full text-left hover:bg-secondary/30 transition-all duration-150"
             onClick={() => setSelectedMatch(pair.leg2)}
           >
             <div className="flex items-center gap-1 px-2 py-1 border-b border-border/20">
@@ -528,13 +530,15 @@ export default function BracketView({
               score={pair.leg2.played ? getMatchTotalScore(pair.leg2, "home") : undefined}
               isWinner={winner === pair.leg1.awayTeamId}
               borderBottom
-              onEditTeam={() => setEditingTeam({ match: pair.leg2!, side: "home" })}
+              hideEdit={!!tournament.finalized}
+            onEditTeam={() => setEditingTeam({ match: pair.leg2!, side: "home" })}
             />
             <TeamRow
               team={homeTeam}
               score={pair.leg2.played ? getMatchTotalScore(pair.leg2, "away") : undefined}
               isWinner={winner === pair.leg1.homeTeamId}
-              onEditTeam={() => setEditingTeam({ match: pair.leg2!, side: "away" })}
+              hideEdit={!!tournament.finalized}
+            onEditTeam={() => setEditingTeam({ match: pair.leg2!, side: "away" })}
             />
             {renderMatchFooter(pair.leg2)}
           </button>
@@ -564,13 +568,15 @@ export default function BracketView({
           score={homeTotal}
           isWinner={winner === match.homeTeamId}
           borderBottom
-          onEditTeam={() => setEditingTeam({ match, side: "home" })}
+          hideEdit={!!tournament.finalized}
+            onEditTeam={() => setEditingTeam({ match, side: "home" })}
         />
         <TeamRow
           team={away}
           score={awayTotal}
           isWinner={winner === match.awayTeamId}
-          onEditTeam={() => setEditingTeam({ match, side: "away" })}
+          hideEdit={!!tournament.finalized}
+            onEditTeam={() => setEditingTeam({ match, side: "away" })}
         />
         {(hasET || hasPens) && (
           <div className="text-center py-0.5 bg-secondary/50 border-t border-border/10">
@@ -604,7 +610,7 @@ export default function BracketView({
     return (
       <div key={columnKey} className="flex flex-col items-center relative" style={{ minWidth: 228 }}>
         <div className="mb-2 flex items-center gap-1.5">
-          <span className="text-[11px] font-bold text-primary uppercase tracking-wider">
+          <span className="text-[11px] font-bold text-primary tracking-tight">
             {STAGE_LABELS[stage] || stage}
           </span>
           {legMode === "home-away" && !isFinal && <span className="text-[9px] text-muted-foreground">(I/V)</span>}
@@ -705,7 +711,7 @@ export default function BracketView({
     return (
       <div className="flex flex-col items-stretch justify-start w-[140px] flex-shrink-0">
         <div className="mb-3 text-center">
-          <span className="text-[11px] font-bold text-primary uppercase tracking-wider">Campeão</span>
+          <span className="text-[11px] font-bold text-primary tracking-tight">Campeão</span>
         </div>
         <div className="flex flex-col items-center gap-2 p-4 rounded-xl bg-gradient-to-b from-primary/15 to-primary/5 border-2 border-primary/40 shadow-lg shadow-primary/10 relative overflow-hidden">
           <div className="absolute top-0 left-0 w-full h-full bg-gradient-to-br from-primary/10 via-transparent to-primary/5 pointer-events-none" />
@@ -849,7 +855,7 @@ export default function BracketView({
           if (!useBracketLayout) {
             // Linear layout
             return (
-              <div className="flex items-center items-center justify-start gap-0">
+              <div className="flex items-center justify-start gap-0">
                 {stages.map((stage, stageIdx) => {
                   const pairs = getPairs(matchesByStage[stage] || []);
                   return (
@@ -901,9 +907,9 @@ export default function BracketView({
                   <div className="pt-3 mt-3 border-t border-border/40 w-[220px]">
                     {/* Container com justify-center para o texto ficar no meio */}
                     <div className="flex items-center justify-center gap-1.5 mb-1.5 relative w-full">
-                      <Medal className="w-3.5 h-3.5" style={{ color: "#CD7F32" }} />
-                      <span className="text-[10px] font-bold" style={{ color: "#3c83f6" }}>
-                        3º LUGAR
+                      <Medal className="w-3.5 h-3.5 text-highlight" />
+                      <span className="text-[10px] font-bold text-primary">
+                        3º Lugar
                       </span>
 
                       {thirdPlaceMatches.some((m) => !m.played) && (
@@ -997,17 +1003,19 @@ function TeamRow({
   isWinner,
   borderBottom,
   onEditTeam,
+  hideEdit,
 }: {
   team?: Team;
   score?: number;
   isWinner: boolean;
   borderBottom?: boolean;
   onEditTeam: () => void;
+  hideEdit?: boolean;
 }) {
   return (
     <div
       className={cn(
-        "flex items-center justify-between px-3 py-2",
+        "flex items-center justify-between px-3 py-2 transition-colors",
         borderBottom && "border-b border-border/20",
         isWinner && "bg-primary/5",
       )}
@@ -1017,7 +1025,7 @@ function TeamRow({
           {team?.logo ? (
             <img src={team.logo} alt="" className="w-5 h-5 object-contain" />
           ) : (
-            <Shield className="w-3.5 h-3.5 text-muted-foreground" />
+            <Shield className="w-3.5 h-3.5 text-muted-foreground/50" />
           )}
         </div>
         <span className={cn("text-xs truncate", isWinner ? "font-bold text-foreground" : "text-muted-foreground")}>
@@ -1037,15 +1045,17 @@ function TeamRow({
         >
           {score !== undefined ? score : "—"}
         </span>
-        <button
-          onClick={(e) => {
-            e.stopPropagation();
-            onEditTeam();
-          }}
-          className="p-1 rounded hover:bg-secondary text-muted-foreground/40 hover:text-primary transition-colors"
-        >
-          <UserPlus className="w-2.5 h-2.5" />
-        </button>
+        {!hideEdit && (
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              onEditTeam();
+            }}
+            className="p-1 rounded hover:bg-secondary text-muted-foreground/30 hover:text-primary transition-colors"
+          >
+            <UserPlus className="w-2.5 h-2.5" />
+          </button>
+        )}
       </div>
     </div>
   );
