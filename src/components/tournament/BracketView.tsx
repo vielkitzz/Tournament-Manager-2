@@ -704,9 +704,64 @@ export default function BracketView({
       : null;
     const runnerUpTeam = runnerUp ? getTeam(runnerUp) : null;
 
+    // Determine 3rd place: from match if exists, otherwise by best campaign (tiebreakers)
+    let thirdTeam: Team | undefined = undefined;
     const thirdMatch = thirdPlaceMatches[0];
     const thirdWinnerId = thirdMatch ? getSingleMatchWinner(thirdMatch) : null;
-    const thirdTeam = thirdWinnerId ? getTeam(thirdWinnerId) : null;
+    if (thirdWinnerId) {
+      thirdTeam = getTeam(thirdWinnerId);
+    } else if (!thirdPlaceMatch) {
+      // No 3rd place match setting: determine by best campaign among semi-final losers
+      const semiStageIdx = stages.length - 2;
+      if (semiStageIdx >= 0) {
+        const semiStage = stages[semiStageIdx];
+        const semiPairs = getPairs(matchesByStage[semiStage] || []);
+        const losers = semiPairs.map(getSemiLoser).filter(Boolean) as string[];
+        if (losers.length === 2) {
+          // Use all tournament matches to evaluate campaign
+          const allPlayedMatches = matches.filter(m => m.played);
+          const tiebreakers = tournament.settings.tiebreakers || ["Pontos", "Vitórias", "Saldo de Gols", "Gols Marcados"];
+          const ptsWin = tournament.settings.pointsWin ?? 3;
+          const ptsDraw = tournament.settings.pointsDraw ?? 1;
+          const ptsLoss = tournament.settings.pointsLoss ?? 0;
+          
+          const buildStats = (teamId: string) => {
+            let wins = 0, draws = 0, losses = 0, gf = 0, ga = 0, points = 0;
+            for (const m of allPlayedMatches) {
+              const isHome = m.homeTeamId === teamId;
+              const isAway = m.awayTeamId === teamId;
+              if (!isHome && !isAway) continue;
+              const tgf = isHome ? (m.homeScore || 0) + (m.homeExtraTime || 0) : (m.awayScore || 0) + (m.awayExtraTime || 0);
+              const tga = isHome ? (m.awayScore || 0) + (m.awayExtraTime || 0) : (m.homeScore || 0) + (m.homeExtraTime || 0);
+              gf += tgf; ga += tga;
+              if (tgf > tga) { wins++; points += ptsWin; }
+              else if (tgf < tga) { losses++; points += ptsLoss; }
+              else { draws++; points += ptsDraw; }
+            }
+            return { points, wins, draws, losses, gf, ga, gd: gf - ga };
+          };
+          
+          const statsA = buildStats(losers[0]);
+          const statsB = buildStats(losers[1]);
+          
+          let bestLoser = losers[0];
+          for (const tb of tiebreakers) {
+            let diff = 0;
+            switch (tb) {
+              case "Pontos": diff = statsA.points - statsB.points; break;
+              case "Vitórias": diff = statsA.wins - statsB.wins; break;
+              case "Saldo de Gols": diff = statsA.gd - statsB.gd; break;
+              case "Gols Marcados": diff = statsA.gf - statsB.gf; break;
+              case "Empates": diff = statsA.draws - statsB.draws; break;
+              case "Gols Sofridos": diff = statsB.ga - statsA.ga; break;
+            }
+            if (diff > 0) { bestLoser = losers[0]; break; }
+            if (diff < 0) { bestLoser = losers[1]; break; }
+          }
+          thirdTeam = getTeam(bestLoser);
+        }
+      }
+    }
 
     return (
       <div className="flex flex-col items-stretch justify-start w-[140px] flex-shrink-0">
