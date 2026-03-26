@@ -124,6 +124,14 @@ export default function AppSidebar({ onNavigate }: AppSidebarProps) {
 
       {/* Footer */}
       <div className="p-3 mx-3 mb-3 rounded-lg bg-secondary/40 space-y-2">
+        {/* Theme toggle */}
+        <button
+          onClick={toggleTheme}
+          className="w-full flex items-center justify-center gap-2 px-3 py-2 rounded-md text-[11px] font-medium text-muted-foreground hover:text-foreground hover:bg-secondary/60 transition-colors"
+        >
+          {theme === "dark" ? <Sun className="w-3.5 h-3.5" /> : <Moon className="w-3.5 h-3.5" />}
+          {theme === "dark" ? "Modo Claro" : "Modo Escuro"}
+        </button>
         {user && (
           <p className="text-[11px] text-muted-foreground text-center truncate px-1">{user.email || "Conta anônima"}</p>
         )}
