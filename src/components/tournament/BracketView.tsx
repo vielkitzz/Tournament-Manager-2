@@ -1019,7 +1019,7 @@ export default function BracketView({
       {editingTeam && (
         <BracketTeamEditor
           match={editingTeam.match}
-          allTeams={teams}
+          allTeams={teams.filter((t) => tournament.teamIds.includes(t.id))}
           side={editingTeam.side}
           onUpdate={(updated) => {
             if (updated.pairId) {

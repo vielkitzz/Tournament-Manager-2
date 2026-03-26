@@ -1275,7 +1275,7 @@ export default function TournamentDetailPage() {
                       </Button>
                     </div>
                   )}
-                  {hasKnockout && !tournament.finalized && tournament.teamIds.length >= 2 && (
+                  {isMataMata && !tournament.finalized && tournament.teamIds.length >= 2 && (tournament.matches || []).length === 0 && (
                     <div className="flex justify-end">
                       <Button onClick={() => autoGenerate()} size="sm" variant="outline" className="gap-1.5">
                         <Shuffle className="w-3.5 h-3.5" />
