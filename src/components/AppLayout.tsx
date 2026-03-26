@@ -20,7 +20,7 @@ export default function AppLayout() {
           <Menu className="w-5 h-5" />
         </button>
         <span className="text-sm font-display font-bold text-foreground tracking-wide">TM2</span>
-        <ThemeToggle />
+        <div className="w-9" /> {/* Spacer for centering */}
       </div>
 
       {/* Mobile overlay */}
