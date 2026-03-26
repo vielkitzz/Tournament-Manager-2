@@ -621,7 +621,7 @@ export default function BracketView({
             onClick={() => handleSimulateStage(stage)}
             className="flex items-center gap-1 px-2 py-1 rounded-md bg-primary/10 text-primary hover:bg-primary/20 text-[10px] font-bold mb-2 transition-colors"
           >
-            <Zap className="w-3 h-3" />
+            <Play className="w-3 h-3" />
             Simular ({unplayed.length})
           </button>
         )}
