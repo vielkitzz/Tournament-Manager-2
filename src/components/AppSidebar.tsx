@@ -1,5 +1,5 @@
 import { NavLink, useNavigate, Link } from "react-router-dom";
-import { Trophy, PlusCircle, Shield, LogOut, Download, Upload, Share2, Swords, LayoutDashboard } from "lucide-react";
+import { Trophy, PlusCircle, Shield, LogOut, Download, Upload, Share2, Swords, LayoutDashboard, Moon, Sun } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
 import { useTheme } from "@/hooks/useTheme";
