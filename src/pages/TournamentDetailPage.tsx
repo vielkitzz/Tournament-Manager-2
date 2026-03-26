@@ -11,7 +11,7 @@ import {
   Trash2,
   Download,
   LayoutGrid,
-  Zap,
+  Play,
   Shield,
   Pencil,
   Shuffle,
