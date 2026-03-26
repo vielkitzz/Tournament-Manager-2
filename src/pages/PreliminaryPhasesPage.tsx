@@ -10,7 +10,7 @@ import {
   ChevronUp,
   Check,
   Shuffle,
-  Zap,
+  Play,
 } from "lucide-react";
 import { useTournamentStore } from "@/store/tournamentStore";
 import { resolveTeam } from "@/lib/teamHistoryUtils";
