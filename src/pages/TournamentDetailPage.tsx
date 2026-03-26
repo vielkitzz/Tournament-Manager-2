@@ -1051,12 +1051,14 @@ export default function TournamentDetailPage() {
             )}
             <TabsTrigger value="stats" className="data-[state=active]:bg-card data-[state=active]:shadow-sm text-xs lg:text-sm">Estatísticas</TabsTrigger>
           </TabsList>
-          {!isViewingPastSeason && !tournament.finalized && isLiga && standings.length > 0 && standings.every(s => s.played > 0) && (
-            <Button onClick={handleFinalizeSeason} size="sm" className="gap-1.5 bg-primary text-primary-foreground">
-              <Trophy className="w-4 h-4" />
-              Finalizar Temporada
-            </Button>
-          )}
+          <div className="flex items-center gap-2">
+            {!isViewingPastSeason && !tournament.finalized && isLiga && standings.length > 0 && standings.every(s => s.played > 0) && (
+              <Button onClick={handleFinalizeSeason} size="sm" className="gap-1.5 bg-primary text-primary-foreground">
+                <Trophy className="w-4 h-4" />
+                Finalizar Temporada
+              </Button>
+            )}
+          </div>
         </div>
 
         <TabsContent value="standings" className="mt-0 outline-none">
