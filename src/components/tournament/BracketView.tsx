@@ -976,7 +976,7 @@ export default function BracketView({
                           // O absolute right-0 tira o botão do fluxo, então ele não empurra o texto
                           className="absolute right-0 flex items-center gap-1 px-1.5 py-0.5 rounded bg-primary/10 text-primary hover:bg-primary/20 text-[9px] font-bold transition-colors"
                         >
-                          <Zap className="w-2 h-2" />
+                          <Play className="w-2 h-2" />
                           Simular
                         </button>
                       )}

@@ -344,7 +344,7 @@ export default function PreliminaryPhasesPage() {
       {phases.length === 0 ? (
         <div className="text-center py-16 space-y-4">
           <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center mx-auto">
-            <Zap className="w-7 h-7 text-primary" />
+            <Play className="w-7 h-7 text-primary" />
           </div>
           <div>
             <p className="text-foreground font-medium">Nenhuma fase preliminar configurada</p>
