@@ -3,7 +3,6 @@ import { Outlet, useLocation } from "react-router-dom";
 import AppSidebar from "@/components/AppSidebar";
 import { AnimatePresence } from "framer-motion";
 import PageTransition from "@/components/PageTransition";
-import ThemeToggle from "@/components/ThemeToggle";
 import { Menu, X } from "lucide-react";
 
 export default function AppLayout() {
