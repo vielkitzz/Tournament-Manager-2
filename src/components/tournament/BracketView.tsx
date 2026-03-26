@@ -2,7 +2,7 @@ import { useState, useRef } from "react";
 import { Match, Team, Tournament, KnockoutStage, STAGE_TEAM_COUNTS } from "@/types/tournament";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
-import { Shield, Zap, Trophy, Medal, UserPlus, Shuffle, Plus, Trash2 } from "lucide-react";
+import { Shield, Play, Trophy, Medal, UserPlus, Shuffle, Plus, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { simulateFullMatch, simulateHalf } from "@/lib/simulation";
 import MatchPopup from "./MatchPopup";
@@ -621,7 +621,7 @@ export default function BracketView({
             onClick={() => handleSimulateStage(stage)}
             className="flex items-center gap-1 px-2 py-1 rounded-md bg-primary/10 text-primary hover:bg-primary/20 text-[10px] font-bold mb-2 transition-colors"
           >
-            <Zap className="w-3 h-3" />
+            <Play className="w-3 h-3" />
             Simular ({unplayed.length})
           </button>
         )}
@@ -976,7 +976,7 @@ export default function BracketView({
                           // O absolute right-0 tira o botão do fluxo, então ele não empurra o texto
                           className="absolute right-0 flex items-center gap-1 px-1.5 py-0.5 rounded bg-primary/10 text-primary hover:bg-primary/20 text-[9px] font-bold transition-colors"
                         >
-                          <Zap className="w-2 h-2" />
+                          <Play className="w-2 h-2" />
                           Simular
                         </button>
                       )}
