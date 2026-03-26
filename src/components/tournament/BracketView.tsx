@@ -477,7 +477,7 @@ export default function BracketView({
     return (
       <div
         key={pair.leg1.id}
-        className="relative group/pair w-[220px] rounded-lg bg-secondary/30 border border-border overflow-hidden"
+        className="relative group/pair w-[220px] rounded-lg bg-secondary/30 border border-border overflow-visible"
       >
         {onRemoveMatch && !tournament.finalized && (
           <button
@@ -485,10 +485,10 @@ export default function BracketView({
               e.stopPropagation();
               handleRemoveMatch(pair.leg1);
             }}
-            className="absolute -top-1.5 -right-1.5 z-10 p-0.5 rounded-full bg-destructive text-destructive-foreground opacity-0 group-hover/pair:opacity-100 transition-opacity shadow-sm"
+            className="absolute -top-2 -right-2 z-10 p-1 rounded-full bg-destructive text-destructive-foreground opacity-0 group-hover/pair:opacity-100 transition-opacity shadow-md"
             title="Remover confronto"
           >
-            <Trash2 className="w-2.5 h-2.5" />
+            <Trash2 className="w-3 h-3" />
           </button>
         )}
         <button
