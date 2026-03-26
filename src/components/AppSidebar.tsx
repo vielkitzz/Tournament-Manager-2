@@ -1,5 +1,5 @@
 import { NavLink, useNavigate, Link } from "react-router-dom";
-import { Trophy, PlusCircle, Shield, LogOut, Download, Upload, Share2, Swords, LayoutDashboard } from "lucide-react";
+import { Trophy, PlusCircle, Shield, LogOut, Download, Upload, Share2, Swords, LayoutDashboard, Moon, Sun } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
 import { useTheme } from "@/hooks/useTheme";
@@ -37,7 +37,7 @@ interface AppSidebarProps {
 
 export default function AppSidebar({ onNavigate }: AppSidebarProps) {
   const { user, signOut } = useAuth();
-  const { theme } = useTheme();
+  const { theme, toggleTheme } = useTheme();
   const navigate = useNavigate();
   const appLogo = theme === "light" ? appLogoLight : appLogoDark;
 
@@ -124,6 +124,14 @@ export default function AppSidebar({ onNavigate }: AppSidebarProps) {
 
       {/* Footer */}
       <div className="p-3 mx-3 mb-3 rounded-lg bg-secondary/40 space-y-2">
+        {/* Theme toggle */}
+        <button
+          onClick={toggleTheme}
+          className="w-full flex items-center justify-center gap-2 px-3 py-2 rounded-md text-[11px] font-medium text-muted-foreground hover:text-foreground hover:bg-secondary/60 transition-colors"
+        >
+          {theme === "dark" ? <Sun className="w-3.5 h-3.5" /> : <Moon className="w-3.5 h-3.5" />}
+          {theme === "dark" ? "Modo Claro" : "Modo Escuro"}
+        </button>
         {user && (
           <p className="text-[11px] text-muted-foreground text-center truncate px-1">{user.email || "Conta anônima"}</p>
         )}

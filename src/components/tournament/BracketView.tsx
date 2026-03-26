@@ -477,7 +477,7 @@ export default function BracketView({
     return (
       <div
         key={pair.leg1.id}
-        className="relative group/pair w-[220px] rounded-lg bg-secondary/30 border border-border overflow-hidden"
+        className="relative group/pair w-[220px] rounded-lg bg-secondary/30 border border-border overflow-visible"
       >
         {onRemoveMatch && !tournament.finalized && (
           <button
@@ -485,10 +485,10 @@ export default function BracketView({
               e.stopPropagation();
               handleRemoveMatch(pair.leg1);
             }}
-            className="absolute -top-1.5 -right-1.5 z-10 p-0.5 rounded-full bg-destructive text-destructive-foreground opacity-0 group-hover/pair:opacity-100 transition-opacity shadow-sm"
+            className="absolute -top-2 -right-2 z-10 p-1 rounded-full bg-destructive text-destructive-foreground opacity-0 group-hover/pair:opacity-100 transition-opacity shadow-md"
             title="Remover confronto"
           >
-            <Trash2 className="w-2.5 h-2.5" />
+            <Trash2 className="w-3 h-3" />
           </button>
         )}
         <button
@@ -765,29 +765,33 @@ export default function BracketView({
 
     return (
       <div className="flex flex-col items-stretch justify-start w-[220px] flex-shrink-0">
-        <div className="mb-2 text-center">
-          <span className="text-[11px] font-bold text-primary tracking-tight">Campeão</span>
+        <div className="mb-3 text-center">
+          <span className="text-xs font-bold text-primary tracking-tight">Campeão</span>
         </div>
-        <div className="rounded-lg border-2 border-primary/40 bg-gradient-to-b from-primary/10 to-secondary/30 overflow-hidden shadow-lg shadow-primary/10">
-          {/* Champion row */}
-          <div className="flex items-center gap-2.5 px-3 py-2.5 bg-primary/5">
-            <Trophy className="w-4 h-4 text-primary shrink-0" />
-            <div className="w-6 h-6 flex items-center justify-center shrink-0">
+        <div className="rounded-xl border-2 border-primary/50 bg-gradient-to-b from-primary/15 via-primary/5 to-secondary/40 overflow-hidden shadow-xl shadow-primary/20">
+          {/* Champion row — highlighted */}
+          <div className="flex items-center gap-3 px-4 py-3.5 bg-gradient-to-r from-primary/10 to-transparent">
+            <div className="w-8 h-8 rounded-full bg-primary/20 flex items-center justify-center shrink-0">
+              <Trophy className="w-4.5 h-4.5 text-primary" />
+            </div>
+            <div className="w-8 h-8 flex items-center justify-center shrink-0">
               {championTeam.logo ? (
-                <img src={championTeam.logo} alt="" className="w-6 h-6 object-contain" />
+                <img src={championTeam.logo} alt="" className="w-8 h-8 object-contain" />
               ) : (
-                <Shield className="w-4 h-4 text-muted-foreground" />
+                <Shield className="w-5 h-5 text-muted-foreground" />
               )}
             </div>
-            <span className="text-xs font-bold text-foreground truncate flex-1">
-              {championTeam.name || championTeam.shortName}
-            </span>
-            <span className="text-[10px] text-primary font-semibold">{tournament.year}</span>
+            <div className="flex-1 min-w-0">
+              <span className="text-sm font-bold text-foreground truncate block">
+                {championTeam.name || championTeam.shortName}
+              </span>
+              <span className="text-[10px] text-primary font-semibold">Campeão {tournament.year}</span>
+            </div>
           </div>
           {/* Runner-up row */}
           {runnerUpTeam && (
-            <div className="flex items-center gap-2.5 px-3 py-2 border-t border-border/20">
-              <span className="text-[10px] font-bold text-muted-foreground w-4 text-center">2º</span>
+            <div className="flex items-center gap-2.5 px-4 py-2.5 border-t border-border/30 bg-secondary/20">
+              <span className="text-[10px] font-bold text-muted-foreground w-5 text-center">2º</span>
               <div className="w-5 h-5 flex items-center justify-center shrink-0">
                 {runnerUpTeam.logo ? (
                   <img src={runnerUpTeam.logo} alt="" className="w-5 h-5 object-contain" />
@@ -802,8 +806,8 @@ export default function BracketView({
           )}
           {/* Third place row */}
           {thirdTeam && (
-            <div className="flex items-center gap-2.5 px-3 py-2 border-t border-border/20">
-              <span className="text-[10px] font-bold text-highlight w-4 text-center">3º</span>
+            <div className="flex items-center gap-2.5 px-4 py-2.5 border-t border-border/30 bg-secondary/20">
+              <span className="text-[10px] font-bold text-highlight w-5 text-center">3º</span>
               <div className="w-5 h-5 flex items-center justify-center shrink-0">
                 {thirdTeam.logo ? (
                   <img src={thirdTeam.logo} alt="" className="w-5 h-5 object-contain" />
@@ -1015,7 +1019,7 @@ export default function BracketView({
       {editingTeam && (
         <BracketTeamEditor
           match={editingTeam.match}
-          allTeams={teams}
+          allTeams={teams.filter((t) => tournament.teamIds.includes(t.id))}
           side={editingTeam.side}
           onUpdate={(updated) => {
             if (updated.pairId) {

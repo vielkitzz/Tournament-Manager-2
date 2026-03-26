@@ -40,18 +40,23 @@ export async function captureScreenshot(element: HTMLElement, filename: string =
     const captureWidth = element.scrollWidth;
     const captureHeight = element.scrollHeight;
 
+    const bgColor = getComputedStyle(document.documentElement).getPropertyValue("--background")
+      ? `hsl(${getComputedStyle(document.documentElement).getPropertyValue("--background").trim()})`
+      : "#0a0a0a";
+
+    const padding = 32; // breathing room in CSS pixels
+
     const dataUrl = await toPng(element, {
-      backgroundColor: getComputedStyle(document.documentElement).getPropertyValue("--background")
-        ? `hsl(${getComputedStyle(document.documentElement).getPropertyValue("--background").trim()})`
-        : "#0a0a0a",
+      backgroundColor: bgColor,
       cacheBust: true,
       pixelRatio: 2,
-      width: captureWidth,
-      height: captureHeight,
+      width: captureWidth + padding * 2,
+      height: captureHeight + padding * 2,
       style: {
         overflow: "visible",
         maxHeight: "none",
         maxWidth: "none",
+        padding: `${padding}px`,
       },
     });
 
