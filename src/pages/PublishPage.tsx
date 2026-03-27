@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
-import { Share2, Trophy, Copy, Trash2, Plus, Users, Eye, Shield as ShieldIcon, Link } from "lucide-react";
+import { Share2, Trophy, Copy, Trash2, Plus, Users, Eye, Shield as ShieldIcon, Link, Globe, Lock } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -21,6 +21,7 @@ interface PublishedTournament {
   tournament_id: string;
   share_token: string;
   created_at: string;
+  visibility: string;
 }
 
 interface Collaborator {
