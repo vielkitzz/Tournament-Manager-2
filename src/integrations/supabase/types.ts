@@ -21,6 +21,7 @@ export type Database = {
           share_token: string | null
           tournament_id: string | null
           user_id: string | null
+          visibility: string
         }
         Insert: {
           created_at?: string | null
@@ -28,6 +29,7 @@ export type Database = {
           share_token?: string | null
           tournament_id?: string | null
           user_id?: string | null
+          visibility?: string
         }
         Update: {
           created_at?: string | null
@@ -35,6 +37,7 @@ export type Database = {
           share_token?: string | null
           tournament_id?: string | null
           user_id?: string | null
+          visibility?: string
         }
         Relationships: []
       }
@@ -314,6 +317,11 @@ export type Database = {
     }
     Functions: {
       check_logo_ownership: { Args: { object_name: string }; Returns: boolean }
+      get_collaborator_role: {
+        Args: { p_token: string; p_user_email: string }
+        Returns: string
+      }
+      get_shared_tournament_full: { Args: { p_token: string }; Returns: Json }
       get_tournament_by_share_token: {
         Args: { p_token: string }
         Returns: {
@@ -350,6 +358,10 @@ export type Database = {
           isOneToOne: false
           isSetofReturn: true
         }
+      }
+      update_shared_tournament: {
+        Args: { p_token: string; p_updates: Json; p_user_email: string }
+        Returns: boolean
       }
     }
     Enums: {
