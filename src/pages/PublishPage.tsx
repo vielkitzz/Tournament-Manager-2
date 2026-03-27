@@ -190,9 +190,32 @@ export default function PublishPage() {
                   )}
                 </div>
                 {pub && (
-                  <div className="mt-2 flex items-center gap-2 p-2 rounded-lg bg-secondary/50">
-                    <Link className="w-3 h-3 text-primary shrink-0" />
-                    <span className="text-[11px] text-muted-foreground truncate flex-1">{getShareUrl(pub.share_token)}</span>
+                  <div className="mt-2 space-y-2">
+                    <div className="flex items-center gap-2 p-2 rounded-lg bg-secondary/50">
+                      <Link className="w-3 h-3 text-primary shrink-0" />
+                      <span className="text-[11px] text-muted-foreground truncate flex-1">{getShareUrl(pub.share_token)}</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={async () => {
+                          const newVis = pub.visibility === "public" ? "restricted" : "public";
+                          await (supabase as any).from("published_tournaments").update({ visibility: newVis }).eq("id", pub.id);
+                          setPublished((prev) => prev.map((p) => p.id === pub.id ? { ...p, visibility: newVis } : p));
+                          toast.success(newVis === "public" ? "Link público ativado" : "Link restrito a colaboradores");
+                        }}
+                        className={`flex items-center gap-1.5 text-[11px] px-2 py-1 rounded-md transition-colors ${
+                          pub.visibility === "public"
+                            ? "bg-green-500/10 text-green-600 hover:bg-green-500/20"
+                            : "bg-orange-500/10 text-orange-600 hover:bg-orange-500/20"
+                        }`}
+                      >
+                        {pub.visibility === "public" ? <Globe className="w-3 h-3" /> : <Lock className="w-3 h-3" />}
+                        {pub.visibility === "public" ? "Público" : "Restrito"}
+                      </button>
+                      <span className="text-[10px] text-muted-foreground">
+                        {pub.visibility === "public" ? "Qualquer pessoa com o link pode ver" : "Apenas colaboradores cadastrados"}
+                      </span>
+                    </div>
                   </div>
                 )}
               </motion.div>
