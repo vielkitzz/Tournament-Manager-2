@@ -119,16 +119,16 @@ export default function SharedTournamentPage() {
   }, [tournament?.id]);
 
   if (loading) {
-    return (
-      <div className="flex items-center justify-center min-h-screen bg-background">
+    return withSidebar(
+      <div className="flex items-center justify-center min-h-[80vh]">
         <Loader2 className="w-8 h-8 animate-spin text-primary" />
       </div>
     );
   }
 
   if (error && visibility === "restricted" && !user) {
-    return (
-      <div className="flex flex-col items-center justify-center min-h-screen bg-background gap-4">
+    return withSidebar(
+      <div className="flex flex-col items-center justify-center min-h-[80vh] gap-4">
         <Lock className="w-12 h-12 text-muted-foreground" />
         <h1 className="text-xl font-bold text-foreground">Acesso Restrito</h1>
         <p className="text-sm text-muted-foreground text-center max-w-sm">
@@ -143,8 +143,8 @@ export default function SharedTournamentPage() {
   }
 
   if (error || !tournament) {
-    return (
-      <div className="flex flex-col items-center justify-center min-h-screen bg-background gap-4">
+    return withSidebar(
+      <div className="flex flex-col items-center justify-center min-h-[80vh] gap-4">
         <Trophy className="w-12 h-12 text-muted-foreground" />
         <h1 className="text-xl font-bold text-foreground">Link inválido</h1>
         <p className="text-sm text-muted-foreground">
