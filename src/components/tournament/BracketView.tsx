@@ -945,7 +945,7 @@ export default function BracketView({
                 {stages.map((stage, stageIdx) => {
                   const pairs = getPairs(matchesByStage[stage] || []);
                   return (
-                    <div key={stage} className="flex items-center">
+                    <div key={stage} className="flex items-stretch">
                       {renderStageColumn(stage, stageIdx, pairs, stage, { side: "left" })}
                       {stageIdx < stages.length - 1 && (
                         <BracketConnector pairCount={Math.max(pairs.length, 1)} side="left" />
@@ -973,7 +973,7 @@ export default function BracketView({
             <div className="flex min-w-max items-center justify-start lg:justify-center mx-auto">
               {/* Left bracket half */}
               {leftColumns.map(({ stage, stageIdx, pairs }) => (
-                <div key={`left-${stage}`} className="flex items-center">
+                <div key={`left-${stage}`} className="flex items-stretch">
                   {renderStageColumn(stage, stageIdx, pairs, `left-${stage}`, { showActions: true, side: "left" })}
                   <BracketConnector pairCount={pairs.length} side="left" />
                 </div>
@@ -1016,7 +1016,7 @@ export default function BracketView({
 
               {/* Right bracket half (reversed stage order) */}
               {[...rightColumns].reverse().map(({ stage, stageIdx, pairs }) => (
-                <div key={`right-${stage}`} className="flex items-center">
+                <div key={`right-${stage}`} className="flex items-stretch">
                   <BracketConnector pairCount={pairs.length} side="right" />
                   {renderStageColumn(stage, stageIdx, pairs, `right-${stage}`, { showActions: true, side: "right" })}
                 </div>
