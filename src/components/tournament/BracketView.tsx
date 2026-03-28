@@ -615,8 +615,9 @@ export default function BracketView({
   }, [matches, stages, matchesByStage]);
 
   useLayoutEffect(() => {
+    if (matches.length === 0) return;
     measureAndDrawLines();
-  }, [measureAndDrawLines]);
+  }, [measureAndDrawLines, matches.length]);
 
   // ─── Render helpers ───
 
@@ -1033,6 +1034,7 @@ export default function BracketView({
     return `M ${x1} ${y1} H ${xMid} V ${y2} H ${x2}`;
   };
 
+  // ─── Main render ───
   if (matches.length === 0) {
     const hasEnoughTeams = tournament.teamIds.length >= 2;
     return (
@@ -1052,7 +1054,6 @@ export default function BracketView({
     );
   }
 
-  // ─── Main render ───
   return (
     <div className="space-y-4">
       {(() => {
