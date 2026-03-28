@@ -278,13 +278,20 @@ export default function BracketView({
 
       {/* Modais */}
       {selectedMatch && (
-        <MatchPopup match={selectedMatch} onClose={() => setSelectedMatch(null)} onUpdate={onUpdateMatch} />
+        <MatchPopup
+          match={selectedMatch}
+          onUpdate={onUpdateMatch}
+          // Como o seu MatchPopup não tem a prop 'onClose',
+          // verifique se ele usa 'onOpenChange' (padrão do shadcn/ui)
+          // onOpenChange={(open) => !open && setSelectedMatch(null)}
+        />
       )}
 
       {editingTeam && (
         <BracketTeamEditor
           match={editingTeam.match}
           side={editingTeam.side}
+          allTeams={teams} // Corrigido de 'teams' para 'allTeams'
           onClose={() => setEditingTeam(null)}
           onUpdate={onUpdateMatch}
         />
