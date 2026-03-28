@@ -869,48 +869,34 @@ export default function BracketView({
   const BracketConnector = ({ pairCount, side }: { pairCount: number; side: "left" | "right" }) => {
     if (pairCount <= 0) return <div className="w-8" />;
 
-    // Each pair of matches feeds into one match in the next round
     const groups = [];
     for (let i = 0; i < pairCount; i += 2) {
       groups.push(i + 1 < pairCount ? 2 : 1);
     }
 
     return (
-      <div className="flex flex-col justify-around w-10 relative" style={{ minHeight: pairCount * 80 }}>
+      <div className="flex flex-col justify-around w-8">
         {groups.map((count, gi) => (
-          <div key={gi} className="flex-1 flex items-center relative">
+          <div key={gi} className="flex-1 flex flex-col justify-around">
             {count === 2 ? (
-              // Two matches merging into one: draw bracket shape
-              <svg className="w-full h-full" preserveAspectRatio="none" viewBox="0 0 40 100">
-                {side === "left" ? (
-                  <>
-                    {/* Top horizontal line */}
-                    <line x1="0" y1="25" x2="20" y2="25" stroke="hsl(var(--border))" strokeWidth="2" />
-                    {/* Bottom horizontal line */}
-                    <line x1="0" y1="75" x2="20" y2="75" stroke="hsl(var(--border))" strokeWidth="2" />
-                    {/* Vertical connecting line */}
-                    <line x1="20" y1="25" x2="20" y2="75" stroke="hsl(var(--border))" strokeWidth="2" />
-                    {/* Middle horizontal line going right */}
-                    <line x1="20" y1="50" x2="40" y2="50" stroke="hsl(var(--border))" strokeWidth="2" />
-                  </>
-                ) : (
-                  <>
-                    {/* Top horizontal line */}
-                    <line x1="40" y1="25" x2="20" y2="25" stroke="hsl(var(--border))" strokeWidth="2" />
-                    {/* Bottom horizontal line */}
-                    <line x1="40" y1="75" x2="20" y2="75" stroke="hsl(var(--border))" strokeWidth="2" />
-                    {/* Vertical connecting line */}
-                    <line x1="20" y1="25" x2="20" y2="75" stroke="hsl(var(--border))" strokeWidth="2" />
-                    {/* Middle horizontal line going left */}
-                    <line x1="20" y1="50" x2="0" y2="50" stroke="hsl(var(--border))" strokeWidth="2" />
-                  </>
-                )}
-              </svg>
+              // Dois cards se juntando em um — forma o "C" (ou "C" invertido)
+              <div className="flex-1 flex flex-col">
+                {/* Linha de cima: horizontal + metade vertical */}
+                <div
+                  className={`flex-1 border-border/60 border-b-2 ${
+                    side === "left" ? "border-r-2 rounded-br-md" : "border-l-2 rounded-bl-md"
+                  }`}
+                />
+                {/* Linha de baixo: horizontal + metade vertical */}
+                <div
+                  className={`flex-1 border-border/60 border-t-2 ${
+                    side === "left" ? "border-r-2 rounded-tr-md" : "border-l-2 rounded-tl-md"
+                  }`}
+                />
+              </div>
             ) : (
-              // Single match: just a straight horizontal line
-              <svg className="w-full h-full" preserveAspectRatio="none" viewBox="0 0 40 100">
-                <line x1="0" y1="50" x2="40" y2="50" stroke="hsl(var(--border))" strokeWidth="2" />
-              </svg>
+              // Card único: só uma linha reta horizontal
+              <div className={`flex-1 border-border/60 border-t-2`} />
             )}
           </div>
         ))}
