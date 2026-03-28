@@ -1,5 +1,5 @@
 import { useState, useRef } from "react";
-import { Match, Team, Tournament, KnockoutStage, STAGE_TEAM_COUNTS } from "@/types/tournament";
+import { Match, Team, Tournament } from "@/types/tournament";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { Shield, Play, Trophy, Medal, UserPlus, Shuffle, Plus, Trash2 } from "lucide-react";
@@ -591,101 +591,42 @@ export default function BracketView({
     );
   };
 
-  const renderStageColumn = (
-    stage: string,
-    stageIdx: number,
-    pairsSubset: Array<{ leg1: Match; leg2: Match | null }>,
-    columnKey: string,
-    options: { showActions?: boolean; side?: "left" | "right" | "center" } = {},
-  ) => {
-    const { showActions = true, side = "center" } = options;
-    const isFinal = stageIdx === stages.length - 1;
-    const allStageMatches = matchesByStage[stage] || [];
-    const unplayed = allStageMatches.filter((m) => !m.played && m.homeTeamId && m.awayTeamId);
-    const allPairs = getPairs(allStageMatches);
-    const allStagePairsResolved = allPairs.length > 0 && allPairs.every((p) => getTieResult(p) !== null);
+  // ─── Componentes de ações por fase ───
+
+  const StageActions = ({ stage, stageIdx }: { stage: string; stageIdx: number }) => {
+    const stageMatches = matchesByStage[stage] || [];
+    const unplayed = stageMatches.filter((m) => !m.played && m.homeTeamId && m.awayTeamId);
+    const allPairs = getPairs(stageMatches);
+    const allResolved = allPairs.length > 0 && allPairs.every((p) => getTieResult(p) !== null);
     const nextStage = stages[stageIdx + 1];
     const nextHasMatches = nextStage && (matchesByStage[nextStage]?.length || 0) > 0;
 
     return (
-      <div key={columnKey} className="flex flex-col items-center relative" style={{ minWidth: 228 }}>
-        <div className="mb-2 flex items-center gap-1.5">
-          <span className="text-[11px] font-bold text-primary tracking-tight">{STAGE_LABELS[stage] || stage}</span>
-          {legMode === "home-away" && !isFinal && (
-            <span className="text-[9px] text-muted-foreground">( Ida / Volta )</span>
-          )}
-        </div>
-
-        {showActions && unplayed.length > 0 && (
+      <div className="mb-2 flex flex-wrap items-center justify-center gap-2">
+        {unplayed.length > 0 && (
           <button
             onClick={() => handleSimulateStage(stage)}
-            className="flex items-center gap-1 px-2 py-1 rounded-md bg-primary/10 text-primary hover:bg-primary/20 text-[10px] font-bold mb-2 transition-colors"
+            className="flex items-center gap-1 px-2 py-1 rounded-md bg-primary/10 text-primary hover:bg-primary/20 text-[10px] font-bold transition-colors"
           >
             <Play className="w-3 h-3" />
             Simular ({unplayed.length})
           </button>
         )}
-
-        {showActions && allStagePairsResolved && nextStage && !nextHasMatches && (
+        {allResolved && nextStage && !nextHasMatches && (
           <button
             onClick={() => handleAdvanceStage(stageIdx)}
-            className="flex items-center gap-1 px-2 py-1 rounded-md bg-secondary text-foreground hover:bg-secondary/80 text-[10px] mb-2 transition-colors border border-border"
+            className="flex items-center gap-1 px-2 py-1 rounded-md bg-secondary text-foreground hover:bg-secondary/80 text-[10px] transition-colors border border-border"
           >
             Avançar →
           </button>
         )}
-
-        <div className="flex flex-col justify-around flex-1 gap-4">
-          {(() => {
-            const expectedSlots = (() => {
-              if (pairsSubset.length > 0) return pairsSubset.length;
-              if (stageIdx === 0) return 0;
-              const prevStage = stages[stageIdx - 1];
-              const prevPairs = getPairs(matchesByStage[prevStage] || []);
-              if (side === "left") return Math.ceil(Math.ceil(prevPairs.length / 2) / 2);
-              if (side === "right") return Math.ceil(Math.floor(prevPairs.length / 2) / 2);
-              return Math.ceil(prevPairs.length / 2);
-            })();
-
-            const renderEmptySlot = (key: string) => (
-              <div
-                key={key}
-                className="w-[220px] rounded-lg bg-secondary/20 border border-dashed border-border overflow-hidden"
-              >
-                <div className="flex items-center justify-between px-3 py-2 border-b border-border/20">
-                  <div className="flex items-center gap-2 min-w-0">
-                    <Shield className="w-3.5 h-3.5 text-muted-foreground/30" />
-                    <span className="text-xs text-muted-foreground/40">A definir</span>
-                  </div>
-                  <span className="text-xs font-mono w-4 text-center text-muted-foreground/20">—</span>
-                </div>
-                <div className="flex items-center justify-between px-3 py-2">
-                  <div className="flex items-center gap-2 min-w-0">
-                    <Shield className="w-3.5 h-3.5 text-muted-foreground/30" />
-                    <span className="text-xs text-muted-foreground/40">A definir</span>
-                  </div>
-                  <span className="text-xs font-mono w-4 text-center text-muted-foreground/20">—</span>
-                </div>
-              </div>
-            );
-
-            const items =
-              pairsSubset.length > 0
-                ? pairsSubset.map((pair, i) => <div key={pair.leg1.id}>{renderPair(pair, i)}</div>)
-                : Array.from({ length: Math.max(expectedSlots, 1) }).map((_, i) =>
-                    renderEmptySlot(`empty-${columnKey}-${i}`),
-                  );
-            return items;
-          })()}
-        </div>
-
-        {showActions && onAddMatch && !tournament.finalized && (
+        {onAddMatch && !tournament.finalized && (
           <button
             onClick={() => handleAddMatch(stageIdx)}
-            className="w-[220px] mt-2 p-2 rounded-lg border border-dashed border-border/60 hover:border-primary/40 bg-secondary/10 hover:bg-secondary/30 transition-colors flex items-center justify-start gap-1.5"
+            className="flex items-center gap-1 px-2 py-1 rounded-md border border-dashed border-border/60 hover:border-primary/40 bg-secondary/10 hover:bg-secondary/30 transition-colors text-[10px] text-muted-foreground"
           >
-            <Plus className="w-3 h-3 text-muted-foreground" />
-            <span className="text-[10px] text-muted-foreground">Adicionar Confronto</span>
+            <Plus className="w-3 h-3" />
+            Adicionar
           </button>
         )}
       </div>
@@ -704,21 +645,19 @@ export default function BracketView({
       : null;
     const runnerUpTeam = runnerUp ? getTeam(runnerUp) : null;
 
-    // Determine 3rd place: from match if exists, otherwise by best campaign (tiebreakers)
+    // Determina o terceiro colocado (da partida ou melhor campanha)
     let thirdTeam: Team | undefined = undefined;
     const thirdMatch = thirdPlaceMatches[0];
     const thirdWinnerId = thirdMatch ? getSingleMatchWinner(thirdMatch) : null;
     if (thirdWinnerId) {
       thirdTeam = getTeam(thirdWinnerId);
     } else if (!thirdPlaceMatch) {
-      // No 3rd place match setting: determine by best campaign among semi-final losers
       const semiStageIdx = stages.length - 2;
       if (semiStageIdx >= 0) {
         const semiStage = stages[semiStageIdx];
         const semiPairs = getPairs(matchesByStage[semiStage] || []);
         const losers = semiPairs.map(getSemiLoser).filter(Boolean) as string[];
         if (losers.length === 2) {
-          // Use all tournament matches to evaluate campaign
           const allPlayedMatches = matches.filter((m) => m.played);
           const tiebreakers = tournament.settings.tiebreakers || [
             "Pontos",
@@ -809,7 +748,6 @@ export default function BracketView({
           <span className="text-xs font-bold text-primary tracking-tight">Campeão</span>
         </div>
         <div className="rounded-xl border-2 border-primary/50 bg-gradient-to-b from-primary/15 via-primary/5 to-secondary/40 overflow-hidden shadow-xl shadow-primary/20">
-          {/* Champion row — highlighted */}
           <div className="flex items-center gap-3 px-4 py-3.5 bg-gradient-to-r from-primary/10 to-transparent">
             <div className="w-8 h-8 rounded-full bg-primary/20 flex items-center justify-center shrink-0">
               <Trophy className="w-4.5 h-4.5 text-primary" />
@@ -828,7 +766,6 @@ export default function BracketView({
               <span className="text-[10px] text-primary font-semibold">Campeão {tournament.year}</span>
             </div>
           </div>
-          {/* Runner-up row */}
           {runnerUpTeam && (
             <div className="flex items-center gap-2.5 px-4 py-2.5 border-t border-border/30 bg-secondary/20">
               <span className="text-[10px] font-bold text-muted-foreground w-5 text-center">2º</span>
@@ -844,7 +781,6 @@ export default function BracketView({
               </span>
             </div>
           )}
-          {/* Third place row */}
           {thirdTeam && (
             <div className="flex items-center gap-2.5 px-4 py-2.5 border-t border-border/30 bg-secondary/20">
               <span className="text-[10px] font-bold text-highlight w-5 text-center">3º</span>
@@ -865,48 +801,16 @@ export default function BracketView({
     );
   };
 
-  // ─── Connector component ───
-  const BracketConnector = ({ pairCount, side }: { pairCount: number; side: "left" | "right" }) => {
-    if (pairCount <= 0) return <div className="w-8" />;
+  // ─── NOVO LAYOUT COM CSS GRID ───
 
-    const groups = [];
-    for (let i = 0; i < pairCount; i += 2) {
-      groups.push(i + 1 < pairCount ? 2 : 1);
-    }
-
-    return (
-      <div className="flex flex-col w-8 self-stretch">
-        {groups.map((count, gi) => (
-          <div key={gi} className="flex-1 flex flex-col min-h-0">
-            {count === 2 ? (
-              <>
-                <div
-                  className={`flex-1 border-border/60 ${
-                    side === "left" ? "border-r-2 border-b-2" : "border-l-2 border-b-2"
-                  }`}
-                />
-                <div
-                  className={`flex-1 border-border/60 ${
-                    side === "left" ? "border-r-2 border-t-2" : "border-l-2 border-t-2"
-                  }`}
-                />
-              </>
-            ) : (
-              <div className="flex-1 flex items-center">
-                <div className={`w-full border-border/60 border-t-2`} />
-              </div>
-            )}
-          </div>
-        ))}
-      </div>
-    );
-  };
-
-  // ─── Main render ───
+  // Determina o número de linhas da grid com base na primeira fase
+  const firstStage = stages[0];
+  const firstStagePairs = getPairs(matchesByStage[firstStage] || []);
+  const totalRows = Math.max(1, firstStagePairs.length);
 
   return (
     <div className="space-y-4">
-      {/* Finalize banner - top */}
+      {/* Banner de finalização */}
       {(() => {
         const allMatchesPlayed = matches.length > 0 && matches.filter((m) => !m.isThirdPlace).every((m) => m.played);
         const canFinalize = allFinalResolved && allMatchesPlayed;
@@ -930,100 +834,72 @@ export default function BracketView({
         ref={bracketRef}
         style={{ transform: "translateZ(0)" }}
       >
-        {(() => {
-          const preFinalStages = stages.slice(0, -1);
-          const finalStageKey = stages[stages.length - 1];
-          const finalStageIdx = stages.length - 1;
+        <div
+          className="grid auto-cols-min gap-6"
+          style={{
+            gridTemplateRows: `repeat(${totalRows}, minmax(80px, auto))`,
+          }}
+        >
+          {stages.map((stage, stageIdx) => {
+            const stagePairs = getPairs(matchesByStage[stage] || []);
+            const span = Math.pow(2, stageIdx); // 1, 2, 4, ...
+            const isFinal = stageIdx === stages.length - 1;
 
-          const firstStagePairs = preFinalStages.length > 0 ? getPairs(matchesByStage[preFinalStages[0]] || []) : [];
-          const useBracketLayout = preFinalStages.length > 0 && firstStagePairs.length >= 2;
-
-          if (!useBracketLayout) {
-            // Linear layout
             return (
-              <div className="flex items-start justify-start gap-6">
-                {stages.map((stage, stageIdx) => {
-                  const pairs = getPairs(matchesByStage[stage] || []);
-                  return (
-                    <div key={stage} className="flex items-center">
-                      {renderStageColumn(stage, stageIdx, pairs, stage, { side: "left" })}
-                      {stageIdx < stages.length - 1 && (
-                        <BracketConnector pairCount={Math.max(pairs.length, 1)} side="left" />
-                      )}
+              <div key={stage} className="flex flex-col items-center relative">
+                {/* Cabeçalho da fase */}
+                <div className="mb-2 flex flex-col items-center gap-1">
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-[11px] font-bold text-primary tracking-tight">
+                      {STAGE_LABELS[stage] || stage}
+                    </span>
+                    {legMode === "home-away" && !isFinal && (
+                      <span className="text-[9px] text-muted-foreground">( Ida / Volta )</span>
+                    )}
+                  </div>
+                  <StageActions stage={stage} stageIdx={stageIdx} />
+                </div>
+
+                {/* Contêiner dos confrontos dentro da grid */}
+                <div className="grid grid-rows-subgrid w-[220px]" style={{ gridRow: `1 / -1` }}>
+                  {stagePairs.map((pair, i) => (
+                    <div
+                      key={pair.leg1.id}
+                      style={{
+                        gridRow: `${i * span + 1} / span ${span}`,
+                      }}
+                    >
+                      {renderPair(pair, i)}
                     </div>
-                  );
-                })}
-                {renderChampionCard()}
+                  ))}
+                </div>
               </div>
             );
-          }
+          })}
 
-          // Two-sided bracket: left half → final ← right half
-          const leftColumns = preFinalStages.map((stage, i) => {
-            const allPairs = getPairs(matchesByStage[stage] || []);
-            return { stage, stageIdx: i, pairs: allPairs.slice(0, Math.ceil(allPairs.length / 2)) };
-          });
-
-          const rightColumns = preFinalStages.map((stage, i) => {
-            const allPairs = getPairs(matchesByStage[stage] || []);
-            return { stage, stageIdx: i, pairs: allPairs.slice(Math.ceil(allPairs.length / 2)) };
-          });
-
-          return (
-            <div className="flex min-w-max items-center justify-start lg:justify-center mx-auto">
-              {/* Left bracket half */}
-              {leftColumns.map(({ stage, stageIdx, pairs }) => (
-                <div key={`left-${stage}`} className="flex items-center">
-                  {renderStageColumn(stage, stageIdx, pairs, `left-${stage}`, { showActions: true, side: "left" })}
-                  <BracketConnector pairCount={pairs.length} side="left" />
+          {/* Coluna extra para partida de 3º lugar e campeão */}
+          <div className="flex flex-col items-center gap-4">
+            {thirdPlaceMatches.length > 0 && (
+              <div className="w-[220px]">
+                <div className="flex items-center justify-center gap-1.5 mb-1.5">
+                  <Medal className="w-3.5 h-3.5 text-highlight" />
+                  <span className="text-[10px] font-bold text-primary">3º Lugar</span>
+                  {thirdPlaceMatches.some((m) => !m.played) && (
+                    <button
+                      onClick={handleSimulateThirdPlace}
+                      className="flex items-center gap-1 px-1.5 py-0.5 rounded bg-primary/10 text-primary hover:bg-primary/20 text-[9px] font-bold transition-colors"
+                    >
+                      <Play className="w-2 h-2" />
+                      Simular
+                    </button>
+                  )}
                 </div>
-              ))}
-
-              {/* Center: Final + Third Place + Champion */}
-              <div className="flex flex-col items-center justify-start" style={{ minWidth: 240 }}>
-                {renderStageColumn(
-                  finalStageKey,
-                  finalStageIdx,
-                  getPairs(matchesByStage[finalStageKey] || []),
-                  `final-${finalStageKey}`,
-                  { side: "center" },
-                )}
-
-                {thirdPlaceMatches.length > 0 && (
-                  <div className="pt-3 mt-3 border-t border-border/40 w-[220px]">
-                    {/* Container com justify-center para o texto ficar no meio */}
-                    <div className="flex items-center justify-center gap-1.5 mb-1.5 relative w-full">
-                      <Medal className="w-3.5 h-3.5 text-highlight" />
-                      <span className="text-[10px] font-bold text-primary">3º Lugar</span>
-
-                      {thirdPlaceMatches.some((m) => !m.played) && (
-                        <button
-                          onClick={handleSimulateThirdPlace}
-                          // O absolute right-0 tira o botão do fluxo, então ele não empurra o texto
-                          className="absolute right-0 flex items-center gap-1 px-1.5 py-0.5 rounded bg-primary/10 text-primary hover:bg-primary/20 text-[9px] font-bold transition-colors"
-                        >
-                          <Play className="w-2 h-2" />
-                          Simular
-                        </button>
-                      )}
-                    </div>
-                    <div className="flex flex-col gap-2">{thirdPlaceMatches.map(renderThirdPlaceMatch)}</div>
-                  </div>
-                )}
-
-                <div className="mt-4">{renderChampionCard()}</div>
+                <div className="flex flex-col gap-2">{thirdPlaceMatches.map(renderThirdPlaceMatch)}</div>
               </div>
-
-              {/* Right bracket half (reversed stage order) */}
-              {[...rightColumns].reverse().map(({ stage, stageIdx, pairs }) => (
-                <div key={`right-${stage}`} className="flex items-center">
-                  <BracketConnector pairCount={pairs.length} side="right" />
-                  {renderStageColumn(stage, stageIdx, pairs, `right-${stage}`, { showActions: true, side: "right" })}
-                </div>
-              ))}
-            </div>
-          );
-        })()}
+            )}
+            {renderChampionCard()}
+          </div>
+        </div>
       </div>
 
       {selectedMatch && (
