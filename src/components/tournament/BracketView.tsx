@@ -553,6 +553,7 @@ export default function BracketView({
           const srcB = nextPairs[ni * 2 + 1];
           if (!dst) continue;
 
+          // dst is closer to center: line exits from its RIGHT edge going outward
           const dstEl = container.querySelector(`[data-card-id="${dst.leg1.id}-${curStageOrigIdx}-right"]`);
           if (!dstEl) continue;
           const dstRect = dstEl.getBoundingClientRect();
@@ -561,23 +562,25 @@ export default function BracketView({
 
           [srcA, srcB].forEach((src) => {
             if (!src) return;
+            // src is farther from center: line enters from its LEFT edge
             const srcEl = container.querySelector(`[data-card-id="${src.leg1.id}-${nextStageOrigIdx}-right"]`);
             if (!srcEl) return;
             const r = srcEl.getBoundingClientRect();
             const yCenterSrc = r.top + r.height / 2 - containerRect.top;
             const xSrc = r.left - containerRect.left;
             const xMid = dstX + (xSrc - dstX) / 2;
+            // Line goes: from outer card left edge → mid → dst card right edge
             lines.push({ x1: xSrc, y1: yCenterSrc, x2: dstX, y2: dstCenterY, xMid });
           });
         }
       }
 
-      // Right side first (outermost) stage → final
+      // Right side closest stage → final (final's RIGHT edge ← closest right stage's LEFT edge)
       {
-        const firstRightStage = rightStages[rightStages.length - 1]; // outermost right (reversed display)
-        const firstRightStageOrigIdx = rightStages.length - 1;
-        const allFirstRightPairs = getPairs(matchesByStage[firstRightStage] || []);
-        const firstRightPairs = allFirstRightPairs.slice(Math.ceil(allFirstRightPairs.length / 2));
+        const closestRightStage = rightStages[0];
+        const closestRightStageIdx = 0;
+        const allClosestRightPairs = getPairs(matchesByStage[closestRightStage] || []);
+        const closestRightPairs = allClosestRightPairs.slice(Math.ceil(allClosestRightPairs.length / 2));
         const finalPairsList = getPairs(matchesByStage[finalStageKey] || []);
         const dst = finalPairsList[0];
 
@@ -586,19 +589,15 @@ export default function BracketView({
           if (dstEl) {
             const dstRect = dstEl.getBoundingClientRect();
             const dstCenterY = dstRect.top + dstRect.height / 2 - containerRect.top;
+            // Final card: line exits from RIGHT edge toward right bracket
             const dstX = dstRect.right - containerRect.left;
-
-            // The closest right stage to final
-            const closestRightStage = rightStages[0];
-            const closestRightStageIdx = 0;
-            const allClosestRightPairs = getPairs(matchesByStage[closestRightStage] || []);
-            const closestRightPairs = allClosestRightPairs.slice(Math.ceil(allClosestRightPairs.length / 2));
 
             closestRightPairs.forEach((src) => {
               const srcEl = container.querySelector(`[data-card-id="${src.leg1.id}-${closestRightStageIdx}-right"]`);
               if (!srcEl) return;
               const r = srcEl.getBoundingClientRect();
               const yCenterSrc = r.top + r.height / 2 - containerRect.top;
+              // Closest right card: line enters from LEFT edge
               const xSrc = r.left - containerRect.left;
               const xMid = dstX + (xSrc - dstX) / 2;
               lines.push({ x1: xSrc, y1: yCenterSrc, x2: dstX, y2: dstCenterY, xMid });
@@ -1140,7 +1139,7 @@ export default function BracketView({
             });
 
             return (
-              <div className="flex min-w-max items-start justify-start lg:justify-center mx-auto gap-0">
+              <div className="flex min-w-max items-center justify-start lg:justify-center mx-auto gap-0">
                 {/* Left bracket */}
                 {leftColumns.map(({ stage, stageIdx, pairs }) =>
                   renderStageColumn(stage, stageIdx, pairs, `left-${stage}`, { showActions: true, side: "left" }),
