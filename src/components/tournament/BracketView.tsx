@@ -875,28 +875,26 @@ export default function BracketView({
     }
 
     return (
-      <div className="flex flex-col justify-around w-8">
+      <div className="flex flex-col w-8 self-stretch">
         {groups.map((count, gi) => (
-          <div key={gi} className="flex-1 flex flex-col justify-around">
+          <div key={gi} className="flex-1 flex flex-col min-h-0">
             {count === 2 ? (
-              // Dois cards se juntando em um — forma o "C" (ou "C" invertido)
-              <div className="flex-1 flex flex-col">
-                {/* Linha de cima: horizontal + metade vertical */}
+              <>
                 <div
-                  className={`flex-1 border-border/60 border-b-2 ${
-                    side === "left" ? "border-r-2 rounded-br-md" : "border-l-2 rounded-bl-md"
+                  className={`flex-1 border-border/60 ${
+                    side === "left" ? "border-r-2 border-b-2" : "border-l-2 border-b-2"
                   }`}
                 />
-                {/* Linha de baixo: horizontal + metade vertical */}
                 <div
-                  className={`flex-1 border-border/60 border-t-2 ${
-                    side === "left" ? "border-r-2 rounded-tr-md" : "border-l-2 rounded-tl-md"
+                  className={`flex-1 border-border/60 ${
+                    side === "left" ? "border-r-2 border-t-2" : "border-l-2 border-t-2"
                   }`}
                 />
-              </div>
+              </>
             ) : (
-              // Card único: só uma linha reta horizontal
-              <div className={`flex-1 border-border/60 border-t-2`} />
+              <div className="flex-1 flex items-center">
+                <div className={`w-full border-border/60 border-t-2`} />
+              </div>
             )}
           </div>
         ))}
