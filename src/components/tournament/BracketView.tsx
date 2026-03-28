@@ -835,51 +835,65 @@ export default function BracketView({
         style={{ transform: "translateZ(0)" }}
       >
         <div
-          className="grid auto-cols-min gap-6"
+          className="grid gap-x-6"
           style={{
-            gridTemplateRows: `repeat(${totalRows}, minmax(80px, auto))`,
+            gridTemplateColumns: `repeat(${stages.length + 1}, 220px)`,
+            gridTemplateRows: `auto repeat(${totalRows}, minmax(80px, auto))`,
           }}
         >
+          {/* Linha 0: headers de cada fase */}
           {stages.map((stage, stageIdx) => {
-            const stagePairs = getPairs(matchesByStage[stage] || []);
-            const span = Math.pow(2, stageIdx); // 1, 2, 4, ...
             const isFinal = stageIdx === stages.length - 1;
-
             return (
-              <div key={stage} className="flex flex-col items-center relative">
-                {/* Cabeçalho da fase */}
-                <div className="mb-2 flex flex-col items-center gap-1">
-                  <div className="flex items-center gap-1.5">
-                    <span className="text-[11px] font-bold text-primary tracking-tight">
-                      {STAGE_LABELS[stage] || stage}
-                    </span>
-                    {legMode === "home-away" && !isFinal && (
-                      <span className="text-[9px] text-muted-foreground">( Ida / Volta )</span>
-                    )}
-                  </div>
-                  <StageActions stage={stage} stageIdx={stageIdx} />
+              <div
+                key={`header-${stage}`}
+                className="flex flex-col items-center gap-1 pb-2"
+                style={{ gridColumn: stageIdx + 1, gridRow: 1 }}
+              >
+                <div className="flex items-center gap-1.5">
+                  <span className="text-[11px] font-bold text-primary tracking-tight">
+                    {STAGE_LABELS[stage] || stage}
+                  </span>
+                  {legMode === "home-away" && !isFinal && (
+                    <span className="text-[9px] text-muted-foreground">( Ida / Volta )</span>
+                  )}
                 </div>
-
-                {/* Contêiner dos confrontos dentro da grid */}
-                <div className="grid grid-rows-subgrid w-[220px]" style={{ gridRow: `1 / -1` }}>
-                  {stagePairs.map((pair, i) => (
-                    <div
-                      key={pair.leg1.id}
-                      className="flex items-center" // ← adicione isso
-                      style={{
-                        gridRow: `${i * span + 1} / span ${span}`,
-                      }}
-                    >
-                      {renderPair(pair, i)}
-                    </div>
-                  ))}
-                </div>
+                <StageActions stage={stage} stageIdx={stageIdx} />
               </div>
             );
           })}
 
-          {/* Coluna extra para partida de 3º lugar e campeão */}
-          <div className="flex flex-col items-center gap-4">
+          {/* Header da coluna extra (3º lugar / campeão) */}
+          <div style={{ gridColumn: stages.length + 1, gridRow: 1 }} />
+
+          {/* Confrontos de cada fase */}
+          {stages.map((stage, stageIdx) => {
+            const stagePairs = getPairs(matchesByStage[stage] || []);
+            const span = Math.pow(2, stageIdx);
+
+            return stagePairs.map((pair, i) => (
+              <div
+                key={pair.leg1.id}
+                className="flex items-center"
+                style={{
+                  gridColumn: stageIdx + 1,
+                  gridRow: `${i * span + 2} / span ${span}`,
+                }}
+              >
+                {renderPair(pair, i)}
+              </div>
+            ));
+          })}
+
+          {/* Coluna extra: 3º lugar + campeão */}
+          <div
+            className="flex flex-col items-center gap-4"
+            style={{
+              gridColumn: stages.length + 1,
+              gridRow: `2 / -1`,
+              alignSelf: "center",
+            }}
+          >
             {thirdPlaceMatches.length > 0 && (
               <div className="w-[220px]">
                 <div className="flex items-center justify-center gap-1.5 mb-1.5">
