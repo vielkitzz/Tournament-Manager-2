@@ -782,7 +782,7 @@ export default function BracketView({
               )}
             </div>
             <div className="flex-1 min-w-0">
-              <span className="text-sm font-bold text-foreground truncate block">
+              <span className="text-sm font-bold text-foreground block whitespace-normal break-words">
                 {championTeam.name || championTeam.shortName}
               </span>
               <span className="text-[10px] text-primary font-semibold">Campeão {tournament.year}</span>
@@ -799,8 +799,8 @@ export default function BracketView({
                   <Shield className="w-3.5 h-3.5 text-muted-foreground/50" />
                 )}
               </div>
-              <span className="text-xs text-muted-foreground truncate">
-                {runnerUpTeam.abbreviation || runnerUpTeam.shortName}
+              <span className="text-xs text-muted-foreground whitespace-normal break-words">
+                {runnerUpTeam.name || runnerUpTeam.shortName}
               </span>
             </div>
           )}
@@ -815,8 +815,8 @@ export default function BracketView({
                   <Shield className="w-3.5 h-3.5 text-muted-foreground/50" />
                 )}
               </div>
-              <span className="text-xs text-muted-foreground truncate">
-                {thirdTeam.abbreviation || thirdTeam.shortName}
+              <span className="text-xs text-muted-foreground whitespace-normal break-words">
+                {thirdTeam.name || thirdTeam.shortName}
               </span>
             </div>
           )}
@@ -901,7 +901,7 @@ export default function BracketView({
       <div className="flex justify-end mb-1">
         <ScreenshotButton targetRef={bracketRef as any} filename="chaveamento.png" discrete />
       </div>
-      <div className="overflow-x-auto overflow-y-hidden pb-2" ref={bracketRef}>
+      <div className="overflow-x-auto overflow-y-hidden pb-2 will-change-transform" ref={bracketRef} style={{ transform: 'translateZ(0)' }}>
         {(() => {
           const preFinalStages = stages.slice(0, -1);
           const finalStageKey = stages[stages.length - 1];
