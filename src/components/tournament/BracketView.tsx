@@ -927,98 +927,98 @@ export default function BracketView({
           {/* Coluna campeão: header */}
           <div style={{ gridColumn: stages.length * 2 + 1, gridRow: 1 }} />
 
-          {/* Confrontos */}
-          {stages.map((stage, stageIdx) => {
-            const stagePairs = getPairs(matchesByStage[stage] || []);
-            const span = Math.pow(2, stageIdx);
-            const colIdx = stageIdx * 2 + 1;
+          {/* Troque o bloco inteiro do grid por isso: */}
+<div className="flex flex-row items-stretch gap-0">
+  {stages.map((stage, stageIdx) => {
+    const stagePairs = getPairs(matchesByStage[stage] || []);
+    const isFinal = stageIdx === stages.length - 1;
 
-            return stagePairs.map((pair, i) => (
-              <div
-                key={pair.leg1.id}
-                className="flex items-center justify-center px-2"
-                style={{
-                  gridColumn: colIdx,
-                  gridRow: `${i * span + 2} / span ${span}`,
-                }}
-              >
+    return (
+      <div key={stage} className="flex flex-row items-stretch">
+        {/* Coluna da fase */}
+        <div className="flex flex-col w-[240px]">
+          {/* Header */}
+          <div className="flex flex-col items-center gap-1 pb-3 pt-1">
+            <div className="flex items-center gap-1.5">
+              <span className="text-[11px] font-bold text-primary tracking-tight">
+                {STAGE_LABELS[stage] || stage}
+              </span>
+              {legMode === "home-away" && !isFinal && (
+                <span className="text-[9px] text-muted-foreground">( Ida / Volta )</span>
+              )}
+            </div>
+            <StageActions stage={stage} stageIdx={stageIdx} />
+          </div>
+          {/* Confrontos com justify-around para centralizar */}
+          <div className="flex flex-col flex-1 justify-around gap-2 pb-2">
+            {stagePairs.map((pair, i) => (
+              <div key={pair.leg1.id} className="flex items-center justify-center">
                 {renderPair(pair, i)}
               </div>
-            ));
-          })}
-
-          {/* Conectores entre fases */}
-          {stages.slice(0, -1).map((stage, stageIdx) => {
-            const stagePairs = getPairs(matchesByStage[stage] || []);
-            const span = Math.pow(2, stageIdx);
-            const connectorCol = stageIdx * 2 + 2; // colunas pares = conectores
-
-            // Para cada par de confrontos que se une na próxima fase
-            const connectors = [];
-            for (let i = 0; i + 1 < stagePairs.length; i += 2) {
-              const topRow = i * span + 2;
-              const botRow = (i + 1) * span + 2;
-              const spanRows = span * 2;
-
-              connectors.push(
-                <div
-                  key={`conn-${stageIdx}-${i}`}
-                  style={{
-                    gridColumn: connectorCol,
-                    gridRow: `${topRow} / span ${spanRows}`,
-                    position: "relative",
-                  }}
-                >
-                  <svg
-                    style={{ position: "absolute", inset: 0, width: "100%", height: "100%", overflow: "visible" }}
-                    preserveAspectRatio="none"
-                  >
-                    {/* Saindo do centro do confronto superior (50% do span superior = 25% do total) */}
-                    <line x1="0" y1="25%" x2="50%" y2="25%" stroke="hsl(var(--border))" strokeWidth="1.5" />
-                    {/* Saindo do centro do confronto inferior (50% do span inferior = 75% do total) */}
-                    <line x1="0" y1="75%" x2="50%" y2="75%" stroke="hsl(var(--border))" strokeWidth="1.5" />
-                    {/* Linha vertical unindo */}
-                    <line x1="50%" y1="25%" x2="50%" y2="75%" stroke="hsl(var(--border))" strokeWidth="1.5" />
-                    {/* Linha saindo para o próximo confronto */}
-                    <line x1="50%" y1="50%" x2="100%" y2="50%" stroke="hsl(var(--border))" strokeWidth="1.5" />
-                  </svg>
-                </div>,
-              );
-            }
-            return connectors;
-          })}
-
-          {/* Coluna campeão */}
-          <div
-            className="flex flex-col items-center gap-4 px-2"
-            style={{
-              gridColumn: stages.length * 2 + 1,
-              gridRow: `2 / -1`,
-              alignSelf: "center",
-            }}
-          >
-            {thirdPlaceMatches.length > 0 && (
-              <div className="w-[220px]">
-                <div className="flex items-center justify-center gap-1.5 mb-1.5">
-                  <Medal className="w-3.5 h-3.5 text-highlight" />
-                  <span className="text-[10px] font-bold text-primary">3º Lugar</span>
-                  {thirdPlaceMatches.some((m) => !m.played) && (
-                    <button
-                      onClick={handleSimulateThirdPlace}
-                      className="flex items-center gap-1 px-1.5 py-0.5 rounded bg-primary/10 text-primary hover:bg-primary/20 text-[9px] font-bold transition-colors"
-                    >
-                      <Play className="w-2 h-2" />
-                      Simular
-                    </button>
-                  )}
-                </div>
-                <div className="flex flex-col gap-2">{thirdPlaceMatches.map(renderThirdPlaceMatch)}</div>
-              </div>
-            )}
-            {renderChampionCard()}
+            ))}
           </div>
         </div>
+
+        {/* Coluna conector (exceto após a última fase) */}
+        {stageIdx < stages.length - 1 && (
+          <div className="relative w-[40px] flex-shrink-0 self-stretch">
+            <svg
+              className="absolute inset-0 w-full h-full"
+              preserveAspectRatio="none"
+              style={{ top: "40px" }} // compensa o header
+            >
+              {Array.from({ length: Math.floor(stagePairs.length / 2) }).map((_, i) => {
+                const total = stagePairs.length;
+                const topCenter = ((i * 2 + 0.5) / total) * 100;
+                const botCenter = ((i * 2 + 1.5) / total) * 100;
+                const mid = (topCenter + botCenter) / 2;
+                return (
+                  <g key={i}>
+                    <line x1="0%" y1={`${topCenter}%`} x2="50%" y2={`${topCenter}%`}
+                      stroke="hsl(var(--border))" strokeWidth="1.5" />
+                    <line x1="0%" y1={`${botCenter}%`} x2="50%" y2={`${botCenter}%`}
+                      stroke="hsl(var(--border))" strokeWidth="1.5" />
+                    <line x1="50%" y1={`${topCenter}%`} x2="50%" y2={`${botCenter}%`}
+                      stroke="hsl(var(--border))" strokeWidth="1.5" />
+                    <line x1="50%" y1={`${mid}%`} x2="100%" y2={`${mid}%`}
+                      stroke="hsl(var(--border))" strokeWidth="1.5" />
+                  </g>
+                );
+              })}
+            </svg>
+          </div>
+        )}
       </div>
+    );
+  })}
+
+  {/* Coluna campeão + 3º lugar — ao lado da Final */}
+  <div className="flex flex-col w-[260px] flex-shrink-0">
+    {/* Header vazio para alinhar com as outras fases */}
+    <div className="pb-3 pt-1" style={{ minHeight: "40px" }} />
+    {/* Conteúdo centralizado verticalmente */}
+    <div className="flex flex-col flex-1 justify-center items-center gap-6 pb-2">
+      {thirdPlaceMatches.length > 0 && (
+        <div className="w-[220px]">
+          <div className="flex items-center justify-center gap-1.5 mb-1.5">
+            <Medal className="w-3.5 h-3.5 text-highlight" />
+            <span className="text-[10px] font-bold text-primary">3º Lugar</span>
+            {thirdPlaceMatches.some((m) => !m.played) && (
+              <button onClick={handleSimulateThirdPlace}
+                className="flex items-center gap-1 px-1.5 py-0.5 rounded bg-primary/10 text-primary hover:bg-primary/20 text-[9px] font-bold transition-colors"
+              >
+                <Play className="w-2 h-2" />
+                Simular
+              </button>
+            )}
+          </div>
+          <div className="flex flex-col gap-2">{thirdPlaceMatches.map(renderThirdPlaceMatch)}</div>
+        </div>
+      )}
+      {renderChampionCard()}
+    </div>
+  </div>
+</div>
 
       {selectedMatch && (
         <MatchPopup
