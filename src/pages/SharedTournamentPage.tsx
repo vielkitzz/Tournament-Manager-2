@@ -59,6 +59,54 @@ export default function SharedTournamentPage() {
   const [showYearPicker, setShowYearPicker] = useState(false);
   const [showDrawDialog, setShowDrawDialog] = useState(false);
   const [groupTeamSearch, setGroupTeamSearch] = useState("");
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+
+  // Wrapper that adds sidebar layout to any content
+  const withSidebar = (content: React.ReactNode) => (
+    <div className="flex min-h-screen w-full bg-background">
+      {/* Mobile header */}
+      <div className="fixed top-0 left-0 right-0 z-40 flex items-center justify-between px-4 h-14 bg-background/90 backdrop-blur-xl border-b border-border lg:hidden">
+        <button
+          onClick={() => setSidebarOpen(true)}
+          className="p-2 -ml-1 rounded-lg hover:bg-secondary text-muted-foreground hover:text-foreground transition-colors"
+        >
+          <Menu className="w-5 h-5" />
+        </button>
+        <span className="text-sm font-display font-bold text-foreground tracking-wide">TM2</span>
+        <div className="w-9" />
+      </div>
+
+      {/* Mobile overlay */}
+      {sidebarOpen && (
+        <div
+          className="fixed inset-0 z-50 bg-black/60 lg:hidden"
+          onClick={() => setSidebarOpen(false)}
+        />
+      )}
+
+      {/* Sidebar */}
+      <div
+        className={`fixed inset-y-0 left-0 z-50 transform transition-transform duration-300 ease-in-out lg:sticky lg:top-0 lg:h-screen lg:translate-x-0 ${
+          sidebarOpen ? "translate-x-0" : "-translate-x-full"
+        }`}
+      >
+        <div className="relative">
+          <AppSidebar onNavigate={() => setSidebarOpen(false)} />
+          <button
+            onClick={() => setSidebarOpen(false)}
+            className="absolute top-4 right-4 p-1.5 rounded-lg hover:bg-secondary text-muted-foreground hover:text-foreground transition-colors lg:hidden"
+          >
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+      </div>
+
+      {/* Main content */}
+      <main className="flex-1 overflow-auto pt-16 lg:pt-0 min-w-0 relative">
+        {content}
+      </main>
+    </div>
+  );
 
   const isReadOnly = role === "viewer" || role === null;
   const canEdit = role === "admin" || role === "owner";
