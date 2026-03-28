@@ -341,12 +341,14 @@ export default function BracketView({
 
   const handleAddMatch = (stageIdx: number) => {
     if (!onAddMatch) return;
-    const stage = stages[stageIdx];
     const newMatch: Match = {
-      id: Math.random().toString(36).substr(2, 9),
+      id: Math.random().toString(36).substring(2, 11),
+      tournamentId: tournament.id,
       round: stageIdx + 1,
       homeTeamId: "",
       awayTeamId: "",
+      homeScore: 0,
+      awayScore: 0,
       played: false,
     };
     onAddMatch(newMatch);
