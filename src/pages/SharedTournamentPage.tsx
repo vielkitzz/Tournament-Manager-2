@@ -871,7 +871,6 @@ export default function SharedTournamentPage() {
             onConfirm={handleDrawConfirm}
           />
         )}
-      </div>
     </div>
   );
 }
