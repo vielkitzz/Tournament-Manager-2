@@ -799,6 +799,15 @@ export default function BracketView({
     );
   };
 
+  // Altura fixa por slot de confronto — garante alinhamento entre fases
+  // Cada fase tem pairCount * ROW_H de altura total.
+  // A fase seguinte tem metade dos confrontos, cada um centrado entre dois da anterior.
+  const ROW_H = 160; // px por slot (espaço reservado para 1 confronto)
+  const firstStage = stages[0];
+  const firstStagePairs = getPairs(matchesByStage[firstStage] || []);
+  const totalRows = Math.max(1, firstStagePairs.length);
+  const bracketHeight = totalRows * ROW_H;
+
   return (
     <div className="space-y-4">
       {/* Banner de finalização */}
@@ -827,18 +836,21 @@ export default function BracketView({
         ref={bracketRef}
         style={{ transform: "translateZ(0)" }}
       >
-        {/* ── BRACKET: flex row de fases ── */}
-        <div className="flex flex-row items-stretch">
+        {/* ── BRACKET ── */}
+        <div className="flex flex-row items-start">
           {stages.map((stage, stageIdx) => {
             const stagePairs = getPairs(matchesByStage[stage] || []);
             const isFinal = stageIdx === stages.length - 1;
+            // cada confronto desta fase ocupa 2^stageIdx slots de ROW_H
+            const slotsPerPair = Math.pow(2, stageIdx);
+            const colHeight = totalRows * ROW_H;
 
             return (
-              <div key={stage} className="flex flex-row items-stretch">
+              <div key={stage} className="flex flex-row items-start flex-shrink-0">
                 {/* Coluna da fase */}
-                <div className="flex flex-col w-[240px]">
+                <div className="flex flex-col w-[240px] flex-shrink-0">
                   {/* Header */}
-                  <div className="flex flex-col items-center gap-1 pb-3 pt-1 flex-shrink-0">
+                  <div className="flex flex-col items-center gap-1 pb-3 pt-1">
                     <div className="flex items-center gap-1.5">
                       <span className="text-[11px] font-bold text-primary tracking-tight">
                         {STAGE_LABELS[stage] || stage}
@@ -850,75 +862,62 @@ export default function BracketView({
                     <StageActions stage={stage} stageIdx={stageIdx} />
                   </div>
 
-                  {/* Confrontos distribuídos verticalmente com justify-around */}
-                  <div className="flex flex-col flex-1 justify-around py-2 gap-2">
-                    {stagePairs.map((pair, i) => (
-                      <div key={pair.leg1.id} className="flex items-center justify-center">
-                        {renderPair(pair, i)}
-                      </div>
-                    ))}
+                  {/* Confrontos posicionados com altura fixa por slot */}
+                  <div className="relative flex-shrink-0" style={{ height: colHeight }}>
+                    {stagePairs.map((pair, i) => {
+                      // centro do slot em px
+                      const slotTop = i * slotsPerPair * ROW_H;
+                      const slotH = slotsPerPair * ROW_H;
+                      return (
+                        <div
+                          key={pair.leg1.id}
+                          className="absolute left-0 right-0 flex items-center justify-center px-2"
+                          style={{ top: slotTop, height: slotH }}
+                        >
+                          {renderPair(pair, i)}
+                        </div>
+                      );
+                    })}
                   </div>
                 </div>
 
-                {/* Coluna conector — só entre fases, não após a última */}
+                {/* Coluna conector SVG */}
                 {stageIdx < stages.length - 1 && (
-                  <div className="relative w-[48px] flex-shrink-0" style={{ alignSelf: "stretch" }}>
-                    {/* O SVG cobre toda a altura da coluna, mas deslocamos para baixo do header */}
-                    <svg
-                      style={{
-                        position: "absolute",
-                        top: 0,
-                        left: 0,
-                        width: "100%",
-                        height: "100%",
-                        overflow: "visible",
-                      }}
-                      preserveAspectRatio="none"
-                    >
+                  <div className="relative flex-shrink-0 w-[48px]" style={{ marginTop: 0 }}>
+                    {/* espaço do header — empurra o SVG para baixo do header da fase */}
+                    <div style={{ height: 48 }} />
+                    <svg width="48" height={colHeight} style={{ display: "block", overflow: "visible" }}>
                       {Array.from({ length: Math.floor(stagePairs.length / 2) }).map((_, i) => {
-                        const total = stagePairs.length;
-                        // centro vertical de cada confronto em % da altura total da coluna
-                        const topCenter = ((i * 2 + 0.5) / total) * 100;
-                        const botCenter = ((i * 2 + 1.5) / total) * 100;
-                        const mid = (topCenter + botCenter) / 2;
+                        const topSlotCenter = (i * 2 * slotsPerPair + slotsPerPair / 2) * ROW_H;
+                        const botSlotCenter = ((i * 2 + 1) * slotsPerPair + slotsPerPair / 2) * ROW_H;
+                        const mid = (topSlotCenter + botSlotCenter) / 2;
                         return (
                           <g key={i}>
-                            {/* saindo do centro do confronto superior */}
                             <line
-                              x1="0%"
-                              y1={`${topCenter}%`}
-                              x2="50%"
-                              y2={`${topCenter}%`}
+                              x1="0"
+                              y1={topSlotCenter}
+                              x2="24"
+                              y2={topSlotCenter}
                               stroke="hsl(var(--border))"
                               strokeWidth="1.5"
                             />
-                            {/* saindo do centro do confronto inferior */}
                             <line
-                              x1="0%"
-                              y1={`${botCenter}%`}
-                              x2="50%"
-                              y2={`${botCenter}%`}
+                              x1="0"
+                              y1={botSlotCenter}
+                              x2="24"
+                              y2={botSlotCenter}
                               stroke="hsl(var(--border))"
                               strokeWidth="1.5"
                             />
-                            {/* vertical unindo os dois */}
                             <line
-                              x1="50%"
-                              y1={`${topCenter}%`}
-                              x2="50%"
-                              y2={`${botCenter}%`}
+                              x1="24"
+                              y1={topSlotCenter}
+                              x2="24"
+                              y2={botSlotCenter}
                               stroke="hsl(var(--border))"
                               strokeWidth="1.5"
                             />
-                            {/* horizontal saindo para o próximo confronto */}
-                            <line
-                              x1="50%"
-                              y1={`${mid}%`}
-                              x2="100%"
-                              y2={`${mid}%`}
-                              stroke="hsl(var(--border))"
-                              strokeWidth="1.5"
-                            />
+                            <line x1="24" y1={mid} x2="48" y2={mid} stroke="hsl(var(--border))" strokeWidth="1.5" />
                           </g>
                         );
                       })}
@@ -929,14 +928,12 @@ export default function BracketView({
             );
           })}
 
-          {/* ── Coluna extra: 3º lugar + Campeão ── */}
-          <div className="flex flex-col w-[260px] flex-shrink-0">
-            {/* Header vazio para alinhar verticalmente com as outras fases */}
-            <div className="flex-shrink-0 pb-3 pt-1" style={{ visibility: "hidden" }}>
-              <span className="text-[11px]">&nbsp;</span>
-            </div>
-            {/* Conteúdo centralizado verticalmente */}
-            <div className="flex flex-col flex-1 justify-center items-center gap-6 py-2">
+          {/* ── Coluna extra: 3º lugar + Campeão (ao lado da Final, centralizado) ── */}
+          <div className="flex flex-col flex-shrink-0 w-[260px]">
+            {/* Header fantasma para alinhar com as outras fases */}
+            <div style={{ height: 48 }} />
+            {/* Área com mesma altura do bracket, conteúdo centralizado */}
+            <div className="flex flex-col items-center justify-center gap-6" style={{ height: bracketHeight }}>
               {thirdPlaceMatches.length > 0 && (
                 <div className="w-[220px]">
                   <div className="flex items-center justify-center gap-1.5 mb-1.5">
