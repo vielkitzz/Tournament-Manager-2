@@ -799,8 +799,8 @@ export default function BracketView({
                   <Shield className="w-3.5 h-3.5 text-muted-foreground/50" />
                 )}
               </div>
-              <span className="text-xs text-muted-foreground truncate">
-                {runnerUpTeam.abbreviation || runnerUpTeam.shortName}
+              <span className="text-xs text-muted-foreground whitespace-normal break-words">
+                {runnerUpTeam.name || runnerUpTeam.shortName}
               </span>
             </div>
           )}
