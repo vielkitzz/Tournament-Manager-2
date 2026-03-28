@@ -531,14 +531,14 @@ export default function BracketView({
               isWinner={winner === pair.leg1.awayTeamId}
               borderBottom
               hideEdit={!!tournament.finalized}
-            onEditTeam={() => setEditingTeam({ match: pair.leg2!, side: "home" })}
+              onEditTeam={() => setEditingTeam({ match: pair.leg2!, side: "home" })}
             />
             <TeamRow
               team={homeTeam}
               score={pair.leg2.played ? getMatchTotalScore(pair.leg2, "away") : undefined}
               isWinner={winner === pair.leg1.homeTeamId}
               hideEdit={!!tournament.finalized}
-            onEditTeam={() => setEditingTeam({ match: pair.leg2!, side: "away" })}
+              onEditTeam={() => setEditingTeam({ match: pair.leg2!, side: "away" })}
             />
             {renderMatchFooter(pair.leg2)}
           </button>
@@ -569,14 +569,14 @@ export default function BracketView({
           isWinner={winner === match.homeTeamId}
           borderBottom
           hideEdit={!!tournament.finalized}
-            onEditTeam={() => setEditingTeam({ match, side: "home" })}
+          onEditTeam={() => setEditingTeam({ match, side: "home" })}
         />
         <TeamRow
           team={away}
           score={awayTotal}
           isWinner={winner === match.awayTeamId}
           hideEdit={!!tournament.finalized}
-            onEditTeam={() => setEditingTeam({ match, side: "away" })}
+          onEditTeam={() => setEditingTeam({ match, side: "away" })}
         />
         {(hasET || hasPens) && (
           <div className="text-center py-0.5 bg-secondary/50 border-t border-border/10">
@@ -610,9 +610,7 @@ export default function BracketView({
     return (
       <div key={columnKey} className="flex flex-col items-center relative" style={{ minWidth: 228 }}>
         <div className="mb-2 flex items-center gap-1.5">
-          <span className="text-[11px] font-bold text-primary tracking-tight">
-            {STAGE_LABELS[stage] || stage}
-          </span>
+          <span className="text-[11px] font-bold text-primary tracking-tight">{STAGE_LABELS[stage] || stage}</span>
           {legMode === "home-away" && !isFinal && <span className="text-[9px] text-muted-foreground">(I/V)</span>}
         </div>
 
@@ -719,44 +717,84 @@ export default function BracketView({
         const losers = semiPairs.map(getSemiLoser).filter(Boolean) as string[];
         if (losers.length === 2) {
           // Use all tournament matches to evaluate campaign
-          const allPlayedMatches = matches.filter(m => m.played);
-          const tiebreakers = tournament.settings.tiebreakers || ["Pontos", "Vitórias", "Saldo de Gols", "Gols Marcados"];
+          const allPlayedMatches = matches.filter((m) => m.played);
+          const tiebreakers = tournament.settings.tiebreakers || [
+            "Pontos",
+            "Vitórias",
+            "Saldo de Gols",
+            "Gols Marcados",
+          ];
           const ptsWin = tournament.settings.pointsWin ?? 3;
           const ptsDraw = tournament.settings.pointsDraw ?? 1;
           const ptsLoss = tournament.settings.pointsLoss ?? 0;
-          
+
           const buildStats = (teamId: string) => {
-            let wins = 0, draws = 0, losses = 0, gf = 0, ga = 0, points = 0;
+            let wins = 0,
+              draws = 0,
+              losses = 0,
+              gf = 0,
+              ga = 0,
+              points = 0;
             for (const m of allPlayedMatches) {
               const isHome = m.homeTeamId === teamId;
               const isAway = m.awayTeamId === teamId;
               if (!isHome && !isAway) continue;
-              const tgf = isHome ? (m.homeScore || 0) + (m.homeExtraTime || 0) : (m.awayScore || 0) + (m.awayExtraTime || 0);
-              const tga = isHome ? (m.awayScore || 0) + (m.awayExtraTime || 0) : (m.homeScore || 0) + (m.homeExtraTime || 0);
-              gf += tgf; ga += tga;
-              if (tgf > tga) { wins++; points += ptsWin; }
-              else if (tgf < tga) { losses++; points += ptsLoss; }
-              else { draws++; points += ptsDraw; }
+              const tgf = isHome
+                ? (m.homeScore || 0) + (m.homeExtraTime || 0)
+                : (m.awayScore || 0) + (m.awayExtraTime || 0);
+              const tga = isHome
+                ? (m.awayScore || 0) + (m.awayExtraTime || 0)
+                : (m.homeScore || 0) + (m.homeExtraTime || 0);
+              gf += tgf;
+              ga += tga;
+              if (tgf > tga) {
+                wins++;
+                points += ptsWin;
+              } else if (tgf < tga) {
+                losses++;
+                points += ptsLoss;
+              } else {
+                draws++;
+                points += ptsDraw;
+              }
             }
             return { points, wins, draws, losses, gf, ga, gd: gf - ga };
           };
-          
+
           const statsA = buildStats(losers[0]);
           const statsB = buildStats(losers[1]);
-          
+
           let bestLoser = losers[0];
           for (const tb of tiebreakers) {
             let diff = 0;
             switch (tb) {
-              case "Pontos": diff = statsA.points - statsB.points; break;
-              case "Vitórias": diff = statsA.wins - statsB.wins; break;
-              case "Saldo de Gols": diff = statsA.gd - statsB.gd; break;
-              case "Gols Marcados": diff = statsA.gf - statsB.gf; break;
-              case "Empates": diff = statsA.draws - statsB.draws; break;
-              case "Gols Sofridos": diff = statsB.ga - statsA.ga; break;
+              case "Pontos":
+                diff = statsA.points - statsB.points;
+                break;
+              case "Vitórias":
+                diff = statsA.wins - statsB.wins;
+                break;
+              case "Saldo de Gols":
+                diff = statsA.gd - statsB.gd;
+                break;
+              case "Gols Marcados":
+                diff = statsA.gf - statsB.gf;
+                break;
+              case "Empates":
+                diff = statsA.draws - statsB.draws;
+                break;
+              case "Gols Sofridos":
+                diff = statsB.ga - statsA.ga;
+                break;
             }
-            if (diff > 0) { bestLoser = losers[0]; break; }
-            if (diff < 0) { bestLoser = losers[1]; break; }
+            if (diff > 0) {
+              bestLoser = losers[0];
+              break;
+            }
+            if (diff < 0) {
+              bestLoser = losers[1];
+              break;
+            }
           }
           thirdTeam = getTeam(bestLoser);
         }
@@ -783,7 +821,7 @@ export default function BracketView({
             </div>
             <div className="flex-1 min-w-0">
               <span className="text-sm font-bold text-foreground block whitespace-normal break-words">
-                {championTeam.name || championTeam.shortName}
+                {championTeam.shortName || championTeam.name}
               </span>
               <span className="text-[10px] text-primary font-semibold">Campeão {tournament.year}</span>
             </div>
@@ -800,7 +838,7 @@ export default function BracketView({
                 )}
               </div>
               <span className="text-xs text-muted-foreground whitespace-normal break-words">
-                {runnerUpTeam.name || runnerUpTeam.shortName}
+                {runnerUpTeam.shortName || runnerUpTeam.name}
               </span>
             </div>
           )}
@@ -816,7 +854,7 @@ export default function BracketView({
                 )}
               </div>
               <span className="text-xs text-muted-foreground whitespace-normal break-words">
-                {thirdTeam.name || thirdTeam.shortName}
+                {thirdTeam.shortName || thirdTeam.name}
               </span>
             </div>
           )}
@@ -901,7 +939,11 @@ export default function BracketView({
       <div className="flex justify-end mb-1">
         <ScreenshotButton targetRef={bracketRef as any} filename="chaveamento.png" discrete />
       </div>
-      <div className="overflow-x-auto overflow-y-hidden pb-2 will-change-transform" ref={bracketRef} style={{ transform: 'translateZ(0)' }}>
+      <div
+        className="overflow-x-auto overflow-y-hidden pb-2 will-change-transform"
+        ref={bracketRef}
+        style={{ transform: "translateZ(0)" }}
+      >
         {(() => {
           const preFinalStages = stages.slice(0, -1);
           const finalStageKey = stages[stages.length - 1];
@@ -913,7 +955,7 @@ export default function BracketView({
           if (!useBracketLayout) {
             // Linear layout
             return (
-              <div className="flex items-center justify-center gap-6 py-8 mx-auto">
+              <div className="flex items-center justify-start gap-0">
                 {stages.map((stage, stageIdx) => {
                   const pairs = getPairs(matchesByStage[stage] || []);
                   return (
@@ -925,7 +967,7 @@ export default function BracketView({
                     </div>
                   );
                 })}
-                <div className="ml-4">{renderChampionCard()}</div>
+                {renderChampionCard()}
               </div>
             );
           }
@@ -966,9 +1008,7 @@ export default function BracketView({
                     {/* Container com justify-center para o texto ficar no meio */}
                     <div className="flex items-center justify-center gap-1.5 mb-1.5 relative w-full">
                       <Medal className="w-3.5 h-3.5 text-highlight" />
-                      <span className="text-[10px] font-bold text-primary">
-                        3º Lugar
-                      </span>
+                      <span className="text-[10px] font-bold text-primary">3º Lugar</span>
 
                       {thirdPlaceMatches.some((m) => !m.played) && (
                         <button
