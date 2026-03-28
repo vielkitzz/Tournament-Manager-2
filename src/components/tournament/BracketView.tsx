@@ -477,7 +477,7 @@ export default function BracketView({
     };
 
     const mid = Math.ceil(stages.length / 2);
-    
+
     return (
       <div
         key={pair.leg1.id}
@@ -637,19 +637,17 @@ export default function BracketView({
     );
   };
 
-      const renderSide = (sideStages: string[], isRight = false) => (
+  const renderSide = (sideStages: string[], isRight = false) => (
     <div className={cn("flex flex-row", isRight && "flex-row-reverse")}>
       {sideStages.map((stage, idx) => {
         const stagePairs = getPairs(matchesByStage[stage] || []);
-  
+
         return (
           <div key={stage} className="flex flex-col w-[240px]">
             <div className="flex flex-col items-center gap-1 pb-3 pt-1">
-              <span className="text-[11px] font-bold text-primary">
-                {STAGE_LABELS[stage] || stage}
-              </span>
+              <span className="text-[11px] font-bold text-primary">{STAGE_LABELS[stage] || stage}</span>
             </div>
-  
+
             <div className="flex flex-col flex-1 justify-around py-2 gap-2">
               {stagePairs.map((pair, i) => (
                 <div key={pair.leg1.id} className="flex justify-center">
@@ -860,29 +858,23 @@ export default function BracketView({
       >
         {/* ── BRACKET: flex row de fases ── */}
         <div className="flex flex-row items-start justify-center gap-6">
-          
           {/* LADO ESQUERDO */}
           {renderSide(leftStages)}
-      
+
           {/* FINAL */}
           <div className="flex flex-col items-center justify-center">
             <div className="mb-2 text-xs font-bold text-primary">Final</div>
-      
-            {getPairs(matchesByStage[stages[stages.length - 1]] || []).map((pair, i) =>
-              renderPair(pair, i)
-            )}
+
+            {getPairs(matchesByStage[stages[stages.length - 1]] || []).map((pair, i) => renderPair(pair, i))}
           </div>
-      
+
           {/* LADO DIREITO */}
           {renderSide(rightStages, true)}
         </div>
-      
+
         {/* CAMPEÃO EMBAIXO */}
-        <div className="mt-6">
-          {renderChampionCard()}
-        </div>
+        <div className="mt-6">{renderChampionCard()}</div>
       </div>
-    </div>
 
       {selectedMatch && (
         <MatchPopup
