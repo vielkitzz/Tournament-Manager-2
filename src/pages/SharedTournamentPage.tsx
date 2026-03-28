@@ -10,7 +10,10 @@ import {
   Loader2,
   Lock,
   LogIn,
+  Menu,
+  X,
 } from "lucide-react";
+import AppSidebar from "@/components/AppSidebar";
 import { useSharedTournament, SharedRole } from "@/hooks/useSharedTournament";
 import { useAuth } from "@/hooks/useAuth";
 import { resolveTeam } from "@/lib/teamHistoryUtils";
