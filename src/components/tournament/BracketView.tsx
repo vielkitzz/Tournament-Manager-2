@@ -637,6 +637,32 @@ export default function BracketView({
     );
   };
 
+      const renderSide = (sideStages: string[], isRight = false) => (
+    <div className={cn("flex flex-row", isRight && "flex-row-reverse")}>
+      {sideStages.map((stage, idx) => {
+        const stagePairs = getPairs(matchesByStage[stage] || []);
+  
+        return (
+          <div key={stage} className="flex flex-col w-[240px]">
+            <div className="flex flex-col items-center gap-1 pb-3 pt-1">
+              <span className="text-[11px] font-bold text-primary">
+                {STAGE_LABELS[stage] || stage}
+              </span>
+            </div>
+  
+            <div className="flex flex-col flex-1 justify-around py-2 gap-2">
+              {stagePairs.map((pair, i) => (
+                <div key={pair.leg1.id} className="flex justify-center">
+                  {renderPair(pair, i)}
+                </div>
+              ))}
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+
   const renderChampionCard = () => {
     const champion = finalPairs.length > 0 ? getTieResult(finalPairs[0]) : null;
     const championTeam = champion ? getTeam(champion) : null;
@@ -744,32 +770,6 @@ export default function BracketView({
         }
       }
     }
-
-      const renderSide = (sideStages: string[], isRight = false) => (
-    <div className={cn("flex flex-row", isRight && "flex-row-reverse")}>
-      {sideStages.map((stage, idx) => {
-        const stagePairs = getPairs(matchesByStage[stage] || []);
-  
-        return (
-          <div key={stage} className="flex flex-col w-[240px]">
-            <div className="flex flex-col items-center gap-1 pb-3 pt-1">
-              <span className="text-[11px] font-bold text-primary">
-                {STAGE_LABELS[stage] || stage}
-              </span>
-            </div>
-  
-            <div className="flex flex-col flex-1 justify-around py-2 gap-2">
-              {stagePairs.map((pair, i) => (
-                <div key={pair.leg1.id} className="flex justify-center">
-                  {renderPair(pair, i)}
-                </div>
-              ))}
-            </div>
-          </div>
-        );
-      })}
-    </div>
-  );
 
     return (
       <div className="flex flex-col items-stretch justify-start w-[220px] flex-shrink-0">
