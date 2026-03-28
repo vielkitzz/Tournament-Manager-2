@@ -865,6 +865,7 @@ export default function BracketView({
                   {stagePairs.map((pair, i) => (
                     <div
                       key={pair.leg1.id}
+                      className="flex items-center" // ← adicione isso
                       style={{
                         gridRow: `${i * span + 1} / span ${span}`,
                       }}
