@@ -1,5 +1,5 @@
-import { useState, useRef } from "react";
-import { Match, Team, Tournament, KnockoutStage, STAGE_TEAM_COUNTS } from "@/types/tournament";
+import { useState, useRef, useLayoutEffect, useCallback } from "react";
+import { Match, Team, Tournament, KnockoutStage } from "@/types/tournament";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { Shield, Play, Trophy, Medal, UserPlus, Shuffle, Plus, Trash2 } from "lucide-react";
@@ -35,7 +35,6 @@ function getStagesFromStart(start: KnockoutStage): string[] {
   return idx >= 0 ? all.slice(idx) : ["1/2"];
 }
 
-/** Returns aggregate score for a home-away pair */
 function getAggregate(leg1: Match, leg2: Match): { home: number; away: number } {
   const home = (leg1.homeScore || 0) + (leg1.homeExtraTime || 0) + (leg2.awayScore || 0) + (leg2.awayExtraTime || 0);
   const away = (leg1.awayScore || 0) + (leg1.awayExtraTime || 0) + (leg2.homeScore || 0) + (leg2.homeExtraTime || 0);
@@ -47,19 +46,26 @@ function getTieWinner(leg1: Match, leg2: Match, awayGoalsRule: boolean): string 
   const agg = getAggregate(leg1, leg2);
   if (agg.home > agg.away) return leg1.homeTeamId;
   if (agg.away > agg.home) return leg1.awayTeamId;
-
   if (awayGoalsRule) {
     const awayGoalsHome = (leg2.awayScore || 0) + (leg2.awayExtraTime || 0);
     const awayGoalsAway = (leg1.awayScore || 0) + (leg1.awayExtraTime || 0);
     if (awayGoalsHome > awayGoalsAway) return leg1.homeTeamId;
     if (awayGoalsAway > awayGoalsHome) return leg1.awayTeamId;
   }
-
   if (leg2.homePenalties !== undefined && leg2.awayPenalties !== undefined) {
     if (leg2.awayPenalties > leg2.homePenalties) return leg1.homeTeamId;
     if (leg2.homePenalties > leg2.awayPenalties) return leg1.awayTeamId;
   }
   return null;
+}
+
+// ─── SVG connector lines drawn from real DOM measurements ───
+interface ConnectorLine {
+  x1: number;
+  y1: number;
+  x2: number;
+  y2: number;
+  xMid: number;
 }
 
 export default function BracketView({
@@ -76,6 +82,9 @@ export default function BracketView({
   const [selectedMatch, setSelectedMatch] = useState<Match | null>(null);
   const [editingTeam, setEditingTeam] = useState<{ match: Match; side: "home" | "away" } | null>(null);
   const bracketRef = useRef<HTMLDivElement>(null);
+  const svgRef = useRef<SVGSVGElement>(null);
+  const [svgLines, setSvgLines] = useState<ConnectorLine[]>([]);
+  const [svgSize, setSvgSize] = useState({ w: 0, h: 0 });
 
   const getTeam = (id: string) => teams.find((t) => t.id === id);
 
@@ -83,25 +92,6 @@ export default function BracketView({
   const finalSingleLeg = tournament.settings.finalSingleLeg ?? false;
   const thirdPlaceMatch = tournament.settings.thirdPlaceMatch ?? false;
   const awayGoalsRule = tournament.settings.awayGoalsRule ?? false;
-
-  if (matches.length === 0) {
-    const hasEnoughTeams = tournament.teamIds.length >= 2;
-    return (
-      <div className="text-center py-12 space-y-4">
-        <p className="text-sm text-muted-foreground">
-          {hasEnoughTeams
-            ? 'Use o botão "Sortear Times" para gerar o chaveamento'
-            : `Adicione pelo menos 2 times (${tournament.teamIds.length} adicionados)`}
-        </p>
-        {hasEnoughTeams && (
-          <Button onClick={onGenerateBracket} className="gap-2 bg-primary text-primary-foreground">
-            <Shuffle className="w-4 h-4" />
-            Sortear Times
-          </Button>
-        )}
-      </div>
-    );
-  }
 
   const startStage = tournament.mataMataInicio || "1/8";
   const stages = getStagesFromStart(startStage);
@@ -165,6 +155,8 @@ export default function BracketView({
   const finalPairs = getPairs(finalMatchesList);
   const allFinalResolved = finalPairs.length > 0 && finalPairs.every((p) => getTieResult(p) !== null);
 
+  // ─── Simulation logic (unchanged) ───
+
   const simulateMatch = (match: Match, isLeg1OfPair = false): Match => {
     const home = getTeam(match.homeTeamId);
     const away = getTeam(match.awayTeamId);
@@ -201,41 +193,28 @@ export default function BracketView({
     let awayExtraTime: number | undefined;
     let homePenalties: number | undefined;
     let awayPenalties: number | undefined;
-
     const generatePenalties = () => {
       const homePens = Math.floor(Math.random() * 3) + 3;
       let awayPens = homePens + (Math.random() > 0.5 ? 1 : -1);
       if (awayPens < 0) awayPens = homePens + 1;
       return { homePenalties: homePens, awayPenalties: awayPens };
     };
-
     const regularAggregate = getAggregate(leg1, { ...leg2, homeScore, awayScore });
     const regularTied = regularAggregate.home === regularAggregate.away;
-
     if (regularTied) {
       const homeTeamAwayGoalsRegular = awayScore;
       const awayTeamAwayGoals = (leg1.awayScore || 0) + (leg1.awayExtraTime || 0);
       const awayGoalsDecidesRegular = awayGoalsRule && homeTeamAwayGoalsRegular !== awayTeamAwayGoals;
-
       if (!awayGoalsDecidesRegular) {
         if (tournament.settings.extraTime) {
           const et1 = simulateHalf(homeRate, awayRate);
           const et2 = simulateHalf(homeRate, awayRate);
           homeExtraTime = et1[0] + et2[0];
           awayExtraTime = et1[1] + et2[1];
-
-          const extraAggregate = getAggregate(leg1, {
-            ...leg2,
-            homeScore,
-            awayScore,
-            homeExtraTime,
-            awayExtraTime,
-          });
-
+          const extraAggregate = getAggregate(leg1, { ...leg2, homeScore, awayScore, homeExtraTime, awayExtraTime });
           const extraTied = extraAggregate.home === extraAggregate.away;
           const homeTeamAwayGoalsAfterExtra = awayScore + (awayExtraTime || 0);
           const awayGoalsDecidesAfterExtra = awayGoalsRule && homeTeamAwayGoalsAfterExtra !== awayTeamAwayGoals;
-
           if (extraTied && !awayGoalsDecidesAfterExtra) {
             const pens = generatePenalties();
             homePenalties = pens.homePenalties;
@@ -248,7 +227,6 @@ export default function BracketView({
         }
       }
     }
-
     return {
       ...leg2,
       homeScore,
@@ -276,11 +254,8 @@ export default function BracketView({
       }
       return match;
     });
-    if (onBatchUpdateMatches) {
-      onBatchUpdateMatches(updated);
-    } else {
-      updated.forEach((m) => onUpdateMatch(m));
-    }
+    if (onBatchUpdateMatches) onBatchUpdateMatches(updated);
+    else updated.forEach((m) => onUpdateMatch(m));
   };
 
   const handleSimulateThirdPlace = () => {
@@ -322,9 +297,8 @@ export default function BracketView({
         pairId,
         stage: stageType as any,
       };
-      if (onBatchUpdateMatches) {
-        onBatchUpdateMatches([...matches, leg1, leg2]);
-      } else {
+      if (onBatchUpdateMatches) onBatchUpdateMatches([...matches, leg1, leg2]);
+      else {
         onAddMatch(leg1);
         onAddMatch(leg2);
       }
@@ -354,23 +328,16 @@ export default function BracketView({
     const stage = stages[stageIndex];
     const nextStage = stages[stageIndex + 1];
     if (!nextStage) return;
-
     const stageMatchesList = matchesByStage[stage] || [];
     const nextStageMatches = matchesByStage[nextStage] || [];
-
     const pairs = getPairs(stageMatchesList);
     const allResolved = pairs.every((p) => getTieResult(p) !== null);
-    if (!allResolved) return;
-
-    if (nextStageMatches.length > 0) return;
-
+    if (!allResolved || nextStageMatches.length > 0) return;
     const winners = pairs.map(getTieResult).filter(Boolean) as string[];
     const isFinalStage = stageIndex + 1 === stages.length - 1;
     const useSingleLeg = legMode === "single" || (isFinalStage && finalSingleLeg);
-
     const newMatches: Match[] = [];
     const stageType = tournament.format === "grupos" ? "knockout" : undefined;
-
     if (useSingleLeg) {
       for (let i = 0; i < winners.length; i += 2) {
         if (i + 1 < winners.length) {
@@ -420,7 +387,6 @@ export default function BracketView({
         }
       }
     }
-
     const semiStageIdx = stages.length - 2;
     if (thirdPlaceMatch && stageIndex === semiStageIdx && !matches.some((m) => m.isThirdPlace)) {
       const losers = pairs.map(getSemiLoser).filter(Boolean) as string[];
@@ -439,25 +405,236 @@ export default function BracketView({
         });
       }
     }
-
-    if (newMatches.length > 0 && onBatchUpdateMatches) {
-      onBatchUpdateMatches([...matches, ...newMatches]);
-    }
+    if (newMatches.length > 0 && onBatchUpdateMatches) onBatchUpdateMatches([...matches, ...newMatches]);
   };
+
+  // ─── SVG line measurement ───
+  // Each card gets data-card-id="<pairLeg1Id>-<stageIdx>-<side>"
+  // After render, we measure their positions and draw lines between adjacent stages
+
+  const measureAndDrawLines = useCallback(() => {
+    const container = bracketRef.current;
+    if (!container) return;
+    const containerRect = container.getBoundingClientRect();
+    const lines: ConnectorLine[] = [];
+
+    // For each stage transition, find pairs of cards that should connect
+    const preFinalStages = stages.slice(0, -1);
+    const finalStageKey = stages[stages.length - 1];
+    const firstStagePairs = preFinalStages.length > 0 ? getPairs(matchesByStage[preFinalStages[0]] || []) : [];
+    const useBracketLayout = preFinalStages.length > 0 && firstStagePairs.length >= 2;
+
+    if (!useBracketLayout) {
+      // Linear: connect each stage's cards to the next stage
+      for (let si = 0; si < stages.length - 1; si++) {
+        const currentPairs = getPairs(matchesByStage[stages[si]] || []);
+        const nextPairs = getPairs(matchesByStage[stages[si + 1]] || []);
+        if (nextPairs.length === 0) continue;
+
+        // Every two current cards feed into one next card
+        for (let ni = 0; ni < nextPairs.length; ni++) {
+          const srcA = currentPairs[ni * 2];
+          const srcB = currentPairs[ni * 2 + 1];
+          const dst = nextPairs[ni];
+          if (!dst) continue;
+
+          const dstEl = container.querySelector(`[data-card-id="${dst.leg1.id}-${si + 1}-linear"]`);
+          if (!dstEl) continue;
+          const dstRect = dstEl.getBoundingClientRect();
+          const dstCenterY = dstRect.top + dstRect.height / 2 - containerRect.top;
+          const dstX = dstRect.left - containerRect.left;
+
+          if (srcA) {
+            const srcElA = container.querySelector(`[data-card-id="${srcA.leg1.id}-${si}-linear"]`);
+            if (srcElA) {
+              const rA = srcElA.getBoundingClientRect();
+              const yCenterA = rA.top + rA.height / 2 - containerRect.top;
+              const xA = rA.right - containerRect.left;
+              const xMid = xA + (dstX - xA) / 2;
+              lines.push({ x1: xA, y1: yCenterA, x2: dstX, y2: dstCenterY, xMid });
+            }
+          }
+          if (srcB) {
+            const srcElB = container.querySelector(`[data-card-id="${srcB.leg1.id}-${si}-linear"]`);
+            if (srcElB) {
+              const rB = srcElB.getBoundingClientRect();
+              const yCenterB = rB.top + rB.height / 2 - containerRect.top;
+              const xB = rB.right - containerRect.left;
+              const xMid = xB + (dstX - xB) / 2;
+              lines.push({ x1: xB, y1: yCenterB, x2: dstX, y2: dstCenterY, xMid });
+            }
+          }
+        }
+      }
+    } else {
+      // Two-sided bracket
+      const leftStages = preFinalStages;
+      const rightStages = preFinalStages;
+
+      // Left side: each stage connects to next stage (toward center)
+      for (let si = 0; si < leftStages.length - 1; si++) {
+        const curStage = leftStages[si];
+        const nextStage = leftStages[si + 1];
+        const allCurPairs = getPairs(matchesByStage[curStage] || []);
+        const allNextPairs = getPairs(matchesByStage[nextStage] || []);
+        const curPairs = allCurPairs.slice(0, Math.ceil(allCurPairs.length / 2));
+        const nextPairs = allNextPairs.slice(0, Math.ceil(allNextPairs.length / 2));
+
+        for (let ni = 0; ni < nextPairs.length; ni++) {
+          const srcA = curPairs[ni * 2];
+          const srcB = curPairs[ni * 2 + 1];
+          const dst = nextPairs[ni];
+          if (!dst) continue;
+
+          const dstEl = container.querySelector(`[data-card-id="${dst.leg1.id}-${si + 1}-left"]`);
+          if (!dstEl) continue;
+          const dstRect = dstEl.getBoundingClientRect();
+          const dstCenterY = dstRect.top + dstRect.height / 2 - containerRect.top;
+          const dstX = dstRect.left - containerRect.left;
+
+          [srcA, srcB].forEach((src) => {
+            if (!src) return;
+            const srcEl = container.querySelector(`[data-card-id="${src.leg1.id}-${si}-left"]`);
+            if (!srcEl) return;
+            const r = srcEl.getBoundingClientRect();
+            const yCenterSrc = r.top + r.height / 2 - containerRect.top;
+            const xSrc = r.right - containerRect.left;
+            const xMid = xSrc + (dstX - xSrc) / 2;
+            lines.push({ x1: xSrc, y1: yCenterSrc, x2: dstX, y2: dstCenterY, xMid });
+          });
+        }
+      }
+
+      // Left side last stage → final
+      {
+        const lastLeftStageIdx = leftStages.length - 1;
+        const lastLeftStage = leftStages[lastLeftStageIdx];
+        const allLastLeftPairs = getPairs(matchesByStage[lastLeftStage] || []);
+        const lastLeftPairs = allLastLeftPairs.slice(0, Math.ceil(allLastLeftPairs.length / 2));
+        const finalPairsList = getPairs(matchesByStage[finalStageKey] || []);
+        const dst = finalPairsList[0];
+
+        if (dst) {
+          const dstEl = container.querySelector(`[data-card-id="${dst.leg1.id}-${stages.length - 1}-center"]`);
+          if (dstEl) {
+            const dstRect = dstEl.getBoundingClientRect();
+            const dstCenterY = dstRect.top + dstRect.height / 2 - containerRect.top;
+            const dstX = dstRect.left - containerRect.left;
+
+            lastLeftPairs.forEach((src) => {
+              const srcEl = container.querySelector(`[data-card-id="${src.leg1.id}-${lastLeftStageIdx}-left"]`);
+              if (!srcEl) return;
+              const r = srcEl.getBoundingClientRect();
+              const yCenterSrc = r.top + r.height / 2 - containerRect.top;
+              const xSrc = r.right - containerRect.left;
+              const xMid = xSrc + (dstX - xSrc) / 2;
+              lines.push({ x1: xSrc, y1: yCenterSrc, x2: dstX, y2: dstCenterY, xMid });
+            });
+          }
+        }
+      }
+
+      // Right side: each stage connects to next (toward center, reversed display)
+      const reversedRight = [...rightStages].reverse();
+      for (let ri = 0; ri < reversedRight.length - 1; ri++) {
+        const curStage = reversedRight[ri]; // closer to center
+        const nextStage = reversedRight[ri + 1]; // farther from center
+        const curStageOrigIdx = rightStages.indexOf(curStage);
+        const nextStageOrigIdx = rightStages.indexOf(nextStage);
+
+        const allCurPairs = getPairs(matchesByStage[curStage] || []);
+        const allNextPairs = getPairs(matchesByStage[nextStage] || []);
+        const curPairs = allCurPairs.slice(Math.ceil(allCurPairs.length / 2));
+        const nextPairs = allNextPairs.slice(Math.ceil(allNextPairs.length / 2));
+
+        for (let ni = 0; ni < curPairs.length; ni++) {
+          const dst = curPairs[ni];
+          const srcA = nextPairs[ni * 2];
+          const srcB = nextPairs[ni * 2 + 1];
+          if (!dst) continue;
+
+          const dstEl = container.querySelector(`[data-card-id="${dst.leg1.id}-${curStageOrigIdx}-right"]`);
+          if (!dstEl) continue;
+          const dstRect = dstEl.getBoundingClientRect();
+          const dstCenterY = dstRect.top + dstRect.height / 2 - containerRect.top;
+          const dstX = dstRect.right - containerRect.left;
+
+          [srcA, srcB].forEach((src) => {
+            if (!src) return;
+            const srcEl = container.querySelector(`[data-card-id="${src.leg1.id}-${nextStageOrigIdx}-right"]`);
+            if (!srcEl) return;
+            const r = srcEl.getBoundingClientRect();
+            const yCenterSrc = r.top + r.height / 2 - containerRect.top;
+            const xSrc = r.left - containerRect.left;
+            const xMid = dstX + (xSrc - dstX) / 2;
+            lines.push({ x1: xSrc, y1: yCenterSrc, x2: dstX, y2: dstCenterY, xMid });
+          });
+        }
+      }
+
+      // Right side first (outermost) stage → final
+      {
+        const firstRightStage = rightStages[rightStages.length - 1]; // outermost right (reversed display)
+        const firstRightStageOrigIdx = rightStages.length - 1;
+        const allFirstRightPairs = getPairs(matchesByStage[firstRightStage] || []);
+        const firstRightPairs = allFirstRightPairs.slice(Math.ceil(allFirstRightPairs.length / 2));
+        const finalPairsList = getPairs(matchesByStage[finalStageKey] || []);
+        const dst = finalPairsList[0];
+
+        if (dst) {
+          const dstEl = container.querySelector(`[data-card-id="${dst.leg1.id}-${stages.length - 1}-center"]`);
+          if (dstEl) {
+            const dstRect = dstEl.getBoundingClientRect();
+            const dstCenterY = dstRect.top + dstRect.height / 2 - containerRect.top;
+            const dstX = dstRect.right - containerRect.left;
+
+            // The closest right stage to final
+            const closestRightStage = rightStages[0];
+            const closestRightStageIdx = 0;
+            const allClosestRightPairs = getPairs(matchesByStage[closestRightStage] || []);
+            const closestRightPairs = allClosestRightPairs.slice(Math.ceil(allClosestRightPairs.length / 2));
+
+            closestRightPairs.forEach((src) => {
+              const srcEl = container.querySelector(`[data-card-id="${src.leg1.id}-${closestRightStageIdx}-right"]`);
+              if (!srcEl) return;
+              const r = srcEl.getBoundingClientRect();
+              const yCenterSrc = r.top + r.height / 2 - containerRect.top;
+              const xSrc = r.left - containerRect.left;
+              const xMid = dstX + (xSrc - dstX) / 2;
+              lines.push({ x1: xSrc, y1: yCenterSrc, x2: dstX, y2: dstCenterY, xMid });
+            });
+          }
+        }
+      }
+    }
+
+    const w = container.scrollWidth;
+    const h = container.scrollHeight;
+    setSvgSize({ w, h });
+    setSvgLines(lines);
+  }, [matches, stages, matchesByStage]);
+
+  useLayoutEffect(() => {
+    measureAndDrawLines();
+  }, [measureAndDrawLines]);
 
   // ─── Render helpers ───
 
-  const renderPair = (pair: { leg1: Match; leg2: Match | null }, pairIdx: number) => {
+  const renderPair = (
+    pair: { leg1: Match; leg2: Match | null },
+    pairIdx: number,
+    stageIdx: number,
+    side: "left" | "right" | "center" | "linear",
+  ) => {
     const homeTeam = getTeam(pair.leg1.homeTeamId);
     const awayTeam = getTeam(pair.leg1.awayTeamId);
     const winner = getTieResult(pair);
 
-    const getMatchTotalScore = (match: Match, side: "home" | "away") => {
-      const base = side === "home" ? match.homeScore || 0 : match.awayScore || 0;
-      const et = side === "home" ? match.homeExtraTime || 0 : match.awayExtraTime || 0;
+    const getMatchTotalScore = (match: Match, s: "home" | "away") => {
+      const base = s === "home" ? match.homeScore || 0 : match.awayScore || 0;
+      const et = s === "home" ? match.homeExtraTime || 0 : match.awayExtraTime || 0;
       return base + et;
     };
-
     const hasExtraTime = (match: Match) =>
       match.played && ((match.homeExtraTime || 0) > 0 || (match.awayExtraTime || 0) > 0);
     const hasPenalties = (match: Match) => match.played && match.homePenalties !== undefined;
@@ -477,6 +654,7 @@ export default function BracketView({
     return (
       <div
         key={pair.leg1.id}
+        data-card-id={`${pair.leg1.id}-${stageIdx}-${side}`}
         className="relative group/pair w-[220px] rounded-lg bg-secondary/30 border border-border overflow-visible"
       >
         {onRemoveMatch && !tournament.finalized && (
@@ -553,10 +731,8 @@ export default function BracketView({
     const away = getTeam(match.awayTeamId);
     const homeTotal = match.played ? (match.homeScore || 0) + (match.homeExtraTime || 0) : undefined;
     const awayTotal = match.played ? (match.awayScore || 0) + (match.awayExtraTime || 0) : undefined;
-
     const hasET = match.played && ((match.homeExtraTime || 0) > 0 || (match.awayExtraTime || 0) > 0);
     const hasPens = match.played && match.homePenalties !== undefined;
-
     return (
       <button
         key={match.id}
@@ -596,7 +772,7 @@ export default function BracketView({
     stageIdx: number,
     pairsSubset: Array<{ leg1: Match; leg2: Match | null }>,
     columnKey: string,
-    options: { showActions?: boolean; side?: "left" | "right" | "center" } = {},
+    options: { showActions?: boolean; side?: "left" | "right" | "center" | "linear" } = {},
   ) => {
     const { showActions = true, side = "center" } = options;
     const isFinal = stageIdx === stages.length - 1;
@@ -615,7 +791,6 @@ export default function BracketView({
             <span className="text-[9px] text-muted-foreground">( Ida / Volta )</span>
           )}
         </div>
-
         {showActions && unplayed.length > 0 && (
           <button
             onClick={() => handleSimulateStage(stage)}
@@ -625,7 +800,6 @@ export default function BracketView({
             Simular ({unplayed.length})
           </button>
         )}
-
         {showActions && allStagePairsResolved && nextStage && !nextHasMatches && (
           <button
             onClick={() => handleAdvanceStage(stageIdx)}
@@ -634,7 +808,6 @@ export default function BracketView({
             Avançar →
           </button>
         )}
-
         <div className="flex flex-col justify-around flex-1 gap-4">
           {(() => {
             const expectedSlots = (() => {
@@ -669,16 +842,13 @@ export default function BracketView({
               </div>
             );
 
-            const items =
-              pairsSubset.length > 0
-                ? pairsSubset.map((pair, i) => <div key={pair.leg1.id}>{renderPair(pair, i)}</div>)
-                : Array.from({ length: Math.max(expectedSlots, 1) }).map((_, i) =>
-                    renderEmptySlot(`empty-${columnKey}-${i}`),
-                  );
-            return items;
+            return pairsSubset.length > 0
+              ? pairsSubset.map((pair, i) => <div key={pair.leg1.id}>{renderPair(pair, i, stageIdx, side)}</div>)
+              : Array.from({ length: Math.max(expectedSlots, 1) }).map((_, i) =>
+                  renderEmptySlot(`empty-${columnKey}-${i}`),
+                );
           })()}
         </div>
-
         {showActions && onAddMatch && !tournament.finalized && (
           <button
             onClick={() => handleAddMatch(stageIdx)}
@@ -704,21 +874,18 @@ export default function BracketView({
       : null;
     const runnerUpTeam = runnerUp ? getTeam(runnerUp) : null;
 
-    // Determine 3rd place: from match if exists, otherwise by best campaign (tiebreakers)
     let thirdTeam: Team | undefined = undefined;
     const thirdMatch = thirdPlaceMatches[0];
     const thirdWinnerId = thirdMatch ? getSingleMatchWinner(thirdMatch) : null;
     if (thirdWinnerId) {
       thirdTeam = getTeam(thirdWinnerId);
     } else if (!thirdPlaceMatch) {
-      // No 3rd place match setting: determine by best campaign among semi-final losers
       const semiStageIdx = stages.length - 2;
       if (semiStageIdx >= 0) {
         const semiStage = stages[semiStageIdx];
         const semiPairs = getPairs(matchesByStage[semiStage] || []);
         const losers = semiPairs.map(getSemiLoser).filter(Boolean) as string[];
         if (losers.length === 2) {
-          // Use all tournament matches to evaluate campaign
           const allPlayedMatches = matches.filter((m) => m.played);
           const tiebreakers = tournament.settings.tiebreakers || [
             "Pontos",
@@ -729,7 +896,6 @@ export default function BracketView({
           const ptsWin = tournament.settings.pointsWin ?? 3;
           const ptsDraw = tournament.settings.pointsDraw ?? 1;
           const ptsLoss = tournament.settings.pointsLoss ?? 0;
-
           const buildStats = (teamId: string) => {
             let wins = 0,
               draws = 0,
@@ -762,10 +928,8 @@ export default function BracketView({
             }
             return { points, wins, draws, losses, gf, ga, gd: gf - ga };
           };
-
           const statsA = buildStats(losers[0]);
           const statsB = buildStats(losers[1]);
-
           let bestLoser = losers[0];
           for (const tb of tiebreakers) {
             let diff = 0;
@@ -809,7 +973,6 @@ export default function BracketView({
           <span className="text-xs font-bold text-primary tracking-tight">Campeão</span>
         </div>
         <div className="rounded-xl border-2 border-primary/50 bg-gradient-to-b from-primary/15 via-primary/5 to-secondary/40 overflow-hidden shadow-xl shadow-primary/20">
-          {/* Champion row — highlighted */}
           <div className="flex items-center gap-3 px-4 py-3.5 bg-gradient-to-r from-primary/10 to-transparent">
             <div className="w-8 h-8 rounded-full bg-primary/20 flex items-center justify-center shrink-0">
               <Trophy className="w-4.5 h-4.5 text-primary" />
@@ -828,7 +991,6 @@ export default function BracketView({
               <span className="text-[10px] text-primary font-semibold">Campeão {tournament.year}</span>
             </div>
           </div>
-          {/* Runner-up row */}
           {runnerUpTeam && (
             <div className="flex items-center gap-2.5 px-4 py-2.5 border-t border-border/30 bg-secondary/20">
               <span className="text-[10px] font-bold text-muted-foreground w-5 text-center">2º</span>
@@ -844,7 +1006,6 @@ export default function BracketView({
               </span>
             </div>
           )}
-          {/* Third place row */}
           {thirdTeam && (
             <div className="flex items-center gap-2.5 px-4 py-2.5 border-t border-border/30 bg-secondary/20">
               <span className="text-[10px] font-bold text-highlight w-5 text-center">3º</span>
@@ -865,48 +1026,35 @@ export default function BracketView({
     );
   };
 
-  // ─── Connector component ───
-  const BracketConnector = ({ pairCount, side }: { pairCount: number; side: "left" | "right" }) => {
-    if (pairCount <= 0) return <div className="w-8" />;
-
-    const groups = [];
-    for (let i = 0; i < pairCount; i += 2) {
-      groups.push(i + 1 < pairCount ? 2 : 1);
-    }
-
-    return (
-      <div className="flex flex-col w-8 self-stretch">
-        {groups.map((count, gi) => (
-          <div key={gi} className="flex-1 flex flex-col min-h-0">
-            {count === 2 ? (
-              <>
-                <div
-                  className={`flex-1 border-border/60 ${
-                    side === "left" ? "border-r-2 border-b-2" : "border-l-2 border-b-2"
-                  }`}
-                />
-                <div
-                  className={`flex-1 border-border/60 ${
-                    side === "left" ? "border-r-2 border-t-2" : "border-l-2 border-t-2"
-                  }`}
-                />
-              </>
-            ) : (
-              <div className="flex-1 flex items-center">
-                <div className={`w-full border-border/60 border-t-2`} />
-              </div>
-            )}
-          </div>
-        ))}
-      </div>
-    );
+  // ─── SVG path builder ───
+  // Each line: horizontal from card edge → vertical to align → horizontal into next card
+  const buildPath = (line: ConnectorLine) => {
+    const { x1, y1, x2, y2, xMid } = line;
+    return `M ${x1} ${y1} H ${xMid} V ${y2} H ${x2}`;
   };
 
-  // ─── Main render ───
+  if (matches.length === 0) {
+    const hasEnoughTeams = tournament.teamIds.length >= 2;
+    return (
+      <div className="text-center py-12 space-y-4">
+        <p className="text-sm text-muted-foreground">
+          {hasEnoughTeams
+            ? 'Use o botão "Sortear Times" para gerar o chaveamento'
+            : `Adicione pelo menos 2 times (${tournament.teamIds.length} adicionados)`}
+        </p>
+        {hasEnoughTeams && (
+          <Button onClick={onGenerateBracket} className="gap-2 bg-primary text-primary-foreground">
+            <Shuffle className="w-4 h-4" />
+            Sortear Times
+          </Button>
+        )}
+      </div>
+    );
+  }
 
+  // ─── Main render ───
   return (
     <div className="space-y-4">
-      {/* Finalize banner - top */}
       {(() => {
         const allMatchesPlayed = matches.length > 0 && matches.filter((m) => !m.isThirdPlace).every((m) => m.played);
         const canFinalize = allFinalResolved && allMatchesPlayed;
@@ -922,108 +1070,120 @@ export default function BracketView({
           </div>
         );
       })()}
+
       <div className="flex justify-end mb-1">
         <ScreenshotButton targetRef={bracketRef as any} filename="chaveamento.png" discrete />
       </div>
+
       <div
         className="overflow-x-auto overflow-y-hidden pb-2 will-change-transform"
         ref={bracketRef}
-        style={{ transform: "translateZ(0)" }}
+        style={{ transform: "translateZ(0)", position: "relative" }}
       >
-        {(() => {
-          const preFinalStages = stages.slice(0, -1);
-          const finalStageKey = stages[stages.length - 1];
-          const finalStageIdx = stages.length - 1;
+        {/* SVG overlay for connector lines */}
+        {svgSize.w > 0 && (
+          <svg
+            ref={svgRef}
+            style={{
+              position: "absolute",
+              top: 0,
+              left: 0,
+              width: svgSize.w,
+              height: svgSize.h,
+              pointerEvents: "none",
+              zIndex: 0,
+            }}
+          >
+            {svgLines.map((line, i) => (
+              <path
+                key={i}
+                d={buildPath(line)}
+                fill="none"
+                stroke="hsl(var(--border))"
+                strokeWidth="1.5"
+                strokeOpacity="0.6"
+              />
+            ))}
+          </svg>
+        )}
 
-          const firstStagePairs = preFinalStages.length > 0 ? getPairs(matchesByStage[preFinalStages[0]] || []) : [];
-          const useBracketLayout = preFinalStages.length > 0 && firstStagePairs.length >= 2;
+        {/* Bracket content */}
+        <div style={{ position: "relative", zIndex: 1 }}>
+          {(() => {
+            const preFinalStages = stages.slice(0, -1);
+            const finalStageKey = stages[stages.length - 1];
+            const finalStageIdx = stages.length - 1;
+            const firstStagePairs = preFinalStages.length > 0 ? getPairs(matchesByStage[preFinalStages[0]] || []) : [];
+            const useBracketLayout = preFinalStages.length > 0 && firstStagePairs.length >= 2;
 
-          if (!useBracketLayout) {
-            // Linear layout
+            if (!useBracketLayout) {
+              return (
+                <div className="flex items-start justify-start gap-6">
+                  {stages.map((stage, stageIdx) => {
+                    const pairs = getPairs(matchesByStage[stage] || []);
+                    return renderStageColumn(stage, stageIdx, pairs, stage, { side: "linear" });
+                  })}
+                  {renderChampionCard()}
+                </div>
+              );
+            }
+
+            const leftColumns = preFinalStages.map((stage, i) => {
+              const allPairs = getPairs(matchesByStage[stage] || []);
+              return { stage, stageIdx: i, pairs: allPairs.slice(0, Math.ceil(allPairs.length / 2)) };
+            });
+            const rightColumns = preFinalStages.map((stage, i) => {
+              const allPairs = getPairs(matchesByStage[stage] || []);
+              return { stage, stageIdx: i, pairs: allPairs.slice(Math.ceil(allPairs.length / 2)) };
+            });
+
             return (
-              <div className="flex items-start justify-start gap-6">
-                {stages.map((stage, stageIdx) => {
-                  const pairs = getPairs(matchesByStage[stage] || []);
-                  return (
-                    <div key={stage} className="flex items-stretch">
-                      {renderStageColumn(stage, stageIdx, pairs, stage, { side: "left" })}
-                      {stageIdx < stages.length - 1 && (
-                        <BracketConnector pairCount={Math.max(pairs.length, 1)} side="left" />
-                      )}
+              <div className="flex min-w-max items-start justify-start lg:justify-center mx-auto gap-0">
+                {/* Left bracket */}
+                {leftColumns.map(({ stage, stageIdx, pairs }) =>
+                  renderStageColumn(stage, stageIdx, pairs, `left-${stage}`, { showActions: true, side: "left" }),
+                )}
+
+                {/* Center */}
+                <div className="flex flex-col items-center justify-start" style={{ minWidth: 240 }}>
+                  {renderStageColumn(
+                    finalStageKey,
+                    finalStageIdx,
+                    getPairs(matchesByStage[finalStageKey] || []),
+                    `final-${finalStageKey}`,
+                    { side: "center" },
+                  )}
+                  {thirdPlaceMatches.length > 0 && (
+                    <div className="pt-3 mt-3 border-t border-border/40 w-[220px]">
+                      <div className="flex items-center justify-center gap-1.5 mb-1.5 relative w-full">
+                        <Medal className="w-3.5 h-3.5 text-highlight" />
+                        <span className="text-[10px] font-bold text-primary">3º Lugar</span>
+                        {thirdPlaceMatches.some((m) => !m.played) && (
+                          <button
+                            onClick={handleSimulateThirdPlace}
+                            className="absolute right-0 flex items-center gap-1 px-1.5 py-0.5 rounded bg-primary/10 text-primary hover:bg-primary/20 text-[9px] font-bold transition-colors"
+                          >
+                            <Play className="w-2 h-2" />
+                            Simular
+                          </button>
+                        )}
+                      </div>
+                      <div className="flex flex-col gap-2">{thirdPlaceMatches.map(renderThirdPlaceMatch)}</div>
                     </div>
-                  );
-                })}
-                {renderChampionCard()}
+                  )}
+                  <div className="mt-4">{renderChampionCard()}</div>
+                </div>
+
+                {/* Right bracket (reversed) */}
+                {[...rightColumns]
+                  .reverse()
+                  .map(({ stage, stageIdx, pairs }) =>
+                    renderStageColumn(stage, stageIdx, pairs, `right-${stage}`, { showActions: true, side: "right" }),
+                  )}
               </div>
             );
-          }
-
-          // Two-sided bracket: left half → final ← right half
-          const leftColumns = preFinalStages.map((stage, i) => {
-            const allPairs = getPairs(matchesByStage[stage] || []);
-            return { stage, stageIdx: i, pairs: allPairs.slice(0, Math.ceil(allPairs.length / 2)) };
-          });
-
-          const rightColumns = preFinalStages.map((stage, i) => {
-            const allPairs = getPairs(matchesByStage[stage] || []);
-            return { stage, stageIdx: i, pairs: allPairs.slice(Math.ceil(allPairs.length / 2)) };
-          });
-
-          return (
-            <div className="flex min-w-max items-center justify-start lg:justify-center mx-auto">
-              {/* Left bracket half */}
-              {leftColumns.map(({ stage, stageIdx, pairs }) => (
-                <div key={`left-${stage}`} className="flex items-stretch">
-                  {renderStageColumn(stage, stageIdx, pairs, `left-${stage}`, { showActions: true, side: "left" })}
-                  <BracketConnector pairCount={pairs.length} side="left" />
-                </div>
-              ))}
-
-              {/* Center: Final + Third Place + Champion */}
-              <div className="flex flex-col items-center justify-start" style={{ minWidth: 240 }}>
-                {renderStageColumn(
-                  finalStageKey,
-                  finalStageIdx,
-                  getPairs(matchesByStage[finalStageKey] || []),
-                  `final-${finalStageKey}`,
-                  { side: "center" },
-                )}
-
-                {thirdPlaceMatches.length > 0 && (
-                  <div className="pt-3 mt-3 border-t border-border/40 w-[220px]">
-                    {/* Container com justify-center para o texto ficar no meio */}
-                    <div className="flex items-center justify-center gap-1.5 mb-1.5 relative w-full">
-                      <Medal className="w-3.5 h-3.5 text-highlight" />
-                      <span className="text-[10px] font-bold text-primary">3º Lugar</span>
-
-                      {thirdPlaceMatches.some((m) => !m.played) && (
-                        <button
-                          onClick={handleSimulateThirdPlace}
-                          // O absolute right-0 tira o botão do fluxo, então ele não empurra o texto
-                          className="absolute right-0 flex items-center gap-1 px-1.5 py-0.5 rounded bg-primary/10 text-primary hover:bg-primary/20 text-[9px] font-bold transition-colors"
-                        >
-                          <Play className="w-2 h-2" />
-                          Simular
-                        </button>
-                      )}
-                    </div>
-                    <div className="flex flex-col gap-2">{thirdPlaceMatches.map(renderThirdPlaceMatch)}</div>
-                  </div>
-                )}
-
-                <div className="mt-4">{renderChampionCard()}</div>
-              </div>
-
-              {/* Right bracket half (reversed stage order) */}
-              {[...rightColumns].reverse().map(({ stage, stageIdx, pairs }) => (
-                <div key={`right-${stage}`} className="flex items-stretch">
-                  <BracketConnector pairCount={pairs.length} side="right" />
-                  {renderStageColumn(stage, stageIdx, pairs, `right-${stage}`, { showActions: true, side: "right" })}
-                </div>
-              ))}
-            </div>
-          );
-        })()}
+          })()}
+        </div>
       </div>
 
       {selectedMatch && (
