@@ -59,7 +59,6 @@ function getTieWinner(leg1: Match, leg2: Match, awayGoalsRule: boolean): string 
   return null;
 }
 
-// ─── SVG connector lines drawn from real DOM measurements ───
 interface ConnectorLine {
   x1: number;
   y1: number;
@@ -82,7 +81,6 @@ export default function BracketView({
   const [selectedMatch, setSelectedMatch] = useState<Match | null>(null);
   const [editingTeam, setEditingTeam] = useState<{ match: Match; side: "home" | "away" } | null>(null);
   const bracketRef = useRef<HTMLDivElement>(null);
-  const svgRef = useRef<SVGSVGElement>(null);
   const [svgLines, setSvgLines] = useState<ConnectorLine[]>([]);
   const [svgSize, setSvgSize] = useState({ w: 0, h: 0 });
 
@@ -133,9 +131,8 @@ export default function BracketView({
     const awayTotal = (match.awayScore || 0) + (match.awayExtraTime || 0);
     if (homeTotal > awayTotal) return match.homeTeamId;
     if (awayTotal > homeTotal) return match.awayTeamId;
-    if (match.homePenalties !== undefined && match.awayPenalties !== undefined) {
+    if (match.homePenalties !== undefined && match.awayPenalties !== undefined)
       return match.homePenalties > match.awayPenalties ? match.homeTeamId : match.awayTeamId;
-    }
     return null;
   };
 
@@ -155,7 +152,7 @@ export default function BracketView({
   const finalPairs = getPairs(finalMatchesList);
   const allFinalResolved = finalPairs.length > 0 && finalPairs.every((p) => getTieResult(p) !== null);
 
-  // ─── Simulation logic (unchanged) ───
+  // ─── Simulation ───
 
   const simulateMatch = (match: Match, isLeg1OfPair = false): Match => {
     const home = getTeam(match.homeTeamId);
@@ -163,14 +160,13 @@ export default function BracketView({
     const homeRate = tournament.settings.rateInfluence ? (home?.rate ?? 5) : 5;
     const awayRate = tournament.settings.rateInfluence ? (away?.rate ?? 5) : 5;
     const result = simulateFullMatch(homeRate, awayRate);
-    let homeScore = result.total[0];
-    let awayScore = result.total[1];
-    let homePenalties: number | undefined;
-    let awayPenalties: number | undefined;
+    let homeScore = result.total[0],
+      awayScore = result.total[1];
+    let homePenalties: number | undefined, awayPenalties: number | undefined;
     if (homeScore === awayScore && !isLeg1OfPair) {
       homePenalties = Math.floor(Math.random() * 3) + 3;
       awayPenalties = homePenalties + (Math.random() > 0.5 ? 1 : -1);
-      if (awayPenalties < 0) awayPenalties = homePenalties + 1;
+      if (awayPenalties! < 0) awayPenalties = homePenalties + 1;
     }
     return {
       ...match,
@@ -187,43 +183,37 @@ export default function BracketView({
     const homeRate = tournament.settings.rateInfluence ? (home?.rate ?? 5) : 5;
     const awayRate = tournament.settings.rateInfluence ? (away?.rate ?? 5) : 5;
     const result = simulateFullMatch(homeRate, awayRate);
-    let homeScore = result.total[0];
-    let awayScore = result.total[1];
-    let homeExtraTime: number | undefined;
-    let awayExtraTime: number | undefined;
-    let homePenalties: number | undefined;
-    let awayPenalties: number | undefined;
+    let homeScore = result.total[0],
+      awayScore = result.total[1];
+    let homeExtraTime: number | undefined, awayExtraTime: number | undefined;
+    let homePenalties: number | undefined, awayPenalties: number | undefined;
     const generatePenalties = () => {
-      const homePens = Math.floor(Math.random() * 3) + 3;
-      let awayPens = homePens + (Math.random() > 0.5 ? 1 : -1);
-      if (awayPens < 0) awayPens = homePens + 1;
-      return { homePenalties: homePens, awayPenalties: awayPens };
+      const h = Math.floor(Math.random() * 3) + 3;
+      let a = h + (Math.random() > 0.5 ? 1 : -1);
+      if (a < 0) a = h + 1;
+      return { homePenalties: h, awayPenalties: a };
     };
     const regularAggregate = getAggregate(leg1, { ...leg2, homeScore, awayScore });
-    const regularTied = regularAggregate.home === regularAggregate.away;
-    if (regularTied) {
-      const homeTeamAwayGoalsRegular = awayScore;
-      const awayTeamAwayGoals = (leg1.awayScore || 0) + (leg1.awayExtraTime || 0);
-      const awayGoalsDecidesRegular = awayGoalsRule && homeTeamAwayGoalsRegular !== awayTeamAwayGoals;
+    if (regularAggregate.home === regularAggregate.away) {
+      const awayGoalsDecidesRegular = awayGoalsRule && awayScore !== (leg1.awayScore || 0) + (leg1.awayExtraTime || 0);
       if (!awayGoalsDecidesRegular) {
         if (tournament.settings.extraTime) {
-          const et1 = simulateHalf(homeRate, awayRate);
-          const et2 = simulateHalf(homeRate, awayRate);
+          const et1 = simulateHalf(homeRate, awayRate),
+            et2 = simulateHalf(homeRate, awayRate);
           homeExtraTime = et1[0] + et2[0];
           awayExtraTime = et1[1] + et2[1];
           const extraAggregate = getAggregate(leg1, { ...leg2, homeScore, awayScore, homeExtraTime, awayExtraTime });
-          const extraTied = extraAggregate.home === extraAggregate.away;
-          const homeTeamAwayGoalsAfterExtra = awayScore + (awayExtraTime || 0);
-          const awayGoalsDecidesAfterExtra = awayGoalsRule && homeTeamAwayGoalsAfterExtra !== awayTeamAwayGoals;
-          if (extraTied && !awayGoalsDecidesAfterExtra) {
-            const pens = generatePenalties();
-            homePenalties = pens.homePenalties;
-            awayPenalties = pens.awayPenalties;
+          const awayGoalsAfterExtra =
+            awayGoalsRule && awayScore + awayExtraTime !== (leg1.awayScore || 0) + (leg1.awayExtraTime || 0);
+          if (extraAggregate.home === extraAggregate.away && !awayGoalsAfterExtra) {
+            const p = generatePenalties();
+            homePenalties = p.homePenalties;
+            awayPenalties = p.awayPenalties;
           }
         } else {
-          const pens = generatePenalties();
-          homePenalties = pens.homePenalties;
-          awayPenalties = pens.awayPenalties;
+          const p = generatePenalties();
+          homePenalties = p.homePenalties;
+          awayPenalties = p.awayPenalties;
         }
       }
     }
@@ -325,22 +315,20 @@ export default function BracketView({
   };
 
   const handleAdvanceStage = (stageIndex: number) => {
-    const stage = stages[stageIndex];
-    const nextStage = stages[stageIndex + 1];
+    const stage = stages[stageIndex],
+      nextStage = stages[stageIndex + 1];
     if (!nextStage) return;
-    const stageMatchesList = matchesByStage[stage] || [];
-    const nextStageMatches = matchesByStage[nextStage] || [];
-    const pairs = getPairs(stageMatchesList);
+    const pairs = getPairs(matchesByStage[stage] || []);
     const allResolved = pairs.every((p) => getTieResult(p) !== null);
-    if (!allResolved || nextStageMatches.length > 0) return;
+    if (!allResolved || (matchesByStage[nextStage]?.length || 0) > 0) return;
     const winners = pairs.map(getTieResult).filter(Boolean) as string[];
     const isFinalStage = stageIndex + 1 === stages.length - 1;
     const useSingleLeg = legMode === "single" || (isFinalStage && finalSingleLeg);
     const newMatches: Match[] = [];
     const stageType = tournament.format === "grupos" ? "knockout" : undefined;
     if (useSingleLeg) {
-      for (let i = 0; i < winners.length; i += 2) {
-        if (i + 1 < winners.length) {
+      for (let i = 0; i < winners.length; i += 2)
+        if (i + 1 < winners.length)
           newMatches.push({
             id: crypto.randomUUID(),
             tournamentId: tournament.id,
@@ -352,8 +340,6 @@ export default function BracketView({
             played: false,
             stage: stageType as any,
           });
-        }
-      }
     } else {
       for (let i = 0; i < winners.length; i += 2) {
         if (i + 1 < winners.length) {
@@ -390,7 +376,7 @@ export default function BracketView({
     const semiStageIdx = stages.length - 2;
     if (thirdPlaceMatch && stageIndex === semiStageIdx && !matches.some((m) => m.isThirdPlace)) {
       const losers = pairs.map(getSemiLoser).filter(Boolean) as string[];
-      if (losers.length === 2) {
+      if (losers.length === 2)
         newMatches.push({
           id: crypto.randomUUID(),
           tournamentId: tournament.id,
@@ -403,213 +389,156 @@ export default function BracketView({
           isThirdPlace: true,
           stage: stageType as any,
         });
-      }
     }
     if (newMatches.length > 0 && onBatchUpdateMatches) onBatchUpdateMatches([...matches, ...newMatches]);
   };
 
-  // ─── SVG line measurement ───
-  // Each card gets data-card-id="<pairLeg1Id>-<stageIdx>-<side>"
-  // After render, we measure their positions and draw lines between adjacent stages
+  // ─── SVG measurement ───
+  // data-card-id = "{matchId}-{colKey}"
+  // colKey examples: "left-1/16", "right-1/8", "center", "linear-1/4"
+  // Right side is rendered in ORIGINAL order (closest to center first, outermost last)
+  // so display is left→right: semifinal, quarterfinal, round-of-16...
 
   const measureAndDrawLines = () => {
     const container = bracketRef.current;
     if (!container) return;
-    const containerRect = container.getBoundingClientRect();
-    const lines: ConnectorLine[] = [];
+    const cr = container.getBoundingClientRect();
 
-    // For each stage transition, find pairs of cards that should connect
+    const getPos = (matchId: string, colKey: string) => {
+      const el = container.querySelector(`[data-card-id="${matchId}-${colKey}"]`);
+      if (!el) return null;
+      const r = el.getBoundingClientRect();
+      return {
+        y: r.top + r.height / 2 - cr.top,
+        left: r.left - cr.left,
+        right: r.right - cr.left,
+      };
+    };
+
+    const lines: ConnectorLine[] = [];
     const preFinalStages = stages.slice(0, -1);
     const finalStageKey = stages[stages.length - 1];
     const firstStagePairs = preFinalStages.length > 0 ? getPairs(matchesByStage[preFinalStages[0]] || []) : [];
     const useBracketLayout = preFinalStages.length > 0 && firstStagePairs.length >= 2;
 
     if (!useBracketLayout) {
-      // Linear: connect each stage's cards to the next stage
       for (let si = 0; si < stages.length - 1; si++) {
-        const currentPairs = getPairs(matchesByStage[stages[si]] || []);
+        const curPairs = getPairs(matchesByStage[stages[si]] || []);
         const nextPairs = getPairs(matchesByStage[stages[si + 1]] || []);
-        if (nextPairs.length === 0) continue;
-
-        // Every two current cards feed into one next card
         for (let ni = 0; ni < nextPairs.length; ni++) {
-          const srcA = currentPairs[ni * 2];
-          const srcB = currentPairs[ni * 2 + 1];
           const dst = nextPairs[ni];
           if (!dst) continue;
-
-          const dstEl = container.querySelector(`[data-card-id="${dst.leg1.id}-${si + 1}-linear"]`);
-          if (!dstEl) continue;
-          const dstRect = dstEl.getBoundingClientRect();
-          const dstCenterY = dstRect.top + dstRect.height / 2 - containerRect.top;
-          const dstX = dstRect.left - containerRect.left;
-
-          if (srcA) {
-            const srcElA = container.querySelector(`[data-card-id="${srcA.leg1.id}-${si}-linear"]`);
-            if (srcElA) {
-              const rA = srcElA.getBoundingClientRect();
-              const yCenterA = rA.top + rA.height / 2 - containerRect.top;
-              const xA = rA.right - containerRect.left;
-              const xMid = xA + (dstX - xA) / 2;
-              lines.push({ x1: xA, y1: yCenterA, x2: dstX, y2: dstCenterY, xMid });
-            }
-          }
-          if (srcB) {
-            const srcElB = container.querySelector(`[data-card-id="${srcB.leg1.id}-${si}-linear"]`);
-            if (srcElB) {
-              const rB = srcElB.getBoundingClientRect();
-              const yCenterB = rB.top + rB.height / 2 - containerRect.top;
-              const xB = rB.right - containerRect.left;
-              const xMid = xB + (dstX - xB) / 2;
-              lines.push({ x1: xB, y1: yCenterB, x2: dstX, y2: dstCenterY, xMid });
-            }
-          }
+          const dstPos = getPos(dst.leg1.id, `linear-${stages[si + 1]}`);
+          if (!dstPos) continue;
+          [curPairs[ni * 2], curPairs[ni * 2 + 1]].forEach((src) => {
+            if (!src) return;
+            const srcPos = getPos(src.leg1.id, `linear-${stages[si]}`);
+            if (!srcPos) return;
+            const xMid = srcPos.right + (dstPos.left - srcPos.right) / 2;
+            lines.push({ x1: srcPos.right, y1: srcPos.y, x2: dstPos.left, y2: dstPos.y, xMid });
+          });
         }
       }
     } else {
-      // Two-sided bracket
-      const leftStages = preFinalStages;
-      const rightStages = preFinalStages;
-
-      // Left side: each stage connects to next stage (toward center)
-      for (let si = 0; si < leftStages.length - 1; si++) {
-        const curStage = leftStages[si];
-        const nextStage = leftStages[si + 1];
-        const allCurPairs = getPairs(matchesByStage[curStage] || []);
-        const allNextPairs = getPairs(matchesByStage[nextStage] || []);
-        const curPairs = allCurPairs.slice(0, Math.ceil(allCurPairs.length / 2));
-        const nextPairs = allNextPairs.slice(0, Math.ceil(allNextPairs.length / 2));
-
+      // LEFT side: stages[0]→stages[1]→...→stages[N-2]→final
+      // Each left column colKey = "left-{stage}"
+      // Lines go left→right: src.right → dst.left
+      for (let si = 0; si < preFinalStages.length - 1; si++) {
+        const curKey = `left-${preFinalStages[si]}`;
+        const nextKey = `left-${preFinalStages[si + 1]}`;
+        const allCur = getPairs(matchesByStage[preFinalStages[si]] || []);
+        const allNext = getPairs(matchesByStage[preFinalStages[si + 1]] || []);
+        const curPairs = allCur.slice(0, Math.ceil(allCur.length / 2));
+        const nextPairs = allNext.slice(0, Math.ceil(allNext.length / 2));
         for (let ni = 0; ni < nextPairs.length; ni++) {
-          const srcA = curPairs[ni * 2];
-          const srcB = curPairs[ni * 2 + 1];
           const dst = nextPairs[ni];
           if (!dst) continue;
-
-          const dstEl = container.querySelector(`[data-card-id="${dst.leg1.id}-${si + 1}-left"]`);
-          if (!dstEl) continue;
-          const dstRect = dstEl.getBoundingClientRect();
-          const dstCenterY = dstRect.top + dstRect.height / 2 - containerRect.top;
-          const dstX = dstRect.left - containerRect.left;
-
-          [srcA, srcB].forEach((src) => {
+          const dstPos = getPos(dst.leg1.id, nextKey);
+          if (!dstPos) continue;
+          [curPairs[ni * 2], curPairs[ni * 2 + 1]].forEach((src) => {
             if (!src) return;
-            const srcEl = container.querySelector(`[data-card-id="${src.leg1.id}-${si}-left"]`);
-            if (!srcEl) return;
-            const r = srcEl.getBoundingClientRect();
-            const yCenterSrc = r.top + r.height / 2 - containerRect.top;
-            const xSrc = r.right - containerRect.left;
-            const xMid = xSrc + (dstX - xSrc) / 2;
-            lines.push({ x1: xSrc, y1: yCenterSrc, x2: dstX, y2: dstCenterY, xMid });
+            const srcPos = getPos(src.leg1.id, curKey);
+            if (!srcPos) return;
+            const xMid = srcPos.right + (dstPos.left - srcPos.right) / 2;
+            lines.push({ x1: srcPos.right, y1: srcPos.y, x2: dstPos.left, y2: dstPos.y, xMid });
           });
         }
       }
 
-      // Left side last stage → final
+      // LEFT last → final (src.right → final.left)
       {
-        const lastLeftStageIdx = leftStages.length - 1;
-        const lastLeftStage = leftStages[lastLeftStageIdx];
-        const allLastLeftPairs = getPairs(matchesByStage[lastLeftStage] || []);
-        const lastLeftPairs = allLastLeftPairs.slice(0, Math.ceil(allLastLeftPairs.length / 2));
-        const finalPairsList = getPairs(matchesByStage[finalStageKey] || []);
-        const dst = finalPairsList[0];
-
-        if (dst) {
-          const dstEl = container.querySelector(`[data-card-id="${dst.leg1.id}-${stages.length - 1}-center"]`);
-          if (dstEl) {
-            const dstRect = dstEl.getBoundingClientRect();
-            const dstCenterY = dstRect.top + dstRect.height / 2 - containerRect.top;
-            const dstX = dstRect.left - containerRect.left;
-
-            lastLeftPairs.forEach((src) => {
-              const srcEl = container.querySelector(`[data-card-id="${src.leg1.id}-${lastLeftStageIdx}-left"]`);
-              if (!srcEl) return;
-              const r = srcEl.getBoundingClientRect();
-              const yCenterSrc = r.top + r.height / 2 - containerRect.top;
-              const xSrc = r.right - containerRect.left;
-              const xMid = xSrc + (dstX - xSrc) / 2;
-              lines.push({ x1: xSrc, y1: yCenterSrc, x2: dstX, y2: dstCenterY, xMid });
+        const lastKey = `left-${preFinalStages[preFinalStages.length - 1]}`;
+        const allLast = getPairs(matchesByStage[preFinalStages[preFinalStages.length - 1]] || []);
+        const lastPairs = allLast.slice(0, Math.ceil(allLast.length / 2));
+        const fin = getPairs(matchesByStage[finalStageKey] || [])[0];
+        if (fin) {
+          const dstPos = getPos(fin.leg1.id, "center");
+          if (dstPos) {
+            lastPairs.forEach((src) => {
+              const srcPos = getPos(src.leg1.id, lastKey);
+              if (!srcPos) return;
+              const xMid = srcPos.right + (dstPos.left - srcPos.right) / 2;
+              lines.push({ x1: srcPos.right, y1: srcPos.y, x2: dstPos.left, y2: dstPos.y, xMid });
             });
           }
         }
       }
 
-      // Right side: each stage connects to next (toward center, reversed display)
-      const reversedRight = [...rightStages].reverse();
-      for (let ri = 0; ri < reversedRight.length - 1; ri++) {
-        const curStage = reversedRight[ri]; // closer to center
-        const nextStage = reversedRight[ri + 1]; // farther from center
-        const curStageOrigIdx = rightStages.indexOf(curStage);
-        const nextStageOrigIdx = rightStages.indexOf(nextStage);
-
-        const allCurPairs = getPairs(matchesByStage[curStage] || []);
-        const allNextPairs = getPairs(matchesByStage[nextStage] || []);
-        const curPairs = allCurPairs.slice(Math.ceil(allCurPairs.length / 2));
-        const nextPairs = allNextPairs.slice(Math.ceil(allNextPairs.length / 2));
-
-        for (let ni = 0; ni < curPairs.length; ni++) {
-          const dst = curPairs[ni];
-          const srcA = nextPairs[ni * 2];
-          const srcB = nextPairs[ni * 2 + 1];
+      // RIGHT side: rendered in ORIGINAL order → display order is closest-to-center first
+      // preFinalStages[0] is closest to center (rendered leftmost of right half)
+      // preFinalStages[N-1] is outermost (rendered rightmost of right half)
+      // Lines go right→left from outer to inner: src.left → dst.right
+      // Connection: preFinalStages[si] (closer) feeds into preFinalStages[si+1] (outer)
+      // Wait — it's the opposite: outer feeds into closer.
+      // Each closer card gets 2 feeders from outer.
+      for (let si = 0; si < preFinalStages.length - 1; si++) {
+        // si = closer to center, si+1 = outer
+        const closerKey = `right-${preFinalStages[si]}`;
+        const outerKey = `right-${preFinalStages[si + 1]}`;
+        const allCloser = getPairs(matchesByStage[preFinalStages[si]] || []);
+        const allOuter = getPairs(matchesByStage[preFinalStages[si + 1]] || []);
+        const closerPairs = allCloser.slice(Math.ceil(allCloser.length / 2));
+        const outerPairs = allOuter.slice(Math.ceil(allOuter.length / 2));
+        for (let ni = 0; ni < closerPairs.length; ni++) {
+          const dst = closerPairs[ni]; // closer = destination (to the left in display)
           if (!dst) continue;
-
-          // dst is closer to center: line exits from its RIGHT edge going outward
-          const dstEl = container.querySelector(`[data-card-id="${dst.leg1.id}-${curStageOrigIdx}-right"]`);
-          if (!dstEl) continue;
-          const dstRect = dstEl.getBoundingClientRect();
-          const dstCenterY = dstRect.top + dstRect.height / 2 - containerRect.top;
-          const dstX = dstRect.right - containerRect.left;
-
-          [srcA, srcB].forEach((src) => {
+          const dstPos = getPos(dst.leg1.id, closerKey);
+          if (!dstPos) continue;
+          [outerPairs[ni * 2], outerPairs[ni * 2 + 1]].forEach((src) => {
             if (!src) return;
-            // src is farther from center: line enters from its LEFT edge
-            const srcEl = container.querySelector(`[data-card-id="${src.leg1.id}-${nextStageOrigIdx}-right"]`);
-            if (!srcEl) return;
-            const r = srcEl.getBoundingClientRect();
-            const yCenterSrc = r.top + r.height / 2 - containerRect.top;
-            const xSrc = r.left - containerRect.left;
-            const xMid = dstX + (xSrc - dstX) / 2;
-            // Line goes: from outer card left edge → mid → dst card right edge
-            lines.push({ x1: xSrc, y1: yCenterSrc, x2: dstX, y2: dstCenterY, xMid });
+            const srcPos = getPos(src.leg1.id, outerKey);
+            if (!srcPos) return;
+            // outer is to the RIGHT of closer in display
+            // line: src.left → dst.right
+            const xMid = dstPos.right + (srcPos.left - dstPos.right) / 2;
+            lines.push({ x1: srcPos.left, y1: srcPos.y, x2: dstPos.right, y2: dstPos.y, xMid });
           });
         }
       }
 
-      // Right side closest stage → final (final's RIGHT edge ← closest right stage's LEFT edge)
+      // RIGHT closest → final (final.right → closest.left)
       {
-        const closestRightStage = rightStages[0];
-        const closestRightStageIdx = 0;
-        const allClosestRightPairs = getPairs(matchesByStage[closestRightStage] || []);
-        const closestRightPairs = allClosestRightPairs.slice(Math.ceil(allClosestRightPairs.length / 2));
-        const finalPairsList = getPairs(matchesByStage[finalStageKey] || []);
-        const dst = finalPairsList[0];
-
-        if (dst) {
-          const dstEl = container.querySelector(`[data-card-id="${dst.leg1.id}-${stages.length - 1}-center"]`);
-          if (dstEl) {
-            const dstRect = dstEl.getBoundingClientRect();
-            const dstCenterY = dstRect.top + dstRect.height / 2 - containerRect.top;
-            // Final card: line exits from RIGHT edge toward right bracket
-            const dstX = dstRect.right - containerRect.left;
-
-            closestRightPairs.forEach((src) => {
-              const srcEl = container.querySelector(`[data-card-id="${src.leg1.id}-${closestRightStageIdx}-right"]`);
-              if (!srcEl) return;
-              const r = srcEl.getBoundingClientRect();
-              const yCenterSrc = r.top + r.height / 2 - containerRect.top;
-              // Closest right card: line enters from LEFT edge
-              const xSrc = r.left - containerRect.left;
-              const xMid = dstX + (xSrc - dstX) / 2;
-              lines.push({ x1: xSrc, y1: yCenterSrc, x2: dstX, y2: dstCenterY, xMid });
+        const closestKey = `right-${preFinalStages[0]}`;
+        const allClosest = getPairs(matchesByStage[preFinalStages[0]] || []);
+        const closestPairs = allClosest.slice(Math.ceil(allClosest.length / 2));
+        const fin = getPairs(matchesByStage[finalStageKey] || [])[0];
+        if (fin) {
+          const dstPos = getPos(fin.leg1.id, "center");
+          if (dstPos) {
+            closestPairs.forEach((src) => {
+              const srcPos = getPos(src.leg1.id, closestKey);
+              if (!srcPos) return;
+              // final is to the LEFT, right bracket is to the RIGHT
+              // line: src.left → final.right
+              const xMid = dstPos.right + (srcPos.left - dstPos.right) / 2;
+              lines.push({ x1: srcPos.left, y1: srcPos.y, x2: dstPos.right, y2: dstPos.y, xMid });
             });
           }
         }
       }
     }
 
-    const w = container.scrollWidth;
-    const h = container.scrollHeight;
-    setSvgSize({ w, h });
+    setSvgSize({ w: container.scrollWidth, h: container.scrollHeight });
     setSvgLines(lines);
   };
 
@@ -621,30 +550,22 @@ export default function BracketView({
 
   // ─── Render helpers ───
 
-  const renderPair = (
-    pair: { leg1: Match; leg2: Match | null },
-    pairIdx: number,
-    stageIdx: number,
-    side: "left" | "right" | "center" | "linear",
-  ) => {
+  const renderPair = (pair: { leg1: Match; leg2: Match | null }, colKey: string) => {
     const homeTeam = getTeam(pair.leg1.homeTeamId);
     const awayTeam = getTeam(pair.leg1.awayTeamId);
     const winner = getTieResult(pair);
 
-    const getMatchTotalScore = (match: Match, s: "home" | "away") => {
-      const base = s === "home" ? match.homeScore || 0 : match.awayScore || 0;
-      const et = s === "home" ? match.homeExtraTime || 0 : match.awayExtraTime || 0;
-      return base + et;
-    };
-    const hasExtraTime = (match: Match) =>
-      match.played && ((match.homeExtraTime || 0) > 0 || (match.awayExtraTime || 0) > 0);
-    const hasPenalties = (match: Match) => match.played && match.homePenalties !== undefined;
+    const total = (match: Match, s: "home" | "away") =>
+      (s === "home" ? match.homeScore || 0 : match.awayScore || 0) +
+      (s === "home" ? match.homeExtraTime || 0 : match.awayExtraTime || 0);
+    const hasET = (match: Match) => match.played && ((match.homeExtraTime || 0) > 0 || (match.awayExtraTime || 0) > 0);
+    const hasPens = (match: Match) => match.played && match.homePenalties !== undefined;
 
-    const renderMatchFooter = (match: Match) => {
+    const renderFooter = (match: Match) => {
       const parts: string[] = [];
-      if (hasExtraTime(match)) parts.push("AET");
-      if (hasPenalties(match)) parts.push(`Pên: ${match.homePenalties}×${match.awayPenalties}`);
-      if (parts.length === 0) return null;
+      if (hasET(match)) parts.push("AET");
+      if (hasPens(match)) parts.push(`Pên: ${match.homePenalties}×${match.awayPenalties}`);
+      if (!parts.length) return null;
       return (
         <div className="text-center py-0.5 bg-secondary/50 border-t border-border/10">
           <span className="text-[9px] text-muted-foreground">{parts.join(" • ")}</span>
@@ -655,7 +576,7 @@ export default function BracketView({
     return (
       <div
         key={pair.leg1.id}
-        data-card-id={`${pair.leg1.id}-${stageIdx}-${side}`}
+        data-card-id={`${pair.leg1.id}-${colKey}`}
         className="relative group/pair w-[220px] rounded-lg bg-secondary/30 border border-border overflow-visible"
       >
         {onRemoveMatch && !tournament.finalized && (
@@ -665,7 +586,6 @@ export default function BracketView({
               handleRemoveMatch(pair.leg1);
             }}
             className="absolute -top-2 -right-2 z-10 p-1 rounded-full bg-destructive text-destructive-foreground opacity-0 group-hover/pair:opacity-100 transition-opacity shadow-md"
-            title="Remover confronto"
           >
             <Trash2 className="w-3 h-3" />
           </button>
@@ -681,7 +601,7 @@ export default function BracketView({
           )}
           <TeamRow
             team={homeTeam}
-            score={pair.leg1.played ? getMatchTotalScore(pair.leg1, "home") : undefined}
+            score={pair.leg1.played ? total(pair.leg1, "home") : undefined}
             isWinner={winner === pair.leg1.homeTeamId}
             borderBottom
             hideEdit={!!tournament.finalized}
@@ -689,12 +609,12 @@ export default function BracketView({
           />
           <TeamRow
             team={awayTeam}
-            score={pair.leg1.played ? getMatchTotalScore(pair.leg1, "away") : undefined}
+            score={pair.leg1.played ? total(pair.leg1, "away") : undefined}
             isWinner={winner === pair.leg1.awayTeamId}
             hideEdit={!!tournament.finalized}
             onEditTeam={() => setEditingTeam({ match: pair.leg1, side: "away" })}
           />
-          {!pair.leg2 && renderMatchFooter(pair.leg1)}
+          {!pair.leg2 && renderFooter(pair.leg1)}
         </button>
         {pair.leg2 && (
           <button
@@ -706,7 +626,7 @@ export default function BracketView({
             </div>
             <TeamRow
               team={awayTeam}
-              score={pair.leg2.played ? getMatchTotalScore(pair.leg2, "home") : undefined}
+              score={pair.leg2.played ? total(pair.leg2, "home") : undefined}
               isWinner={winner === pair.leg1.awayTeamId}
               borderBottom
               hideEdit={!!tournament.finalized}
@@ -714,12 +634,12 @@ export default function BracketView({
             />
             <TeamRow
               team={homeTeam}
-              score={pair.leg2.played ? getMatchTotalScore(pair.leg2, "away") : undefined}
+              score={pair.leg2.played ? total(pair.leg2, "away") : undefined}
               isWinner={winner === pair.leg1.homeTeamId}
               hideEdit={!!tournament.finalized}
               onEditTeam={() => setEditingTeam({ match: pair.leg2!, side: "away" })}
             />
-            {renderMatchFooter(pair.leg2)}
+            {renderFooter(pair.leg2)}
           </button>
         )}
       </div>
@@ -728,8 +648,8 @@ export default function BracketView({
 
   const renderThirdPlaceMatch = (match: Match) => {
     const winner = getSingleMatchWinner(match);
-    const home = getTeam(match.homeTeamId);
-    const away = getTeam(match.awayTeamId);
+    const home = getTeam(match.homeTeamId),
+      away = getTeam(match.awayTeamId);
     const homeTotal = match.played ? (match.homeScore || 0) + (match.homeExtraTime || 0) : undefined;
     const awayTotal = match.played ? (match.awayScore || 0) + (match.awayExtraTime || 0) : undefined;
     const hasET = match.played && ((match.homeExtraTime || 0) > 0 || (match.awayExtraTime || 0) > 0);
@@ -772,10 +692,10 @@ export default function BracketView({
     stage: string,
     stageIdx: number,
     pairsSubset: Array<{ leg1: Match; leg2: Match | null }>,
-    columnKey: string,
-    options: { showActions?: boolean; side?: "left" | "right" | "center" | "linear" } = {},
+    colKey: string,
+    side: "left" | "right" | "center" | "linear",
+    showActions = true,
   ) => {
-    const { showActions = true, side = "center" } = options;
     const isFinal = stageIdx === stages.length - 1;
     const allStageMatches = matchesByStage[stage] || [];
     const unplayed = allStageMatches.filter((m) => !m.played && m.homeTeamId && m.awayTeamId);
@@ -784,8 +704,40 @@ export default function BracketView({
     const nextStage = stages[stageIdx + 1];
     const nextHasMatches = nextStage && (matchesByStage[nextStage]?.length || 0) > 0;
 
+    const expectedSlots = (() => {
+      if (pairsSubset.length > 0) return pairsSubset.length;
+      if (stageIdx === 0) return 0;
+      const prevStage = stages[stageIdx - 1];
+      const prevPairs = getPairs(matchesByStage[prevStage] || []);
+      if (side === "left") return Math.ceil(Math.ceil(prevPairs.length / 2) / 2);
+      if (side === "right") return Math.ceil(Math.floor(prevPairs.length / 2) / 2);
+      return Math.ceil(prevPairs.length / 2);
+    })();
+
+    const renderEmptySlot = (key: string) => (
+      <div
+        key={key}
+        className="w-[220px] rounded-lg bg-secondary/20 border border-dashed border-border overflow-hidden"
+      >
+        <div className="flex items-center justify-between px-3 py-2 border-b border-border/20">
+          <div className="flex items-center gap-2 min-w-0">
+            <Shield className="w-3.5 h-3.5 text-muted-foreground/30" />
+            <span className="text-xs text-muted-foreground/40">A definir</span>
+          </div>
+          <span className="text-xs font-mono w-4 text-center text-muted-foreground/20">—</span>
+        </div>
+        <div className="flex items-center justify-between px-3 py-2">
+          <div className="flex items-center gap-2 min-w-0">
+            <Shield className="w-3.5 h-3.5 text-muted-foreground/30" />
+            <span className="text-xs text-muted-foreground/40">A definir</span>
+          </div>
+          <span className="text-xs font-mono w-4 text-center text-muted-foreground/20">—</span>
+        </div>
+      </div>
+    );
+
     return (
-      <div key={columnKey} className="flex flex-col items-center relative" style={{ minWidth: 228 }}>
+      <div key={colKey} className="flex flex-col items-center" style={{ minWidth: 228 }}>
         <div className="mb-2 flex items-center gap-1.5">
           <span className="text-[11px] font-bold text-primary tracking-tight">{STAGE_LABELS[stage] || stage}</span>
           {legMode === "home-away" && !isFinal && (
@@ -810,45 +762,9 @@ export default function BracketView({
           </button>
         )}
         <div className="flex flex-col justify-around flex-1 gap-4">
-          {(() => {
-            const expectedSlots = (() => {
-              if (pairsSubset.length > 0) return pairsSubset.length;
-              if (stageIdx === 0) return 0;
-              const prevStage = stages[stageIdx - 1];
-              const prevPairs = getPairs(matchesByStage[prevStage] || []);
-              if (side === "left") return Math.ceil(Math.ceil(prevPairs.length / 2) / 2);
-              if (side === "right") return Math.ceil(Math.floor(prevPairs.length / 2) / 2);
-              return Math.ceil(prevPairs.length / 2);
-            })();
-
-            const renderEmptySlot = (key: string) => (
-              <div
-                key={key}
-                className="w-[220px] rounded-lg bg-secondary/20 border border-dashed border-border overflow-hidden"
-              >
-                <div className="flex items-center justify-between px-3 py-2 border-b border-border/20">
-                  <div className="flex items-center gap-2 min-w-0">
-                    <Shield className="w-3.5 h-3.5 text-muted-foreground/30" />
-                    <span className="text-xs text-muted-foreground/40">A definir</span>
-                  </div>
-                  <span className="text-xs font-mono w-4 text-center text-muted-foreground/20">—</span>
-                </div>
-                <div className="flex items-center justify-between px-3 py-2">
-                  <div className="flex items-center gap-2 min-w-0">
-                    <Shield className="w-3.5 h-3.5 text-muted-foreground/30" />
-                    <span className="text-xs text-muted-foreground/40">A definir</span>
-                  </div>
-                  <span className="text-xs font-mono w-4 text-center text-muted-foreground/20">—</span>
-                </div>
-              </div>
-            );
-
-            return pairsSubset.length > 0
-              ? pairsSubset.map((pair, i) => <div key={pair.leg1.id}>{renderPair(pair, i, stageIdx, side)}</div>)
-              : Array.from({ length: Math.max(expectedSlots, 1) }).map((_, i) =>
-                  renderEmptySlot(`empty-${columnKey}-${i}`),
-                );
-          })()}
+          {pairsSubset.length > 0
+            ? pairsSubset.map((pair) => <div key={pair.leg1.id}>{renderPair(pair, colKey)}</div>)
+            : Array.from({ length: Math.max(expectedSlots, 1) }).map((_, i) => renderEmptySlot(`empty-${colKey}-${i}`))}
         </div>
         {showActions && onAddMatch && !tournament.finalized && (
           <button
@@ -867,7 +783,6 @@ export default function BracketView({
     const champion = finalPairs.length > 0 ? getTieResult(finalPairs[0]) : null;
     const championTeam = champion ? getTeam(champion) : null;
     if (!championTeam) return null;
-
     const runnerUp = finalPairs[0]
       ? champion === finalPairs[0].leg1.homeTeamId
         ? finalPairs[0].leg1.awayTeamId
@@ -875,38 +790,36 @@ export default function BracketView({
       : null;
     const runnerUpTeam = runnerUp ? getTeam(runnerUp) : null;
 
-    let thirdTeam: Team | undefined = undefined;
-    const thirdMatch = thirdPlaceMatches[0];
-    const thirdWinnerId = thirdMatch ? getSingleMatchWinner(thirdMatch) : null;
+    let thirdTeam: Team | undefined;
+    const thirdWinnerId = thirdPlaceMatches[0] ? getSingleMatchWinner(thirdPlaceMatches[0]) : null;
     if (thirdWinnerId) {
       thirdTeam = getTeam(thirdWinnerId);
     } else if (!thirdPlaceMatch) {
       const semiStageIdx = stages.length - 2;
       if (semiStageIdx >= 0) {
-        const semiStage = stages[semiStageIdx];
-        const semiPairs = getPairs(matchesByStage[semiStage] || []);
+        const semiPairs = getPairs(matchesByStage[stages[semiStageIdx]] || []);
         const losers = semiPairs.map(getSemiLoser).filter(Boolean) as string[];
         if (losers.length === 2) {
-          const allPlayedMatches = matches.filter((m) => m.played);
+          const allPlayed = matches.filter((m) => m.played);
           const tiebreakers = tournament.settings.tiebreakers || [
             "Pontos",
             "Vitórias",
             "Saldo de Gols",
             "Gols Marcados",
           ];
-          const ptsWin = tournament.settings.pointsWin ?? 3;
-          const ptsDraw = tournament.settings.pointsDraw ?? 1;
-          const ptsLoss = tournament.settings.pointsLoss ?? 0;
-          const buildStats = (teamId: string) => {
+          const ptsWin = tournament.settings.pointsWin ?? 3,
+            ptsDraw = tournament.settings.pointsDraw ?? 1,
+            ptsLoss = tournament.settings.pointsLoss ?? 0;
+          const buildStats = (id: string) => {
             let wins = 0,
               draws = 0,
               losses = 0,
               gf = 0,
               ga = 0,
               points = 0;
-            for (const m of allPlayedMatches) {
-              const isHome = m.homeTeamId === teamId;
-              const isAway = m.awayTeamId === teamId;
+            for (const m of allPlayed) {
+              const isHome = m.homeTeamId === id,
+                isAway = m.awayTeamId === id;
               if (!isHome && !isAway) continue;
               const tgf = isHome
                 ? (m.homeScore || 0) + (m.homeExtraTime || 0)
@@ -929,41 +842,27 @@ export default function BracketView({
             }
             return { points, wins, draws, losses, gf, ga, gd: gf - ga };
           };
-          const statsA = buildStats(losers[0]);
-          const statsB = buildStats(losers[1]);
-          let bestLoser = losers[0];
+          const sA = buildStats(losers[0]),
+            sB = buildStats(losers[1]);
+          let best = losers[0];
           for (const tb of tiebreakers) {
-            let diff = 0;
-            switch (tb) {
-              case "Pontos":
-                diff = statsA.points - statsB.points;
-                break;
-              case "Vitórias":
-                diff = statsA.wins - statsB.wins;
-                break;
-              case "Saldo de Gols":
-                diff = statsA.gd - statsB.gd;
-                break;
-              case "Gols Marcados":
-                diff = statsA.gf - statsB.gf;
-                break;
-              case "Empates":
-                diff = statsA.draws - statsB.draws;
-                break;
-              case "Gols Sofridos":
-                diff = statsB.ga - statsA.ga;
-                break;
-            }
-            if (diff > 0) {
-              bestLoser = losers[0];
+            let d = 0;
+            if (tb === "Pontos") d = sA.points - sB.points;
+            else if (tb === "Vitórias") d = sA.wins - sB.wins;
+            else if (tb === "Saldo de Gols") d = sA.gd - sB.gd;
+            else if (tb === "Gols Marcados") d = sA.gf - sB.gf;
+            else if (tb === "Empates") d = sA.draws - sB.draws;
+            else if (tb === "Gols Sofridos") d = sB.ga - sA.ga;
+            if (d > 0) {
+              best = losers[0];
               break;
             }
-            if (diff < 0) {
-              bestLoser = losers[1];
+            if (d < 0) {
+              best = losers[1];
               break;
             }
           }
-          thirdTeam = getTeam(bestLoser);
+          thirdTeam = getTeam(best);
         }
       }
     }
@@ -1027,14 +926,10 @@ export default function BracketView({
     );
   };
 
-  // ─── SVG path builder ───
-  // Each line: horizontal from card edge → vertical to align → horizontal into next card
-  const buildPath = (line: ConnectorLine) => {
-    const { x1, y1, x2, y2, xMid } = line;
-    return `M ${x1} ${y1} H ${xMid} V ${y2} H ${x2}`;
-  };
+  const buildPath = ({ x1, y1, x2, y2, xMid }: ConnectorLine) => `M ${x1} ${y1} H ${xMid} V ${y2} H ${x2}`;
 
   // ─── Main render ───
+
   if (matches.length === 0) {
     const hasEnoughTeams = tournament.teamIds.length >= 2;
     return (
@@ -1057,7 +952,7 @@ export default function BracketView({
   return (
     <div className="space-y-4">
       {(() => {
-        const allMatchesPlayed = matches.length > 0 && matches.filter((m) => !m.isThirdPlace).every((m) => m.played);
+        const allMatchesPlayed = matches.filter((m) => !m.isThirdPlace).every((m) => m.played);
         const canFinalize = allFinalResolved && allMatchesPlayed;
         if (!canFinalize || tournament.finalized || !onFinalize) return null;
         return (
@@ -1081,10 +976,8 @@ export default function BracketView({
         ref={bracketRef}
         style={{ transform: "translateZ(0)", position: "relative" }}
       >
-        {/* SVG overlay for connector lines */}
         {svgSize.w > 0 && (
           <svg
-            ref={svgRef}
             style={{
               position: "absolute",
               top: 0,
@@ -1108,7 +1001,6 @@ export default function BracketView({
           </svg>
         )}
 
-        {/* Bracket content */}
         <div style={{ position: "relative", zIndex: 1 }}>
           {(() => {
             const preFinalStages = stages.slice(0, -1);
@@ -1122,7 +1014,7 @@ export default function BracketView({
                 <div className="flex items-start justify-start gap-6">
                   {stages.map((stage, stageIdx) => {
                     const pairs = getPairs(matchesByStage[stage] || []);
-                    return renderStageColumn(stage, stageIdx, pairs, stage, { side: "linear" });
+                    return renderStageColumn(stage, stageIdx, pairs, `linear-${stage}`, "linear");
                   })}
                   {renderChampionCard()}
                 </div>
@@ -1139,10 +1031,10 @@ export default function BracketView({
             });
 
             return (
-              <div className="flex min-w-max items-center justify-start lg:justify-center mx-auto gap-0">
-                {/* Left bracket */}
+              <div className="flex min-w-max items-center justify-start lg:justify-center mx-auto">
+                {/* Left bracket: outermost first → innermost last → center */}
                 {leftColumns.map(({ stage, stageIdx, pairs }) =>
-                  renderStageColumn(stage, stageIdx, pairs, `left-${stage}`, { showActions: true, side: "left" }),
+                  renderStageColumn(stage, stageIdx, pairs, `left-${stage}`, "left"),
                 )}
 
                 {/* Center */}
@@ -1151,8 +1043,8 @@ export default function BracketView({
                     finalStageKey,
                     finalStageIdx,
                     getPairs(matchesByStage[finalStageKey] || []),
-                    `final-${finalStageKey}`,
-                    { side: "center" },
+                    "center",
+                    "center",
                   )}
                   {thirdPlaceMatches.length > 0 && (
                     <div className="pt-3 mt-3 border-t border-border/40 w-[220px]">
@@ -1175,12 +1067,10 @@ export default function BracketView({
                   <div className="mt-4">{renderChampionCard()}</div>
                 </div>
 
-                {/* Right bracket (reversed) */}
-                {[...rightColumns]
-                  .reverse()
-                  .map(({ stage, stageIdx, pairs }) =>
-                    renderStageColumn(stage, stageIdx, pairs, `right-${stage}`, { showActions: true, side: "right" }),
-                  )}
+                {/* Right bracket: closest to center first → outermost last */}
+                {rightColumns.map(({ stage, stageIdx, pairs }) =>
+                  renderStageColumn(stage, stageIdx, pairs, `right-${stage}`, "right"),
+                )}
               </div>
             );
           })()}
@@ -1224,12 +1114,9 @@ export default function BracketView({
                   homeExtraTime: undefined,
                   awayExtraTime: undefined,
                 };
-                const newMatches = matches.map((m) => {
-                  if (m.id === updated.id) return updated;
-                  if (m.id === pairedUpdated.id) return pairedUpdated;
-                  return m;
-                });
-                onBatchUpdateMatches(newMatches);
+                onBatchUpdateMatches(
+                  matches.map((m) => (m.id === updated.id ? updated : m.id === pairedUpdated.id ? pairedUpdated : m)),
+                );
                 return;
               }
             }
