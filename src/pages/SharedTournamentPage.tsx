@@ -582,10 +582,296 @@ export default function SharedTournamentPage() {
   const roleBadge = role === "owner" ? "Dono" : role === "admin" ? "Administrador" : "Visualizador";
   const roleBadgeColor = role === "owner" || role === "admin" ? "bg-primary/10 text-primary" : "bg-secondary text-muted-foreground";
 
+
   return withSidebar(
     <div className="p-4 lg:p-8 max-w-7xl mx-auto">
-      {/* Header */}
-      <div className="flex items-start justify-between mb-6 gap-2 flex-wrap">
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 lg:w-12 lg:h-12 flex items-center justify-center shrink-0">
+        {/* Header */}
+        <div className="flex items-start justify-between mb-6 gap-2 flex-wrap">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 lg:w-12 lg:h-12 flex items-center justify-center shrink-0">
+              {tournament.logo ? (
+                <img src={tournament.logo} alt="" className="w-10 h-10 lg:w-12 lg:h-12 object-contain" />
+              ) : (
+                <Trophy className="w-5 h-5 lg:w-6 lg:h-6 text-muted-foreground" />
+              )}
+            </div>
+            <div className="min-w-0">
+              <div className="flex items-center gap-2 flex-wrap">
+                <h1 className="text-base lg:text-xl font-display font-bold text-foreground truncate max-w-[200px] sm:max-w-none">
+                  {tournament.name}
+                </h1>
+                <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${roleBadgeColor}`}>
+                  {roleBadge}
+                </span>
+              </div>
+              <p className="text-xs text-muted-foreground truncate">
+                {tournament.sport} · {formatLabels[tournament.format] || tournament.format} · {tournament.numberOfTeams} times
+              </p>
+            </div>
+          </div>
+          <div className="flex items-center gap-2 shrink-0">
+            <div className="relative">
+              <button
+                onClick={() => setShowYearPicker(!showYearPicker)}
+                className="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-secondary border border-border text-sm font-display font-bold text-foreground hover:border-primary/40 transition-colors"
+              >
+                <Calendar className="w-3.5 h-3.5 text-primary" />
+                {activeYear}
+                <ChevronDown className="w-3.5 h-3.5 text-muted-foreground" />
+              </button>
+              {showYearPicker && (
+                <div className="absolute right-0 top-full mt-1 bg-card border border-border rounded-lg shadow-xl z-20 p-2 min-w-[180px]">
+                  {(() => {
+                    const seasonYears = (tournament.seasons || []).map((s) => s.year);
+                    const allYears = Array.from(new Set([...seasonYears, tournament.year])).sort((a, b) => b - a);
+                    return allYears.map((year) => (
+                      <button
+                        key={year}
+                        onClick={() => {
+                          setViewingYear(year === tournament.year ? null : year);
+                          setShowYearPicker(false);
+                        }}
+                        className={`w-full text-left px-3 py-1.5 rounded text-sm transition-colors ${
+                          year === activeYear ? "bg-primary/10 text-primary font-bold" : "text-foreground hover:bg-secondary"
+                        }`}
+                      >
+                        {year}
+                        {seasonYears.includes(year) && year !== tournament.year && (
+                          <span className="text-xs text-muted-foreground ml-1">✓</span>
+                        )}
+                      </button>
+                    ));
+                  })()}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
 
+        {/* Champion banner */}
+        {championDisplayName && (
+          <div className="mb-6 rounded-xl border border-primary/20 bg-primary/5 px-4 py-3 flex items-center justify-between gap-3">
+            <div className="flex items-center gap-3 min-w-0">
+              <div className="w-9 h-9 rounded-full bg-primary/15 flex items-center justify-center shrink-0">
+                <Trophy className="w-4 h-4 text-primary" />
+              </div>
+              <div className="min-w-0">
+                <p className="text-xs text-muted-foreground">Temporada {activeYear}</p>
+                <p className="text-sm font-display font-bold text-primary truncate">Campeão: {championDisplayName}</p>
+              </div>
+            </div>
+            <div className="w-9 h-9 flex items-center justify-center shrink-0">
+              {championDisplayLogo ? (
+                <img src={championDisplayLogo} alt="" className="w-9 h-9 object-contain" />
+              ) : (
+                <Shield className="w-4 h-4 text-muted-foreground" />
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* Tabs */}
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
+          <div className="flex items-center justify-between gap-4 flex-wrap">
+            <TabsList className="bg-secondary/50 border border-border p-1">
+              {!isMataMata && (
+                <TabsTrigger value="standings" className="data-[state=active]:bg-card data-[state=active]:shadow-sm text-xs lg:text-sm">Classificação</TabsTrigger>
+              )}
+              {!isMataMata && (
+                <TabsTrigger value="rounds" className="data-[state=active]:bg-card data-[state=active]:shadow-sm text-xs lg:text-sm">Jogos</TabsTrigger>
+              )}
+              {hasKnockout && (
+                <TabsTrigger value="bracket" className="data-[state=active]:bg-card data-[state=active]:shadow-sm text-xs lg:text-sm">Chaveamento</TabsTrigger>
+              )}
+              <TabsTrigger value="stats" className="data-[state=active]:bg-card data-[state=active]:shadow-sm text-xs lg:text-sm">Estatísticas</TabsTrigger>
+            </TabsList>
+            <div className="flex items-center gap-2">
+              {canEdit && !isViewingPastSeason && !tournament.finalized && isLiga && standings.length > 0 && standings.every((s) => s.played > 0) && (
+                <Button onClick={handleFinalizeSeason} size="sm" className="gap-1.5 bg-primary text-primary-foreground">
+                  <Trophy className="w-4 h-4" />
+                  Finalizar Temporada
+                </Button>
+              )}
+            </div>
+          </div>
+
+          {/* Standings tab */}
+          <TabsContent value="standings" className="mt-0 outline-none">
+            {isGrupos ? (
+              <div className="space-y-8">
+                {canEdit && !isViewingPastSeason && !tournament.finalized && (
+                  <div className="flex items-center justify-between gap-4 flex-wrap">
+                    <span className="text-sm text-muted-foreground">
+                      {unassignedTeamIds.length > 0
+                        ? `${unassignedTeamIds.length} time(s) sem grupo`
+                        : "Todos os times distribuídos"}
+                    </span>
+                    <Button onClick={() => setShowDrawDialog(true)} size="sm" variant="outline" className="gap-1.5">
+                      <Shuffle className="w-3.5 h-3.5" />
+                      Sortear Grupos
+                    </Button>
+                  </div>
+                )}
+                {(() => {
+                  const groupsRef = React.createRef<HTMLDivElement>();
+                  return (
+                    <>
+                      <div className="flex justify-end">
+                        <ScreenshotButton targetRef={groupsRef as any} filename="fase-de-grupos.png" discrete />
+                      </div>
+                      <div ref={groupsRef} className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                        {Array.from(
+                          { length: isViewingPastSeason && seasonData?.groupCount ? seasonData.groupCount : groupCount },
+                          (_, i) => i + 1
+                        ).map((groupNum) => (
+                          <div key={groupNum} className="space-y-3">
+                            <div className="flex items-center justify-between px-1">
+                              <h3 className="font-display font-bold text-lg text-foreground">
+                                Grupo {String.fromCharCode(64 + groupNum)}
+                              </h3>
+                            </div>
+                            <div className="rounded-xl border border-border bg-card shadow-sm overflow-hidden">
+                              <StandingsTable
+                                standings={isViewingPastSeason ? (seasonStandingsByGroup[groupNum] || seasonStandings) : (standingsByGroup[groupNum] || [])}
+                                promotions={tournament.settings.promotions}
+                                qualifyUntil={qualifiersPerGroup}
+                                onRemoveTeam={undefined}
+                                matches={isViewingPastSeason ? (seasonData?.matches || []).filter((m) => m.group === groupNum) : tournament.matches.filter((m) => m.group === groupNum)}
+                                allTeams={resolvedTeams}
+                                hideScreenshot
+                              />
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </>
+                  );
+                })()}
+              </div>
+            ) : (
+              <div className="space-y-4">
+                <div className="rounded-xl border border-border bg-card shadow-sm overflow-hidden">
+                  <StandingsTable
+                    standings={isViewingPastSeason ? seasonStandings : standings}
+                    promotions={tournament.settings.promotions}
+                    matches={isViewingPastSeason ? (seasonData?.matches || []) : (isSuico ? suicoLeagueMatches : tournament.matches)}
+                    allTeams={resolvedTeams}
+                  />
+                </div>
+              </div>
+            )}
+          </TabsContent>
+
+          {/* Rounds tab */}
+          <TabsContent value="rounds" className="mt-0 outline-none">
+            <RoundsView
+              tournament={
+                isViewingPastSeason
+                  ? { ...tournament, matches: (seasonData?.matches || []).filter((m) => isGrupos ? (m.stage === "group" || (!m.stage && !m.isThirdPlace)) : true) }
+                  : groupTournament
+              }
+              teams={resolvedTeams}
+              onUpdateMatch={isReadOnly ? () => {} : handleUpdateMatch}
+              onBatchUpdateMatches={isReadOnly ? undefined : handleBatchUpdateMatches}
+              onGenerateRounds={undefined}
+            />
+          </TabsContent>
+
+          {/* Bracket tab */}
+          {hasKnockout && (
+            <TabsContent value="bracket" className="mt-0 outline-none">
+              <div className="space-y-6">
+                {canEdit && isGrupos && !tournament.groupsFinalized && allGroupMatchesPlayed && (
+                  <div className="flex items-center justify-between p-3 rounded-lg border border-border bg-card">
+                    <span className="text-sm text-muted-foreground">Fase de grupos concluída. Confirme os classificados.</span>
+                    <Button onClick={() => handleConfirmQualifiers([])} size="sm" className="gap-1.5">
+                      <Trophy className="w-3.5 h-3.5" />
+                      Confirmar Classificados
+                    </Button>
+                  </div>
+                )}
+                {canEdit && isSuico && !tournament.groupsFinalized && allSuicoLeagueMatchesPlayed && (
+                  <div className="flex items-center justify-between p-3 rounded-lg border border-border bg-card">
+                    <span className="text-sm text-muted-foreground">Fase de liga concluída. Confirme os classificados.</span>
+                    <Button onClick={() => handleConfirmSwissQualifiers()} size="sm" className="gap-1.5">
+                      <Trophy className="w-3.5 h-3.5" />
+                      Confirmar Classificados
+                    </Button>
+                  </div>
+                )}
+                {canEdit && (isGrupos || isSuico) && tournament.groupsFinalized && (
+                  <div className="flex items-center justify-between p-3 rounded-lg border border-border bg-card">
+                    <span className="text-sm text-muted-foreground">Classificados confirmados</span>
+                    <Button onClick={handleResetQualification} size="sm" variant="outline">Resetar</Button>
+                  </div>
+                )}
+                {canEdit && isMataMata && !tournament.finalized && tournament.teamIds.length >= 2 && (tournament.matches || []).length === 0 && (
+                  <div className="flex justify-end">
+                    <Button onClick={autoGenerate} size="sm" variant="outline" className="gap-1.5">
+                      <Shuffle className="w-3.5 h-3.5" />
+                      Sortear Times
+                    </Button>
+                  </div>
+                )}
+                <BracketView
+                  tournament={
+                    isViewingPastSeason
+                      ? {
+                          ...tournament,
+                          matches: (seasonData?.matches || []).filter((m) => m.stage === "knockout" || m.isThirdPlace),
+                          mataMataInicio: isSuico ? (tournament.suicoMataMataInicio || "1/8") : isGrupos ? (tournament.gruposMataMataInicio || "1/8") : tournament.mataMataInicio,
+                        }
+                      : knockoutTournament
+                  }
+                  teams={resolvedTeams}
+                  onUpdateMatch={isReadOnly ? () => {} : handleUpdateMatch}
+                  onBatchUpdateMatches={isReadOnly ? undefined : handleBatchUpdateBracket}
+                  onGenerateBracket={isReadOnly ? () => {} : autoGenerate}
+                  onFinalize={isReadOnly ? undefined : handleFinalizeSeason}
+                  onAddMatch={
+                    isReadOnly
+                      ? undefined
+                      : (match) => {
+                          const tagged = { ...match, stage: ((isGrupos || isSuico) ? "knockout" : match.stage) as any };
+                          updateTournament({ matches: [...(tournament.matches || []), tagged] });
+                        }
+                  }
+                  onRemoveMatch={
+                    isReadOnly
+                      ? undefined
+                      : (matchId, pairId) => {
+                          const newMatches = (tournament.matches || []).filter((m) => {
+                            if (pairId) return m.pairId !== pairId;
+                            return m.id !== matchId;
+                          });
+                          updateTournament({ matches: newMatches });
+                        }
+                  }
+                />
+              </div>
+            </TabsContent>
+          )}
+
+          {/* Stats tab */}
+          <TabsContent value="stats" className="mt-0 outline-none">
+            <StatsView
+              tournament={isViewingPastSeason ? { ...tournament, matches: seasonData?.matches || [], teamIds: seasonTeamIds } : tournament}
+              teams={resolvedTeams}
+            />
+          </TabsContent>
+        </Tabs>
+
+        {isGrupos && canEdit && (
+          <GroupDrawDialog
+            open={showDrawDialog}
+            onOpenChange={setShowDrawDialog}
+            teams={resolvedTeams}
+            teamIds={tournament.teamIds}
+            groupCount={groupCount}
+            onConfirm={handleDrawConfirm}
+          />
+        )}
+      </div>
+    </div>
+  );
+}
