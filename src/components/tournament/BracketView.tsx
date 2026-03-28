@@ -9,6 +9,10 @@ import MatchPopup from "./MatchPopup";
 import BracketTeamEditor from "./BracketTeamEditor";
 import ScreenshotButton from "@/components/ScreenshotButton";
 
+const CARD_W = 220;
+const CARD_H = 180; // altura padrão de TODOS os confrontos
+const CONNECTOR_W = 32;
+
 interface BracketViewProps {
   tournament: Tournament;
   teams: Team[];
@@ -389,7 +393,8 @@ export default function BracketView({
     return (
       <div
         key={pair.leg1.id}
-        className="relative group/pair w-[220px] rounded-lg bg-secondary/30 border border-border overflow-visible"
+        style={{ width: CARD_W, height: CARD_H }}
+        className="relative group/pair rounded-lg bg-secondary/30 border border-border overflow-hidden flex flex-col"
       >
         {onRemoveMatch && !tournament.finalized && (
           <button
@@ -547,47 +552,43 @@ export default function BracketView({
           </button>
         )}
 
-        <div className="flex flex-col justify-around flex-1 gap-4 py-4">
+        <div className="flex flex-col items-center py-4">
           {(() => {
             const expectedSlots = (() => {
               if (pairsSubset.length > 0) return pairsSubset.length;
               if (stageIdx === 0) return 0;
+
               const prevStage = stages[stageIdx - 1];
               const prevPairs = getPairs(matchesByStage[prevStage] || []);
+
               if (side === "left") return Math.ceil(Math.ceil(prevPairs.length / 2) / 2);
               if (side === "right") return Math.ceil(Math.floor(prevPairs.length / 2) / 2);
+
               return Math.ceil(prevPairs.length / 2);
             })();
 
             const renderEmptySlot = (key: string) => (
               <div
                 key={key}
-                className="w-[220px] rounded-lg bg-secondary/20 border border-dashed border-border overflow-hidden"
+                style={{ width: CARD_W, height: CARD_H }}
+                className="rounded-lg bg-secondary/20 border border-dashed border-border overflow-hidden flex flex-col justify-center"
               >
-                <div className="flex items-center justify-between px-3 py-2 border-b border-border/20">
-                  <div className="flex items-center gap-2 min-w-0">
-                    <Shield className="w-3.5 h-3.5 text-muted-foreground/30" />
-                    <span className="text-xs text-muted-foreground/40">A definir</span>
-                  </div>
-                  <span className="text-xs font-mono w-4 text-center text-muted-foreground/20">—</span>
-                </div>
-                <div className="flex items-center justify-between px-3 py-2">
-                  <div className="flex items-center gap-2 min-w-0">
-                    <Shield className="w-3.5 h-3.5 text-muted-foreground/30" />
-                    <span className="text-xs text-muted-foreground/40">A definir</span>
-                  </div>
-                  <span className="text-xs font-mono w-4 text-center text-muted-foreground/20">—</span>
-                </div>
+                <div className="text-center text-xs text-muted-foreground/40">A definir</div>
               </div>
             );
 
             const items =
               pairsSubset.length > 0
-                ? pairsSubset.map((pair, i) => <div key={pair.leg1.id}>{renderPair(pair, i)}</div>)
+                ? pairsSubset.map((pair, i) => (
+                    <div key={pair.leg1.id} style={{ height: CARD_H }} className="flex items-center">
+                      {renderPair(pair, i)}
+                    </div>
+                  ))
                 : Array.from({ length: Math.max(expectedSlots, 1) }).map((_, i) =>
                     renderEmptySlot(`empty-${columnKey}-${i}`),
                   );
-            return items;
+
+            return <div className="flex flex-col gap-4">{items}</div>;
           })()}
         </div>
 
@@ -779,42 +780,32 @@ export default function BracketView({
 
   // ─── Connector component ───
   const BracketConnector = ({ pairCount, side }: { pairCount: number; side: "left" | "right" }) => {
-    if (pairCount <= 0) return <div className="w-8" />;
-
-    const groups = [];
-    for (let i = 0; i < pairCount; i += 2) {
-      groups.push(i + 1 < pairCount ? 2 : 1);
-    }
+    if (pairCount <= 0) return <div style={{ width: CONNECTOR_W }} />;
 
     return (
-      <div className="flex flex-col w-8 self-stretch py-4">
-        {groups.map((count, gi) => (
-          <div key={gi} className="flex-1 flex flex-col min-h-0">
-            {count === 2 ? (
-              <>
-                <div className="flex-1 flex flex-col">
-                  <div className="flex-1" />
-                  <div
-                    className={cn(
-                      "h-1/2 border-border/60",
-                      side === "left" ? "border-r-2 border-b-2" : "border-l-2 border-b-2",
-                    )}
-                  />
-                </div>
-                <div className="flex-1 flex flex-col">
-                  <div
-                    className={cn(
-                      "h-1/2 border-border/60",
-                      side === "left" ? "border-r-2 border-t-2" : "border-l-2 border-t-2",
-                    )}
-                  />
-                  <div className="flex-1" />
-                </div>
-              </>
-            ) : (
-              <div className="flex-1 flex items-center">
-                <div className="w-full border-border/60 border-t-2" />
-              </div>
+      <div style={{ width: CONNECTOR_W }} className="flex flex-col items-center py-4">
+        {Array.from({ length: pairCount }).map((_, i) => (
+          <div key={i} style={{ height: CARD_H }} className="relative w-full flex items-center">
+            {/* linha horizontal */}
+            <div
+              className={cn(
+                "absolute border-border/60 top-1/2 w-1/2",
+                side === "left" ? "right-0 border-t-2" : "left-0 border-t-2",
+              )}
+            />
+
+            {/* linha vertical (liga pares) */}
+            {i % 2 === 0 && i + 1 < pairCount && (
+              <div
+                className={cn(
+                  "absolute border-border/60",
+                  side === "left" ? "right-0 border-r-2" : "left-0 border-l-2",
+                )}
+                style={{
+                  top: "50%",
+                  height: CARD_H + 16, // conecta ao próximo card (gap incluso)
+                }}
+              />
             )}
           </div>
         ))}
@@ -890,7 +881,7 @@ export default function BracketView({
           });
 
           return (
-            <div className="flex min-w-max items-center justify-start lg:justify-center mx-auto">
+            <div className="flex min-w-max items-start justify-start lg:justify-center mx-auto">
               {/* Left bracket half */}
               {leftColumns.map(({ stage, stageIdx, pairs }) => (
                 <div key={`left-${stage}`} className="flex items-center self-stretch">
