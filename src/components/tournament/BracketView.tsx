@@ -957,7 +957,7 @@ export default function BracketView({
           if (!useBracketLayout) {
             // Linear layout
             return (
-              <div className="flex items-center justify-start gap-0">
+              <div className="flex items-start justify-start gap-6">
                 {stages.map((stage, stageIdx) => {
                   const pairs = getPairs(matchesByStage[stage] || []);
                   return (
