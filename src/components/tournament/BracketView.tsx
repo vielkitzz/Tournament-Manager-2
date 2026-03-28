@@ -782,7 +782,7 @@ export default function BracketView({
               )}
             </div>
             <div className="flex-1 min-w-0">
-              <span className="text-sm font-bold text-foreground truncate block">
+              <span className="text-sm font-bold text-foreground block whitespace-normal break-words">
                 {championTeam.name || championTeam.shortName}
               </span>
               <span className="text-[10px] text-primary font-semibold">Campeão {tournament.year}</span>
