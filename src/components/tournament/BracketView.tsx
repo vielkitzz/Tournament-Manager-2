@@ -1,5 +1,5 @@
 import { useState, useRef } from "react";
-import { Match, Team, Tournament } from "@/types/tournament";
+import { Match, Team, Tournament, KnockoutStage, STAGE_TEAM_COUNTS } from "@/types/tournament";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { Shield, Play, Trophy, Medal, UserPlus, Shuffle, Plus, Trash2 } from "lucide-react";
@@ -29,7 +29,7 @@ const STAGE_LABELS: Record<string, string> = {
   "1/2": "Final",
 };
 
-function getStagesFromStart(start: KnockoutStage): string[] {
+function getStagesFromStart(start: string): string[] {
   const all = ["1/64", "1/32", "1/16", "1/8", "1/4", "1/2"];
   const idx = all.indexOf(start);
   return idx >= 0 ? all.slice(idx) : ["1/2"];
@@ -801,7 +801,7 @@ export default function BracketView({
     );
   };
 
-  // ─── NOVO LAYOUT COM CSS GRID ───
+  // ─── LAYOUT COM CSS GRID ───
 
   // Determina o número de linhas da grid com base na primeira fase
   const firstStage = stages[0];
