@@ -611,7 +611,9 @@ export default function BracketView({
       <div key={columnKey} className="flex flex-col items-center relative" style={{ minWidth: 228 }}>
         <div className="mb-2 flex items-center gap-1.5">
           <span className="text-[11px] font-bold text-primary tracking-tight">{STAGE_LABELS[stage] || stage}</span>
-          {legMode === "home-away" && !isFinal && <span className="text-[9px] text-muted-foreground">(I/V)</span>}
+          {legMode === "home-away" && !isFinal && (
+            <span className="text-[9px] text-muted-foreground">( Ida / Volta )</span>
+          )}
         </div>
 
         {showActions && unplayed.length > 0 && (
