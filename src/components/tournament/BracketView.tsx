@@ -4,7 +4,7 @@ import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { Shield, Play, Trash2, Trophy, Plus, Shuffle } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { simulateFullMatch, simulateLeg2 } from "@/lib/simulation";
+import { simulateFullMatch } from "@/lib/simulation";
 import MatchPopup from "./MatchPopup";
 import BracketTeamEditor from "./BracketTeamEditor";
 
@@ -278,20 +278,13 @@ export default function BracketView({
 
       {/* Modais */}
       {selectedMatch && (
-        <MatchPopup
-          match={selectedMatch}
-          teams={teams}
-          onClose={() => setSelectedMatch(null)}
-          onUpdate={onUpdateMatch}
-          tournamentSettings={tournament.settings}
-        />
+        <MatchPopup match={selectedMatch} onClose={() => setSelectedMatch(null)} onUpdate={onUpdateMatch} />
       )}
 
       {editingTeam && (
         <BracketTeamEditor
           match={editingTeam.match}
           side={editingTeam.side}
-          teams={teams}
           onClose={() => setEditingTeam(null)}
           onUpdate={onUpdateMatch}
         />
