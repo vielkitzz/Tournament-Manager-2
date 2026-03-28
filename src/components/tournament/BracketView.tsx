@@ -474,6 +474,67 @@ export default function BracketView({
       );
     };
 
+    // Adicione este componente dentro do arquivo, antes do return
+    const BracketConnector = ({ stageIdx, pairCount, span }: { stageIdx: number; pairCount: number; span: number }) => {
+      if (pairCount === 0) return null;
+      const lines = [];
+      for (let i = 0; i < pairCount; i += 2) {
+        // centro do confronto i (top) e i+1 (bottom) em unidades de "span de rows"
+        lines.push(i);
+      }
+      return (
+        <div
+          style={{
+            gridColumn: stageIdx + 1,
+            gridRow: `2 / -1`,
+            position: "relative",
+            pointerEvents: "none",
+          }}
+        >
+          {lines.map((i) => {
+            // posição percentual dos dois confrontos que se unem
+            const topPct = ((i * span + span / 2) / (pairCount * span)) * 100;
+            const botPct = (((i + 1) * span + span / 2) / (pairCount * span)) * 100;
+            const midPct = (topPct + botPct) / 2;
+            return (
+              <svg
+                key={i}
+                style={{ position: "absolute", inset: 0, width: "100%", height: "100%", overflow: "visible" }}
+              >
+                {/* linha saindo do confronto de cima */}
+                <line
+                  x1="0%"
+                  y1={`${topPct}%`}
+                  x2="100%"
+                  y2={`${topPct}%`}
+                  stroke="hsl(var(--border))"
+                  strokeWidth="1"
+                />
+                {/* linha saindo do confronto de baixo */}
+                <line
+                  x1="0%"
+                  y1={`${botPct}%`}
+                  x2="100%"
+                  y2={`${botPct}%`}
+                  stroke="hsl(var(--border))"
+                  strokeWidth="1"
+                />
+                {/* linha vertical unindo as duas */}
+                <line
+                  x1="100%"
+                  y1={`${topPct}%`}
+                  x2="100%"
+                  y2={`${botPct}%`}
+                  stroke="hsl(var(--border))"
+                  strokeWidth="1"
+                />
+              </svg>
+            );
+          })}
+        </div>
+      );
+    };
+
     return (
       <div
         key={pair.leg1.id}
@@ -835,20 +896,20 @@ export default function BracketView({
         style={{ transform: "translateZ(0)" }}
       >
         <div
-          className="grid gap-x-6"
+          className="grid gap-x-0" // gap-x-0 pois os conectores ocupam o espaço
           style={{
-            gridTemplateColumns: `repeat(${stages.length + 1}, 220px)`,
-            gridTemplateRows: `auto repeat(${totalRows}, minmax(80px, auto))`,
+            gridTemplateColumns: `repeat(${stages.length}, 240px 40px) 240px`, // alterna coluna de confronto + coluna de conector
+            gridTemplateRows: `auto repeat(${totalRows}, minmax(140px, auto))`,
           }}
         >
-          {/* Linha 0: headers de cada fase */}
           {stages.map((stage, stageIdx) => {
             const isFinal = stageIdx === stages.length - 1;
+            const colIdx = stageIdx * 2 + 1; // colunas ímpares = confrontos
             return (
               <div
                 key={`header-${stage}`}
-                className="flex flex-col items-center gap-1 pb-2"
-                style={{ gridColumn: stageIdx + 1, gridRow: 1 }}
+                className="flex flex-col items-center gap-1 pb-2 px-2"
+                style={{ gridColumn: colIdx, gridRow: 1 }}
               >
                 <div className="flex items-center gap-1.5">
                   <span className="text-[11px] font-bold text-primary tracking-tight">
@@ -863,20 +924,21 @@ export default function BracketView({
             );
           })}
 
-          {/* Header da coluna extra (3º lugar / campeão) */}
-          <div style={{ gridColumn: stages.length + 1, gridRow: 1 }} />
+          {/* Coluna campeão: header */}
+          <div style={{ gridColumn: stages.length * 2 + 1, gridRow: 1 }} />
 
-          {/* Confrontos de cada fase */}
+          {/* Confrontos */}
           {stages.map((stage, stageIdx) => {
             const stagePairs = getPairs(matchesByStage[stage] || []);
             const span = Math.pow(2, stageIdx);
+            const colIdx = stageIdx * 2 + 1;
 
             return stagePairs.map((pair, i) => (
               <div
                 key={pair.leg1.id}
-                className="flex items-center"
+                className="flex items-center justify-center px-2"
                 style={{
-                  gridColumn: stageIdx + 1,
+                  gridColumn: colIdx,
                   gridRow: `${i * span + 2} / span ${span}`,
                 }}
               >
@@ -885,11 +947,52 @@ export default function BracketView({
             ));
           })}
 
-          {/* Coluna extra: 3º lugar + campeão */}
+          {/* Conectores entre fases */}
+          {stages.slice(0, -1).map((stage, stageIdx) => {
+            const stagePairs = getPairs(matchesByStage[stage] || []);
+            const span = Math.pow(2, stageIdx);
+            const connectorCol = stageIdx * 2 + 2; // colunas pares = conectores
+
+            // Para cada par de confrontos que se une na próxima fase
+            const connectors = [];
+            for (let i = 0; i + 1 < stagePairs.length; i += 2) {
+              const topRow = i * span + 2;
+              const botRow = (i + 1) * span + 2;
+              const spanRows = span * 2;
+
+              connectors.push(
+                <div
+                  key={`conn-${stageIdx}-${i}`}
+                  style={{
+                    gridColumn: connectorCol,
+                    gridRow: `${topRow} / span ${spanRows}`,
+                    position: "relative",
+                  }}
+                >
+                  <svg
+                    style={{ position: "absolute", inset: 0, width: "100%", height: "100%", overflow: "visible" }}
+                    preserveAspectRatio="none"
+                  >
+                    {/* Saindo do centro do confronto superior (50% do span superior = 25% do total) */}
+                    <line x1="0" y1="25%" x2="50%" y2="25%" stroke="hsl(var(--border))" strokeWidth="1.5" />
+                    {/* Saindo do centro do confronto inferior (50% do span inferior = 75% do total) */}
+                    <line x1="0" y1="75%" x2="50%" y2="75%" stroke="hsl(var(--border))" strokeWidth="1.5" />
+                    {/* Linha vertical unindo */}
+                    <line x1="50%" y1="25%" x2="50%" y2="75%" stroke="hsl(var(--border))" strokeWidth="1.5" />
+                    {/* Linha saindo para o próximo confronto */}
+                    <line x1="50%" y1="50%" x2="100%" y2="50%" stroke="hsl(var(--border))" strokeWidth="1.5" />
+                  </svg>
+                </div>,
+              );
+            }
+            return connectors;
+          })}
+
+          {/* Coluna campeão */}
           <div
-            className="flex flex-col items-center gap-4"
+            className="flex flex-col items-center gap-4 px-2"
             style={{
-              gridColumn: stages.length + 1,
+              gridColumn: stages.length * 2 + 1,
               gridRow: `2 / -1`,
               alignSelf: "center",
             }}
