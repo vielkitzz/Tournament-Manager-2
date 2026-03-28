@@ -913,7 +913,7 @@ export default function BracketView({
           if (!useBracketLayout) {
             // Linear layout
             return (
-              <div className="flex items-center justify-start gap-0">
+              <div className="flex items-center justify-center gap-6 py-8 mx-auto">
                 {stages.map((stage, stageIdx) => {
                   const pairs = getPairs(matchesByStage[stage] || []);
                   return (
@@ -925,7 +925,7 @@ export default function BracketView({
                     </div>
                   );
                 })}
-                {renderChampionCard()}
+                <div className="ml-4">{renderChampionCard()}</div>
               </div>
             );
           }

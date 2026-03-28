@@ -316,7 +316,7 @@ export default function FriendlyMatchPage() {
 
   // Match simulation view
   return (
-    <div className="max-w-lg mx-auto space-y-4 px-4">
+    <div className="max-w-lg mx-auto space-y-4 px-4 flex flex-col items-center justify-center min-h-[calc(100vh-4rem)]">
       {/* Header */}
       <div className="rounded-xl bg-card border border-border shadow-lg overflow-hidden">
         {/* Teams header */}
