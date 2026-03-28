@@ -1,70 +1,100 @@
-import { useState, useRef } from "react";
-import { Match, Team, Tournament, KnockoutStage, STAGE_TEAM_COUNTS } from "@/types/tournament";
+import { useState, useRef, useEffect } from "react";
+import { Match, Team, Tournament, KnockoutStage } from "@/types/tournament";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
-import { Shield, Play, Trophy, Medal, UserPlus, Shuffle, Plus, Trash2 } from "lucide-react";
+import { Shield, Play, Trash2, Trophy, Plus, Shuffle } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { simulateFullMatch, simulateHalf } from "@/lib/simulation";
+import { simulateFullMatch, simulateLeg2 } from "@/lib/simulation";
 import MatchPopup from "./MatchPopup";
 import BracketTeamEditor from "./BracketTeamEditor";
-import ScreenshotButton from "@/components/ScreenshotButton";
 
-const CARD_W = 220;
-const CARD_H = 180; // altura padrão de TODOS os confrontos
-const CONNECTOR_W = 32;
+// --- 🔧 1. Hook de Posições (Ajustado para Scroll e Container) ---
+export function useBracketPositions(
+  refsMatrix: React.MutableRefObject<(HTMLDivElement | null)[][]>,
+  containerRef: React.RefObject<HTMLDivElement>,
+  dependencies: any[],
+) {
+  const [positions, setPositions] = useState<{ rightX: number; leftX: number; y: number }[][]>([]);
 
-interface BracketViewProps {
-  tournament: Tournament;
-  teams: Team[];
-  onUpdateMatch: (match: Match) => void;
-  onBatchUpdateMatches?: (matches: Match[]) => void;
-  onGenerateBracket: () => void;
-  onFinalize?: () => void;
-  onAddMatch?: (match: Match) => void;
-  onRemoveMatch?: (matchId: string, pairId?: string) => void;
+  useEffect(() => {
+    const update = () => {
+      if (!containerRef.current) return;
+      const containerRect = containerRef.current.getBoundingClientRect();
+
+      const newPositions = refsMatrix.current.map((stageRefs) => {
+        return stageRefs.map((el) => {
+          if (!el) return null;
+          const rect = el.getBoundingClientRect();
+          // Calcula a posição relativa ao container, considerando o scroll interno
+          return {
+            rightX: rect.right - containerRect.left + containerRef.current!.scrollLeft,
+            leftX: rect.left - containerRect.left + containerRef.current!.scrollLeft,
+            y: rect.top - containerRect.top + containerRef.current!.scrollTop + rect.height / 2,
+          };
+        });
+      });
+      setPositions(newPositions as any);
+    };
+
+    // Pequeno delay para garantir que a DOM desenhou os cards com seus tamanhos reais
+    const timer = setTimeout(update, 50);
+    window.addEventListener("resize", update);
+
+    return () => {
+      clearTimeout(timer);
+      window.removeEventListener("resize", update);
+    };
+  }, dependencies);
+
+  return positions;
 }
 
+// --- 🔧 2. Componente SVG Dinâmico ---
+const BracketSVG = ({ positions }: { positions: { rightX: number; leftX: number; y: number }[][] }) => {
+  if (!positions || positions.length < 2) return null;
+
+  return (
+    <svg className="absolute inset-0 w-full h-full pointer-events-none z-0">
+      {positions.map((stagePos, sIdx) => {
+        const nextStagePos = positions[sIdx + 1];
+        if (!nextStagePos) return null;
+
+        return stagePos.map((pos, pIdx) => {
+          const target = nextStagePos[Math.floor(pIdx / 2)];
+          if (!pos || !target) return null;
+
+          const midX = (pos.rightX + target.leftX) / 2;
+
+          return (
+            <path
+              key={`line-${sIdx}-${pIdx}`}
+              d={`
+                M ${pos.rightX} ${pos.y}
+                H ${midX}
+                V ${target.y}
+                H ${target.leftX}
+              `}
+              fill="none"
+              stroke="currentColor"
+              className="text-border shadow-sm"
+              strokeWidth="2"
+            />
+          );
+        });
+      })}
+    </svg>
+  );
+};
+
+// --- Tipagens e Helpers ---
 const STAGE_LABELS: Record<string, string> = {
-  "1/64": "32-avos de Final",
-  "1/32": "16-avos de Final",
-  "1/16": "Oitavas de Final",
-  "1/8": "Quartas de Final",
+  "1/64": "32-avos",
+  "1/32": "16-avos",
+  "1/16": "Oitavas",
+  "1/8": "Quartas",
   "1/4": "Semifinal",
   "1/2": "Final",
 };
-
-function getStagesFromStart(start: KnockoutStage): string[] {
-  const all = ["1/64", "1/32", "1/16", "1/8", "1/4", "1/2"];
-  const idx = all.indexOf(start);
-  return idx >= 0 ? all.slice(idx) : ["1/2"];
-}
-
-/** Returns aggregate score for a home-away pair */
-function getAggregate(leg1: Match, leg2: Match): { home: number; away: number } {
-  const home = (leg1.homeScore || 0) + (leg1.homeExtraTime || 0) + (leg2.awayScore || 0) + (leg2.awayExtraTime || 0);
-  const away = (leg1.awayScore || 0) + (leg1.awayExtraTime || 0) + (leg2.homeScore || 0) + (leg2.homeExtraTime || 0);
-  return { home, away };
-}
-
-function getTieWinner(leg1: Match, leg2: Match, awayGoalsRule: boolean): string | null {
-  if (!leg1.played || !leg2.played) return null;
-  const agg = getAggregate(leg1, leg2);
-  if (agg.home > agg.away) return leg1.homeTeamId;
-  if (agg.away > agg.home) return leg1.awayTeamId;
-
-  if (awayGoalsRule) {
-    const awayGoalsHome = (leg2.awayScore || 0) + (leg2.awayExtraTime || 0);
-    const awayGoalsAway = (leg1.awayScore || 0) + (leg1.awayExtraTime || 0);
-    if (awayGoalsHome > awayGoalsAway) return leg1.homeTeamId;
-    if (awayGoalsAway > awayGoalsHome) return leg1.awayTeamId;
-  }
-
-  if (leg2.homePenalties !== undefined && leg2.awayPenalties !== undefined) {
-    if (leg2.awayPenalties > leg2.homePenalties) return leg1.homeTeamId;
-    if (leg2.homePenalties > leg2.awayPenalties) return leg1.awayTeamId;
-  }
-  return null;
-}
 
 export default function BracketView({
   tournament,
@@ -72,984 +102,200 @@ export default function BracketView({
   onUpdateMatch,
   onBatchUpdateMatches,
   onGenerateBracket,
-  onFinalize,
-  onAddMatch,
   onRemoveMatch,
-}: BracketViewProps) {
-  const matches = tournament.matches || [];
+  onAddMatch,
+}: any) {
   const [selectedMatch, setSelectedMatch] = useState<Match | null>(null);
-  const [editingTeam, setEditingTeam] = useState<{ match: Match; side: "home" | "away" } | null>(null);
-  const bracketRef = useRef<HTMLDivElement>(null);
+  const [editingTeam, setEditingTeam] = useState<any>(null);
 
-  const getTeam = (id: string) => teams.find((t) => t.id === id);
+  // 🔧 3. Refs para o container e matriz de cards
+  const containerRef = useRef<HTMLDivElement>(null);
+  const stageRefs = useRef<(HTMLDivElement | null)[][]>([]);
 
-  const legMode = tournament.settings.knockoutLegMode || "single";
-  const finalSingleLeg = tournament.settings.finalSingleLeg ?? false;
-  const thirdPlaceMatch = tournament.settings.thirdPlaceMatch ?? false;
-  const awayGoalsRule = tournament.settings.awayGoalsRule ?? false;
-
-  if (matches.length === 0) {
-    const hasEnoughTeams = tournament.teamIds.length >= 2;
-    return (
-      <div className="text-center py-12 space-y-4">
-        <p className="text-sm text-muted-foreground">
-          {hasEnoughTeams
-            ? 'Use o botão "Sortear Times" para gerar o chaveamento'
-            : `Adicione pelo menos 2 times (${tournament.teamIds.length} adicionados)`}
-        </p>
-        {hasEnoughTeams && (
-          <Button onClick={onGenerateBracket} className="gap-2 bg-primary text-primary-foreground">
-            <Shuffle className="w-4 h-4" />
-            Sortear Times
-          </Button>
-        )}
-      </div>
-    );
-  }
-
+  const matches = tournament.matches || [];
   const startStage = tournament.mataMataInicio || "1/8";
-  const stages = getStagesFromStart(startStage);
 
-  const regularMatches = matches.filter((m) => !m.isThirdPlace);
-  const thirdPlaceMatches = matches.filter((m) => m.isThirdPlace);
+  const getTeam = (id: string) => teams.find((t: any) => t.id === id);
+  const stages = ["1/64", "1/32", "1/16", "1/8", "1/4", "1/2"].slice(
+    ["1/64", "1/32", "1/16", "1/8", "1/4", "1/2"].indexOf(startStage),
+  );
 
-  const matchesByStage: Record<string, Match[]> = {};
-  stages.forEach((stage, i) => {
-    matchesByStage[stage] = regularMatches.filter((m) => m.round === i + 1);
-  });
+  // Helper para agrupar partidas de Ida e Volta (ou Simples)
+  const getPairs = (stageIdx: number) => {
+    const stageMatches = matches.filter((m: any) => m.round === stageIdx + 1 && !m.isThirdPlace);
+    const pairs: any[] = [];
+    const processedIds = new Set();
 
-  function getPairs(stageMatches: Match[]): Array<{ leg1: Match; leg2: Match | null }> {
-    const pairMap = new Map<string, { leg1?: Match; leg2?: Match }>();
-    const singles: Match[] = [];
-    for (const m of stageMatches) {
+    stageMatches.forEach((m: any) => {
+      if (processedIds.has(m.id)) return;
       if (m.pairId) {
-        if (!pairMap.has(m.pairId)) pairMap.set(m.pairId, {});
-        const pair = pairMap.get(m.pairId)!;
-        if (m.leg === 1) pair.leg1 = m;
-        else pair.leg2 = m;
+        const leg1 = stageMatches.find((x: any) => x.pairId === m.pairId && x.leg === 1) || m;
+        const leg2 = stageMatches.find((x: any) => x.pairId === m.pairId && x.leg === 2) || null;
+        pairs.push({ leg1, leg2 });
+        processedIds.add(leg1.id);
+        if (leg2) processedIds.add(leg2.id);
       } else {
-        singles.push(m);
+        pairs.push({ leg1: m, leg2: null });
+        processedIds.add(m.id);
       }
-    }
-    const result: Array<{ leg1: Match; leg2: Match | null }> = [];
-    for (const pair of pairMap.values()) {
-      if (pair.leg1) result.push({ leg1: pair.leg1, leg2: pair.leg2 || null });
-    }
-    for (const s of singles) result.push({ leg1: s, leg2: null });
-    return result;
+    });
+    return pairs;
+  };
+
+  // Garante que a matriz de refs tenha o tamanho correto
+  if (stageRefs.current.length !== stages.length + 1) {
+    // +1 para a coluna do campeão
+    stageRefs.current = Array.from({ length: stages.length + 1 }, () => []);
   }
 
-  const getSingleMatchWinner = (match: Match): string | null => {
-    if (!match.played) return null;
-    if (!match.awayTeamId) return match.homeTeamId;
-    if (!match.homeTeamId) return match.awayTeamId;
-    const homeTotal = (match.homeScore || 0) + (match.homeExtraTime || 0);
-    const awayTotal = (match.awayScore || 0) + (match.awayExtraTime || 0);
-    if (homeTotal > awayTotal) return match.homeTeamId;
-    if (awayTotal > homeTotal) return match.awayTeamId;
-    if (match.homePenalties !== undefined && match.awayPenalties !== undefined) {
-      return match.homePenalties > match.awayPenalties ? match.homeTeamId : match.awayTeamId;
-    }
-    return null;
-  };
+  // 🔧 5. Capturando as posições usando nosso Hook turbinado
+  // Usamos `matches` e o tamanho da tela como dependência para redesenhar se o jogo atualizar
+  const positions = useBracketPositions(stageRefs, containerRef, [matches]);
 
-  const getTieResult = (pair: { leg1: Match; leg2: Match | null }): string | null => {
-    if (!pair.leg2) return getSingleMatchWinner(pair.leg1);
-    return getTieWinner(pair.leg1, pair.leg2, awayGoalsRule);
-  };
-
-  const getSemiLoser = (pair: { leg1: Match; leg2: Match | null }): string | null => {
-    const winner = getTieResult(pair);
-    if (!winner) return null;
-    return winner === pair.leg1.homeTeamId ? pair.leg1.awayTeamId : pair.leg1.homeTeamId;
-  };
-
-  const finalStage = stages[stages.length - 1];
-  const finalMatchesList = matchesByStage[finalStage] || [];
-  const finalPairs = getPairs(finalMatchesList);
-  const allFinalResolved = finalPairs.length > 0 && finalPairs.every((p) => getTieResult(p) !== null);
-
-  const simulateMatch = (match: Match, isLeg1OfPair = false): Match => {
-    const home = getTeam(match.homeTeamId);
-    const away = getTeam(match.awayTeamId);
-    const homeRate = tournament.settings.rateInfluence ? (home?.rate ?? 5) : 5;
-    const awayRate = tournament.settings.rateInfluence ? (away?.rate ?? 5) : 5;
-    const result = simulateFullMatch(homeRate, awayRate);
-    let homeScore = result.total[0];
-    let awayScore = result.total[1];
-    let homePenalties: number | undefined;
-    let awayPenalties: number | undefined;
-    if (homeScore === awayScore && !isLeg1OfPair) {
-      homePenalties = Math.floor(Math.random() * 3) + 3;
-      awayPenalties = homePenalties + (Math.random() > 0.5 ? 1 : -1);
-      if (awayPenalties < 0) awayPenalties = homePenalties + 1;
-    }
-    return {
-      ...match,
-      homeScore,
-      awayScore,
-      played: true,
-      ...(homePenalties !== undefined && { homePenalties, awayPenalties }),
-    };
-  };
-
-  const simulateLeg2 = (leg2: Match, leg1: Match): Match => {
-    const home = getTeam(leg2.homeTeamId);
-    const away = getTeam(leg2.awayTeamId);
-    const homeRate = tournament.settings.rateInfluence ? (home?.rate ?? 5) : 5;
-    const awayRate = tournament.settings.rateInfluence ? (away?.rate ?? 5) : 5;
-    const result = simulateFullMatch(homeRate, awayRate);
-    let homeScore = result.total[0];
-    let awayScore = result.total[1];
-    let homeExtraTime: number | undefined;
-    let awayExtraTime: number | undefined;
-    let homePenalties: number | undefined;
-    let awayPenalties: number | undefined;
-
-    const generatePenalties = () => {
-      const homePens = Math.floor(Math.random() * 3) + 3;
-      let awayPens = homePens + (Math.random() > 0.5 ? 1 : -1);
-      if (awayPens < 0) awayPens = homePens + 1;
-      return { homePenalties: homePens, awayPenalties: awayPens };
-    };
-
-    const regularAggregate = getAggregate(leg1, { ...leg2, homeScore, awayScore });
-    const regularTied = regularAggregate.home === regularAggregate.away;
-
-    if (regularTied) {
-      const homeTeamAwayGoalsRegular = awayScore;
-      const awayTeamAwayGoals = (leg1.awayScore || 0) + (leg1.awayExtraTime || 0);
-      const awayGoalsDecidesRegular = awayGoalsRule && homeTeamAwayGoalsRegular !== awayTeamAwayGoals;
-
-      if (!awayGoalsDecidesRegular) {
-        if (tournament.settings.extraTime) {
-          const et1 = simulateHalf(homeRate, awayRate);
-          const et2 = simulateHalf(homeRate, awayRate);
-          homeExtraTime = et1[0] + et2[0];
-          awayExtraTime = et1[1] + et2[1];
-
-          const extraAggregate = getAggregate(leg1, {
-            ...leg2,
-            homeScore,
-            awayScore,
-            homeExtraTime,
-            awayExtraTime,
-          });
-
-          const extraTied = extraAggregate.home === extraAggregate.away;
-          const homeTeamAwayGoalsAfterExtra = awayScore + (awayExtraTime || 0);
-          const awayGoalsDecidesAfterExtra = awayGoalsRule && homeTeamAwayGoalsAfterExtra !== awayTeamAwayGoals;
-
-          if (extraTied && !awayGoalsDecidesAfterExtra) {
-            const pens = generatePenalties();
-            homePenalties = pens.homePenalties;
-            awayPenalties = pens.awayPenalties;
-          }
-        } else {
-          const pens = generatePenalties();
-          homePenalties = pens.homePenalties;
-          awayPenalties = pens.awayPenalties;
-        }
-      }
-    }
-
-    return {
-      ...leg2,
-      homeScore,
-      awayScore,
-      played: true,
-      ...(homeExtraTime !== undefined && { homeExtraTime, awayExtraTime }),
-      ...(homePenalties !== undefined && { homePenalties, awayPenalties }),
-    };
-  };
-
-  const handleSimulateStage = (stage: string) => {
-    const stageMatches = matchesByStage[stage]?.filter((m) => !m.played && m.homeTeamId && m.awayTeamId) || [];
-    if (stageMatches.length === 0) return;
-
-    const updatedMatches = [...matches];
-    const pairs = getPairs(stageMatches);
-
-    for (const pair of pairs) {
-      if (pair.leg2) {
-        const res1 = simulateMatch(pair.leg1, true);
-        const res2 = simulateLeg2(pair.leg2, res1);
-        const idx1 = updatedMatches.findIndex((m) => m.id === res1.id);
-        const idx2 = updatedMatches.findIndex((m) => m.id === res2.id);
-        updatedMatches[idx1] = res1;
-        updatedMatches[idx2] = res2;
-      } else {
-        const res = simulateMatch(pair.leg1);
-        const idx = updatedMatches.findIndex((m) => m.id === res.id);
-        updatedMatches[idx] = res;
-      }
-    }
-
-    if (onBatchUpdateMatches) onBatchUpdateMatches(updatedMatches);
-    toast.success(`${STAGE_LABELS[stage] || stage} simulado com sucesso!`);
-  };
-
-  const handleSimulateThirdPlace = () => {
-    const unplayed = thirdPlaceMatches.filter((m) => !m.played && m.homeTeamId && m.awayTeamId);
-    if (unplayed.length === 0) return;
-    const updated = [...matches];
-    for (const m of unplayed) {
-      const res = simulateMatch(m);
-      const idx = updated.findIndex((match) => match.id === m.id);
-      updated[idx] = res;
-    }
-    if (onBatchUpdateMatches) onBatchUpdateMatches(updated);
-    toast.success("Disputa de 3º lugar simulada!");
-  };
-
-  const handleAdvanceStage = (stageIdx: number) => {
-    const currentStage = stages[stageIdx];
-    const nextStage = stages[stageIdx + 1];
-    if (!nextStage) return;
-
-    const currentPairs = getPairs(matchesByStage[currentStage] || []);
-    const winners = currentPairs.map(getTieResult).filter(Boolean) as string[];
-
-    const nextMatches = matchesByStage[nextStage] || [];
-    const updatedMatches = [...matches];
-
-    for (let i = 0; i < winners.length; i += 2) {
-      const matchIdx = i / 2;
-      const pair = getPairs(nextMatches)[matchIdx];
-      if (pair) {
-        const m1 = { ...pair.leg1, homeTeamId: winners[i], awayTeamId: winners[i + 1] || "" };
-        const idx1 = updatedMatches.findIndex((m) => m.id === m1.id);
-        updatedMatches[idx1] = m1;
-
-        if (pair.leg2) {
-          const m2 = { ...pair.leg2, homeTeamId: winners[i + 1] || "", awayTeamId: winners[i] };
-          const idx2 = updatedMatches.findIndex((m) => m.id === m2.id);
-          updatedMatches[idx2] = m2;
-        }
-      }
-    }
-
-    // Handle third place match if needed
-    if (thirdPlaceMatch && nextStage === finalStage) {
-      const losers = currentPairs.map(getSemiLoser).filter(Boolean) as string[];
-      if (losers.length === 2 && thirdPlaceMatches.length > 0) {
-        const m = { ...thirdPlaceMatches[0], homeTeamId: losers[0], awayTeamId: losers[1] };
-        const idx = updatedMatches.findIndex((match) => match.id === m.id);
-        updatedMatches[idx] = m;
-      }
-    }
-
-    if (onBatchUpdateMatches) onBatchUpdateMatches(updatedMatches);
-    toast.success(`Avançado para ${STAGE_LABELS[nextStage] || nextStage}!`);
-  };
-
-  const handleAddMatch = (stageIdx: number) => {
-    if (!onAddMatch) return;
-    const newMatch: Match = {
-      id: Math.random().toString(36).substring(2, 11),
-      tournamentId: tournament.id,
-      round: stageIdx + 1,
-      homeTeamId: "",
-      awayTeamId: "",
-      homeScore: 0,
-      awayScore: 0,
-      played: false,
-    };
-    onAddMatch(newMatch);
-  };
-
-  const handleRemoveMatch = (match: Match) => {
-    if (!onRemoveMatch) return;
-    onRemoveMatch(match.id, match.pairId);
-  };
-
-  const getMatchTotalScore = (match: Match, side: "home" | "away") => {
-    const score = side === "home" ? match.homeScore : match.awayScore;
-    const et = side === "home" ? match.homeExtraTime : match.awayExtraTime;
-    return (score || 0) + (et || 0);
-  };
-
-  const renderPair = (pair: { leg1: Match; leg2: Match | null }, index: number) => {
-    const winner = getTieResult(pair);
-    const homeTeam = getTeam(pair.leg1.homeTeamId);
-    const awayTeam = getTeam(pair.leg1.awayTeamId);
-
-    const hasExtraTime = (match: Match) =>
-      match.played && ((match.homeExtraTime || 0) > 0 || (match.awayExtraTime || 0) > 0);
-    const hasPenalties = (match: Match) => match.played && match.homePenalties !== undefined;
-
-    const renderMatchFooter = (match: Match) => {
-      const parts: string[] = [];
-      if (hasExtraTime(match)) parts.push("AET");
-      if (hasPenalties(match)) parts.push(`Pên: ${match.homePenalties}×${match.awayPenalties}`);
-      if (parts.length === 0) return null;
-      return (
-        <div className="text-center py-0.5 bg-secondary/50 border-t border-border/10">
-          <span className="text-[9px] text-muted-foreground">{parts.join(" • ")}</span>
-        </div>
-      );
-    };
-
-    return (
-      <div
-        key={pair.leg1.id}
-        style={{ width: CARD_W, height: CARD_H }}
-        className="relative group/pair rounded-lg bg-secondary/30 border border-border overflow-hidden flex flex-col"
-      >
-        {onRemoveMatch && !tournament.finalized && (
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              handleRemoveMatch(pair.leg1);
-            }}
-            className="absolute -top-2 -right-2 z-10 p-1 rounded-full bg-destructive text-destructive-foreground opacity-0 group-hover/pair:opacity-100 transition-opacity shadow-md"
-            title="Remover confronto"
-          >
-            <Trash2 className="w-3 h-3" />
-          </button>
+  const TeamRow = ({ team, score, isWinner, borderBottom, onEdit }: any) => (
+    <div
+      className={cn(
+        "flex items-center justify-between px-3 py-2 transition-colors",
+        borderBottom && "border-b border-border/10",
+        isWinner && "bg-primary/5",
+      )}
+    >
+      <div className="flex items-center gap-2 min-w-0 flex-1 cursor-pointer" onClick={onEdit}>
+        {team?.logo ? (
+          <img src={team.logo} className="w-4 h-4 object-contain" alt="" />
+        ) : (
+          <Shield className="w-4 h-4 text-muted-foreground/40" />
         )}
-        <button
-          className="w-full text-left hover:bg-secondary/30 transition-all duration-150"
-          onClick={() => setSelectedMatch(pair.leg1)}
-        >
-          {pair.leg2 && (
-            <div className="flex items-center gap-1 px-2 py-1 border-b border-border/20">
-              <span className="text-[8px] text-muted-foreground">Ida</span>
-            </div>
-          )}
-          <TeamRow
-            team={homeTeam}
-            score={pair.leg1.played ? getMatchTotalScore(pair.leg1, "home") : undefined}
-            isWinner={winner === pair.leg1.homeTeamId}
-            borderBottom
-            hideEdit={!!tournament.finalized}
-            onEditTeam={() => setEditingTeam({ match: pair.leg1, side: "home" })}
-          />
-          <TeamRow
-            team={awayTeam}
-            score={pair.leg1.played ? getMatchTotalScore(pair.leg1, "away") : undefined}
-            isWinner={winner === pair.leg1.awayTeamId}
-            hideEdit={!!tournament.finalized}
-            onEditTeam={() => setEditingTeam({ match: pair.leg1, side: "away" })}
-          />
-          {!pair.leg2 && renderMatchFooter(pair.leg1)}
-        </button>
-        {pair.leg2 && (
-          <button
-            className="w-full text-left hover:bg-secondary/30 transition-all duration-150"
-            onClick={() => setSelectedMatch(pair.leg2)}
-          >
-            <div className="flex items-center gap-1 px-2 py-1 border-b border-border/20">
-              <span className="text-[8px] text-muted-foreground">Volta</span>
-            </div>
-            <TeamRow
-              team={awayTeam}
-              score={pair.leg2.played ? getMatchTotalScore(pair.leg2, "home") : undefined}
-              isWinner={winner === pair.leg1.awayTeamId}
-              borderBottom
-              hideEdit={!!tournament.finalized}
-              onEditTeam={() => setEditingTeam({ match: pair.leg2!, side: "home" })}
-            />
-            <TeamRow
-              team={homeTeam}
-              score={pair.leg2.played ? getMatchTotalScore(pair.leg2, "away") : undefined}
-              isWinner={winner === pair.leg1.homeTeamId}
-              hideEdit={!!tournament.finalized}
-              onEditTeam={() => setEditingTeam({ match: pair.leg2!, side: "away" })}
-            />
-            {renderMatchFooter(pair.leg2)}
-          </button>
-        )}
+        <span className={cn("text-xs truncate", isWinner ? "font-bold text-foreground" : "text-muted-foreground")}>
+          {team?.shortName || team?.name || "A definir"}
+        </span>
       </div>
-    );
-  };
-
-  const renderThirdPlaceMatch = (match: Match) => {
-    const winner = getSingleMatchWinner(match);
-    const home = getTeam(match.homeTeamId);
-    const away = getTeam(match.awayTeamId);
-    const homeTotal = match.played ? (match.homeScore || 0) + (match.homeExtraTime || 0) : undefined;
-    const awayTotal = match.played ? (match.awayScore || 0) + (match.awayExtraTime || 0) : undefined;
-
-    const hasET = match.played && ((match.homeExtraTime || 0) > 0 || (match.awayExtraTime || 0) > 0);
-    const hasPens = match.played && match.homePenalties !== undefined;
-
-    return (
-      <button
-        key={match.id}
-        onClick={() => setSelectedMatch(match)}
-        className="w-[220px] rounded-lg bg-secondary/30 border border-warning/30 hover:border-warning/60 transition-all text-left overflow-hidden"
-      >
-        <TeamRow
-          team={home}
-          score={homeTotal}
-          isWinner={winner === match.homeTeamId}
-          borderBottom
-          hideEdit={!!tournament.finalized}
-          onEditTeam={() => setEditingTeam({ match, side: "home" })}
-        />
-        <TeamRow
-          team={away}
-          score={awayTotal}
-          isWinner={winner === match.awayTeamId}
-          hideEdit={!!tournament.finalized}
-          onEditTeam={() => setEditingTeam({ match, side: "away" })}
-        />
-        {(hasET || hasPens) && (
-          <div className="text-center py-0.5 bg-secondary/50 border-t border-border/10">
-            <span className="text-[9px] text-muted-foreground">
-              {[hasET && "AET", hasPens && `Pên: ${match.homePenalties}×${match.awayPenalties}`]
-                .filter(Boolean)
-                .join(" • ")}
-            </span>
-          </div>
-        )}
-      </button>
-    );
-  };
-
-  const renderStageColumn = (
-    stage: string,
-    stageIdx: number,
-    pairsSubset: Array<{ leg1: Match; leg2: Match | null }>,
-    columnKey: string,
-    options: { showActions?: boolean; side?: "left" | "right" | "center" } = {},
-  ) => {
-    const { showActions = true, side = "center" } = options;
-    const isFinal = stageIdx === stages.length - 1;
-    const allStageMatches = matchesByStage[stage] || [];
-    const unplayed = allStageMatches.filter((m) => !m.played && m.homeTeamId && m.awayTeamId);
-    const allPairs = getPairs(allStageMatches);
-    const allStagePairsResolved = allPairs.length > 0 && allPairs.every((p) => getTieResult(p) !== null);
-    const nextStage = stages[stageIdx + 1];
-    const nextHasMatches = nextStage && (matchesByStage[nextStage]?.length || 0) > 0;
-
-    return (
-      <div key={columnKey} className="flex flex-col items-center relative" style={{ minWidth: 228 }}>
-        <div className="mb-2 flex items-center gap-1.5">
-          <span className="text-[11px] font-bold text-primary tracking-tight">{STAGE_LABELS[stage] || stage}</span>
-          {legMode === "home-away" && !isFinal && (
-            <span className="text-[9px] text-muted-foreground">( Ida / Volta )</span>
-          )}
-        </div>
-
-        {showActions && unplayed.length > 0 && (
-          <button
-            onClick={() => handleSimulateStage(stage)}
-            className="flex items-center gap-1 px-2 py-1 rounded-md bg-primary/10 text-primary hover:bg-primary/20 text-[10px] font-bold mb-2 transition-colors"
-          >
-            <Play className="w-3 h-3" />
-            Simular ({unplayed.length})
-          </button>
-        )}
-
-        {showActions && allStagePairsResolved && nextStage && !nextHasMatches && (
-          <button
-            onClick={() => handleAdvanceStage(stageIdx)}
-            className="flex items-center gap-1 px-2 py-1 rounded-md bg-secondary text-foreground hover:bg-secondary/80 text-[10px] mb-2 transition-colors border border-border"
-          >
-            Avançar →
-          </button>
-        )}
-
-        <div className="flex flex-col items-center py-4">
-          {(() => {
-            const expectedSlots = (() => {
-              if (pairsSubset.length > 0) return pairsSubset.length;
-              if (stageIdx === 0) return 0;
-
-              const prevStage = stages[stageIdx - 1];
-              const prevPairs = getPairs(matchesByStage[prevStage] || []);
-
-              if (side === "left") return Math.ceil(Math.ceil(prevPairs.length / 2) / 2);
-              if (side === "right") return Math.ceil(Math.floor(prevPairs.length / 2) / 2);
-
-              return Math.ceil(prevPairs.length / 2);
-            })();
-
-            const renderEmptySlot = (key: string) => (
-              <div
-                key={key}
-                style={{ width: CARD_W, height: CARD_H }}
-                className="rounded-lg bg-secondary/20 border border-dashed border-border overflow-hidden flex flex-col justify-center"
-              >
-                <div className="text-center text-xs text-muted-foreground/40">A definir</div>
-              </div>
-            );
-
-            const items =
-              pairsSubset.length > 0
-                ? pairsSubset.map((pair, i) => (
-                    <div key={pair.leg1.id} style={{ height: CARD_H }} className="flex items-center">
-                      {renderPair(pair, i)}
-                    </div>
-                  ))
-                : Array.from({ length: Math.max(expectedSlots, 1) }).map((_, i) =>
-                    renderEmptySlot(`empty-${columnKey}-${i}`),
-                  );
-
-            return <div className="flex flex-col gap-4">{items}</div>;
-          })()}
-        </div>
-
-        {showActions && onAddMatch && !tournament.finalized && (
-          <button
-            onClick={() => handleAddMatch(stageIdx)}
-            className="w-[220px] mt-2 p-2 rounded-lg border border-dashed border-border/60 hover:border-primary/40 bg-secondary/10 hover:bg-secondary/30 transition-colors flex items-center justify-start gap-1.5"
-          >
-            <Plus className="w-3 h-3 text-muted-foreground" />
-            <span className="text-[10px] text-muted-foreground">Adicionar Confronto</span>
-          </button>
-        )}
-      </div>
-    );
-  };
-
-  const renderChampionCard = () => {
-    const champion = finalPairs.length > 0 ? getTieResult(finalPairs[0]) : null;
-    const championTeam = champion ? getTeam(champion) : null;
-    if (!championTeam) return null;
-
-    const runnerUp = finalPairs[0]
-      ? champion === finalPairs[0].leg1.homeTeamId
-        ? finalPairs[0].leg1.awayTeamId
-        : finalPairs[0].leg1.homeTeamId
-      : null;
-    const runnerUpTeam = runnerUp ? getTeam(runnerUp) : null;
-
-    // Determine 3rd place: from match if exists, otherwise by best campaign (tiebreakers)
-    let thirdTeam: Team | undefined = undefined;
-    const thirdMatch = thirdPlaceMatches[0];
-    const thirdWinnerId = thirdMatch ? getSingleMatchWinner(thirdMatch) : null;
-    if (thirdWinnerId) {
-      thirdTeam = getTeam(thirdWinnerId);
-    } else if (!thirdPlaceMatch) {
-      // No 3rd place match setting: determine by best campaign among semi-final losers
-      const semiStageIdx = stages.length - 2;
-      if (semiStageIdx >= 0) {
-        const semiStage = stages[semiStageIdx];
-        const semiPairs = getPairs(matchesByStage[semiStage] || []);
-        const losers = semiPairs.map(getSemiLoser).filter(Boolean) as string[];
-        if (losers.length === 2) {
-          // Use all tournament matches to evaluate campaign
-          const allPlayedMatches = matches.filter((m) => m.played);
-          const tiebreakers = tournament.settings.tiebreakers || [
-            "Pontos",
-            "Vitórias",
-            "Saldo de Gols",
-            "Gols Marcados",
-          ];
-          const ptsWin = tournament.settings.pointsWin ?? 3;
-          const ptsDraw = tournament.settings.pointsDraw ?? 1;
-          const ptsLoss = tournament.settings.pointsLoss ?? 0;
-
-          const buildStats = (teamId: string) => {
-            let wins = 0,
-              draws = 0,
-              losses = 0,
-              gf = 0,
-              ga = 0,
-              points = 0;
-            for (const m of allPlayedMatches) {
-              const isHome = m.homeTeamId === teamId;
-              const isAway = m.awayTeamId === teamId;
-              if (!isHome && !isAway) continue;
-              const tgf = isHome
-                ? (m.homeScore || 0) + (m.homeExtraTime || 0)
-                : (m.awayScore || 0) + (m.awayExtraTime || 0);
-              const tga = isHome
-                ? (m.awayScore || 0) + (m.awayExtraTime || 0)
-                : (m.homeScore || 0) + (m.homeExtraTime || 0);
-              gf += tgf;
-              ga += tga;
-              if (tgf > tga) {
-                wins++;
-                points += ptsWin;
-              } else if (tgf < tga) {
-                losses++;
-                points += ptsLoss;
-              } else {
-                draws++;
-                points += ptsDraw;
-              }
-            }
-            return { points, wins, draws, losses, gf, ga, gd: gf - ga };
-          };
-
-          const statsA = buildStats(losers[0]);
-          const statsB = buildStats(losers[1]);
-
-          let bestLoser = losers[0];
-          for (const tb of tiebreakers) {
-            let diff = 0;
-            switch (tb) {
-              case "Pontos":
-                diff = statsA.points - statsB.points;
-                break;
-              case "Vitórias":
-                diff = statsA.wins - statsB.wins;
-                break;
-              case "Saldo de Gols":
-                diff = statsA.gd - statsB.gd;
-                break;
-              case "Gols Marcados":
-                diff = statsA.gf - statsB.gf;
-                break;
-              case "Empates":
-                diff = statsA.draws - statsB.draws;
-                break;
-              case "Gols Sofridos":
-                diff = statsB.ga - statsA.ga;
-                break;
-            }
-            if (diff > 0) {
-              bestLoser = losers[0];
-              break;
-            }
-            if (diff < 0) {
-              bestLoser = losers[1];
-              break;
-            }
-          }
-          thirdTeam = getTeam(bestLoser);
-        }
-      }
-    }
-
-    return (
-      <div className="flex flex-col items-stretch justify-start w-[220px] flex-shrink-0">
-        <div className="mb-3 text-center">
-          <span className="text-xs font-bold text-primary tracking-tight">Campeão</span>
-        </div>
-        <div className="rounded-xl border-2 border-primary/50 bg-gradient-to-b from-primary/15 via-primary/5 to-secondary/40 overflow-hidden shadow-xl shadow-primary/20">
-          {/* Champion row — highlighted */}
-          <div className="flex items-center gap-3 px-4 py-3.5 bg-gradient-to-r from-primary/10 to-transparent">
-            <div className="w-8 h-8 rounded-full bg-primary/20 flex items-center justify-center shrink-0">
-              <Trophy className="w-4.5 h-4.5 text-primary" />
-            </div>
-            <div className="w-8 h-8 flex items-center justify-center shrink-0">
-              {championTeam.logo ? (
-                <img src={championTeam.logo} alt="" className="w-8 h-8 object-contain" />
-              ) : (
-                <Shield className="w-5 h-5 text-muted-foreground" />
-              )}
-            </div>
-            <div className="flex-1 min-w-0">
-              <span className="text-sm font-bold text-foreground block whitespace-normal break-words">
-                {championTeam.shortName || championTeam.name}
-              </span>
-              <span className="text-[10px] text-primary font-semibold">Campeão {tournament.year}</span>
-            </div>
-          </div>
-          {/* Runner-up row */}
-          {runnerUpTeam && (
-            <div className="flex items-center gap-2.5 px-4 py-2.5 border-t border-border/30 bg-secondary/20">
-              <span className="text-[10px] font-bold text-muted-foreground w-5 text-center">2º</span>
-              <div className="w-5 h-5 flex items-center justify-center shrink-0">
-                {runnerUpTeam.logo ? (
-                  <img src={runnerUpTeam.logo} alt="" className="w-5 h-5 object-contain" />
-                ) : (
-                  <Shield className="w-3.5 h-3.5 text-muted-foreground/50" />
-                )}
-              </div>
-              <span className="text-xs text-muted-foreground whitespace-normal break-words">
-                {runnerUpTeam.shortName || runnerUpTeam.name}
-              </span>
-            </div>
-          )}
-          {/* Third place row */}
-          {thirdTeam && (
-            <div className="flex items-center gap-2.5 px-4 py-2.5 border-t border-border/30 bg-secondary/20">
-              <span className="text-[10px] font-bold text-highlight w-5 text-center">3º</span>
-              <div className="w-5 h-5 flex items-center justify-center shrink-0">
-                {thirdTeam.logo ? (
-                  <img src={thirdTeam.logo} alt="" className="w-5 h-5 object-contain" />
-                ) : (
-                  <Shield className="w-3.5 h-3.5 text-muted-foreground/50" />
-                )}
-              </div>
-              <span className="text-xs text-muted-foreground whitespace-normal break-words">
-                {thirdTeam.shortName || thirdTeam.name}
-              </span>
-            </div>
-          )}
-        </div>
-      </div>
-    );
-  };
-
-  // ─── Connector component ───
-  const BracketConnector = ({ pairCount, side }: { pairCount: number; side: "left" | "right" }) => {
-    if (pairCount <= 0) return <div style={{ width: CONNECTOR_W }} />;
-
-    return (
-      <div style={{ width: CONNECTOR_W }} className="flex flex-col items-center py-4">
-        {Array.from({ length: pairCount }).map((_, i) => (
-          <div key={i} style={{ height: CARD_H }} className="relative w-full flex items-center">
-            {/* linha horizontal */}
-            <div
-              className={cn(
-                "absolute border-border/60 top-1/2 w-1/2",
-                side === "left" ? "right-0 border-t-2" : "left-0 border-t-2",
-              )}
-            />
-
-            {/* linha vertical (liga pares) */}
-            {i % 2 === 0 && i + 1 < pairCount && (
-              <div
-                className={cn(
-                  "absolute border-border/60",
-                  side === "left" ? "right-0 border-r-2" : "left-0 border-l-2",
-                )}
-                style={{
-                  top: "50%",
-                  height: CARD_H + 16, // conecta ao próximo card (gap incluso)
-                }}
-              />
-            )}
-          </div>
-        ))}
-      </div>
-    );
-  };
-
-  // ─── Main render ───
+      <span className={cn("text-xs font-mono w-6 text-right", isWinner && "text-primary font-bold")}>
+        {score ?? "—"}
+      </span>
+    </div>
+  );
 
   return (
-    <div className="space-y-4">
-      {/* Finalize banner - top */}
-      {(() => {
-        const allMatchesPlayed = matches.length > 0 && matches.filter((m) => !m.isThirdPlace).every((m) => m.played);
-        const canFinalize = allFinalResolved && allMatchesPlayed;
-        if (!canFinalize || tournament.finalized || !onFinalize) return null;
-        return (
-          <div className="flex items-center justify-start gap-3 p-3 rounded-xl bg-primary/5 border border-primary/20">
-            <Trophy className="w-4 h-4 text-primary" />
-            <span className="text-sm font-medium text-foreground">Chaveamento concluído!</span>
-            <Button onClick={onFinalize} size="sm" className="gap-1.5 bg-primary text-primary-foreground">
-              <Trophy className="w-3.5 h-3.5" />
-              Finalizar
-            </Button>
-          </div>
-        );
-      })()}
-      <div className="flex justify-end mb-1">
-        <ScreenshotButton targetRef={bracketRef as any} filename="chaveamento.png" discrete />
-      </div>
-      <div
-        className="overflow-x-auto overflow-y-hidden pb-2 will-change-transform"
-        ref={bracketRef}
-        style={{ transform: "translateZ(0)" }}
-      >
-        {(() => {
-          const preFinalStages = stages.slice(0, -1);
-          const finalStageKey = stages[stages.length - 1];
-          const finalStageIdx = stages.length - 1;
+    <div
+      className="w-full overflow-x-auto pb-8 bg-background/50 rounded-xl border border-border/50 relative"
+      ref={containerRef}
+    >
+      {/* 🔧 SVG Fica Absoluto Atrás dos Cards */}
+      <BracketSVG positions={positions} />
 
-          const firstStagePairs = preFinalStages.length > 0 ? getPairs(matchesByStage[preFinalStages[0]] || []) : [];
-          const useBracketLayout = preFinalStages.length > 0 && firstStagePairs.length >= 2;
-
-          if (!useBracketLayout) {
-            // Linear layout
-            return (
-              <div className="flex items-start justify-start gap-6">
-                {stages.map((stage, stageIdx) => {
-                  const pairs = getPairs(matchesByStage[stage] || []);
-                  return (
-                    <div key={stage} className="flex items-center">
-                      {renderStageColumn(stage, stageIdx, pairs, stage, { side: "left" })}
-                      {stageIdx < stages.length - 1 && (
-                        <BracketConnector pairCount={Math.max(pairs.length, 1)} side="left" />
-                      )}
-                    </div>
-                  );
-                })}
-                {renderChampionCard()}
-              </div>
-            );
-          }
-
-          // Two-sided bracket: left half → final ← right half
-          const leftColumns = preFinalStages.map((stage, i) => {
-            const allPairs = getPairs(matchesByStage[stage] || []);
-            return { stage, stageIdx: i, pairs: allPairs.slice(0, Math.ceil(allPairs.length / 2)) };
-          });
-
-          const rightColumns = preFinalStages.map((stage, i) => {
-            const allPairs = getPairs(matchesByStage[stage] || []);
-            return { stage, stageIdx: i, pairs: allPairs.slice(Math.ceil(allPairs.length / 2)) };
-          });
+      <div className="flex flex-row p-8 min-w-max gap-16 relative z-10">
+        {stages.map((stage, sIdx) => {
+          const pairs = getPairs(sIdx);
+          const expectedSlots = Math.pow(2, stages.length - sIdx - 1);
 
           return (
-            <div className="flex min-w-max items-start justify-start lg:justify-center mx-auto">
-              {/* Left bracket half */}
-              {leftColumns.map(({ stage, stageIdx, pairs }) => (
-                <div key={`left-${stage}`} className="flex items-center self-stretch">
-                  {renderStageColumn(stage, stageIdx, pairs, `left-${stage}`, { showActions: true, side: "left" })}
-                  <BracketConnector pairCount={pairs.length} side="left" />
-                </div>
-              ))}
-
-              {/* Center: Final + Third */}
-              <div className="flex flex-col items-center px-8 self-stretch justify-center">
-                {renderStageColumn(
-                  finalStageKey,
-                  finalStageIdx,
-                  getPairs(matchesByStage[finalStageKey] || []),
-                  `final-${finalStageKey}`,
-                  { side: "center" },
-                )}
-
-                {thirdPlaceMatches.length > 0 && (
-                  <div className="pt-3 mt-3 border-t border-border/40 w-[220px]">
-                    <div className="flex items-center justify-center gap-1.5 mb-1.5 relative w-full">
-                      <Medal className="w-3.5 h-3.5 text-highlight" />
-                      <span className="text-[10px] font-bold text-primary">3º Lugar</span>
-
-                      {thirdPlaceMatches.some((m) => !m.played) && (
-                        <button
-                          onClick={handleSimulateThirdPlace}
-                          className="absolute right-0 flex items-center gap-1 px-1.5 py-0.5 rounded bg-primary/10 text-primary hover:bg-primary/20 text-[9px] font-bold transition-colors"
-                        >
-                          <Play className="w-2 h-2" />
-                          Simular
-                        </button>
-                      )}
-                    </div>
-                    <div className="flex flex-col gap-2">{thirdPlaceMatches.map(renderThirdPlaceMatch)}</div>
-                  </div>
-                )}
-
-                <div className="mt-4">{renderChampionCard()}</div>
+            <div key={stage} className="flex flex-col h-full w-[220px]">
+              <div className="text-center mb-8">
+                <h3 className="text-xs font-bold text-primary uppercase tracking-widest">{STAGE_LABELS[stage]}</h3>
+                <div className="h-1 w-8 bg-primary/20 mx-auto mt-2 rounded-full" />
               </div>
 
-              {/* Right bracket half (reversed stage order) */}
-              {[...rightColumns].reverse().map(({ stage, stageIdx, pairs }) => (
-                <div key={`right-${stage}`} className="flex items-center self-stretch">
-                  <BracketConnector pairCount={pairs.length} side="right" />
-                  {renderStageColumn(stage, stageIdx, pairs, `right-${stage}`, { showActions: true, side: "right" })}
-                </div>
-              ))}
+              <div className="flex-1 flex flex-col justify-around gap-6 py-4">
+                {pairs.length > 0
+                  ? pairs.map((p, pIdx) => {
+                      const homeTeam = getTeam(p.leg1.homeTeamId);
+                      const awayTeam = getTeam(p.leg1.awayTeamId);
+
+                      return (
+                        // 🔧 4. Ref no contêiner do confronto
+                        <div
+                          key={p.leg1.id}
+                          ref={(el) => {
+                            stageRefs.current[sIdx][pIdx] = el;
+                          }}
+                          className="w-full bg-secondary/40 border border-border rounded-lg shadow-sm hover:border-primary/40 transition-all"
+                        >
+                          <div onClick={() => setSelectedMatch(p.leg1)} className="cursor-pointer">
+                            <TeamRow
+                              team={homeTeam}
+                              score={p.leg1.played ? p.leg1.homeScore : undefined}
+                              borderBottom
+                              onEdit={() => setEditingTeam({ match: p.leg1, side: "home" })}
+                            />
+                            <TeamRow
+                              team={awayTeam}
+                              score={p.leg1.played ? p.leg1.awayScore : undefined}
+                              onEdit={() => setEditingTeam({ match: p.leg1, side: "away" })}
+                            />
+                          </div>
+
+                          {p.leg2 && (
+                            <div className="border-t border-border/20 bg-black/10">
+                              <div className="text-[8px] px-2 py-0.5 text-muted-foreground uppercase">Volta</div>
+                              <div onClick={() => setSelectedMatch(p.leg2)} className="cursor-pointer">
+                                <TeamRow
+                                  team={awayTeam}
+                                  score={p.leg2.played ? p.leg2.homeScore : undefined}
+                                  borderBottom
+                                />
+                                <TeamRow team={homeTeam} score={p.leg2.played ? p.leg2.awayScore : undefined} />
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })
+                  : Array.from({ length: expectedSlots }).map((_, i) => (
+                      <div
+                        key={`empty-${sIdx}-${i}`}
+                        ref={(el) => {
+                          stageRefs.current[sIdx][i] = el;
+                        }}
+                        className="w-full h-16 border border-dashed border-border/40 rounded-lg bg-muted/5 flex items-center justify-center text-xs text-muted-foreground/30"
+                      >
+                        A definir
+                      </div>
+                    ))}
+              </div>
             </div>
           );
-        })()}
+        })}
+
+        {/* Coluna do Campeão */}
+        <div className="flex flex-col justify-center items-center w-[200px]">
+          <div
+            className="text-center space-y-4"
+            ref={(el) => {
+              stageRefs.current[stages.length][0] = el;
+            }}
+          >
+            <div className="relative">
+              <Trophy className="w-12 h-12 text-yellow-500 mx-auto drop-shadow-[0_0_15px_rgba(234,179,8,0.4)]" />
+            </div>
+            <div className="p-4 bg-gradient-to-b from-yellow-500/10 to-transparent border border-yellow-500/20 rounded-xl">
+              <p className="text-[10px] font-bold text-yellow-500 uppercase">Campeão</p>
+              <p className="text-sm font-bold text-foreground">A definir</p>
+            </div>
+          </div>
+        </div>
       </div>
 
+      {/* Modais */}
       {selectedMatch && (
         <MatchPopup
           match={selectedMatch}
-          homeTeam={getTeam(selectedMatch.homeTeamId)}
-          awayTeam={getTeam(selectedMatch.awayTeamId)}
-          rateInfluence={tournament.settings.rateInfluence}
-          tournament={tournament}
-          allTeams={teams}
-          onSave={(updated) => {
-            onUpdateMatch(updated);
-            setSelectedMatch(null);
-          }}
-          onCancel={() => setSelectedMatch(null)}
+          teams={teams}
+          onClose={() => setSelectedMatch(null)}
+          onUpdate={onUpdateMatch}
+          tournamentSettings={tournament.settings}
         />
       )}
 
       {editingTeam && (
         <BracketTeamEditor
           match={editingTeam.match}
-          allTeams={teams.filter((t) => tournament.teamIds.includes(t.id))}
           side={editingTeam.side}
-          onUpdate={(updated) => {
-            if (updated.pairId) {
-              const paired = matches.find((m) => m.pairId === updated.pairId && m.id !== updated.id);
-              if (paired && onBatchUpdateMatches) {
-                const pairedUpdated = {
-                  ...paired,
-                  homeTeamId: updated.awayTeamId,
-                  awayTeamId: updated.homeTeamId,
-                  homeScore: 0,
-                  awayScore: 0,
-                  played: false,
-                  homePenalties: undefined,
-                  awayPenalties: undefined,
-                  homeExtraTime: undefined,
-                  awayExtraTime: undefined,
-                };
-                const newMatches = matches.map((m) => {
-                  if (m.id === updated.id) return updated;
-                  if (m.id === pairedUpdated.id) return pairedUpdated;
-                  return m;
-                });
-                onBatchUpdateMatches(newMatches);
-                return;
-              }
-            }
-            onUpdateMatch(updated);
-          }}
+          teams={teams}
           onClose={() => setEditingTeam(null)}
+          onUpdate={onUpdateMatch}
         />
       )}
-    </div>
-  );
-}
-
-function TeamRow({
-  team,
-  score,
-  isWinner,
-  borderBottom,
-  onEditTeam,
-  hideEdit,
-}: {
-  team?: Team;
-  score?: number;
-  isWinner: boolean;
-  borderBottom?: boolean;
-  onEditTeam: () => void;
-  hideEdit?: boolean;
-}) {
-  return (
-    <div
-      className={cn(
-        "flex items-center justify-between px-3 py-2 transition-colors",
-        borderBottom && "border-b border-border/20",
-        isWinner && "bg-primary/5",
-      )}
-    >
-      <div className="flex items-center gap-2 min-w-0">
-        <div className="w-5 h-5 flex items-center justify-start shrink-0">
-          {team?.logo ? (
-            <img src={team.logo} alt="" className="w-5 h-5 object-contain" />
-          ) : (
-            <Shield className="w-3.5 h-3.5 text-muted-foreground/50" />
-          )}
-        </div>
-        <span className={cn("text-xs truncate", isWinner ? "font-bold text-foreground" : "text-muted-foreground")}>
-          {team?.abbreviation || team?.shortName || "A definir"}
-        </span>
-      </div>
-      <div className="flex items-center gap-1.5">
-        <span
-          className={cn(
-            "text-xs font-mono w-4 text-center",
-            score !== undefined
-              ? isWinner
-                ? "font-bold text-primary"
-                : "text-foreground"
-              : "text-muted-foreground/30",
-          )}
-        >
-          {score !== undefined ? score : "—"}
-        </span>
-        {!hideEdit && (
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              onEditTeam();
-            }}
-            className="p-1 rounded hover:bg-secondary text-muted-foreground/30 hover:text-primary transition-colors"
-          >
-            <UserPlus className="w-2.5 h-2.5" />
-          </button>
-        )}
-      </div>
     </div>
   );
 }
