@@ -29,13 +29,12 @@ const STAGE_LABELS: Record<string, string> = {
   "1/2": "Final",
 };
 
-function getStagesFromStart(start: KnockoutStage): string[] {
+function getStagesFromStart(start: string): string[] {
   const all = ["1/64", "1/32", "1/16", "1/8", "1/4", "1/2"];
   const idx = all.indexOf(start);
   return idx >= 0 ? all.slice(idx) : ["1/2"];
 }
 
-/** Returns aggregate score for a home-away pair */
 function getAggregate(leg1: Match, leg2: Match): { home: number; away: number } {
   const home = (leg1.homeScore || 0) + (leg1.homeExtraTime || 0) + (leg2.awayScore || 0) + (leg2.awayExtraTime || 0);
   const away = (leg1.awayScore || 0) + (leg1.awayExtraTime || 0) + (leg2.homeScore || 0) + (leg2.homeExtraTime || 0);
@@ -105,6 +104,9 @@ export default function BracketView({
 
   const startStage = tournament.mataMataInicio || "1/8";
   const stages = getStagesFromStart(startStage);
+  const mid = Math.ceil(stages.length / 2);
+  const leftStages = stages.slice(0, mid);
+  const rightStages = stages.slice(mid).reverse();
 
   const regularMatches = matches.filter((m) => !m.isThirdPlace);
   const thirdPlaceMatches = matches.filter((m) => m.isThirdPlace);
@@ -474,6 +476,8 @@ export default function BracketView({
       );
     };
 
+    const mid = Math.ceil(stages.length / 2);
+
     return (
       <div
         key={pair.leg1.id}
@@ -591,104 +595,71 @@ export default function BracketView({
     );
   };
 
-  const renderStageColumn = (
-    stage: string,
-    stageIdx: number,
-    pairsSubset: Array<{ leg1: Match; leg2: Match | null }>,
-    columnKey: string,
-    options: { showActions?: boolean; side?: "left" | "right" | "center" } = {},
-  ) => {
-    const { showActions = true, side = "center" } = options;
-    const isFinal = stageIdx === stages.length - 1;
-    const allStageMatches = matchesByStage[stage] || [];
-    const unplayed = allStageMatches.filter((m) => !m.played && m.homeTeamId && m.awayTeamId);
-    const allPairs = getPairs(allStageMatches);
-    const allStagePairsResolved = allPairs.length > 0 && allPairs.every((p) => getTieResult(p) !== null);
+  // ─── Componentes de ações por fase ───
+
+  const StageActions = ({ stage, stageIdx }: { stage: string; stageIdx: number }) => {
+    const stageMatches = matchesByStage[stage] || [];
+    const unplayed = stageMatches.filter((m) => !m.played && m.homeTeamId && m.awayTeamId);
+    const allPairs = getPairs(stageMatches);
+    const allResolved = allPairs.length > 0 && allPairs.every((p) => getTieResult(p) !== null);
     const nextStage = stages[stageIdx + 1];
     const nextHasMatches = nextStage && (matchesByStage[nextStage]?.length || 0) > 0;
 
     return (
-      <div key={columnKey} className="flex flex-col items-center relative" style={{ minWidth: 228 }}>
-        <div className="mb-2 flex items-center gap-1.5">
-          <span className="text-[11px] font-bold text-primary tracking-tight">{STAGE_LABELS[stage] || stage}</span>
-          {legMode === "home-away" && !isFinal && <span className="text-[9px] text-muted-foreground">(I/V)</span>}
-        </div>
-
-        {showActions && unplayed.length > 0 && (
+      <div className="mb-2 flex flex-wrap items-center justify-center gap-2">
+        {unplayed.length > 0 && (
           <button
             onClick={() => handleSimulateStage(stage)}
-            className="flex items-center gap-1 px-2 py-1 rounded-md bg-primary/10 text-primary hover:bg-primary/20 text-[10px] font-bold mb-2 transition-colors"
+            className="flex items-center gap-1 px-2 py-1 rounded-md bg-primary/10 text-primary hover:bg-primary/20 text-[10px] font-bold transition-colors"
           >
             <Play className="w-3 h-3" />
             Simular ({unplayed.length})
           </button>
         )}
-
-        {showActions && allStagePairsResolved && nextStage && !nextHasMatches && (
+        {allResolved && nextStage && !nextHasMatches && (
           <button
             onClick={() => handleAdvanceStage(stageIdx)}
-            className="flex items-center gap-1 px-2 py-1 rounded-md bg-secondary text-foreground hover:bg-secondary/80 text-[10px] mb-2 transition-colors border border-border"
+            className="flex items-center gap-1 px-2 py-1 rounded-md bg-secondary text-foreground hover:bg-secondary/80 text-[10px] transition-colors border border-border"
           >
             Avançar →
           </button>
         )}
-
-        <div className="flex flex-col justify-around flex-1 gap-4">
-          {(() => {
-            const expectedSlots = (() => {
-              if (pairsSubset.length > 0) return pairsSubset.length;
-              if (stageIdx === 0) return 0;
-              const prevStage = stages[stageIdx - 1];
-              const prevPairs = getPairs(matchesByStage[prevStage] || []);
-              if (side === "left") return Math.ceil(Math.ceil(prevPairs.length / 2) / 2);
-              if (side === "right") return Math.ceil(Math.floor(prevPairs.length / 2) / 2);
-              return Math.ceil(prevPairs.length / 2);
-            })();
-
-            const renderEmptySlot = (key: string) => (
-              <div
-                key={key}
-                className="w-[220px] rounded-lg bg-secondary/20 border border-dashed border-border overflow-hidden"
-              >
-                <div className="flex items-center justify-between px-3 py-2 border-b border-border/20">
-                  <div className="flex items-center gap-2 min-w-0">
-                    <Shield className="w-3.5 h-3.5 text-muted-foreground/30" />
-                    <span className="text-xs text-muted-foreground/40">A definir</span>
-                  </div>
-                  <span className="text-xs font-mono w-4 text-center text-muted-foreground/20">—</span>
-                </div>
-                <div className="flex items-center justify-between px-3 py-2">
-                  <div className="flex items-center gap-2 min-w-0">
-                    <Shield className="w-3.5 h-3.5 text-muted-foreground/30" />
-                    <span className="text-xs text-muted-foreground/40">A definir</span>
-                  </div>
-                  <span className="text-xs font-mono w-4 text-center text-muted-foreground/20">—</span>
-                </div>
-              </div>
-            );
-
-            const items =
-              pairsSubset.length > 0
-                ? pairsSubset.map((pair, i) => <div key={pair.leg1.id}>{renderPair(pair, i)}</div>)
-                : Array.from({ length: Math.max(expectedSlots, 1) }).map((_, i) =>
-                    renderEmptySlot(`empty-${columnKey}-${i}`),
-                  );
-            return items;
-          })()}
-        </div>
-
-        {showActions && onAddMatch && !tournament.finalized && (
+        {onAddMatch && !tournament.finalized && (
           <button
             onClick={() => handleAddMatch(stageIdx)}
-            className="w-[220px] mt-2 p-2 rounded-lg border border-dashed border-border/60 hover:border-primary/40 bg-secondary/10 hover:bg-secondary/30 transition-colors flex items-center justify-start gap-1.5"
+            className="flex items-center gap-1 px-2 py-1 rounded-md border border-dashed border-border/60 hover:border-primary/40 bg-secondary/10 hover:bg-secondary/30 transition-colors text-[10px] text-muted-foreground"
           >
-            <Plus className="w-3 h-3 text-muted-foreground" />
-            <span className="text-[10px] text-muted-foreground">Adicionar Confronto</span>
+            <Plus className="w-3 h-3" />
+            Adicionar
           </button>
         )}
       </div>
     );
   };
+
+  const renderSide = (sideStages: string[], isRight = false) => (
+    <div className={cn("flex flex-row", isRight && "flex-row-reverse")}>
+      {sideStages.map((stage, idx) => {
+        const stagePairs = getPairs(matchesByStage[stage] || []);
+
+        return (
+          <div key={stage} className="flex flex-col w-[240px]">
+            <div className="flex flex-col items-center gap-1 pb-3 pt-1">
+              <span className="text-[11px] font-bold text-primary">{STAGE_LABELS[stage] || stage}</span>
+            </div>
+
+            <div className="flex flex-col flex-1 justify-around py-2 gap-2">
+              {stagePairs.map((pair, i) => (
+                <div key={pair.leg1.id} className="flex justify-center">
+                  {renderPair(pair, i)}
+                </div>
+              ))}
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
 
   const renderChampionCard = () => {
     const champion = finalPairs.length > 0 ? getTieResult(finalPairs[0]) : null;
@@ -702,21 +673,18 @@ export default function BracketView({
       : null;
     const runnerUpTeam = runnerUp ? getTeam(runnerUp) : null;
 
-    // Determine 3rd place: from match if exists, otherwise by best campaign (tiebreakers)
     let thirdTeam: Team | undefined = undefined;
     const thirdMatch = thirdPlaceMatches[0];
     const thirdWinnerId = thirdMatch ? getSingleMatchWinner(thirdMatch) : null;
     if (thirdWinnerId) {
       thirdTeam = getTeam(thirdWinnerId);
     } else if (!thirdPlaceMatch) {
-      // No 3rd place match setting: determine by best campaign among semi-final losers
       const semiStageIdx = stages.length - 2;
       if (semiStageIdx >= 0) {
         const semiStage = stages[semiStageIdx];
         const semiPairs = getPairs(matchesByStage[semiStage] || []);
         const losers = semiPairs.map(getSemiLoser).filter(Boolean) as string[];
         if (losers.length === 2) {
-          // Use all tournament matches to evaluate campaign
           const allPlayedMatches = matches.filter((m) => m.played);
           const tiebreakers = tournament.settings.tiebreakers || [
             "Pontos",
@@ -807,7 +775,6 @@ export default function BracketView({
           <span className="text-xs font-bold text-primary tracking-tight">Campeão</span>
         </div>
         <div className="rounded-xl border-2 border-primary/50 bg-gradient-to-b from-primary/15 via-primary/5 to-secondary/40 overflow-hidden shadow-xl shadow-primary/20">
-          {/* Champion row — highlighted */}
           <div className="flex items-center gap-3 px-4 py-3.5 bg-gradient-to-r from-primary/10 to-transparent">
             <div className="w-8 h-8 rounded-full bg-primary/20 flex items-center justify-center shrink-0">
               <Trophy className="w-4.5 h-4.5 text-primary" />
@@ -826,7 +793,6 @@ export default function BracketView({
               <span className="text-[10px] text-primary font-semibold">Campeão {tournament.year}</span>
             </div>
           </div>
-          {/* Runner-up row */}
           {runnerUpTeam && (
             <div className="flex items-center gap-2.5 px-4 py-2.5 border-t border-border/30 bg-secondary/20">
               <span className="text-[10px] font-bold text-muted-foreground w-5 text-center">2º</span>
@@ -842,7 +808,6 @@ export default function BracketView({
               </span>
             </div>
           )}
-          {/* Third place row */}
           {thirdTeam && (
             <div className="flex items-center gap-2.5 px-4 py-2.5 border-t border-border/30 bg-secondary/20">
               <span className="text-[10px] font-bold text-highlight w-5 text-center">3º</span>
@@ -863,64 +828,9 @@ export default function BracketView({
     );
   };
 
-  // ─── Connector component ───
-  const BracketConnector = ({ pairCount, side }: { pairCount: number; side: "left" | "right" }) => {
-    if (pairCount <= 0) return <div className="w-8" />;
-
-    // Each pair of matches feeds into one match in the next round
-    const groups = [];
-    for (let i = 0; i < pairCount; i += 2) {
-      groups.push(i + 1 < pairCount ? 2 : 1);
-    }
-
-    return (
-      <div className="flex flex-col justify-around w-10 relative" style={{ minHeight: pairCount * 80 }}>
-        {groups.map((count, gi) => (
-          <div key={gi} className="flex-1 flex items-center relative">
-            {count === 2 ? (
-              // Two matches merging into one: draw bracket shape
-              <svg className="w-full h-full" preserveAspectRatio="none" viewBox="0 0 40 100">
-                {side === "left" ? (
-                  <>
-                    {/* Top horizontal line */}
-                    <line x1="0" y1="25" x2="20" y2="25" stroke="hsl(var(--border))" strokeWidth="2" />
-                    {/* Bottom horizontal line */}
-                    <line x1="0" y1="75" x2="20" y2="75" stroke="hsl(var(--border))" strokeWidth="2" />
-                    {/* Vertical connecting line */}
-                    <line x1="20" y1="25" x2="20" y2="75" stroke="hsl(var(--border))" strokeWidth="2" />
-                    {/* Middle horizontal line going right */}
-                    <line x1="20" y1="50" x2="40" y2="50" stroke="hsl(var(--border))" strokeWidth="2" />
-                  </>
-                ) : (
-                  <>
-                    {/* Top horizontal line */}
-                    <line x1="40" y1="25" x2="20" y2="25" stroke="hsl(var(--border))" strokeWidth="2" />
-                    {/* Bottom horizontal line */}
-                    <line x1="40" y1="75" x2="20" y2="75" stroke="hsl(var(--border))" strokeWidth="2" />
-                    {/* Vertical connecting line */}
-                    <line x1="20" y1="25" x2="20" y2="75" stroke="hsl(var(--border))" strokeWidth="2" />
-                    {/* Middle horizontal line going left */}
-                    <line x1="20" y1="50" x2="0" y2="50" stroke="hsl(var(--border))" strokeWidth="2" />
-                  </>
-                )}
-              </svg>
-            ) : (
-              // Single match: just a straight horizontal line
-              <svg className="w-full h-full" preserveAspectRatio="none" viewBox="0 0 40 100">
-                <line x1="0" y1="50" x2="40" y2="50" stroke="hsl(var(--border))" strokeWidth="2" />
-              </svg>
-            )}
-          </div>
-        ))}
-      </div>
-    );
-  };
-
-  // ─── Main render ───
-
   return (
     <div className="space-y-4">
-      {/* Finalize banner - top */}
+      {/* Banner de finalização */}
       {(() => {
         const allMatchesPlayed = matches.length > 0 && matches.filter((m) => !m.isThirdPlace).every((m) => m.played);
         const canFinalize = allFinalResolved && allMatchesPlayed;
@@ -936,108 +846,34 @@ export default function BracketView({
           </div>
         );
       })()}
+
       <div className="flex justify-end mb-1">
         <ScreenshotButton targetRef={bracketRef as any} filename="chaveamento.png" discrete />
       </div>
+
       <div
         className="overflow-x-auto overflow-y-hidden pb-2 will-change-transform"
         ref={bracketRef}
         style={{ transform: "translateZ(0)" }}
       >
-        {(() => {
-          const preFinalStages = stages.slice(0, -1);
-          const finalStageKey = stages[stages.length - 1];
-          const finalStageIdx = stages.length - 1;
+        {/* ── BRACKET: flex row de fases ── */}
+        <div className="flex flex-row items-start justify-center gap-6">
+          {/* LADO ESQUERDO */}
+          {renderSide(leftStages)}
 
-          const firstStagePairs = preFinalStages.length > 0 ? getPairs(matchesByStage[preFinalStages[0]] || []) : [];
-          const useBracketLayout = preFinalStages.length > 0 && firstStagePairs.length >= 2;
+          {/* FINAL */}
+          <div className="flex flex-col items-center justify-center">
+            <div className="mb-2 text-xs font-bold text-primary">Final</div>
 
-          if (!useBracketLayout) {
-            // Linear layout
-            return (
-              <div className="flex items-center justify-start gap-0">
-                {stages.map((stage, stageIdx) => {
-                  const pairs = getPairs(matchesByStage[stage] || []);
-                  return (
-                    <div key={stage} className="flex items-center">
-                      {renderStageColumn(stage, stageIdx, pairs, stage, { side: "left" })}
-                      {stageIdx < stages.length - 1 && (
-                        <BracketConnector pairCount={Math.max(pairs.length, 1)} side="left" />
-                      )}
-                    </div>
-                  );
-                })}
-                {renderChampionCard()}
-              </div>
-            );
-          }
+            {getPairs(matchesByStage[stages[stages.length - 1]] || []).map((pair, i) => renderPair(pair, i))}
+          </div>
 
-          // Two-sided bracket: left half → final ← right half
-          const leftColumns = preFinalStages.map((stage, i) => {
-            const allPairs = getPairs(matchesByStage[stage] || []);
-            return { stage, stageIdx: i, pairs: allPairs.slice(0, Math.ceil(allPairs.length / 2)) };
-          });
+          {/* LADO DIREITO */}
+          {renderSide(rightStages, true)}
+        </div>
 
-          const rightColumns = preFinalStages.map((stage, i) => {
-            const allPairs = getPairs(matchesByStage[stage] || []);
-            return { stage, stageIdx: i, pairs: allPairs.slice(Math.ceil(allPairs.length / 2)) };
-          });
-
-          return (
-            <div className="flex min-w-max items-center justify-start lg:justify-center mx-auto">
-              {/* Left bracket half */}
-              {leftColumns.map(({ stage, stageIdx, pairs }) => (
-                <div key={`left-${stage}`} className="flex items-center">
-                  {renderStageColumn(stage, stageIdx, pairs, `left-${stage}`, { showActions: true, side: "left" })}
-                  <BracketConnector pairCount={pairs.length} side="left" />
-                </div>
-              ))}
-
-              {/* Center: Final + Third Place + Champion */}
-              <div className="flex flex-col items-center justify-start" style={{ minWidth: 240 }}>
-                {renderStageColumn(
-                  finalStageKey,
-                  finalStageIdx,
-                  getPairs(matchesByStage[finalStageKey] || []),
-                  `final-${finalStageKey}`,
-                  { side: "center" },
-                )}
-
-                {thirdPlaceMatches.length > 0 && (
-                  <div className="pt-3 mt-3 border-t border-border/40 w-[220px]">
-                    {/* Container com justify-center para o texto ficar no meio */}
-                    <div className="flex items-center justify-center gap-1.5 mb-1.5 relative w-full">
-                      <Medal className="w-3.5 h-3.5 text-highlight" />
-                      <span className="text-[10px] font-bold text-primary">3º Lugar</span>
-
-                      {thirdPlaceMatches.some((m) => !m.played) && (
-                        <button
-                          onClick={handleSimulateThirdPlace}
-                          // O absolute right-0 tira o botão do fluxo, então ele não empurra o texto
-                          className="absolute right-0 flex items-center gap-1 px-1.5 py-0.5 rounded bg-primary/10 text-primary hover:bg-primary/20 text-[9px] font-bold transition-colors"
-                        >
-                          <Play className="w-2 h-2" />
-                          Simular
-                        </button>
-                      )}
-                    </div>
-                    <div className="flex flex-col gap-2">{thirdPlaceMatches.map(renderThirdPlaceMatch)}</div>
-                  </div>
-                )}
-
-                <div className="mt-4">{renderChampionCard()}</div>
-              </div>
-
-              {/* Right bracket half (reversed stage order) */}
-              {[...rightColumns].reverse().map(({ stage, stageIdx, pairs }) => (
-                <div key={`right-${stage}`} className="flex items-center">
-                  <BracketConnector pairCount={pairs.length} side="right" />
-                  {renderStageColumn(stage, stageIdx, pairs, `right-${stage}`, { showActions: true, side: "right" })}
-                </div>
-              ))}
-            </div>
-          );
-        })()}
+        {/* CAMPEÃO EMBAIXO */}
+        <div className="mt-6">{renderChampionCard()}</div>
       </div>
 
       {selectedMatch && (
