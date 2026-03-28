@@ -875,9 +875,9 @@ export default function BracketView({
     }
 
     return (
-      <div className="flex flex-col w-8 self-stretch">
+      <div className="flex flex-col w-8 self-stretch justify-around">
         {groups.map((count, gi) => (
-          <div key={gi} className="flex-1 flex flex-col min-h-0">
+          <div key={gi} className="flex-1 flex flex-col justify-around min-h-0">
             {count === 2 ? (
               <>
                 <div
@@ -892,7 +892,7 @@ export default function BracketView({
                 />
               </>
             ) : (
-              <div className="flex-1 flex items-center">
+              <div className="flex-1 flex items-center justify-center">
                 <div className={`w-full border-border/60 border-t-2`} />
               </div>
             )}
