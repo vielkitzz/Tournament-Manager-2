@@ -262,201 +262,111 @@ export default function BracketView({
   const handleSimulateStage = (stage: string) => {
     const stageMatches = matchesByStage[stage]?.filter((m) => !m.played && m.homeTeamId && m.awayTeamId) || [];
     if (stageMatches.length === 0) return;
-    const firstPass = stageMatches.map((match) => {
-      if (match.pairId && match.leg === 2) return match;
-      return simulateMatch(match, !!(match.pairId && match.leg === 1));
-    });
-    const updated = firstPass.map((match) => {
-      if (match.pairId && match.leg === 2 && !match.played) {
-        const leg1 =
-          firstPass.find((m) => m.pairId === match.pairId && m.leg === 1 && m.played) ||
-          matchesByStage[stage].find((m) => m.pairId === match.pairId && m.leg === 1 && m.played);
-        if (leg1) return simulateLeg2(match, leg1);
-        return simulateMatch(match, false);
+
+    const updatedMatches = [...matches];
+    const pairs = getPairs(stageMatches);
+
+    for (const pair of pairs) {
+      if (pair.leg2) {
+        const res1 = simulateMatch(pair.leg1, true);
+        const res2 = simulateLeg2(pair.leg2, res1);
+        const idx1 = updatedMatches.findIndex((m) => m.id === res1.id);
+        const idx2 = updatedMatches.findIndex((m) => m.id === res2.id);
+        updatedMatches[idx1] = res1;
+        updatedMatches[idx2] = res2;
+      } else {
+        const res = simulateMatch(pair.leg1);
+        const idx = updatedMatches.findIndex((m) => m.id === res.id);
+        updatedMatches[idx] = res;
       }
-      return match;
-    });
-    if (onBatchUpdateMatches) {
-      onBatchUpdateMatches(updated);
-    } else {
-      updated.forEach((m) => onUpdateMatch(m));
     }
+
+    if (onBatchUpdateMatches) onBatchUpdateMatches(updatedMatches);
+    toast.success(`${STAGE_LABELS[stage] || stage} simulado com sucesso!`);
   };
 
   const handleSimulateThirdPlace = () => {
     const unplayed = thirdPlaceMatches.filter((m) => !m.played && m.homeTeamId && m.awayTeamId);
     if (unplayed.length === 0) return;
-    const updated = unplayed.map((m) => simulateMatch(m));
+    const updated = [...matches];
+    for (const m of unplayed) {
+      const res = simulateMatch(m);
+      const idx = updated.findIndex((match) => match.id === m.id);
+      updated[idx] = res;
+    }
     if (onBatchUpdateMatches) onBatchUpdateMatches(updated);
-    else updated.forEach((m) => onUpdateMatch(m));
+    toast.success("Disputa de 3º lugar simulada!");
+  };
+
+  const handleAdvanceStage = (stageIdx: number) => {
+    const currentStage = stages[stageIdx];
+    const nextStage = stages[stageIdx + 1];
+    if (!nextStage) return;
+
+    const currentPairs = getPairs(matchesByStage[currentStage] || []);
+    const winners = currentPairs.map(getTieResult).filter(Boolean) as string[];
+
+    const nextMatches = matchesByStage[nextStage] || [];
+    const updatedMatches = [...matches];
+
+    for (let i = 0; i < winners.length; i += 2) {
+      const matchIdx = i / 2;
+      const pair = getPairs(nextMatches)[matchIdx];
+      if (pair) {
+        const m1 = { ...pair.leg1, homeTeamId: winners[i], awayTeamId: winners[i + 1] || "" };
+        const idx1 = updatedMatches.findIndex((m) => m.id === m1.id);
+        updatedMatches[idx1] = m1;
+
+        if (pair.leg2) {
+          const m2 = { ...pair.leg2, homeTeamId: winners[i + 1] || "", awayTeamId: winners[i] };
+          const idx2 = updatedMatches.findIndex((m) => m.id === m2.id);
+          updatedMatches[idx2] = m2;
+        }
+      }
+    }
+
+    // Handle third place match if needed
+    if (thirdPlaceMatch && nextStage === finalStage) {
+      const losers = currentPairs.map(getSemiLoser).filter(Boolean) as string[];
+      if (losers.length === 2 && thirdPlaceMatches.length > 0) {
+        const m = { ...thirdPlaceMatches[0], homeTeamId: losers[0], awayTeamId: losers[1] };
+        const idx = updatedMatches.findIndex((match) => match.id === m.id);
+        updatedMatches[idx] = m;
+      }
+    }
+
+    if (onBatchUpdateMatches) onBatchUpdateMatches(updatedMatches);
+    toast.success(`Avançado para ${STAGE_LABELS[nextStage] || nextStage}!`);
   };
 
   const handleAddMatch = (stageIdx: number) => {
     if (!onAddMatch) return;
-    const stageType = tournament.format === "grupos" ? "knockout" : undefined;
-    if (legMode === "home-away") {
-      const pairId = crypto.randomUUID();
-      const leg1: Match = {
-        id: crypto.randomUUID(),
-        tournamentId: tournament.id,
-        round: stageIdx + 1,
-        homeTeamId: "",
-        awayTeamId: "",
-        homeScore: 0,
-        awayScore: 0,
-        played: false,
-        leg: 1,
-        pairId,
-        stage: stageType as any,
-      };
-      const leg2: Match = {
-        id: crypto.randomUUID(),
-        tournamentId: tournament.id,
-        round: stageIdx + 1,
-        homeTeamId: "",
-        awayTeamId: "",
-        homeScore: 0,
-        awayScore: 0,
-        played: false,
-        leg: 2,
-        pairId,
-        stage: stageType as any,
-      };
-      if (onBatchUpdateMatches) {
-        onBatchUpdateMatches([...matches, leg1, leg2]);
-      } else {
-        onAddMatch(leg1);
-        onAddMatch(leg2);
-      }
-    } else {
-      onAddMatch({
-        id: crypto.randomUUID(),
-        tournamentId: tournament.id,
-        round: stageIdx + 1,
-        homeTeamId: "",
-        awayTeamId: "",
-        homeScore: 0,
-        awayScore: 0,
-        played: false,
-        stage: stageType as any,
-      });
-    }
-    toast.success("Confronto adicionado!");
+    const stage = stages[stageIdx];
+    const newMatch: Match = {
+      id: Math.random().toString(36).substr(2, 9),
+      round: stageIdx + 1,
+      homeTeamId: "",
+      awayTeamId: "",
+      played: false,
+    };
+    onAddMatch(newMatch);
   };
 
   const handleRemoveMatch = (match: Match) => {
     if (!onRemoveMatch) return;
     onRemoveMatch(match.id, match.pairId);
-    toast.success("Confronto removido!");
   };
 
-  const handleAdvanceStage = (stageIndex: number) => {
-    const stage = stages[stageIndex];
-    const nextStage = stages[stageIndex + 1];
-    if (!nextStage) return;
-
-    const stageMatchesList = matchesByStage[stage] || [];
-    const nextStageMatches = matchesByStage[nextStage] || [];
-
-    const pairs = getPairs(stageMatchesList);
-    const allResolved = pairs.every((p) => getTieResult(p) !== null);
-    if (!allResolved) return;
-
-    if (nextStageMatches.length > 0) return;
-
-    const winners = pairs.map(getTieResult).filter(Boolean) as string[];
-    const isFinalStage = stageIndex + 1 === stages.length - 1;
-    const useSingleLeg = legMode === "single" || (isFinalStage && finalSingleLeg);
-
-    const newMatches: Match[] = [];
-    const stageType = tournament.format === "grupos" ? "knockout" : undefined;
-
-    if (useSingleLeg) {
-      for (let i = 0; i < winners.length; i += 2) {
-        if (i + 1 < winners.length) {
-          newMatches.push({
-            id: crypto.randomUUID(),
-            tournamentId: tournament.id,
-            round: stageIndex + 2,
-            homeTeamId: winners[i],
-            awayTeamId: winners[i + 1],
-            homeScore: 0,
-            awayScore: 0,
-            played: false,
-            stage: stageType as any,
-          });
-        }
-      }
-    } else {
-      for (let i = 0; i < winners.length; i += 2) {
-        if (i + 1 < winners.length) {
-          const pairId = crypto.randomUUID();
-          newMatches.push({
-            id: crypto.randomUUID(),
-            tournamentId: tournament.id,
-            round: stageIndex + 2,
-            homeTeamId: winners[i],
-            awayTeamId: winners[i + 1],
-            homeScore: 0,
-            awayScore: 0,
-            played: false,
-            leg: 1,
-            pairId,
-            stage: stageType as any,
-          });
-          newMatches.push({
-            id: crypto.randomUUID(),
-            tournamentId: tournament.id,
-            round: stageIndex + 2,
-            homeTeamId: winners[i + 1],
-            awayTeamId: winners[i],
-            homeScore: 0,
-            awayScore: 0,
-            played: false,
-            leg: 2,
-            pairId,
-            stage: stageType as any,
-          });
-        }
-      }
-    }
-
-    const semiStageIdx = stages.length - 2;
-    if (thirdPlaceMatch && stageIndex === semiStageIdx && !matches.some((m) => m.isThirdPlace)) {
-      const losers = pairs.map(getSemiLoser).filter(Boolean) as string[];
-      if (losers.length === 2) {
-        newMatches.push({
-          id: crypto.randomUUID(),
-          tournamentId: tournament.id,
-          round: stageIndex + 2,
-          homeTeamId: losers[0],
-          awayTeamId: losers[1],
-          homeScore: 0,
-          awayScore: 0,
-          played: false,
-          isThirdPlace: true,
-          stage: stageType as any,
-        });
-      }
-    }
-
-    if (newMatches.length > 0 && onBatchUpdateMatches) {
-      onBatchUpdateMatches([...matches, ...newMatches]);
-    }
+  const getMatchTotalScore = (match: Match, side: "home" | "away") => {
+    const score = side === "home" ? match.homeScore : match.awayScore;
+    const et = side === "home" ? match.homeExtraTime : match.awayExtraTime;
+    return (score || 0) + (et || 0);
   };
 
-  // ─── Render helpers ───
-
-  const renderPair = (pair: { leg1: Match; leg2: Match | null }, pairIdx: number) => {
+  const renderPair = (pair: { leg1: Match; leg2: Match | null }, index: number) => {
+    const winner = getTieResult(pair);
     const homeTeam = getTeam(pair.leg1.homeTeamId);
     const awayTeam = getTeam(pair.leg1.awayTeamId);
-    const winner = getTieResult(pair);
-
-    const getMatchTotalScore = (match: Match, side: "home" | "away") => {
-      const base = side === "home" ? match.homeScore || 0 : match.awayScore || 0;
-      const et = side === "home" ? match.homeExtraTime || 0 : match.awayExtraTime || 0;
-      return base + et;
-    };
 
     const hasExtraTime = (match: Match) =>
       match.played && ((match.homeExtraTime || 0) > 0 || (match.awayExtraTime || 0) > 0);
@@ -635,7 +545,7 @@ export default function BracketView({
           </button>
         )}
 
-        <div className="flex flex-col justify-around flex-1 gap-4">
+        <div className="flex flex-col justify-around flex-1 gap-4 py-4">
           {(() => {
             const expectedSlots = (() => {
               if (pairsSubset.length > 0) return pairsSubset.length;
@@ -875,25 +785,33 @@ export default function BracketView({
     }
 
     return (
-      <div className="flex flex-col w-8 self-stretch justify-around">
+      <div className="flex flex-col w-8 self-stretch py-4">
         {groups.map((count, gi) => (
-          <div key={gi} className="flex-1 flex flex-col justify-around min-h-0">
+          <div key={gi} className="flex-1 flex flex-col min-h-0">
             {count === 2 ? (
               <>
-                <div
-                  className={`flex-1 border-border/60 ${
-                    side === "left" ? "border-r-2 border-b-2" : "border-l-2 border-b-2"
-                  }`}
-                />
-                <div
-                  className={`flex-1 border-border/60 ${
-                    side === "left" ? "border-r-2 border-t-2" : "border-l-2 border-t-2"
-                  }`}
-                />
+                <div className="flex-1 flex flex-col">
+                  <div className="flex-1" />
+                  <div
+                    className={cn(
+                      "h-1/2 border-border/60",
+                      side === "left" ? "border-r-2 border-b-2" : "border-l-2 border-b-2",
+                    )}
+                  />
+                </div>
+                <div className="flex-1 flex flex-col">
+                  <div
+                    className={cn(
+                      "h-1/2 border-border/60",
+                      side === "left" ? "border-r-2 border-t-2" : "border-l-2 border-t-2",
+                    )}
+                  />
+                  <div className="flex-1" />
+                </div>
               </>
             ) : (
-              <div className="flex-1 flex items-center justify-center">
-                <div className={`w-full border-border/60 border-t-2`} />
+              <div className="flex-1 flex items-center">
+                <div className="w-full border-border/60 border-t-2" />
               </div>
             )}
           </div>
@@ -973,14 +891,14 @@ export default function BracketView({
             <div className="flex min-w-max items-center justify-start lg:justify-center mx-auto">
               {/* Left bracket half */}
               {leftColumns.map(({ stage, stageIdx, pairs }) => (
-                <div key={`left-${stage}`} className="flex items-center">
+                <div key={`left-${stage}`} className="flex items-center self-stretch">
                   {renderStageColumn(stage, stageIdx, pairs, `left-${stage}`, { showActions: true, side: "left" })}
                   <BracketConnector pairCount={pairs.length} side="left" />
                 </div>
               ))}
 
-              {/* Center: Final + Third Place + Champion */}
-              <div className="flex flex-col items-center justify-start" style={{ minWidth: 240 }}>
+              {/* Center: Final + Third */}
+              <div className="flex flex-col items-center px-8 self-stretch justify-center">
                 {renderStageColumn(
                   finalStageKey,
                   finalStageIdx,
@@ -991,7 +909,6 @@ export default function BracketView({
 
                 {thirdPlaceMatches.length > 0 && (
                   <div className="pt-3 mt-3 border-t border-border/40 w-[220px]">
-                    {/* Container com justify-center para o texto ficar no meio */}
                     <div className="flex items-center justify-center gap-1.5 mb-1.5 relative w-full">
                       <Medal className="w-3.5 h-3.5 text-highlight" />
                       <span className="text-[10px] font-bold text-primary">3º Lugar</span>
@@ -999,7 +916,6 @@ export default function BracketView({
                       {thirdPlaceMatches.some((m) => !m.played) && (
                         <button
                           onClick={handleSimulateThirdPlace}
-                          // O absolute right-0 tira o botão do fluxo, então ele não empurra o texto
                           className="absolute right-0 flex items-center gap-1 px-1.5 py-0.5 rounded bg-primary/10 text-primary hover:bg-primary/20 text-[9px] font-bold transition-colors"
                         >
                           <Play className="w-2 h-2" />
@@ -1016,7 +932,7 @@ export default function BracketView({
 
               {/* Right bracket half (reversed stage order) */}
               {[...rightColumns].reverse().map(({ stage, stageIdx, pairs }) => (
-                <div key={`right-${stage}`} className="flex items-center">
+                <div key={`right-${stage}`} className="flex items-center self-stretch">
                   <BracketConnector pairCount={pairs.length} side="right" />
                   {renderStageColumn(stage, stageIdx, pairs, `right-${stage}`, { showActions: true, side: "right" })}
                 </div>
