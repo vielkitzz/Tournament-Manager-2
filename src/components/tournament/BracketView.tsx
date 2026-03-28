@@ -1,4 +1,4 @@
-import { useState, useRef, useLayoutEffect, useCallback } from "react";
+import { useState, useRef, useLayoutEffect } from "react";
 import { Match, Team, Tournament, KnockoutStage } from "@/types/tournament";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
@@ -412,7 +412,7 @@ export default function BracketView({
   // Each card gets data-card-id="<pairLeg1Id>-<stageIdx>-<side>"
   // After render, we measure their positions and draw lines between adjacent stages
 
-  const measureAndDrawLines = useCallback(() => {
+  const measureAndDrawLines = () => {
     const container = bracketRef.current;
     if (!container) return;
     const containerRect = container.getBoundingClientRect();
@@ -612,12 +612,13 @@ export default function BracketView({
     const h = container.scrollHeight;
     setSvgSize({ w, h });
     setSvgLines(lines);
-  }, [matches, stages, matchesByStage]);
+  };
 
   useLayoutEffect(() => {
     if (matches.length === 0) return;
     measureAndDrawLines();
-  }, [measureAndDrawLines, matches.length]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [matches]);
 
   // ─── Render helpers ───
 
