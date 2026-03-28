@@ -769,7 +769,7 @@ export default function BracketView({
           thirdTeam = getTeam(bestLoser);
         }
       }
-    };
+    }
 
     return (
       <div className="flex flex-col items-stretch justify-start w-[220px] flex-shrink-0">
