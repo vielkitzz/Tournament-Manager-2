@@ -882,7 +882,7 @@ export default function BracketView({
           {renderChampionCard()}
         </div>
       </div>
-      </div>
+    </div>
 
       {selectedMatch && (
         <MatchPopup
