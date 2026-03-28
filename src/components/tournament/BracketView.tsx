@@ -277,7 +277,18 @@ export default function BracketView({
       </div>
 
       {/* Modais */}
-      {selectedMatch && <MatchPopup match={selectedMatch} />}
+      {selectedMatch && (
+        <MatchPopup
+          match={selectedMatch}
+          // Passe o valor real da sua configuração aqui. Coloquei um fallback para 0 caso não exista.
+          rateInfluence={tournament.settings?.rateInfluence || 0}
+          onSave={(updatedMatch) => {
+            if (onUpdateMatch) onUpdateMatch(updatedMatch); // Atualiza a chave
+            setSelectedMatch(null); // Fecha o modal
+          }}
+          onCancel={() => setSelectedMatch(null)} // Apenas fecha o modal
+        />
+      )}
 
       {editingTeam && (
         <BracketTeamEditor
