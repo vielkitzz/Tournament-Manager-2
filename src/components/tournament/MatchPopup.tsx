@@ -295,36 +295,6 @@ export default function MatchPopup({
     });
   };
 
-  const handleResetResult = () => {
-    // Reinicia o resultado mas mantém os times
-    onSave({
-      ...match,
-      homeScore: undefined,
-      awayScore: undefined,
-      homeExtraTime: undefined,
-      awayExtraTime: undefined,
-      homePenalties: undefined,
-      awayPenalties: undefined,
-      played: false,
-    });
-  };
-
-  const handleResetTeams = () => {
-    // Limpa os times e o resultado
-    onSave({
-      ...match,
-      homeTeamId: "",
-      awayTeamId: "",
-      homeScore: undefined,
-      awayScore: undefined,
-      homeExtraTime: undefined,
-      awayExtraTime: undefined,
-      homePenalties: undefined,
-      awayPenalties: undefined,
-      played: false,
-    });
-  };
-
   // Build a live version of matches that includes the current popup score
   const liveMatches = (() => {
     if (!tournament) return [];
@@ -615,34 +585,16 @@ export default function MatchPopup({
         )}
 
         {/* Footer Actions */}
-        <div className="space-y-3 border-t border-border px-6 py-4">
-          <div className="flex items-center justify-between gap-2">
-            <button onClick={onCancel} className="text-destructive font-display font-bold text-sm hover:text-destructive/80 transition-colors">
-              Cancelar
-            </button>
-            <button className="text-foreground font-display font-bold text-sm hover:text-foreground/80 transition-colors">
-              Eventos
-            </button>
-            <button onClick={handleFinish} className="text-primary font-display font-bold text-sm hover:text-primary/80 transition-colors">
-              Finalizar
-            </button>
-          </div>
-          <div className="flex items-center gap-2 pt-2 border-t border-border/50">
-            <button
-              onClick={handleResetResult}
-              className="flex-1 px-3 py-2 rounded-lg bg-warning/10 text-warning hover:bg-warning/20 font-display font-bold text-xs transition-colors"
-              title="Limpa o resultado mas mantém os times"
-            >
-              Reiniciar Resultado
-            </button>
-            <button
-              onClick={handleResetTeams}
-              className="flex-1 px-3 py-2 rounded-lg bg-destructive/10 text-destructive hover:bg-destructive/20 font-display font-bold text-xs transition-colors"
-              title="Limpa os times e o resultado"
-            >
-              Reiniciar Times
-            </button>
-          </div>
+        <div className="flex items-center justify-between border-t border-border px-6 py-4">
+          <button onClick={onCancel} className="text-destructive font-display font-bold text-sm hover:text-destructive/80 transition-colors">
+            Cancelar
+          </button>
+          <button className="text-foreground font-display font-bold text-sm hover:text-foreground/80 transition-colors">
+            Eventos
+          </button>
+          <button onClick={handleFinish} className="text-primary font-display font-bold text-sm hover:text-primary/80 transition-colors">
+            Finalizar
+          </button>
         </div>
       </div>
     </div>
