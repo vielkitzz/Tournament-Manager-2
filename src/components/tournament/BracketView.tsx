@@ -925,7 +925,7 @@ export default function BracketView({
 
           // Mirrored bracket layout
           return (
-            <div className="flex flex-col items-center">
+            <div className="inline-flex flex-col">
               <div className="flex flex-row items-stretch min-h-0">
                 {/* ── LEFT BRACKET ── */}
                 {stagesBeforeFinal.map((stage, stageIdx) => {
@@ -938,7 +938,7 @@ export default function BracketView({
                   );
                 })}
 
-                {/* ── FINAL + 3º LUGAR (center) ── */}
+                {/* ── FINAL + 3º LUGAR + CAMPEÃO (center) ── */}
                 <div className="flex flex-col items-center justify-center self-center">
                   {renderStageColumn(finalStageKey, stages.length - 1, finalStagePairs)}
                   {thirdPlaceMatches.length > 0 && (
@@ -958,6 +958,9 @@ export default function BracketView({
                       <div className="flex flex-col gap-2">{thirdPlaceMatches.map(renderThirdPlaceMatch)}</div>
                     </div>
                   )}
+                  <div className="mt-4">
+                    {renderChampionCard()}
+                  </div>
                 </div>
 
                 {/* ── RIGHT BRACKET (reversed) ── */}
@@ -971,11 +974,6 @@ export default function BracketView({
                     </div>
                   );
                 })}
-              </div>
-
-              {/* ── CAMPEÃO abaixo ── */}
-              <div className="flex flex-col items-center mt-6">
-                {renderChampionCard()}
               </div>
             </div>
           );
