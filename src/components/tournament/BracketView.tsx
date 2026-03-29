@@ -926,7 +926,7 @@ export default function BracketView({
           // Mirrored bracket layout
           return (
             <div className="flex flex-col items-center">
-              <div className="flex flex-row items-stretch">
+              <div className="flex flex-row items-stretch min-h-0">
                 {/* ── LEFT BRACKET ── */}
                 {stagesBeforeFinal.map((stage, stageIdx) => {
                   const leftPairs = getHalfPairs(stage, "left");
@@ -939,7 +939,7 @@ export default function BracketView({
                 })}
 
                 {/* ── FINAL + 3º LUGAR (center) ── */}
-                <div className="flex flex-col items-center justify-center">
+                <div className="flex flex-col items-center justify-center self-center">
                   {renderStageColumn(finalStageKey, stages.length - 1, finalStagePairs)}
                   {thirdPlaceMatches.length > 0 && (
                     <div className="w-[220px] mt-4">
