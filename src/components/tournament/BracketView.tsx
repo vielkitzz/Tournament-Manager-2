@@ -827,139 +827,159 @@ export default function BracketView({
         ref={bracketRef}
         style={{ transform: "translateZ(0)" }}
       >
-        {/* ── BRACKET: flex row de fases ── */}
-        <div className="flex flex-row items-stretch">
-          {stages.map((stage, stageIdx) => {
-            const stagePairs = getPairs(matchesByStage[stage] || []);
-            const isFinal = stageIdx === stages.length - 1;
+        {(() => {
+          const stagesBeforeFinal = stages.slice(0, -1);
+          const finalStageKey = stages[stages.length - 1];
+          const finalStagePairs = getPairs(matchesByStage[finalStageKey] || []);
 
+          const getHalfPairs = (stage: string, half: "left" | "right") => {
+            const pairs = getPairs(matchesByStage[stage] || []);
+            const mid = Math.ceil(pairs.length / 2);
+            return half === "left" ? pairs.slice(0, mid) : pairs.slice(mid);
+          };
+
+          const renderConnectorSvg = (pairsCount: number, mirrored = false) => {
+            const groups = Math.floor(pairsCount / 2);
+            if (groups === 0) return <div className="w-[24px] flex-shrink-0" />;
             return (
-              <div key={stage} className="flex flex-row items-stretch">
-                {/* Coluna da fase */}
-                <div className="flex flex-col w-[240px]">
-                  {/* Header */}
-                  <div className="flex flex-col items-center gap-1 pb-3 pt-1 flex-shrink-0">
-                    <div className="flex items-center gap-1.5">
-                      <span className="text-[11px] font-bold text-primary tracking-tight">
-                        {STAGE_LABELS[stage] || stage}
-                      </span>
-                      {legMode === "home-away" && !isFinal && (
-                        <span className="text-[9px] text-muted-foreground">( Ida / Volta )</span>
-                      )}
-                    </div>
-                    <StageActions stage={stage} stageIdx={stageIdx} />
-                  </div>
-
-                  {/* Confrontos distribuídos verticalmente com justify-around */}
-                  <div className="flex flex-col flex-1 justify-around py-2 gap-2">
-                    {stagePairs.map((pair, i) => (
-                      <div key={pair.leg1.id} className="flex items-center justify-center">
-                        {renderPair(pair, i)}
-                      </div>
-                    ))}
-                  </div>
-                </div>
-
-                {/* Coluna conector — só entre fases, não após a última */}
-                {stageIdx < stages.length - 1 && (
-                  <div className="relative w-[48px] flex-shrink-0" style={{ alignSelf: "stretch" }}>
-                    {/* O SVG cobre toda a altura da coluna, mas deslocamos para baixo do header */}
-                    <svg
-                      style={{
-                        position: "absolute",
-                        top: 0,
-                        left: 0,
-                        width: "100%",
-                        height: "100%",
-                        overflow: "visible",
-                      }}
-                      preserveAspectRatio="none"
-                    >
-                      {Array.from({ length: Math.floor(stagePairs.length / 2) }).map((_, i) => {
-                        const total = stagePairs.length;
-                        // centro vertical de cada confronto em % da altura total da coluna
-                        const topCenter = ((i * 2 + 0.5) / total) * 100;
-                        const botCenter = ((i * 2 + 1.5) / total) * 100;
-                        const mid = (topCenter + botCenter) / 2;
-                        return (
-                          <g key={i}>
-                            {/* saindo do centro do confronto superior */}
-                            <line
-                              x1="0%"
-                              y1={`${topCenter}%`}
-                              x2="50%"
-                              y2={`${topCenter}%`}
-                              stroke="hsl(var(--border))"
-                              strokeWidth="1.5"
-                            />
-                            {/* saindo do centro do confronto inferior */}
-                            <line
-                              x1="0%"
-                              y1={`${botCenter}%`}
-                              x2="50%"
-                              y2={`${botCenter}%`}
-                              stroke="hsl(var(--border))"
-                              strokeWidth="1.5"
-                            />
-                            {/* vertical unindo os dois */}
-                            <line
-                              x1="50%"
-                              y1={`${topCenter}%`}
-                              x2="50%"
-                              y2={`${botCenter}%`}
-                              stroke="hsl(var(--border))"
-                              strokeWidth="1.5"
-                            />
-                            {/* horizontal saindo para o próximo confronto */}
-                            <line
-                              x1="50%"
-                              y1={`${mid}%`}
-                              x2="100%"
-                              y2={`${mid}%`}
-                              stroke="hsl(var(--border))"
-                              strokeWidth="1.5"
-                            />
-                          </g>
-                        );
-                      })}
-                    </svg>
-                  </div>
-                )}
+              <div className="relative w-[48px] flex-shrink-0" style={{ alignSelf: "stretch" }}>
+                <svg
+                  style={{ position: "absolute", top: 0, left: 0, width: "100%", height: "100%", overflow: "visible" }}
+                  preserveAspectRatio="none"
+                >
+                  {Array.from({ length: groups }).map((_, i) => {
+                    const topCenter = ((i * 2 + 0.5) / pairsCount) * 100;
+                    const botCenter = ((i * 2 + 1.5) / pairsCount) * 100;
+                    const midY = (topCenter + botCenter) / 2;
+                    const x0 = mirrored ? "100%" : "0%";
+                    const x1 = "50%";
+                    const x2 = mirrored ? "0%" : "100%";
+                    return (
+                      <g key={i}>
+                        <line x1={x0} y1={`${topCenter}%`} x2={x1} y2={`${topCenter}%`} stroke="hsl(var(--border))" strokeWidth="1.5" />
+                        <line x1={x0} y1={`${botCenter}%`} x2={x1} y2={`${botCenter}%`} stroke="hsl(var(--border))" strokeWidth="1.5" />
+                        <line x1={x1} y1={`${topCenter}%`} x2={x1} y2={`${botCenter}%`} stroke="hsl(var(--border))" strokeWidth="1.5" />
+                        <line x1={x1} y1={`${midY}%`} x2={x2} y2={`${midY}%`} stroke="hsl(var(--border))" strokeWidth="1.5" />
+                      </g>
+                    );
+                  })}
+                </svg>
               </div>
             );
-          })}
+          };
 
-          {/* ── Coluna extra: 3º lugar + Campeão ── */}
-          <div className="flex flex-col w-[260px] flex-shrink-0">
-            {/* Header vazio para alinhar verticalmente com as outras fases */}
-            <div className="flex-shrink-0 pb-3 pt-1" style={{ visibility: "hidden" }}>
-              <span className="text-[11px]">&nbsp;</span>
-            </div>
-            {/* Conteúdo centralizado verticalmente */}
-            <div className="flex flex-col flex-1 justify-center items-center gap-6 py-2">
-              {thirdPlaceMatches.length > 0 && (
-                <div className="w-[220px]">
-                  <div className="flex items-center justify-center gap-1.5 mb-1.5">
-                    <Medal className="w-3.5 h-3.5 text-highlight" />
-                    <span className="text-[10px] font-bold text-primary">3º Lugar</span>
-                    {thirdPlaceMatches.some((m) => !m.played) && (
-                      <button
-                        onClick={handleSimulateThirdPlace}
-                        className="flex items-center gap-1 px-1.5 py-0.5 rounded bg-primary/10 text-primary hover:bg-primary/20 text-[9px] font-bold transition-colors"
-                      >
-                        <Play className="w-2 h-2" />
-                        Simular
-                      </button>
-                    )}
-                  </div>
-                  <div className="flex flex-col gap-2">{thirdPlaceMatches.map(renderThirdPlaceMatch)}</div>
+          const renderStageColumn = (
+            stage: string,
+            stageIdx: number,
+            pairs: ReturnType<typeof getPairs>,
+            showActions = true
+          ) => (
+            <div className="flex flex-col w-[240px]">
+              <div className="flex flex-col items-center gap-1 pb-3 pt-1 flex-shrink-0">
+                <div className="flex items-center gap-1.5">
+                  <span className="text-[11px] font-bold text-primary tracking-tight">
+                    {STAGE_LABELS[stage] || stage}
+                  </span>
+                  {legMode === "home-away" && stage !== finalStageKey && (
+                    <span className="text-[9px] text-muted-foreground">( Ida / Volta )</span>
+                  )}
                 </div>
-              )}
-              {renderChampionCard()}
+                {showActions && <StageActions stage={stage} stageIdx={stageIdx} />}
+              </div>
+              <div className="flex flex-col flex-1 justify-around py-2 gap-2">
+                {pairs.map((pair, i) => (
+                  <div key={pair.leg1.id} className="flex items-center justify-center">
+                    {renderPair(pair, i)}
+                  </div>
+                ))}
+              </div>
             </div>
-          </div>
-        </div>
-        {/* ── fim do bracket ── */}
+          );
+
+          // Only final — simple centered layout
+          if (stagesBeforeFinal.length === 0) {
+            return (
+              <div className="flex flex-col items-center justify-center py-8 gap-6 mx-auto">
+                {renderStageColumn(finalStageKey, stages.length - 1, finalStagePairs)}
+                {thirdPlaceMatches.length > 0 && (
+                  <div className="w-[220px]">
+                    <div className="flex items-center justify-center gap-1.5 mb-1.5">
+                      <Medal className="w-3.5 h-3.5 text-highlight" />
+                      <span className="text-[10px] font-bold text-primary">3º Lugar</span>
+                      {thirdPlaceMatches.some((m) => !m.played) && (
+                        <button
+                          onClick={handleSimulateThirdPlace}
+                          className="flex items-center gap-1 px-1.5 py-0.5 rounded bg-primary/10 text-primary hover:bg-primary/20 text-[9px] font-bold transition-colors"
+                        >
+                          <Play className="w-2 h-2" /> Simular
+                        </button>
+                      )}
+                    </div>
+                    <div className="flex flex-col gap-2">{thirdPlaceMatches.map(renderThirdPlaceMatch)}</div>
+                  </div>
+                )}
+                {renderChampionCard()}
+              </div>
+            );
+          }
+
+          // Mirrored bracket layout
+          return (
+            <div className="flex flex-col items-center">
+              <div className="flex flex-row items-stretch">
+                {/* ── LEFT BRACKET ── */}
+                {stagesBeforeFinal.map((stage, stageIdx) => {
+                  const leftPairs = getHalfPairs(stage, "left");
+                  return (
+                    <div key={`left-${stage}`} className="flex flex-row items-stretch">
+                      {renderStageColumn(stage, stageIdx, leftPairs)}
+                      {renderConnectorSvg(leftPairs.length)}
+                    </div>
+                  );
+                })}
+
+                {/* ── FINAL + 3º LUGAR (center) ── */}
+                <div className="flex flex-col items-center">
+                  {renderStageColumn(finalStageKey, stages.length - 1, finalStagePairs)}
+                  {thirdPlaceMatches.length > 0 && (
+                    <div className="w-[220px] mt-4">
+                      <div className="flex items-center justify-center gap-1.5 mb-1.5">
+                        <Medal className="w-3.5 h-3.5 text-highlight" />
+                        <span className="text-[10px] font-bold text-primary">3º Lugar</span>
+                        {thirdPlaceMatches.some((m) => !m.played) && (
+                          <button
+                            onClick={handleSimulateThirdPlace}
+                            className="flex items-center gap-1 px-1.5 py-0.5 rounded bg-primary/10 text-primary hover:bg-primary/20 text-[9px] font-bold transition-colors"
+                          >
+                            <Play className="w-2 h-2" /> Simular
+                          </button>
+                        )}
+                      </div>
+                      <div className="flex flex-col gap-2">{thirdPlaceMatches.map(renderThirdPlaceMatch)}</div>
+                    </div>
+                  )}
+                </div>
+
+                {/* ── RIGHT BRACKET (reversed) ── */}
+                {[...stagesBeforeFinal].reverse().map((stage) => {
+                  const rightPairs = getHalfPairs(stage, "right");
+                  const originalIdx = stagesBeforeFinal.indexOf(stage);
+                  return (
+                    <div key={`right-${stage}`} className="flex flex-row items-stretch">
+                      {renderConnectorSvg(rightPairs.length, true)}
+                      {renderStageColumn(stage, originalIdx, rightPairs, false)}
+                    </div>
+                  );
+                })}
+              </div>
+
+              {/* ── CAMPEÃO abaixo ── */}
+              <div className="flex flex-col items-center mt-6">
+                {renderChampionCard()}
+              </div>
+            </div>
+          );
+        })()}
       </div>
 
       {selectedMatch && (
