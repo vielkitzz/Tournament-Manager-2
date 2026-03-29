@@ -2,12 +2,19 @@ import { useState, useRef } from "react";
 import { Match, Team, Tournament, KnockoutStage, STAGE_TEAM_COUNTS } from "@/types/tournament";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
-import { Shield, Play, Trophy, Medal, UserPlus, Shuffle, Plus, Trash2 } from "lucide-react";
+import { Shield, Play, Trophy, Medal, UserPlus, Shuffle, Plus, Trash2, RotateCcw, UserMinus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { simulateFullMatch, simulateHalf } from "@/lib/simulation";
 import MatchPopup from "./MatchPopup";
 import BracketTeamEditor from "./BracketTeamEditor";
 import ScreenshotButton from "@/components/ScreenshotButton";
+import {
+  ContextMenu,
+  ContextMenuContent,
+  ContextMenuItem,
+  ContextMenuTrigger,
+  ContextMenuSeparator,
+} from "@/components/ui/context-menu";
 
 interface BracketViewProps {
   tournament: Tournament;
@@ -258,6 +265,36 @@ export default function BracketView({
     };
   };
 
+  const handleResetMatchResult = (match: Match) => {
+    onUpdateMatch({
+      ...match,
+      homeScore: undefined,
+      awayScore: undefined,
+      homeExtraTime: undefined,
+      awayExtraTime: undefined,
+      homePenalties: undefined,
+      awayPenalties: undefined,
+      played: false,
+    });
+    toast.success("Resultado reiniciado");
+  };
+
+  const handleResetMatchTeams = (match: Match) => {
+    onUpdateMatch({
+      ...match,
+      homeTeamId: "",
+      awayTeamId: "",
+      homeScore: undefined,
+      awayScore: undefined,
+      homeExtraTime: undefined,
+      awayExtraTime: undefined,
+      homePenalties: undefined,
+      awayPenalties: undefined,
+      played: false,
+    });
+    toast.success("Times e resultado reiniciados");
+  };
+
   const handleSimulateStage = (stage: string) => {
     const stageMatches = matchesByStage[stage]?.filter((m) => !m.played && m.homeTeamId && m.awayTeamId) || [];
     if (stageMatches.length === 0) return;
@@ -490,57 +527,96 @@ export default function BracketView({
             <Trash2 className="w-3 h-3" />
           </button>
         )}
-        <button
-          className="w-full text-left hover:bg-secondary/30 transition-all duration-150"
-          onClick={() => setSelectedMatch(pair.leg1)}
-        >
-          {pair.leg2 && (
-            <div className="flex items-center gap-1 px-2 py-1 border-b border-border/20">
-              <span className="text-[8px] text-muted-foreground">Ida</span>
-            </div>
-          )}
-          <TeamRow
-            team={homeTeam}
-            score={pair.leg1.played ? getMatchTotalScore(pair.leg1, "home") : undefined}
-            isWinner={winner === pair.leg1.homeTeamId}
-            borderBottom
-            hideEdit={!!tournament.finalized}
-            onEditTeam={() => setEditingTeam({ match: pair.leg1, side: "home" })}
-          />
-          <TeamRow
-            team={awayTeam}
-            score={pair.leg1.played ? getMatchTotalScore(pair.leg1, "away") : undefined}
-            isWinner={winner === pair.leg1.awayTeamId}
-            hideEdit={!!tournament.finalized}
-            onEditTeam={() => setEditingTeam({ match: pair.leg1, side: "away" })}
-          />
-          {!pair.leg2 && renderMatchFooter(pair.leg1)}
-        </button>
+        <ContextMenu>
+          <ContextMenuTrigger>
+            <button
+              className="w-full text-left hover:bg-secondary/30 transition-all duration-150"
+              onClick={() => setSelectedMatch(pair.leg1)}
+            >
+              {pair.leg2 && (
+                <div className="flex items-center gap-1 px-2 py-1 border-b border-border/20">
+                  <span className="text-[8px] text-muted-foreground">Ida</span>
+                </div>
+              )}
+              <TeamRow
+                team={homeTeam}
+                score={pair.leg1.played ? getMatchTotalScore(pair.leg1, "home") : undefined}
+                isWinner={winner === pair.leg1.homeTeamId}
+                borderBottom
+                hideEdit={!!tournament.finalized}
+                onEditTeam={() => setEditingTeam({ match: pair.leg1, side: "home" })}
+              />
+              <TeamRow
+                team={awayTeam}
+                score={pair.leg1.played ? getMatchTotalScore(pair.leg1, "away") : undefined}
+                isWinner={winner === pair.leg1.awayTeamId}
+                hideEdit={!!tournament.finalized}
+                onEditTeam={() => setEditingTeam({ match: pair.leg1, side: "away" })}
+              />
+              {!pair.leg2 && renderMatchFooter(pair.leg1)}
+            </button>
+          </ContextMenuTrigger>
+          <ContextMenuContent className="w-48">
+            <ContextMenuItem onClick={() => setSelectedMatch(pair.leg1)} className="gap-2">
+              <Play className="w-3.5 h-3.5" />
+              Editar Resultado
+            </ContextMenuItem>
+            <ContextMenuSeparator />
+            <ContextMenuItem onClick={() => handleResetMatchResult(pair.leg1)} className="gap-2 text-warning focus:text-warning">
+              <RotateCcw className="w-3.5 h-3.5" />
+              Reiniciar Resultado
+            </ContextMenuItem>
+            <ContextMenuItem onClick={() => handleResetMatchTeams(pair.leg1)} className="gap-2 text-destructive focus:text-destructive">
+              <UserMinus className="w-3.5 h-3.5" />
+              Reiniciar Times
+            </ContextMenuItem>
+          </ContextMenuContent>
+        </ContextMenu>
+
         {pair.leg2 && (
-          <button
-            className="w-full text-left hover:bg-secondary/30 transition-all duration-150"
-            onClick={() => setSelectedMatch(pair.leg2)}
-          >
-            <div className="flex items-center gap-1 px-2 py-1 border-b border-border/20">
-              <span className="text-[8px] text-muted-foreground">Volta</span>
-            </div>
-            <TeamRow
-              team={awayTeam}
-              score={pair.leg2.played ? getMatchTotalScore(pair.leg2, "home") : undefined}
-              isWinner={winner === pair.leg1.awayTeamId}
-              borderBottom
-              hideEdit={!!tournament.finalized}
-              onEditTeam={() => setEditingTeam({ match: pair.leg2!, side: "home" })}
-            />
-            <TeamRow
-              team={homeTeam}
-              score={pair.leg2.played ? getMatchTotalScore(pair.leg2, "away") : undefined}
-              isWinner={winner === pair.leg1.homeTeamId}
-              hideEdit={!!tournament.finalized}
-              onEditTeam={() => setEditingTeam({ match: pair.leg2!, side: "away" })}
-            />
-            {renderMatchFooter(pair.leg2)}
-          </button>
+          <ContextMenu>
+            <ContextMenuTrigger>
+              <button
+                className="w-full text-left hover:bg-secondary/30 transition-all duration-150 border-t border-border/20"
+                onClick={() => setSelectedMatch(pair.leg2!)}
+              >
+                <div className="flex items-center gap-1 px-2 py-1 border-b border-border/20">
+                  <span className="text-[8px] text-muted-foreground">Volta</span>
+                </div>
+                <TeamRow
+                  team={awayTeam}
+                  score={pair.leg2!.played ? getMatchTotalScore(pair.leg2!, "home") : undefined}
+                  isWinner={winner === pair.leg1.awayTeamId}
+                  borderBottom
+                  hideEdit={!!tournament.finalized}
+                  onEditTeam={() => setEditingTeam({ match: pair.leg2!, side: "home" })}
+                />
+                <TeamRow
+                  team={homeTeam}
+                  score={pair.leg2!.played ? getMatchTotalScore(pair.leg2!, "away") : undefined}
+                  isWinner={winner === pair.leg1.homeTeamId}
+                  hideEdit={!!tournament.finalized}
+                  onEditTeam={() => setEditingTeam({ match: pair.leg2!, side: "away" })}
+                />
+                {renderMatchFooter(pair.leg2!)}
+              </button>
+            </ContextMenuTrigger>
+            <ContextMenuContent className="w-48">
+              <ContextMenuItem onClick={() => setSelectedMatch(pair.leg2!)} className="gap-2">
+                <Play className="w-3.5 h-3.5" />
+                Editar Resultado
+              </ContextMenuItem>
+              <ContextMenuSeparator />
+              <ContextMenuItem onClick={() => handleResetMatchResult(pair.leg2!)} className="gap-2 text-warning focus:text-warning">
+                <RotateCcw className="w-3.5 h-3.5" />
+                Reiniciar Resultado
+              </ContextMenuItem>
+              <ContextMenuItem onClick={() => handleResetMatchTeams(pair.leg2!)} className="gap-2 text-destructive focus:text-destructive">
+                <UserMinus className="w-3.5 h-3.5" />
+                Reiniciar Times
+              </ContextMenuItem>
+            </ContextMenuContent>
+          </ContextMenu>
         )}
       </div>
     );
@@ -557,36 +633,54 @@ export default function BracketView({
     const hasPens = match.played && match.homePenalties !== undefined;
 
     return (
-      <button
-        key={match.id}
-        onClick={() => setSelectedMatch(match)}
-        className="w-[220px] rounded-lg bg-secondary/30 border border-warning/30 hover:border-warning/60 transition-all text-left overflow-hidden"
-      >
-        <TeamRow
-          team={home}
-          score={homeTotal}
-          isWinner={winner === match.homeTeamId}
-          borderBottom
-          hideEdit={!!tournament.finalized}
-          onEditTeam={() => setEditingTeam({ match, side: "home" })}
-        />
-        <TeamRow
-          team={away}
-          score={awayTotal}
-          isWinner={winner === match.awayTeamId}
-          hideEdit={!!tournament.finalized}
-          onEditTeam={() => setEditingTeam({ match, side: "away" })}
-        />
-        {(hasET || hasPens) && (
-          <div className="text-center py-0.5 bg-secondary/50 border-t border-border/10">
-            <span className="text-[9px] text-muted-foreground">
-              {[hasET && "AET", hasPens && `Pên: ${match.homePenalties}×${match.awayPenalties}`]
-                .filter(Boolean)
-                .join(" • ")}
-            </span>
-          </div>
-        )}
-      </button>
+      <ContextMenu key={match.id}>
+        <ContextMenuTrigger>
+          <button
+            onClick={() => setSelectedMatch(match)}
+            className="w-[220px] rounded-lg bg-secondary/30 border border-warning/30 hover:border-warning/60 transition-all text-left overflow-hidden block"
+          >
+            <TeamRow
+              team={home}
+              score={homeTotal}
+              isWinner={winner === match.homeTeamId}
+              borderBottom
+              hideEdit={!!tournament.finalized}
+              onEditTeam={() => setEditingTeam({ match, side: "home" })}
+            />
+            <TeamRow
+              team={away}
+              score={awayTotal}
+              isWinner={winner === match.awayTeamId}
+              hideEdit={!!tournament.finalized}
+              onEditTeam={() => setEditingTeam({ match, side: "away" })}
+            />
+            {(hasET || hasPens) && (
+              <div className="text-center py-0.5 bg-secondary/50 border-t border-border/10">
+                <span className="text-[9px] text-muted-foreground">
+                  {[hasET && "AET", hasPens && `Pên: ${match.homePenalties}×${match.awayPenalties}`]
+                    .filter(Boolean)
+                    .join(" • ")}
+                </span>
+              </div>
+            )}
+          </button>
+        </ContextMenuTrigger>
+        <ContextMenuContent className="w-48">
+          <ContextMenuItem onClick={() => setSelectedMatch(match)} className="gap-2">
+            <Play className="w-3.5 h-3.5" />
+            Editar Resultado
+          </ContextMenuItem>
+          <ContextMenuSeparator />
+          <ContextMenuItem onClick={() => handleResetMatchResult(match)} className="gap-2 text-warning focus:text-warning">
+            <RotateCcw className="w-3.5 h-3.5" />
+            Reiniciar Resultado
+          </ContextMenuItem>
+          <ContextMenuItem onClick={() => handleResetMatchTeams(match)} className="gap-2 text-destructive focus:text-destructive">
+            <UserMinus className="w-3.5 h-3.5" />
+            Reiniciar Times
+          </ContextMenuItem>
+        </ContextMenuContent>
+      </ContextMenu>
     );
   };
 
