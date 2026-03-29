@@ -8,6 +8,7 @@ import { simulateFullMatch, simulateHalf } from "@/lib/simulation";
 import MatchPopup from "./MatchPopup";
 import BracketTeamEditor from "./BracketTeamEditor";
 import ScreenshotButton from "@/components/ScreenshotButton";
+import { useNavigate } from "react-router-dom";
 
 interface BracketViewProps {
   tournament: Tournament;
