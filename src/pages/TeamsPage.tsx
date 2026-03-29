@@ -72,7 +72,8 @@ const TeamCard = memo(function TeamCard({
         <div
           draggable
           onDragStart={handleDragStart}
-          className="p-3 rounded-xl card-gradient border border-border hover:border-primary/40 transition-all relative overflow-hidden group cursor-grab active:cursor-grabbing"
+          onClick={onEdit}
+          className="p-3 rounded-xl card-gradient border border-border hover:border-primary/40 transition-all relative overflow-hidden group cursor-pointer active:scale-[0.98]"
         >
           <div className="absolute left-0 top-0 bottom-0 w-1.5 rounded-l-xl overflow-hidden flex flex-col">
             {(team.colors.length > 0 ? team.colors : ["hsl(var(--primary))", "hsl(var(--secondary))"]).map((c, i) => (
@@ -122,7 +123,8 @@ const TeamCard = memo(function TeamCard({
                   <AlertDialogHeader>
                     <AlertDialogTitle>Excluir "{team.name}"?</AlertDialogTitle>
                     <AlertDialogDescription>
-                      Esta ação não pode ser desfeita. Se este time estiver em competições ativas, você será avisado após a exclusão.
+                      Esta ação não pode ser desfeita. Se este time estiver em competições ativas, você será avisado
+                      após a exclusão.
                     </AlertDialogDescription>
                   </AlertDialogHeader>
                   <AlertDialogFooter>
@@ -414,7 +416,7 @@ export default function TeamsPage() {
   const navigate = useNavigate();
   const [search, setSearch] = useState("");
   const [sortBy, setSortBy] = useState<"name" | "rate">("name");
-  const [openFolders, setOpenFolders] = useState<Set<string>>(() => new Set(folders.map(f => f.id)));
+  const [openFolders, setOpenFolders] = useState<Set<string>>(() => new Set(folders.map((f) => f.id)));
   const [editingFolderId, setEditingFolderId] = useState<string | null>(null);
   const [editingFolderName, setEditingFolderName] = useState("");
   const [dragOverFolder, setDragOverFolder] = useState<string | null>(null);
@@ -443,17 +445,17 @@ export default function TeamsPage() {
         if (t.folderId) {
           foldersWithMatches.add(t.folderId);
           // Also open parent folders
-          let parentId = folders.find(f => f.id === t.folderId)?.parentId;
+          let parentId = folders.find((f) => f.id === t.folderId)?.parentId;
           while (parentId) {
             foldersWithMatches.add(parentId);
-            parentId = folders.find(f => f.id === parentId)?.parentId;
+            parentId = folders.find((f) => f.id === parentId)?.parentId;
           }
         }
       });
       if (foldersWithMatches.size > 0) {
         setOpenFolders((prev) => {
           const next = new Set(prev);
-          foldersWithMatches.forEach(id => next.add(id));
+          foldersWithMatches.forEach((id) => next.add(id));
           return next;
         });
       }
@@ -497,18 +499,16 @@ export default function TeamsPage() {
   // Soft delete: archive teams that are in tournaments, hard delete otherwise
   const handleDelete = useCallback(
     (id: string, name: string) => {
-      const activeTournaments = (tournaments || []).filter(
-        (t) => t.teamIds && t.teamIds.includes(id)
-      );
+      const activeTournaments = (tournaments || []).filter((t) => t.teamIds && t.teamIds.includes(id));
       const hasHistory = (tournaments || []).some((t) =>
-        (t.seasons || []).some((s) => s.teamIds?.includes(id) || s.standings.some((st) => st.teamId === id))
+        (t.seasons || []).some((s) => s.teamIds?.includes(id) || s.standings.some((st) => st.teamId === id)),
       );
       if (activeTournaments.length > 0 || hasHistory) {
         // Soft delete: archive instead of removing
         archiveTeam(id);
         toast.warning(
           `"${name}" foi arquivado (mantido no histórico). Ainda está em ${activeTournaments.length} competição(es).`,
-          { duration: 6000 }
+          { duration: 6000 },
         );
       } else {
         removeTeam(id);
@@ -613,10 +613,13 @@ export default function TeamsPage() {
     e.dataTransfer.effectAllowed = "move";
   }, []);
 
-  const handleMoveToFolder = useCallback((teamId: string, folderId: string | null) => {
-    moveTeamToFolder(teamId, folderId);
-    toast.success(folderId ? "Time movido para a pasta!" : "Time removido da pasta!");
-  }, [moveTeamToFolder]);
+  const handleMoveToFolder = useCallback(
+    (teamId: string, folderId: string | null) => {
+      moveTeamToFolder(teamId, folderId);
+      toast.success(folderId ? "Time movido para a pasta!" : "Time removido da pasta!");
+    },
+    [moveTeamToFolder],
+  );
 
   const handleMoveFolder = useCallback((folderId: string, direction: "up" | "down") => {
     const { folders: currentFolders } = useTournamentStore.getState();
@@ -748,90 +751,90 @@ export default function TeamsPage() {
               ))}
             </div>
           ) : (
-          <>
-          {/* Folders */}
-          {rootFolders.map((folder, i) => (
-            <FolderNode
-              key={folder.id}
-              folder={folder}
-              foldersByParent={foldersByParent}
-              teamsByFolder={teamsByFolder}
-              openFolders={openFolders}
-              dragOverFolder={dragOverFolder}
-              editingFolderId={editingFolderId}
-              editingFolderName={editingFolderName}
-              onToggle={toggleFolder}
-              onEdit={(id, name) => {
-                setEditingFolderId(id);
-                setEditingFolderName(name);
-              }}
-              onRename={handleRenameFolder}
-              onCancelEdit={() => setEditingFolderId(null)}
-              onEditNameChange={setEditingFolderName}
-              onDeleteFolder={handleDeleteFolder}
-              onDragOver={handleDragOver as any}
-              onDragLeave={handleDragLeave}
-              onDrop={handleDrop as any}
-              onFolderDragStart={handleFolderDragStart as any}
-              navigate={navigate}
-              onDuplicate={handleDuplicate}
-              onDeleteTeam={handleDelete}
-              allFolders={folders}
-              onMoveToFolder={handleMoveToFolder}
-              onMoveFolder={handleMoveFolder}
-              siblingCount={rootFolders.length}
-              siblingIndex={i}
-            />
-          ))}
-          {/* Unfoldered teams */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
-            {unfolderedTeams.map((team, index) => (
-              <motion.div
-                key={team.id}
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: index * 0.03 }}
-              >
-                <TeamCard
-                  team={team}
-                  onEdit={() => navigate(`/teams/create?edit=${team.id}`)}
-                  onDuplicate={(e) => handleDuplicate(e, team)}
-                  onDelete={() => handleDelete(team.id, team.name)}
-                  folders={folders}
+            <>
+              {/* Folders */}
+              {rootFolders.map((folder, i) => (
+                <FolderNode
+                  key={folder.id}
+                  folder={folder}
+                  foldersByParent={foldersByParent}
+                  teamsByFolder={teamsByFolder}
+                  openFolders={openFolders}
+                  dragOverFolder={dragOverFolder}
+                  editingFolderId={editingFolderId}
+                  editingFolderName={editingFolderName}
+                  onToggle={toggleFolder}
+                  onEdit={(id, name) => {
+                    setEditingFolderId(id);
+                    setEditingFolderName(name);
+                  }}
+                  onRename={handleRenameFolder}
+                  onCancelEdit={() => setEditingFolderId(null)}
+                  onEditNameChange={setEditingFolderName}
+                  onDeleteFolder={handleDeleteFolder}
+                  onDragOver={handleDragOver as any}
+                  onDragLeave={handleDragLeave}
+                  onDrop={handleDrop as any}
+                  onFolderDragStart={handleFolderDragStart as any}
+                  navigate={navigate}
+                  onDuplicate={handleDuplicate}
+                  onDeleteTeam={handleDelete}
+                  allFolders={folders}
                   onMoveToFolder={handleMoveToFolder}
+                  onMoveFolder={handleMoveFolder}
+                  siblingCount={rootFolders.length}
+                  siblingIndex={i}
                 />
-              </motion.div>
-            ))}
+              ))}
+              {/* Unfoldered teams */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
+                {unfolderedTeams.map((team, index) => (
+                  <motion.div
+                    key={team.id}
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: index * 0.03 }}
+                  >
+                    <TeamCard
+                      team={team}
+                      onEdit={() => navigate(`/teams/create?edit=${team.id}`)}
+                      onDuplicate={(e) => handleDuplicate(e, team)}
+                      onDelete={() => handleDelete(team.id, team.name)}
+                      folders={folders}
+                      onMoveToFolder={handleMoveToFolder}
+                    />
+                  </motion.div>
+                ))}
 
-            <motion.button
-              initial={{ opacity: 0, scale: 0.95 }}
-              animate={{ opacity: 1, scale: 1 }}
-              onClick={() => navigate("/teams/create")}
-              className="h-[76px] rounded-xl border-2 border-dashed border-border hover:border-primary/50 flex items-center justify-center transition-all hover:bg-primary/5"
-            >
-              <Plus className="w-8 h-8 text-muted-foreground" />
-            </motion.button>
-          </div>
+                <motion.button
+                  initial={{ opacity: 0, scale: 0.95 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  onClick={() => navigate("/teams/create")}
+                  className="h-[76px] rounded-xl border-2 border-dashed border-border hover:border-primary/50 flex items-center justify-center transition-all hover:bg-primary/5"
+                >
+                  <Plus className="w-8 h-8 text-muted-foreground" />
+                </motion.button>
+              </div>
 
-          {teams.length === 0 && (
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              transition={{ delay: 0.3 }}
-              className="text-center py-16"
-            >
-              <Shield className="w-12 h-12 text-muted-foreground/30 mx-auto mb-3" />
-              <p className="text-muted-foreground text-sm">Nenhum time criado ainda</p>
-            </motion.div>
-          )}
+              {teams.length === 0 && (
+                <motion.div
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  transition={{ delay: 0.3 }}
+                  className="text-center py-16"
+                >
+                  <Shield className="w-12 h-12 text-muted-foreground/30 mx-auto mb-3" />
+                  <p className="text-muted-foreground text-sm">Nenhum time criado ainda</p>
+                </motion.div>
+              )}
 
-          {teams.length > 0 && filteredTeams.length === 0 && search && (
-            <div className="text-center py-12">
-              <Search className="w-10 h-10 text-muted-foreground/30 mx-auto mb-3" />
-              <p className="text-muted-foreground text-sm">Nenhum time encontrado para "{search}"</p>
-            </div>
-          )}
-          </>
+              {teams.length > 0 && filteredTeams.length === 0 && search && (
+                <div className="text-center py-12">
+                  <Search className="w-10 h-10 text-muted-foreground/30 mx-auto mb-3" />
+                  <p className="text-muted-foreground text-sm">Nenhum time encontrado para "{search}"</p>
+                </div>
+              )}
+            </>
           )}
         </div>
       )}
