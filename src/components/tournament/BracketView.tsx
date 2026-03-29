@@ -104,9 +104,6 @@ export default function BracketView({
 
   const startStage = tournament.mataMataInicio || "1/8";
   const stages = getStagesFromStart(startStage);
-  const mid = Math.ceil(stages.length / 2);
-  const leftStages = stages.slice(0, mid);
-  const rightStages = stages.slice(mid).reverse();
 
   const regularMatches = matches.filter((m) => !m.isThirdPlace);
   const thirdPlaceMatches = matches.filter((m) => m.isThirdPlace);
@@ -476,8 +473,6 @@ export default function BracketView({
       );
     };
 
-    const mid = Math.ceil(stages.length / 2);
-
     return (
       <div
         key={pair.leg1.id}
@@ -636,30 +631,6 @@ export default function BracketView({
       </div>
     );
   };
-
-  const renderSide = (sideStages: string[], isRight = false) => (
-    <div className={cn("flex flex-row", isRight && "flex-row-reverse")}>
-      {sideStages.map((stage, idx) => {
-        const stagePairs = getPairs(matchesByStage[stage] || []);
-
-        return (
-          <div key={stage} className="flex flex-col w-[240px]">
-            <div className="flex flex-col items-center gap-1 pb-3 pt-1">
-              <span className="text-[11px] font-bold text-primary">{STAGE_LABELS[stage] || stage}</span>
-            </div>
-
-            <div className="flex flex-col flex-1 justify-around py-2 gap-2">
-              {stagePairs.map((pair, i) => (
-                <div key={pair.leg1.id} className="flex justify-center">
-                  {renderPair(pair, i)}
-                </div>
-              ))}
-            </div>
-          </div>
-        );
-      })}
-    </div>
-  );
 
   const renderChampionCard = () => {
     const champion = finalPairs.length > 0 ? getTieResult(finalPairs[0]) : null;
@@ -857,23 +828,138 @@ export default function BracketView({
         style={{ transform: "translateZ(0)" }}
       >
         {/* ── BRACKET: flex row de fases ── */}
-        <div className="flex flex-row items-start justify-center gap-6">
-          {/* LADO ESQUERDO */}
-          {renderSide(leftStages)}
+        <div className="flex flex-row items-stretch">
+          {stages.map((stage, stageIdx) => {
+            const stagePairs = getPairs(matchesByStage[stage] || []);
+            const isFinal = stageIdx === stages.length - 1;
 
-          {/* FINAL */}
-          <div className="flex flex-col items-center justify-center">
-            <div className="mb-2 text-xs font-bold text-primary">Final</div>
+            return (
+              <div key={stage} className="flex flex-row items-stretch">
+                {/* Coluna da fase */}
+                <div className="flex flex-col w-[240px]">
+                  {/* Header */}
+                  <div className="flex flex-col items-center gap-1 pb-3 pt-1 flex-shrink-0">
+                    <div className="flex items-center gap-1.5">
+                      <span className="text-[11px] font-bold text-primary tracking-tight">
+                        {STAGE_LABELS[stage] || stage}
+                      </span>
+                      {legMode === "home-away" && !isFinal && (
+                        <span className="text-[9px] text-muted-foreground">( Ida / Volta )</span>
+                      )}
+                    </div>
+                    <StageActions stage={stage} stageIdx={stageIdx} />
+                  </div>
 
-            {getPairs(matchesByStage[stages[stages.length - 1]] || []).map((pair, i) => renderPair(pair, i))}
+                  {/* Confrontos distribuídos verticalmente com justify-around */}
+                  <div className="flex flex-col flex-1 justify-around py-2 gap-2">
+                    {stagePairs.map((pair, i) => (
+                      <div key={pair.leg1.id} className="flex items-center justify-center">
+                        {renderPair(pair, i)}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Coluna conector — só entre fases, não após a última */}
+                {stageIdx < stages.length - 1 && (
+                  <div className="relative w-[48px] flex-shrink-0" style={{ alignSelf: "stretch" }}>
+                    {/* O SVG cobre toda a altura da coluna, mas deslocamos para baixo do header */}
+                    <svg
+                      style={{
+                        position: "absolute",
+                        top: 0,
+                        left: 0,
+                        width: "100%",
+                        height: "100%",
+                        overflow: "visible",
+                      }}
+                      preserveAspectRatio="none"
+                    >
+                      {Array.from({ length: Math.floor(stagePairs.length / 2) }).map((_, i) => {
+                        const total = stagePairs.length;
+                        // centro vertical de cada confronto em % da altura total da coluna
+                        const topCenter = ((i * 2 + 0.5) / total) * 100;
+                        const botCenter = ((i * 2 + 1.5) / total) * 100;
+                        const mid = (topCenter + botCenter) / 2;
+                        return (
+                          <g key={i}>
+                            {/* saindo do centro do confronto superior */}
+                            <line
+                              x1="0%"
+                              y1={`${topCenter}%`}
+                              x2="50%"
+                              y2={`${topCenter}%`}
+                              stroke="hsl(var(--border))"
+                              strokeWidth="1.5"
+                            />
+                            {/* saindo do centro do confronto inferior */}
+                            <line
+                              x1="0%"
+                              y1={`${botCenter}%`}
+                              x2="50%"
+                              y2={`${botCenter}%`}
+                              stroke="hsl(var(--border))"
+                              strokeWidth="1.5"
+                            />
+                            {/* vertical unindo os dois */}
+                            <line
+                              x1="50%"
+                              y1={`${topCenter}%`}
+                              x2="50%"
+                              y2={`${botCenter}%`}
+                              stroke="hsl(var(--border))"
+                              strokeWidth="1.5"
+                            />
+                            {/* horizontal saindo para o próximo confronto */}
+                            <line
+                              x1="50%"
+                              y1={`${mid}%`}
+                              x2="100%"
+                              y2={`${mid}%`}
+                              stroke="hsl(var(--border))"
+                              strokeWidth="1.5"
+                            />
+                          </g>
+                        );
+                      })}
+                    </svg>
+                  </div>
+                )}
+              </div>
+            );
+          })}
+
+          {/* ── Coluna extra: 3º lugar + Campeão ── */}
+          <div className="flex flex-col w-[260px] flex-shrink-0">
+            {/* Header vazio para alinhar verticalmente com as outras fases */}
+            <div className="flex-shrink-0 pb-3 pt-1" style={{ visibility: "hidden" }}>
+              <span className="text-[11px]">&nbsp;</span>
+            </div>
+            {/* Conteúdo centralizado verticalmente */}
+            <div className="flex flex-col flex-1 justify-center items-center gap-6 py-2">
+              {thirdPlaceMatches.length > 0 && (
+                <div className="w-[220px]">
+                  <div className="flex items-center justify-center gap-1.5 mb-1.5">
+                    <Medal className="w-3.5 h-3.5 text-highlight" />
+                    <span className="text-[10px] font-bold text-primary">3º Lugar</span>
+                    {thirdPlaceMatches.some((m) => !m.played) && (
+                      <button
+                        onClick={handleSimulateThirdPlace}
+                        className="flex items-center gap-1 px-1.5 py-0.5 rounded bg-primary/10 text-primary hover:bg-primary/20 text-[9px] font-bold transition-colors"
+                      >
+                        <Play className="w-2 h-2" />
+                        Simular
+                      </button>
+                    )}
+                  </div>
+                  <div className="flex flex-col gap-2">{thirdPlaceMatches.map(renderThirdPlaceMatch)}</div>
+                </div>
+              )}
+              {renderChampionCard()}
+            </div>
           </div>
-
-          {/* LADO DIREITO */}
-          {renderSide(rightStages, true)}
         </div>
-
-        {/* CAMPEÃO EMBAIXO */}
-        <div className="mt-6">{renderChampionCard()}</div>
+        {/* ── fim do bracket ── */}
       </div>
 
       {selectedMatch && (
@@ -994,3 +1080,5 @@ function TeamRow({
     </div>
   );
 }
+
+Como eu faço para dividir em duas chaves e colocar o card do campeão abaixo da final?
