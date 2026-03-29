@@ -8,7 +8,6 @@ import { simulateFullMatch, simulateHalf } from "@/lib/simulation";
 import MatchPopup from "./MatchPopup";
 import BracketTeamEditor from "./BracketTeamEditor";
 import ScreenshotButton from "@/components/ScreenshotButton";
-import { useNavigate } from "react-router-dom";
 
 interface BracketViewProps {
   tournament: Tournament;
@@ -1082,19 +1081,10 @@ function TeamRow({
   onEditTeam: () => void;
   hideEdit?: boolean;
 }) {
-  const navigate = useNavigate();
   return (
     <div
-      onContextMenu={(e) => {
-        e.preventDefault(); // impede o menu padrão
-        e.stopPropagation(); // evita abrir o match
-
-        if (team?.id) {
-          navigate(`/teams/${team.id}/edit`);
-        }
-      }}
       className={cn(
-        "flex items-center justify-between px-3 py-2 transition-colors cursor-pointer",
+        "flex items-center justify-between px-3 py-2 transition-colors",
         borderBottom && "border-b border-border/20",
         isWinner && "bg-primary/5",
       )}
