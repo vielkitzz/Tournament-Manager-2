@@ -856,10 +856,38 @@ export default function BracketView({
                     const x2 = mirrored ? "0%" : "100%";
                     return (
                       <g key={i}>
-                        <line x1={x0} y1={`${topCenter}%`} x2={x1} y2={`${topCenter}%`} stroke="hsl(var(--border))" strokeWidth="1.5" />
-                        <line x1={x0} y1={`${botCenter}%`} x2={x1} y2={`${botCenter}%`} stroke="hsl(var(--border))" strokeWidth="1.5" />
-                        <line x1={x1} y1={`${topCenter}%`} x2={x1} y2={`${botCenter}%`} stroke="hsl(var(--border))" strokeWidth="1.5" />
-                        <line x1={x1} y1={`${midY}%`} x2={x2} y2={`${midY}%`} stroke="hsl(var(--border))" strokeWidth="1.5" />
+                        <line
+                          x1={x0}
+                          y1={`${topCenter}%`}
+                          x2={x1}
+                          y2={`${topCenter}%`}
+                          stroke="hsl(var(--border))"
+                          strokeWidth="1.5"
+                        />
+                        <line
+                          x1={x0}
+                          y1={`${botCenter}%`}
+                          x2={x1}
+                          y2={`${botCenter}%`}
+                          stroke="hsl(var(--border))"
+                          strokeWidth="1.5"
+                        />
+                        <line
+                          x1={x1}
+                          y1={`${topCenter}%`}
+                          x2={x1}
+                          y2={`${botCenter}%`}
+                          stroke="hsl(var(--border))"
+                          strokeWidth="1.5"
+                        />
+                        <line
+                          x1={x1}
+                          y1={`${midY}%`}
+                          x2={x2}
+                          y2={`${midY}%`}
+                          stroke="hsl(var(--border))"
+                          strokeWidth="1.5"
+                        />
                       </g>
                     );
                   })}
@@ -872,29 +900,34 @@ export default function BracketView({
             stage: string,
             stageIdx: number,
             pairs: ReturnType<typeof getPairs>,
-            showActions = true
-          ) => (
-            <div className="flex flex-col w-[240px]">
-              <div className="flex flex-col items-center gap-1 pb-3 pt-1 flex-shrink-0">
-                <div className="flex items-center gap-1.5">
-                  <span className="text-[11px] font-bold text-primary tracking-tight">
-                    {STAGE_LABELS[stage] || stage}
-                  </span>
-                  {legMode === "home-away" && stage !== finalStageKey && (
-                    <span className="text-[9px] text-muted-foreground">( Ida / Volta )</span>
-                  )}
-                </div>
-                {showActions && <StageActions stage={stage} stageIdx={stageIdx} />}
-              </div>
-              <div className="flex flex-col flex-1 justify-around py-2 gap-2">
-                {pairs.map((pair, i) => (
-                  <div key={pair.leg1.id} className="flex items-center justify-center">
-                    {renderPair(pair, i)}
+            showActions = true,
+          ) => {
+            // Verifica se a fase deve exibir "( Ida / Volta )"
+            // Exibe se o modo geral for home-away E (não for a final OU a final NÃO for jogo único)
+            const isTwoLeg = legMode === "home-away" && (stage !== finalStageKey || !finalSingleLeg);
+
+            return (
+              <div className="flex flex-col w-[240px]">
+                <div className="flex flex-col items-center gap-1 pb-3 pt-1 flex-shrink-0">
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-[11px] font-bold text-primary tracking-tight">
+                      {STAGE_LABELS[stage] || stage}
+                    </span>
+                    {/* Aplica a condição ajustada aqui */}
+                    {isTwoLeg && <span className="text-[9px] text-muted-foreground">( Ida / Volta )</span>}
                   </div>
-                ))}
+                  {showActions && <StageActions stage={stage} stageIdx={stageIdx} />}
+                </div>
+                <div className="flex flex-col flex-1 justify-around py-2 gap-2">
+                  {pairs.map((pair, i) => (
+                    <div key={pair.leg1.id} className="flex items-center justify-center">
+                      {renderPair(pair, i)}
+                    </div>
+                  ))}
+                </div>
               </div>
-            </div>
-          );
+            );
+          };
 
           // Only final — simple centered layout
           if (stagesBeforeFinal.length === 0) {
@@ -958,9 +991,7 @@ export default function BracketView({
                       <div className="flex flex-col gap-2">{thirdPlaceMatches.map(renderThirdPlaceMatch)}</div>
                     </div>
                   )}
-                  <div className="mt-4">
-                    {renderChampionCard()}
-                  </div>
+                  <div className="mt-4">{renderChampionCard()}</div>
                 </div>
 
                 {/* ── RIGHT BRACKET (reversed) ── */}
