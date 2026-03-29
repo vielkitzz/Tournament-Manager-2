@@ -1080,5 +1080,3 @@ function TeamRow({
     </div>
   );
 }
-
-Como eu faço para dividir em duas chaves e colocar o card do campeão abaixo da final?
