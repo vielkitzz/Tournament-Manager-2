@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from "react";
-import { motion } from "framer-motion";
-import { ArrowLeft, Upload, Loader2, Trash2, Plus, ArrowUp, ArrowDown } from "lucide-react";
+import { motion, Reorder } from "framer-motion";
+import { ArrowLeft, Upload, Loader2, Trash2, Plus, GripVertical } from "lucide-react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -276,37 +276,22 @@ export default function CreateTeamPage() {
             <Label className="text-sm font-medium text-foreground">
               Cores <span className="text-muted-foreground font-normal">({colors.length}/5)</span>
             </Label>
-            <div className="flex flex-wrap items-center gap-3">
+            <Reorder.Group
+              axis="x"
+              values={colors}
+              onReorder={setColors}
+              className="flex flex-wrap items-center gap-3"
+              as="div"
+            >
               {colors.map((color, i) => (
-                <div key={i} className="flex items-center gap-1.5">
-                  <div className="flex flex-col gap-0.5">
-                    {i > 0 && (
-                      <button
-                        type="button"
-                        onClick={() => {
-                          const next = [...colors];
-                          [next[i - 1], next[i]] = [next[i], next[i - 1]];
-                          setColors(next);
-                        }}
-                        className="p-0.5 text-muted-foreground hover:text-foreground transition-colors"
-                      >
-                        <ArrowUp className="w-3 h-3" />
-                      </button>
-                    )}
-                    {i < colors.length - 1 && (
-                      <button
-                        type="button"
-                        onClick={() => {
-                          const next = [...colors];
-                          [next[i], next[i + 1]] = [next[i + 1], next[i]];
-                          setColors(next);
-                        }}
-                        className="p-0.5 text-muted-foreground hover:text-foreground transition-colors"
-                      >
-                        <ArrowDown className="w-3 h-3" />
-                      </button>
-                    )}
-                  </div>
+                <Reorder.Item
+                  key={color + i}
+                  value={color}
+                  as="div"
+                  className="flex items-center gap-1.5 cursor-grab active:cursor-grabbing"
+                  whileDrag={{ scale: 1.05, zIndex: 10 }}
+                >
+                  <GripVertical className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
                   <input
                     type="color"
                     value={color}
@@ -336,7 +321,7 @@ export default function CreateTeamPage() {
                       <Trash2 className="w-3.5 h-3.5" />
                     </button>
                   )}
-                </div>
+                </Reorder.Item>
               ))}
               {colors.length < 5 && (
                 <button
@@ -347,7 +332,7 @@ export default function CreateTeamPage() {
                   <Plus className="w-4 h-4" />
                 </button>
               )}
-            </div>
+            </Reorder.Group>
           </div>
 
           {/* Rate */}
