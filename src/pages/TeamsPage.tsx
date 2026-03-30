@@ -692,8 +692,11 @@ export default function TeamsPage() {
           )}
           {folders.length > 0 && (
             <button
-              onClick={() => setOpenFolders(new Set())}
-              title="Fechar todas as pastas"
+              onClick={() => {
+                const allOpen = folders.every(f => openFolders.has(f.id));
+                setOpenFolders(allOpen ? new Set() : new Set(folders.map(f => f.id)));
+              }}
+              title={folders.every(f => openFolders.has(f.id)) ? "Fechar todas as pastas" : "Abrir todas as pastas"}
               className="p-2 rounded-lg border border-border hover:bg-secondary text-muted-foreground hover:text-foreground transition-colors shrink-0"
             >
               <ChevronsDownUp className="w-4 h-4" />

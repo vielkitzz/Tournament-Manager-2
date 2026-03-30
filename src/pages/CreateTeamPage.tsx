@@ -279,6 +279,34 @@ export default function CreateTeamPage() {
             <div className="flex flex-wrap items-center gap-3">
               {colors.map((color, i) => (
                 <div key={i} className="flex items-center gap-1.5">
+                  <div className="flex flex-col gap-0.5">
+                    {i > 0 && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const next = [...colors];
+                          [next[i - 1], next[i]] = [next[i], next[i - 1]];
+                          setColors(next);
+                        }}
+                        className="p-0.5 text-muted-foreground hover:text-foreground transition-colors"
+                      >
+                        <ArrowUp className="w-3 h-3" />
+                      </button>
+                    )}
+                    {i < colors.length - 1 && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const next = [...colors];
+                          [next[i], next[i + 1]] = [next[i + 1], next[i]];
+                          setColors(next);
+                        }}
+                        className="p-0.5 text-muted-foreground hover:text-foreground transition-colors"
+                      >
+                        <ArrowDown className="w-3 h-3" />
+                      </button>
+                    )}
+                  </div>
                   <input
                     type="color"
                     value={color}
