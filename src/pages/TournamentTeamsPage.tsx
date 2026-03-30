@@ -6,6 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 import { Team } from "@/types/tournament";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   ContextMenu,
   ContextMenuContent,
@@ -24,19 +25,16 @@ export default function TournamentTeamsPage() {
   const [search, setSearch] = useState("");
   const [openFolders, setOpenFolders] = useState<Set<string>>(() => new Set(folders.map(f => f.id)));
   const [dragOverZone, setDragOverZone] = useState<string | null>(null);
+  const [selectedTeams, setSelectedTeams] = useState<Set<string>>(new Set());
 
-  // Determine if we're editing a past season
   const isEditingPastSeason = seasonYear !== null && tournament && seasonYear !== tournament.year;
   const seasonData = isEditingPastSeason
     ? tournament?.seasons?.find((s) => s.year === seasonYear)
     : null;
 
-  // Get the correct teamIds for the current context
-  // For past seasons: use saved teamIds, or derive from standings/matches, never fall back to current tournament.teamIds
   const currentTeamIds = useMemo(() => {
     if (!isEditingPastSeason) return tournament?.teamIds || [];
     if (seasonData?.teamIds) return seasonData.teamIds;
-    // Derive from season standings or matches if teamIds wasn't saved
     if (seasonData) {
       const fromStandings = seasonData.standings?.map(s => s.teamId).filter(Boolean) || [];
       if (fromStandings.length > 0) return fromStandings;
@@ -45,7 +43,7 @@ export default function TournamentTeamsPage() {
         : [];
       return fromMatches;
     }
-    return []; // No season data found — don't fall back to current teamIds
+    return [];
   }, [isEditingPastSeason, seasonData, tournament?.teamIds]);
 
   const available = useMemo(() => {
@@ -57,7 +55,16 @@ export default function TournamentTeamsPage() {
     );
   }, [tournament, teams, search, currentTeamIds]);
 
-  // Auto-open folders with search matches
+  // Clear invalid selections when available teams change
+  useEffect(() => {
+    setSelectedTeams(prev => {
+      const validIds = new Set(available.map(t => t.id));
+      const next = new Set<string>();
+      prev.forEach(id => { if (validIds.has(id)) next.add(id); });
+      return next.size === prev.size ? prev : next;
+    });
+  }, [available]);
+
   useEffect(() => {
     if (search.trim()) {
       const toOpen = new Set<string>();
@@ -97,11 +104,9 @@ export default function TournamentTeamsPage() {
 
   const updateSeasonTeamIds = (newTeamIds: string[]) => {
     if (isEditingPastSeason) {
-      // Always update within seasons array for past seasons, never touch tournament.teamIds
       const updatedSeasons = (tournament.seasons || []).map((s) =>
         s.year === seasonYear ? { ...s, teamIds: newTeamIds } : s
       );
-      // If no season record exists for this year, create a minimal one
       if (!seasonData) {
         updatedSeasons.push({
           year: seasonYear!,
@@ -113,7 +118,6 @@ export default function TournamentTeamsPage() {
       }
       updateTournament(tournament.id, { seasons: updatedSeasons });
     } else {
-      // Update the current tournament's teamIds
       updateTournament(tournament.id, { teamIds: newTeamIds });
     }
   };
@@ -136,6 +140,44 @@ export default function TournamentTeamsPage() {
     toast.success(`"${teamName}" removido`);
   };
 
+  const toggleSelectTeam = (teamId: string) => {
+    setSelectedTeams(prev => {
+      const next = new Set(prev);
+      next.has(teamId) ? next.delete(teamId) : next.add(teamId);
+      return next;
+    });
+  };
+
+  const getTeamsInFolder = (folderId: string): Team[] => {
+    const direct = available.filter(t => t.folderId === folderId);
+    const childFolders = folders.filter(f => f.parentId === folderId);
+    const nested = childFolders.flatMap(f => getTeamsInFolder(f.id));
+    return [...direct, ...nested];
+  };
+
+  const toggleSelectFolder = (folderId: string) => {
+    const folderTeams = getTeamsInFolder(folderId);
+    const allSelected = folderTeams.every(t => selectedTeams.has(t.id));
+    setSelectedTeams(prev => {
+      const next = new Set(prev);
+      folderTeams.forEach(t => allSelected ? next.delete(t.id) : next.add(t.id));
+      return next;
+    });
+  };
+
+  const toggleSelectAll = () => {
+    const allSelected = available.length > 0 && available.every(t => selectedTeams.has(t.id));
+    setSelectedTeams(allSelected ? new Set() : new Set(available.map(t => t.id)));
+  };
+
+  const addSelectedTeams = () => {
+    if (selectedTeams.size === 0) return;
+    const newIds = [...currentTeamIds, ...selectedTeams];
+    updateSeasonTeamIds(newIds);
+    toast.success(`${selectedTeams.size} time(s) adicionado(s)`);
+    setSelectedTeams(new Set());
+  };
+
   const handleDragStart = (e: DragEvent, teamId: string) => {
     e.dataTransfer.setData("add-team-id", teamId);
     e.dataTransfer.effectAllowed = "copy";
@@ -152,6 +194,8 @@ export default function TournamentTeamsPage() {
   };
 
   const rootFolders = folders.filter((f) => !f.parentId);
+  const allSelected = available.length > 0 && available.every(t => selectedTeams.has(t.id));
+  const someSelected = available.some(t => selectedTeams.has(t.id));
 
   const renderAvailableTeam = (team: Team) => (
     <div
@@ -160,7 +204,12 @@ export default function TournamentTeamsPage() {
       onDragStart={(e) => handleDragStart(e, team.id)}
       className="flex items-center gap-2 px-2.5 py-1.5 rounded-lg bg-secondary/30 border border-dashed border-border hover:border-primary/40 text-sm transition-all hover:bg-primary/5 cursor-grab active:cursor-grabbing"
     >
-      <GripVertical className="w-3 h-3 text-muted-foreground/50" />
+      <Checkbox
+        checked={selectedTeams.has(team.id)}
+        onCheckedChange={() => toggleSelectTeam(team.id)}
+        onClick={(e) => e.stopPropagation()}
+        className="shrink-0"
+      />
       <div className="w-5 h-5 flex items-center justify-center shrink-0">
         {team.logo ? (
           <img src={team.logo} alt="" className="w-5 h-5 object-contain" />
@@ -186,18 +235,27 @@ export default function TournamentTeamsPage() {
       <>
         {childFolders.map((child) => {
           const isOpen = openFolders.has(child.id);
-          const childTeamCount = available.filter((t) => t.folderId === child.id).length;
+          const childAvailable = getTeamsInFolder(child.id);
+          const childAllSelected = childAvailable.length > 0 && childAvailable.every(t => selectedTeams.has(t.id));
+          const childSomeSelected = childAvailable.some(t => selectedTeams.has(t.id));
           return (
             <div key={child.id} className="ml-2">
-              <button
+              <div
+                className="flex items-center gap-1.5 py-1 text-xs text-muted-foreground hover:text-foreground w-full cursor-pointer"
                 onClick={() => toggleFolder(child.id)}
-                className="flex items-center gap-1.5 py-1 text-xs text-muted-foreground hover:text-foreground w-full"
               >
+                <Checkbox
+                  checked={childAllSelected}
+                  onCheckedChange={() => toggleSelectFolder(child.id)}
+                  onClick={(e) => e.stopPropagation()}
+                  className="shrink-0"
+                  data-indeterminate={childSomeSelected && !childAllSelected ? "true" : undefined}
+                />
                 <ChevronRight className={`w-3 h-3 transition-transform ${isOpen ? "rotate-90" : ""}`} />
                 <Folder className="w-3 h-3 text-primary" />
                 <span className="truncate">{child.name}</span>
-                <span className="text-[10px]">({childTeamCount})</span>
-              </button>
+                <span className="text-[10px]">({childAvailable.length})</span>
+              </div>
               {isOpen && (
                 <div className="ml-3 space-y-1 mt-1">
                   {renderFolderTeams(child.id)}
@@ -299,8 +357,33 @@ export default function TournamentTeamsPage() {
             </div>
           </div>
 
+          {/* Selection controls */}
+          {available.length > 0 && (
+            <div className="flex items-center gap-2">
+              <button
+                onClick={toggleSelectAll}
+                className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors"
+              >
+                <Checkbox
+                  checked={allSelected}
+                  onCheckedChange={toggleSelectAll}
+                  data-indeterminate={someSelected && !allSelected ? "true" : undefined}
+                />
+                <span>{allSelected ? "Desmarcar todos" : "Selecionar todos"}</span>
+              </button>
+              {selectedTeams.size > 0 && (
+                <button
+                  onClick={addSelectedTeams}
+                  className="ml-auto flex items-center gap-1 px-2.5 py-1 rounded-md bg-primary text-primary-foreground text-xs font-medium hover:bg-primary/90 transition-colors"
+                >
+                  <Plus className="w-3 h-3" />
+                  Adicionar {selectedTeams.size}
+                </button>
+              )}
+            </div>
+          )}
+
           <div className="space-y-2 max-h-[60vh] overflow-y-auto pr-1">
-            {/* When searching, show flat list */}
             {search.trim() ? (
               <>
                 {available.map(renderAvailableTeam)}
@@ -312,22 +395,30 @@ export default function TournamentTeamsPage() {
               </>
             ) : (
               <>
-                {/* Root folders */}
                 {rootFolders.map((folder) => {
                   const isOpen = openFolders.has(folder.id);
-                  const folderAvailable = available.filter((t) => t.folderId === folder.id);
+                  const folderAvailable = getTeamsInFolder(folder.id);
                   if (folderAvailable.length === 0 && folders.filter((f) => f.parentId === folder.id).length === 0) return null;
+                  const folderAllSelected = folderAvailable.length > 0 && folderAvailable.every(t => selectedTeams.has(t.id));
+                  const folderSomeSelected = folderAvailable.some(t => selectedTeams.has(t.id));
                   return (
                     <div key={folder.id} className="rounded-lg border border-border overflow-hidden">
-                      <button
+                      <div
+                        className="flex items-center gap-2 px-3 py-2 bg-secondary/20 w-full cursor-pointer hover:bg-secondary/40 transition-colors"
                         onClick={() => toggleFolder(folder.id)}
-                        className="flex items-center gap-2 px-3 py-2 bg-secondary/20 w-full text-left hover:bg-secondary/40 transition-colors"
                       >
+                        <Checkbox
+                          checked={folderAllSelected}
+                          onCheckedChange={() => toggleSelectFolder(folder.id)}
+                          onClick={(e) => e.stopPropagation()}
+                          className="shrink-0"
+                          data-indeterminate={folderSomeSelected && !folderAllSelected ? "true" : undefined}
+                        />
                         <ChevronRight className={`w-3 h-3 text-muted-foreground transition-transform ${isOpen ? "rotate-90" : ""}`} />
                         {isOpen ? <FolderOpen className="w-3.5 h-3.5 text-primary" /> : <Folder className="w-3.5 h-3.5 text-primary" />}
                         <span className="text-xs font-bold text-foreground flex-1 truncate">{folder.name}</span>
                         <span className="text-[10px] text-muted-foreground">{folderAvailable.length}</span>
-                      </button>
+                      </div>
                       {isOpen && (
                         <div className="p-2 space-y-1">
                           {renderFolderTeams(folder.id)}
@@ -337,7 +428,6 @@ export default function TournamentTeamsPage() {
                   );
                 })}
 
-                {/* Unfoldered teams */}
                 {available.filter((t) => !t.folderId).map(renderAvailableTeam)}
 
                 {available.length === 0 && (
