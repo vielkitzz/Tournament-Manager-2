@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from "react";
-import { motion } from "framer-motion";
-import { ArrowLeft, Upload, Loader2, Trash2, Plus, ArrowUp, ArrowDown } from "lucide-react";
+import { motion, Reorder } from "framer-motion";
+import { ArrowLeft, Upload, Loader2, Trash2, Plus, GripVertical } from "lucide-react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
