@@ -424,6 +424,7 @@ export default function MatchPopup({
         </div>
 
         {/* Half Tabs */}
+        {activeTab === "score" && (
         <div className="flex items-center justify-center gap-2 py-3 border-b border-border flex-wrap">
           {halfTabs.map((tab) => (
             <button
@@ -444,6 +445,7 @@ export default function MatchPopup({
             </span>
           )}
         </div>
+        )}
 
         {/* Score Controls (hidden during penalties) */}
         {!showPenalties && (
