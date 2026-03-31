@@ -489,7 +489,7 @@ export default function MatchPopup({
         )}
 
         {/* Penalties - One by One */}
-        {showPenalties && (
+        {activeTab === "score" && showPenalties && (
           <div className="px-6 py-6 space-y-4">
             <p className="text-sm font-display font-bold text-foreground text-center">Disputa de Pênaltis</p>
 
