@@ -61,7 +61,7 @@ export default function CreateTeamPage() {
       setShortName(existingTeam.shortName || "");
       setAbbreviation(existingTeam.abbreviation || "");
       setFoundingYear(existingTeam.foundingYear?.toString() || "");
-      setColors(existingTeam.colors?.length ? [...existingTeam.colors] : ["#333333", "#cccccc"]);
+      setColorItems((existingTeam.colors?.length ? [...existingTeam.colors] : ["#333333", "#cccccc"]).map(c => ({ id: crypto.randomUUID(), value: c })));
       setRate(existingTeam.rate?.toString() || "3.00");
       setLogoUrl(existingTeam.logo);
       setPreviewUrl(existingTeam.logo); // show existing logo (Storage URL)
