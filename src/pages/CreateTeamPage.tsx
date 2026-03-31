@@ -138,7 +138,7 @@ export default function CreateTeamPage() {
         shortName: shortName.trim() || name.trim().substring(0, 10),
         abbreviation: abbreviation.trim() || name.trim().substring(0, 3).toUpperCase(),
         foundingYear: foundingYear ? parseInt(foundingYear) : undefined,
-        colors: colors,
+        colors: colorItems.map(c => c.value),
         rate: Math.min(9.99, Math.max(0.01, parseFloat(rate) || 3)),
         logo: finalLogoUrl,
       };
