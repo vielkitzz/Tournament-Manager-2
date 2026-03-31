@@ -384,6 +384,16 @@ export default function MatchPopup({
               <div>
                 <p className="font-display font-bold text-foreground text-sm">{homeTeam?.name || "Time Excluído"}</p>
                 <p className="text-xs text-primary font-mono">{homeTeam?.rate?.toFixed(2) ?? "—"}</p>
+                {matchStats && (matchStats.yellowCards[0] > 0 || matchStats.redCards[0] > 0) && (
+                  <div className="flex items-center gap-1 mt-1">
+                    {Array.from({ length: matchStats.yellowCards[0] }).map((_, i) => (
+                      <div key={`hy${i}`} className="w-3 h-4 rounded-[1px] bg-yellow-400" />
+                    ))}
+                    {Array.from({ length: matchStats.redCards[0] }).map((_, i) => (
+                      <div key={`hr${i}`} className="w-3 h-4 rounded-[1px] bg-red-500" />
+                    ))}
+                  </div>
+                )}
               </div>
             </div>
             <span className="text-muted-foreground font-bold text-sm px-4 shrink-0">VS</span>
@@ -391,6 +401,16 @@ export default function MatchPopup({
               <div>
                 <p className="font-display font-bold text-foreground text-sm">{awayTeam?.name || "Time Excluído"}</p>
                 <p className="text-xs text-primary font-mono">{awayTeam?.rate?.toFixed(2) ?? "—"}</p>
+                {matchStats && (matchStats.yellowCards[1] > 0 || matchStats.redCards[1] > 0) && (
+                  <div className="flex items-center gap-1 mt-1 justify-end">
+                    {Array.from({ length: matchStats.yellowCards[1] }).map((_, i) => (
+                      <div key={`ay${i}`} className="w-3 h-4 rounded-[1px] bg-yellow-400" />
+                    ))}
+                    {Array.from({ length: matchStats.redCards[1] }).map((_, i) => (
+                      <div key={`ar${i}`} className="w-3 h-4 rounded-[1px] bg-red-500" />
+                    ))}
+                  </div>
+                )}
               </div>
               <div className="w-12 h-12 flex items-center justify-center shrink-0">
                 {awayTeam?.logo ? (
