@@ -276,66 +276,66 @@ export default function CreateTeamPage() {
 
           {/* Colors */}
           <div className="space-y-2">
-            <Label className="text-sm font-medium text-foreground">
-              Cores <span className="text-muted-foreground font-normal">({colors.length}/5)</span>
-            </Label>
-            <Reorder.Group
-              axis="x"
-              values={colors}
-              onReorder={setColors}
-              className="flex flex-wrap items-center gap-3"
-              as="div"
-            >
-              {colors.map((color, i) => (
-                <Reorder.Item
-                  key={color + i}
-                  value={color}
-                  as="div"
-                  className="flex items-center gap-1.5 cursor-grab active:cursor-grabbing"
-                  whileDrag={{ scale: 1.05, zIndex: 10 }}
-                >
-                  <GripVertical className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
-                  <input
-                    type="color"
-                    value={color}
-                    onChange={(e) => {
-                      const next = [...colors];
-                      next[i] = e.target.value;
-                      setColors(next);
-                    }}
-                    className="w-10 h-10 rounded-lg cursor-pointer border border-border bg-transparent"
-                  />
-                  <Input
-                    value={color}
-                    onChange={(e) => {
-                      const next = [...colors];
-                      next[i] = e.target.value;
-                      setColors(next);
-                    }}
-                    placeholder="#000000"
-                    className="bg-secondary border-border w-24 text-xs font-mono"
-                  />
-                  {colors.length > 1 && (
-                    <button
-                      type="button"
-                      onClick={() => setColors(colors.filter((_, j) => j !== i))}
-                      className="p-1 text-muted-foreground hover:text-destructive transition-colors"
-                    >
-                      <Trash2 className="w-3.5 h-3.5" />
-                    </button>
-                  )}
-                </Reorder.Item>
-              ))}
-              {colors.length < 5 && (
-                <button
-                  type="button"
-                  onClick={() => setColors([...colors, "#888888"])}
-                  className="w-10 h-10 rounded-lg border-2 border-dashed border-border flex items-center justify-center text-muted-foreground hover:border-primary hover:text-primary transition-colors"
-                >
-                  <Plus className="w-4 h-4" />
-                </button>
-              )}
-            </Reorder.Group>
+             <Label className="text-sm font-medium text-foreground">
+               Cores <span className="text-muted-foreground font-normal">({colorItems.length}/5)</span>
+             </Label>
+             <Reorder.Group
+               axis="x"
+               values={colorItems}
+               onReorder={setColorItems}
+               className="flex flex-wrap items-center gap-3"
+               as="div"
+             >
+               {colorItems.map((item, i) => (
+                 <Reorder.Item
+                   key={item.id}
+                   value={item}
+                   as="div"
+                   className="flex items-center gap-1.5 cursor-grab active:cursor-grabbing"
+                   whileDrag={{ scale: 1.05, zIndex: 10 }}
+                 >
+                   <GripVertical className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
+                   <input
+                     type="color"
+                     value={item.value}
+                     onChange={(e) => {
+                       const next = [...colorItems];
+                       next[i] = { ...next[i], value: e.target.value };
+                       setColorItems(next);
+                     }}
+                     className="w-10 h-10 rounded-lg cursor-pointer border border-border bg-transparent"
+                   />
+                   <Input
+                     value={item.value}
+                     onChange={(e) => {
+                       const next = [...colorItems];
+                       next[i] = { ...next[i], value: e.target.value };
+                       setColorItems(next);
+                     }}
+                     placeholder="#000000"
+                     className="bg-secondary border-border w-24 text-xs font-mono"
+                   />
+                   {colorItems.length > 1 && (
+                     <button
+                       type="button"
+                       onClick={() => setColorItems(colorItems.filter((_, j) => j !== i))}
+                       className="p-1 text-muted-foreground hover:text-destructive transition-colors"
+                     >
+                       <Trash2 className="w-3.5 h-3.5" />
+                     </button>
+                   )}
+                 </Reorder.Item>
+               ))}
+               {colorItems.length < 5 && (
+                 <button
+                   type="button"
+                   onClick={() => setColorItems([...colorItems, { id: crypto.randomUUID(), value: "#888888" }])}
+                   className="w-10 h-10 rounded-lg border-2 border-dashed border-border flex items-center justify-center text-muted-foreground hover:border-primary hover:text-primary transition-colors"
+                 >
+                   <Plus className="w-4 h-4" />
+                 </button>
+               )}
+             </Reorder.Group>
           </div>
 
           {/* Rate */}
