@@ -448,7 +448,7 @@ export default function MatchPopup({
         )}
 
         {/* Score Controls (hidden during penalties) */}
-        {!showPenalties && (
+        {activeTab === "score" && !showPenalties && (
           <>
             <div className="flex items-center justify-center gap-4 py-6 px-6">
               <div className="flex flex-col items-center gap-1">
