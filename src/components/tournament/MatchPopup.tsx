@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from "react";
 import { Match, Team, Tournament } from "@/types/tournament";
 import { Shield, ChevronUp, ChevronDown, Play } from "lucide-react";
 import { calculateStandings, StandingRow } from "@/lib/standings";
-import { simulateHalf } from "@/lib/simulation";
+import { simulateHalf, generateMatchStats, MatchStats } from "@/lib/simulation";
 
 interface MatchPopupProps {
   match: Match;
@@ -112,6 +112,8 @@ export default function MatchPopup({
     : false;
 
   const [simulatedHalves, setSimulatedHalves] = useState<Set<HalfKey>>(new Set());
+  const [matchStats, setMatchStats] = useState<MatchStats | null>(null);
+  const [activeTab, setActiveTab] = useState<"score" | "stats">("score");
 
   // Bug fix #10: Pre-load existing scores when opening a played match for editing
   useEffect(() => {
@@ -199,10 +201,22 @@ export default function MatchPopup({
     const [h, a] = simulateHalf(homeRate, awayRate);
     setHalfScore(activeHalf, 0, h);
     setHalfScore(activeHalf, 1, a);
-    setSimulatedHalves((prev) => new Set(prev).add(activeHalf));
+    const newSimulated = new Set(simulatedHalves).add(activeHalf);
+    setSimulatedHalves(newSimulated);
 
     if (activeHalf === "h1") setActiveHalf("h2");
     else if (activeHalf === "et1") setActiveHalf("et2");
+
+    // Generate stats when both regular halves are simulated
+    const willHaveH1 = newSimulated.has("h1") || activeHalf === "h1";
+    const willHaveH2 = newSimulated.has("h2") || activeHalf === "h2";
+    if (willHaveH1 && willHaveH2) {
+      // Calculate total goals including the just-simulated half
+      const updatedScores = { ...scores, [activeHalf]: [h, a] as [number, number] };
+      const tHome = updatedScores.h1[0] + updatedScores.h2[0] + (showExtraTime ? updatedScores.et1[0] + updatedScores.et2[0] : 0);
+      const tAway = updatedScores.h1[1] + updatedScores.h2[1] + (showExtraTime ? updatedScores.et1[1] + updatedScores.et2[1] : 0);
+      setMatchStats(generateMatchStats(homeRate, awayRate, tHome, tAway));
+    }
   };
 
   const allRequiredSimulated = showExtraTime
@@ -370,6 +384,16 @@ export default function MatchPopup({
               <div>
                 <p className="font-display font-bold text-foreground text-sm">{homeTeam?.name || "Time Excluído"}</p>
                 <p className="text-xs text-primary font-mono">{homeTeam?.rate?.toFixed(2) ?? "—"}</p>
+                {matchStats && (matchStats.yellowCards[0] > 0 || matchStats.redCards[0] > 0) && (
+                  <div className="flex items-center gap-1 mt-1">
+                    {Array.from({ length: matchStats.yellowCards[0] }).map((_, i) => (
+                      <div key={`hy${i}`} className="w-3 h-4 rounded-[1px] bg-yellow-400" />
+                    ))}
+                    {Array.from({ length: matchStats.redCards[0] }).map((_, i) => (
+                      <div key={`hr${i}`} className="w-3 h-4 rounded-[1px] bg-red-500" />
+                    ))}
+                  </div>
+                )}
               </div>
             </div>
             <span className="text-muted-foreground font-bold text-sm px-4 shrink-0">VS</span>
@@ -377,6 +401,16 @@ export default function MatchPopup({
               <div>
                 <p className="font-display font-bold text-foreground text-sm">{awayTeam?.name || "Time Excluído"}</p>
                 <p className="text-xs text-primary font-mono">{awayTeam?.rate?.toFixed(2) ?? "—"}</p>
+                {matchStats && (matchStats.yellowCards[1] > 0 || matchStats.redCards[1] > 0) && (
+                  <div className="flex items-center gap-1 mt-1 justify-end">
+                    {Array.from({ length: matchStats.yellowCards[1] }).map((_, i) => (
+                      <div key={`ay${i}`} className="w-3 h-4 rounded-[1px] bg-yellow-400" />
+                    ))}
+                    {Array.from({ length: matchStats.redCards[1] }).map((_, i) => (
+                      <div key={`ar${i}`} className="w-3 h-4 rounded-[1px] bg-red-500" />
+                    ))}
+                  </div>
+                )}
               </div>
               <div className="w-12 h-12 flex items-center justify-center shrink-0">
                 {awayTeam?.logo ? (
@@ -390,6 +424,7 @@ export default function MatchPopup({
         </div>
 
         {/* Half Tabs */}
+        {activeTab === "score" && (
         <div className="flex items-center justify-center gap-2 py-3 border-b border-border flex-wrap">
           {halfTabs.map((tab) => (
             <button
@@ -410,9 +445,10 @@ export default function MatchPopup({
             </span>
           )}
         </div>
+        )}
 
         {/* Score Controls (hidden during penalties) */}
-        {!showPenalties && (
+        {activeTab === "score" && !showPenalties && (
           <>
             <div className="flex items-center justify-center gap-4 py-6 px-6">
               <div className="flex flex-col items-center gap-1">
@@ -453,7 +489,7 @@ export default function MatchPopup({
         )}
 
         {/* Penalties - One by One */}
-        {showPenalties && (
+        {activeTab === "score" && showPenalties && (
           <div className="px-6 py-6 space-y-4">
             <p className="text-sm font-display font-bold text-foreground text-center">Disputa de Pênaltis</p>
 
@@ -523,7 +559,7 @@ export default function MatchPopup({
         )}
 
         {/* Standings Section */}
-        {bottomStandings.length > 0 && (
+        {activeTab === "score" && bottomStandings.length > 0 && (
           <div className="px-6 pb-4">
             <p className="text-xs font-display font-bold text-muted-foreground mb-2">{standingsTitle}</p>
             <div className="rounded-lg border border-border overflow-hidden max-h-48 overflow-y-auto">
@@ -584,14 +620,76 @@ export default function MatchPopup({
           </div>
         )}
 
+        {/* Stats Panel */}
+        {activeTab === "stats" && matchStats && (
+          <div className="px-6 py-4 space-y-3">
+            <p className="text-xs font-display font-bold text-muted-foreground text-center mb-3">Estatísticas da Partida</p>
+            {[
+              { label: "Posse de Bola", home: `${matchStats.possession[0]}%`, away: `${matchStats.possession[1]}%`, homeVal: matchStats.possession[0], awayVal: matchStats.possession[1] },
+              { label: "Gols Esperados (xG)", home: matchStats.xG[0].toFixed(2), away: matchStats.xG[1].toFixed(2), homeVal: matchStats.xG[0], awayVal: matchStats.xG[1] },
+              { label: "Finalizações", home: matchStats.shots[0], away: matchStats.shots[1], homeVal: matchStats.shots[0], awayVal: matchStats.shots[1] },
+              { label: "Finalizações ao Gol", home: matchStats.shotsOnTarget[0], away: matchStats.shotsOnTarget[1], homeVal: matchStats.shotsOnTarget[0], awayVal: matchStats.shotsOnTarget[1] },
+              { label: "Faltas", home: matchStats.fouls[0], away: matchStats.fouls[1], homeVal: matchStats.fouls[0], awayVal: matchStats.fouls[1] },
+              { label: "Escanteios", home: matchStats.corners[0], away: matchStats.corners[1], homeVal: matchStats.corners[0], awayVal: matchStats.corners[1] },
+              { label: "Cartões Amarelos", home: matchStats.yellowCards[0], away: matchStats.yellowCards[1], homeVal: matchStats.yellowCards[0], awayVal: matchStats.yellowCards[1] },
+              { label: "Cartões Vermelhos", home: matchStats.redCards[0], away: matchStats.redCards[1], homeVal: matchStats.redCards[0], awayVal: matchStats.redCards[1] },
+              { label: "Impedimentos", home: matchStats.offsides[0], away: matchStats.offsides[1], homeVal: matchStats.offsides[0], awayVal: matchStats.offsides[1] },
+            ].map((stat) => {
+              const total = stat.homeVal + stat.awayVal || 1;
+              const homePercent = (stat.homeVal / total) * 100;
+              const awayPercent = (stat.awayVal / total) * 100;
+              return (
+                <div key={stat.label} className="space-y-1">
+                  <div className="flex items-center justify-between text-xs">
+                    <span className="font-bold text-foreground w-10 text-left">{stat.home}</span>
+                    <span className="text-muted-foreground text-center flex-1">{stat.label}</span>
+                    <span className="font-bold text-foreground w-10 text-right">{stat.away}</span>
+                  </div>
+                  <div className="flex h-1.5 gap-1">
+                    <div className="flex-1 bg-secondary rounded-full overflow-hidden flex justify-end">
+                      <div
+                        className="h-full rounded-full bg-primary transition-all"
+                        style={{ width: `${homePercent}%` }}
+                      />
+                    </div>
+                    <div className="flex-1 bg-secondary rounded-full overflow-hidden">
+                      <div
+                        className="h-full rounded-full bg-primary/60 transition-all"
+                        style={{ width: `${awayPercent}%` }}
+                      />
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+
+        {activeTab === "stats" && !matchStats && (
+          <div className="px-6 py-8 text-center">
+            <p className="text-sm text-muted-foreground">Simule a partida para gerar as estatísticas</p>
+          </div>
+        )}
+
         {/* Footer Actions */}
         <div className="flex items-center justify-between border-t border-border px-6 py-4">
           <button onClick={onCancel} className="text-destructive font-display font-bold text-sm hover:text-destructive/80 transition-colors">
             Cancelar
           </button>
-          <button className="text-foreground font-display font-bold text-sm hover:text-foreground/80 transition-colors">
-            Eventos
-          </button>
+          <div className="flex items-center gap-4">
+            <button
+              onClick={() => setActiveTab("score")}
+              className={`font-display font-bold text-sm transition-colors ${activeTab === "score" ? "text-primary" : "text-muted-foreground hover:text-foreground"}`}
+            >
+              Placar
+            </button>
+            <button
+              onClick={() => setActiveTab("stats")}
+              className={`font-display font-bold text-sm transition-colors ${activeTab === "stats" ? "text-primary" : "text-muted-foreground hover:text-foreground"}`}
+            >
+              Estatísticas
+            </button>
+          </div>
           <button onClick={handleFinish} className="text-primary font-display font-bold text-sm hover:text-primary/80 transition-colors">
             Finalizar
           </button>

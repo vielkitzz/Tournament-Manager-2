@@ -55,6 +55,83 @@ export function simulateHalf(homeRate: number, awayRate: number): [number, numbe
   return [poissonRandom(homeExpected), poissonRandom(awayExpected)];
 }
 
+export interface MatchStats {
+  possession: [number, number]; // home%, away%
+  xG: [number, number];
+  shots: [number, number];
+  shotsOnTarget: [number, number];
+  fouls: [number, number];
+  corners: [number, number];
+  yellowCards: [number, number];
+  redCards: [number, number];
+  offsides: [number, number];
+}
+
+/**
+ * Generates realistic match statistics based on final scores and team rates.
+ * Stats correlate with goals scored and team strength.
+ */
+export function generateMatchStats(
+  homeRate: number,
+  awayRate: number,
+  homeGoals: number,
+  awayGoals: number
+): MatchStats {
+  const totalStrength = homeRate + awayRate;
+  const homeStrength = homeRate / totalStrength;
+  const awayStrength = awayRate / totalStrength;
+
+  // Possession: based on strength with some randomness
+  const basePossession = homeStrength * 100;
+  const possessionVariance = (Math.random() - 0.5) * 16;
+  const homePossession = Math.round(Math.min(72, Math.max(28, basePossession + possessionVariance)));
+  const awayPossession = 100 - homePossession;
+
+  // xG: correlated with actual goals but with variance
+  const homeXg = Math.max(0.1, homeGoals + (Math.random() - 0.5) * 1.8);
+  const awayXg = Math.max(0.1, awayGoals + (Math.random() - 0.5) * 1.8);
+
+  // Shots: more shots for stronger teams and teams that scored more
+  const homeShots = Math.max(homeGoals + 1, Math.round(4 + homeGoals * 2.5 + homeStrength * 6 + Math.random() * 5));
+  const awayShots = Math.max(awayGoals + 1, Math.round(4 + awayGoals * 2.5 + awayStrength * 6 + Math.random() * 5));
+
+  // Shots on target: at least the number of goals, fraction of total shots
+  const homeSoT = Math.max(homeGoals, Math.round(homeShots * (0.3 + Math.random() * 0.25)));
+  const awaySoT = Math.max(awayGoals, Math.round(awayShots * (0.3 + Math.random() * 0.25)));
+
+  // Fouls: inversely correlated with possession (weaker team fouls more)
+  const homeFouls = Math.round(6 + awayStrength * 10 + Math.random() * 6);
+  const awayFouls = Math.round(6 + homeStrength * 10 + Math.random() * 6);
+
+  // Corners: correlated with possession/shots
+  const homeCorners = Math.round(1 + homeStrength * 6 + homeGoals * 0.8 + Math.random() * 3);
+  const awayCorners = Math.round(1 + awayStrength * 6 + awayGoals * 0.8 + Math.random() * 3);
+
+  // Yellow cards: ~10-20% chance per foul
+  const homeYellows = Math.min(homeFouls, poissonRandom(homeFouls * 0.15));
+  const awayYellows = Math.min(awayFouls, poissonRandom(awayFouls * 0.15));
+
+  // Red cards: rare (~3% chance per match per team)
+  const homeReds = Math.random() < 0.03 ? 1 : 0;
+  const awayReds = Math.random() < 0.03 ? 1 : 0;
+
+  // Offsides
+  const homeOffsides = poissonRandom(1.2 + homeGoals * 0.5);
+  const awayOffsides = poissonRandom(1.2 + awayGoals * 0.5);
+
+  return {
+    possession: [homePossession, awayPossession],
+    xG: [parseFloat(homeXg.toFixed(2)), parseFloat(awayXg.toFixed(2))],
+    shots: [homeShots, awayShots],
+    shotsOnTarget: [homeSoT, awaySoT],
+    fouls: [homeFouls, awayFouls],
+    corners: [homeCorners, awayCorners],
+    yellowCards: [homeYellows, awayYellows],
+    redCards: [homeReds, awayReds],
+    offsides: [homeOffsides, awayOffsides],
+  };
+}
+
 /**
  * Simulates a full match (two halves).
  * Returns { h1: [home, away], h2: [home, away], total: [home, away] }.
