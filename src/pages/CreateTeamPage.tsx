@@ -33,20 +33,25 @@ export default function CreateTeamPage() {
   const [colors, setColors] = useState<string[]>(["#1e40af", "#ffffff"]);
   const [rate, setRate] = useState("3.00");
 
+  // logoUrl = persisted Storage URL (saved to DB)
   const [logoUrl, setLogoUrl] = useState<string | undefined>(undefined);
+  // previewUrl = temporary Object URL for display only
   const [previewUrl, setPreviewUrl] = useState<string | undefined>(undefined);
+  // pendingBlob = WebP blob waiting to be uploaded on submit
   const [pendingBlob, setPendingBlob] = useState<{ blob: Blob; filename: string } | null>(null);
 
   const [uploading, setUploading] = useState(false);
   const [initialized, setInitialized] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  // Revoke Object URLs on unmount to free memory
   useEffect(() => {
     return () => {
       if (previewUrl) revokeImagePreview(previewUrl);
     };
   }, [previewUrl]);
 
+  // Populate form when team data loads
   useEffect(() => {
     if (existingTeam && !initialized) {
       setName(existingTeam.name);
@@ -56,7 +61,7 @@ export default function CreateTeamPage() {
       setColors(existingTeam.colors?.length ? [...existingTeam.colors] : ["#333333", "#cccccc"]);
       setRate(existingTeam.rate?.toString() || "3.00");
       setLogoUrl(existingTeam.logo);
-      setPreviewUrl(existingTeam.logo);
+      setPreviewUrl(existingTeam.logo); // show existing logo (Storage URL)
       setInitialized(true);
     }
   }, [existingTeam, initialized]);
@@ -64,7 +69,10 @@ export default function CreateTeamPage() {
   const handleLogoSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
+
+    // Revoke old preview
     if (previewUrl && previewUrl.startsWith("blob:")) revokeImagePreview(previewUrl);
+
     try {
       const processed = await processImage(file);
       setPreviewUrl(processed.previewUrl);
@@ -78,6 +86,7 @@ export default function CreateTeamPage() {
   const handleRemoveLogo = () => {
     if (previewUrl?.startsWith("blob:")) revokeImagePreview(previewUrl);
     setPreviewUrl(undefined);
+    // NÃO limpe logoUrl aqui, precisamos dele no submit para saber o que deletar do Supabase
     setPendingBlob(null);
     if (fileInputRef.current) fileInputRef.current.value = "";
   };
@@ -88,25 +97,39 @@ export default function CreateTeamPage() {
       toast.error("Digite o nome do time");
       return;
     }
+
     setUploading(true);
-    let finalLogoUrl = logoUrl;
+    let finalLogoUrl = logoUrl; // default: keep existing URL
+
     try {
+      // Cenário 1: Usuário escolheu uma imagem nova
       if (pendingBlob) {
         const teamId = editId || crypto.randomUUID();
-        const path = `teams/${teamId}_${Date.now()}.webp`;
+        const path = `teams/${teamId}_${Date.now()}.webp`; // Adicionei Date.now() para evitar problemas de cache do navegador
+
+        // Se tinha imagem antiga, deleta da nuvem antes de subir a nova
         if (logoUrl) {
-          const oldPath = extractFilePathFromUrl(logoUrl, "logos");
-          if (oldPath) await supabase.storage.from("logos").remove([oldPath]);
+          const oldPath = extractFilePathFromUrl(logoUrl, "logos"); // Confirme se o bucket chama "logos" ou mude aqui
+          if (oldPath) {
+            await supabase.storage.from("logos").remove([oldPath]);
+          }
         }
+
         finalLogoUrl = await uploadLogo(pendingBlob.blob, path);
+
         if (previewUrl?.startsWith("blob:")) revokeImagePreview(previewUrl);
         setPreviewUrl(finalLogoUrl);
         setPendingBlob(null);
-      } else if (!previewUrl && logoUrl) {
-        const oldPath = extractFilePathFromUrl(logoUrl, "logos");
-        if (oldPath) await supabase.storage.from("logos").remove([oldPath]);
+      }
+      // Cenário 2: Usuário removeu a imagem e não escolheu nenhuma nova
+      else if (!previewUrl && logoUrl) {
+        const oldPath = extractFilePathFromUrl(logoUrl, "logos"); // Confirme se o bucket chama "logos" ou mude aqui
+        if (oldPath) {
+          await supabase.storage.from("logos").remove([oldPath]);
+        }
         finalLogoUrl = undefined;
       }
+
       const teamData = {
         name: name.trim(),
         shortName: shortName.trim() || name.trim().substring(0, 10),
@@ -116,6 +139,7 @@ export default function CreateTeamPage() {
         rate: Math.min(9.99, Math.max(0.01, parseFloat(rate) || 3)),
         logo: finalLogoUrl,
       };
+
       if (editId && existingTeam) {
         await updateTeam(editId, teamData);
         toast.success(`"${teamData.name}" atualizado!`);
@@ -247,72 +271,68 @@ export default function CreateTeamPage() {
             />
           </div>
 
-          {/* Colors with Drag and Drop */}
+          {/* Colors */}
           <div className="space-y-2">
             <Label className="text-sm font-medium text-foreground">
               Cores <span className="text-muted-foreground font-normal">({colors.length}/5)</span>
-              <span className="text-[10px] ml-2 text-muted-foreground font-normal italic">
-                (Arraste para reordenar)
-              </span>
             </Label>
-
-            <Reorder.Group axis="y" values={colors} onReorder={setColors} className="space-y-3">
+            <Reorder.Group
+              axis="x"
+              values={colors}
+              onReorder={setColors}
+              className="flex flex-wrap items-center gap-3"
+              as="div"
+            >
               {colors.map((color, i) => (
                 <Reorder.Item
-                  key={color + i} // Combinação para garantir unicidade mesmo com cores iguais
+                  key={color + i}
                   value={color}
-                  className="flex items-center gap-2 p-2 rounded-lg bg-secondary/50 border border-border group"
+                  as="div"
+                  className="flex items-center gap-1.5 cursor-grab active:cursor-grabbing"
+                  whileDrag={{ scale: 1.05, zIndex: 10 }}
                 >
-                  <div className="cursor-grab active:cursor-grabbing p-1 text-muted-foreground/40 hover:text-muted-foreground transition-colors">
-                    <GripVertical className="w-4 h-4" />
-                  </div>
-
-                  <div className="flex items-center gap-2 flex-1">
-                    <input
-                      type="color"
-                      value={color}
-                      onChange={(e) => {
-                        const next = [...colors];
-                        next[i] = e.target.value;
-                        setColors(next);
-                      }}
-                      className="w-10 h-10 rounded-lg cursor-pointer border border-border bg-transparent"
-                    />
-                    <Input
-                      value={color}
-                      onChange={(e) => {
-                        const next = [...colors];
-                        next[i] = e.target.value;
-                        setColors(next);
-                      }}
-                      placeholder="#000000"
-                      className="bg-secondary border-border w-24 text-xs font-mono h-10"
-                    />
-                  </div>
-
+                  <GripVertical className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
+                  <input
+                    type="color"
+                    value={color}
+                    onChange={(e) => {
+                      const next = [...colors];
+                      next[i] = e.target.value;
+                      setColors(next);
+                    }}
+                    className="w-10 h-10 rounded-lg cursor-pointer border border-border bg-transparent"
+                  />
+                  <Input
+                    value={color}
+                    onChange={(e) => {
+                      const next = [...colors];
+                      next[i] = e.target.value;
+                      setColors(next);
+                    }}
+                    placeholder="#000000"
+                    className="bg-secondary border-border w-24 text-xs font-mono"
+                  />
                   {colors.length > 1 && (
                     <button
                       type="button"
                       onClick={() => setColors(colors.filter((_, j) => j !== i))}
-                      className="p-2 text-muted-foreground hover:text-destructive transition-colors opacity-0 group-hover:opacity-100"
+                      className="p-1 text-muted-foreground hover:text-destructive transition-colors"
                     >
-                      <Trash2 className="w-4 h-4" />
+                      <Trash2 className="w-3.5 h-3.5" />
                     </button>
                   )}
                 </Reorder.Item>
               ))}
+              {colors.length < 5 && (
+                <button
+                  type="button"
+                  onClick={() => setColors([...colors, "#888888"])}
+                  className="w-10 h-10 rounded-lg border-2 border-dashed border-border flex items-center justify-center text-muted-foreground hover:border-primary hover:text-primary transition-colors"
+                >
+                  <Plus className="w-4 h-4" />
+                </button>
+              )}
             </Reorder.Group>
-
-            {colors.length < 5 && (
-              <button
-                type="button"
-                onClick={() => setColors([...colors, "#888888"])}
-                className="w-full mt-2 h-10 rounded-lg border-2 border-dashed border-border flex items-center justify-center gap-2 text-muted-foreground hover:border-primary hover:text-primary transition-colors text-sm"
-              >
-                <Plus className="w-4 h-4" />
-                Adicionar Cor
-              </button>
-            )}
           </div>
 
           {/* Rate */}
@@ -349,6 +369,7 @@ export default function CreateTeamPage() {
           </Button>
         </form>
 
+        {/* Historical Versions - Only show when editing */}
         {editId && existingTeam && (
           <div className="mt-8 pt-6 border-t border-border">
             <TeamHistoryEditor teamId={editId} />
