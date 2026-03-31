@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from "react";
 import { Match, Team, Tournament } from "@/types/tournament";
 import { Shield, ChevronUp, ChevronDown, Play } from "lucide-react";
 import { calculateStandings, StandingRow } from "@/lib/standings";
-import { simulateHalf } from "@/lib/simulation";
+import { simulateHalf, generateMatchStats, MatchStats } from "@/lib/simulation";
 
 interface MatchPopupProps {
   match: Match;
