@@ -30,7 +30,10 @@ export default function CreateTeamPage() {
   const [shortName, setShortName] = useState("");
   const [abbreviation, setAbbreviation] = useState("");
   const [foundingYear, setFoundingYear] = useState("");
-  const [colors, setColors] = useState<string[]>(["#1e40af", "#ffffff"]);
+  const [colorItems, setColorItems] = useState<{ id: string; value: string }[]>([
+    { id: crypto.randomUUID(), value: "#1e40af" },
+    { id: crypto.randomUUID(), value: "#ffffff" },
+  ]);
   const [rate, setRate] = useState("3.00");
 
   // logoUrl = persisted Storage URL (saved to DB)
