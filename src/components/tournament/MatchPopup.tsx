@@ -201,10 +201,22 @@ export default function MatchPopup({
     const [h, a] = simulateHalf(homeRate, awayRate);
     setHalfScore(activeHalf, 0, h);
     setHalfScore(activeHalf, 1, a);
-    setSimulatedHalves((prev) => new Set(prev).add(activeHalf));
+    const newSimulated = new Set(simulatedHalves).add(activeHalf);
+    setSimulatedHalves(newSimulated);
 
     if (activeHalf === "h1") setActiveHalf("h2");
     else if (activeHalf === "et1") setActiveHalf("et2");
+
+    // Generate stats when both regular halves are simulated
+    const willHaveH1 = newSimulated.has("h1") || activeHalf === "h1";
+    const willHaveH2 = newSimulated.has("h2") || activeHalf === "h2";
+    if (willHaveH1 && willHaveH2) {
+      // Calculate total goals including the just-simulated half
+      const updatedScores = { ...scores, [activeHalf]: [h, a] as [number, number] };
+      const tHome = updatedScores.h1[0] + updatedScores.h2[0] + (showExtraTime ? updatedScores.et1[0] + updatedScores.et2[0] : 0);
+      const tAway = updatedScores.h1[1] + updatedScores.h2[1] + (showExtraTime ? updatedScores.et1[1] + updatedScores.et2[1] : 0);
+      setMatchStats(generateMatchStats(homeRate, awayRate, tHome, tAway));
+    }
   };
 
   const allRequiredSimulated = showExtraTime
