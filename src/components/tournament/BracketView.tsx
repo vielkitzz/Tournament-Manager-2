@@ -186,11 +186,15 @@ export default function BracketView({
       awayPenalties = homePenalties + (Math.random() > 0.5 ? 1 : -1);
       if (awayPenalties < 0) awayPenalties = homePenalties + 1;
     }
+    const totalHome = homeScore + (0);
+    const totalAway = awayScore + (0);
+    const stats = generateMatchStats(homeRate, awayRate, totalHome, totalAway);
     return {
       ...match,
       homeScore,
       awayScore,
       played: true,
+      stats,
       ...(homePenalties !== undefined && { homePenalties, awayPenalties }),
     };
   };
