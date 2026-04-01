@@ -34,18 +34,6 @@ export interface PromotionRule {
   targetCompetitionId?: string;
 }
 
-export interface MatchStats {
-  possession: [number, number]; // home%, away%
-  shotsTotal: [number, number];
-  shotsOnTarget: [number, number];
-  xG: [number, number];
-  fouls: [number, number];
-  corners: [number, number];
-  offsides: [number, number];
-  yellowCards: [number, number];
-  redCards: [number, number];
-}
-
 export interface Match {
   id: string;
   tournamentId: string;
@@ -70,8 +58,6 @@ export interface Match {
   awayPenalties?: number;
   // Third-place flag
   isThirdPlace?: boolean;
-  // Match statistics
-  stats?: MatchStats;
 }
 
 export interface SeasonRecord {

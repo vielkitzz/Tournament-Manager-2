@@ -4,7 +4,7 @@ import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { Shield, Play, Trophy, Medal, UserPlus, Shuffle, Plus, Trash2, RotateCcw, UserMinus } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { simulateFullMatch, simulateHalf, generateMatchStats } from "@/lib/simulation";
+import { simulateFullMatch, simulateHalf } from "@/lib/simulation";
 import MatchPopup from "./MatchPopup";
 import BracketTeamEditor from "./BracketTeamEditor";
 import ScreenshotButton from "@/components/ScreenshotButton";
@@ -186,15 +186,11 @@ export default function BracketView({
       awayPenalties = homePenalties + (Math.random() > 0.5 ? 1 : -1);
       if (awayPenalties < 0) awayPenalties = homePenalties + 1;
     }
-    const totalHome = homeScore + (0);
-    const totalAway = awayScore + (0);
-    const stats = generateMatchStats(homeRate, awayRate, totalHome, totalAway);
     return {
       ...match,
       homeScore,
       awayScore,
       played: true,
-      stats,
       ...(homePenalties !== undefined && { homePenalties, awayPenalties }),
     };
   };
@@ -259,15 +255,11 @@ export default function BracketView({
       }
     }
 
-    const finalTotalHome = homeScore + (homeExtraTime || 0);
-    const finalTotalAway = awayScore + (awayExtraTime || 0);
-    const stats = generateMatchStats(homeRate, awayRate, finalTotalHome, finalTotalAway);
     return {
       ...leg2,
       homeScore,
       awayScore,
       played: true,
-      stats,
       ...(homeExtraTime !== undefined && { homeExtraTime, awayExtraTime }),
       ...(homePenalties !== undefined && { homePenalties, awayPenalties }),
     };
