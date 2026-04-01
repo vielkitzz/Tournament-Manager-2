@@ -112,6 +112,8 @@ export default function MatchPopup({
     : false;
 
   const [simulatedHalves, setSimulatedHalves] = useState<Set<HalfKey>>(new Set());
+  const [matchStats, setMatchStats] = useState<MatchStats | null>(match.stats || null);
+  const [showStats, setShowStats] = useState(false);
 
   // Bug fix #10: Pre-load existing scores when opening a played match for editing
   useEffect(() => {
