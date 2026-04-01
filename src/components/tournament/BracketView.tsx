@@ -259,11 +259,15 @@ export default function BracketView({
       }
     }
 
+    const finalTotalHome = homeScore + (homeExtraTime || 0);
+    const finalTotalAway = awayScore + (awayExtraTime || 0);
+    const stats = generateMatchStats(homeRate, awayRate, finalTotalHome, finalTotalAway);
     return {
       ...leg2,
       homeScore,
       awayScore,
       played: true,
+      stats,
       ...(homeExtraTime !== undefined && { homeExtraTime, awayExtraTime }),
       ...(homePenalties !== undefined && { homePenalties, awayPenalties }),
     };
