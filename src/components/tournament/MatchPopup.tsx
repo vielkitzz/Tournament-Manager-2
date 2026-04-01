@@ -532,8 +532,49 @@ export default function MatchPopup({
           </div>
         )}
 
+        {/* Match Stats Section */}
+        {showStats && matchStats && (
+          <div className="px-6 pb-4 space-y-2">
+            <p className="text-xs font-display font-bold text-muted-foreground mb-3 text-center">Estatísticas da Partida</p>
+            {([
+              { label: "Posse de Bola", home: `${matchStats.possession[0]}%`, away: `${matchStats.possession[1]}%`, homeVal: matchStats.possession[0], awayVal: matchStats.possession[1] },
+              { label: "Finalizações", home: `${matchStats.shotsTotal[0]}`, away: `${matchStats.shotsTotal[1]}`, homeVal: matchStats.shotsTotal[0], awayVal: matchStats.shotsTotal[1] },
+              { label: "Finalizações no Gol", home: `${matchStats.shotsOnTarget[0]}`, away: `${matchStats.shotsOnTarget[1]}`, homeVal: matchStats.shotsOnTarget[0], awayVal: matchStats.shotsOnTarget[1] },
+              { label: "xG", home: `${matchStats.xG[0].toFixed(2)}`, away: `${matchStats.xG[1].toFixed(2)}`, homeVal: matchStats.xG[0], awayVal: matchStats.xG[1] },
+              { label: "Escanteios", home: `${matchStats.corners[0]}`, away: `${matchStats.corners[1]}`, homeVal: matchStats.corners[0], awayVal: matchStats.corners[1] },
+              { label: "Faltas", home: `${matchStats.fouls[0]}`, away: `${matchStats.fouls[1]}`, homeVal: matchStats.fouls[0], awayVal: matchStats.fouls[1] },
+              { label: "Impedimentos", home: `${matchStats.offsides[0]}`, away: `${matchStats.offsides[1]}`, homeVal: matchStats.offsides[0], awayVal: matchStats.offsides[1] },
+              { label: "Cartões Amarelos", home: `${matchStats.yellowCards[0]}`, away: `${matchStats.yellowCards[1]}`, homeVal: matchStats.yellowCards[0], awayVal: matchStats.yellowCards[1] },
+              { label: "Cartões Vermelhos", home: `${matchStats.redCards[0]}`, away: `${matchStats.redCards[1]}`, homeVal: matchStats.redCards[0], awayVal: matchStats.redCards[1] },
+            ]).map((row) => {
+              const total = row.homeVal + row.awayVal;
+              const homePct = total > 0 ? (row.homeVal / total) * 100 : 50;
+              const awayPct = total > 0 ? (row.awayVal / total) * 100 : 50;
+              return (
+                <div key={row.label} className="space-y-1">
+                  <div className="flex items-center justify-between text-xs">
+                    <span className="font-bold text-foreground w-10 text-left tabular-nums">{row.home}</span>
+                    <span className="text-muted-foreground text-[11px]">{row.label}</span>
+                    <span className="font-bold text-foreground w-10 text-right tabular-nums">{row.away}</span>
+                  </div>
+                  <div className="flex h-1.5 rounded-full overflow-hidden gap-0.5">
+                    <div
+                      className="bg-primary rounded-l-full transition-all"
+                      style={{ width: `${homePct}%` }}
+                    />
+                    <div
+                      className="bg-muted-foreground/40 rounded-r-full transition-all"
+                      style={{ width: `${awayPct}%` }}
+                    />
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+
         {/* Standings Section */}
-        {bottomStandings.length > 0 && (
+        {!showStats && bottomStandings.length > 0 && (
           <div className="px-6 pb-4">
             <p className="text-xs font-display font-bold text-muted-foreground mb-2">{standingsTitle}</p>
             <div className="rounded-lg border border-border overflow-hidden max-h-48 overflow-y-auto">
@@ -599,8 +640,22 @@ export default function MatchPopup({
           <button onClick={onCancel} className="text-destructive font-display font-bold text-sm hover:text-destructive/80 transition-colors">
             Cancelar
           </button>
-          <button className="text-foreground font-display font-bold text-sm hover:text-foreground/80 transition-colors">
-            Eventos
+          <button
+            onClick={() => {
+              if (!matchStats && match.played) {
+                // Generate stats for already-played match
+                const homeRate = rateInfluence && homeTeam ? homeTeam.rate : 3;
+                const awayRate = rateInfluence && awayTeam ? awayTeam.rate : 3;
+                const finalH = totalHome;
+                const finalA = totalAway;
+                setMatchStats(generateMatchStats(homeRate, awayRate, finalH, finalA));
+              }
+              setShowStats(!showStats);
+            }}
+            className={`flex items-center gap-1.5 font-display font-bold text-sm transition-colors ${showStats ? "text-primary" : "text-foreground hover:text-foreground/80"}`}
+          >
+            <BarChart3 className="w-4 h-4" />
+            Estatísticas
           </button>
           <button onClick={handleFinish} className="text-primary font-display font-bold text-sm hover:text-primary/80 transition-colors">
             Finalizar
