@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import { Match, Team, Tournament } from "@/types/tournament";
 import { Shield, ChevronLeft, ChevronRight, Trophy, CheckCircle, Play } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { simulateFullMatch } from "@/lib/simulation";
+import { simulateFullMatch, generateMatchStats } from "@/lib/simulation";
 import MatchPopup from "./MatchPopup";
 import ScreenshotButton from "@/components/ScreenshotButton";
 
@@ -55,11 +55,13 @@ export default function RoundsView({
       const homeRate = tournament.settings.rateInfluence ? (home?.rate ?? 5) : 5;
       const awayRate = tournament.settings.rateInfluence ? (away?.rate ?? 5) : 5;
       const result = simulateFullMatch(homeRate, awayRate);
+      const stats = generateMatchStats(homeRate, awayRate, result.total[0], result.total[1]);
       return {
         ...match,
         homeScore: result.total[0],
         awayScore: result.total[1],
         played: true,
+        stats,
       };
     });
     if (onBatchUpdateMatches) {
