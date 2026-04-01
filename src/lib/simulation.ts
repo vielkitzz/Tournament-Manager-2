@@ -8,6 +8,8 @@
  * But football is unpredictable — upsets happen naturally through the Poisson variance.
  */
 
+import { MatchStats } from "@/types/tournament";
+
 function poissonRandom(lambda: number): number {
   // Knuth algorithm for Poisson-distributed random variable
   const L = Math.exp(-lambda);
@@ -73,5 +75,80 @@ export function simulateFullMatch(
     h1,
     h2,
     total: [h1[0] + h2[0], h1[1] + h2[1]],
+  };
+}
+
+/**
+ * Generates realistic match statistics based on team rates and final score.
+ * All stats are coherent: xG ≤ shots on target, shots on target ≤ total shots, etc.
+ */
+export function generateMatchStats(
+  homeRate: number,
+  awayRate: number,
+  homeGoals: number,
+  awayGoals: number
+): MatchStats {
+  const homeStrength = Math.sqrt(homeRate / awayRate);
+  const awayStrength = Math.sqrt(awayRate / homeRate);
+  const totalStrength = homeStrength + awayStrength;
+
+  // Possession: based on strength ratio, with small random variance
+  const basePossHome = (homeStrength / totalStrength) * 100;
+  const possHome = Math.round(Math.min(72, Math.max(28, basePossHome + (Math.random() - 0.5) * 10)));
+  const possAway = 100 - possHome;
+
+  // Total shots: 10-20 range scaled by strength, minimum = goals + 1
+  const homeShotsBase = Math.round(6 + homeStrength * 5 + Math.random() * 4);
+  const awayShotsBase = Math.round(6 + awayStrength * 5 + Math.random() * 4);
+  const homeShotsTotal = Math.max(homeShotsBase, homeGoals + 1 + Math.round(Math.random() * 2));
+  const awayShotsTotal = Math.max(awayShotsBase, awayGoals + 1 + Math.round(Math.random() * 2));
+
+  // Shots on target: at least goals, at most total shots, typically 30-50% of total
+  const homeOnTargetBase = Math.round(homeShotsTotal * (0.3 + Math.random() * 0.2));
+  const awayOnTargetBase = Math.round(awayShotsTotal * (0.3 + Math.random() * 0.2));
+  const homeOnTarget = Math.max(homeGoals, Math.min(homeShotsTotal, homeOnTargetBase));
+  const awayOnTarget = Math.max(awayGoals, Math.min(awayShotsTotal, awayOnTargetBase));
+
+  // xG: must be proportional to shots on target
+  // Each shot on target has an average xG of 0.10-0.25 depending on quality
+  // Ensure xG ≥ 0.50 when shots on target ≥ 5
+  const homeXgPerShot = 0.10 + (homeStrength / totalStrength) * 0.15 + Math.random() * 0.05;
+  const awayXgPerShot = 0.10 + (awayStrength / totalStrength) * 0.15 + Math.random() * 0.05;
+  const homeXgRaw = homeOnTarget * homeXgPerShot + (homeShotsTotal - homeOnTarget) * 0.03;
+  const awayXgRaw = awayOnTarget * awayXgPerShot + (awayShotsTotal - awayOnTarget) * 0.03;
+  // Ensure xG is at least 0.10 per shot on target (minimum coherence)
+  const homeXg = Math.round(Math.max(homeXgRaw, homeOnTarget * 0.10) * 100) / 100;
+  const awayXg = Math.round(Math.max(awayXgRaw, awayOnTarget * 0.10) * 100) / 100;
+
+  // Fouls: 8-18 range
+  const homeFouls = Math.round(8 + Math.random() * 10);
+  const awayFouls = Math.round(8 + Math.random() * 10);
+
+  // Corners: 2-10 range, correlated with possession/shots
+  const homeCorners = Math.round(2 + (possHome / 100) * 6 + Math.random() * 3);
+  const awayCorners = Math.round(2 + (possAway / 100) * 6 + Math.random() * 3);
+
+  // Offsides: 0-5
+  const homeOffsides = Math.round(Math.random() * 4);
+  const awayOffsides = Math.round(Math.random() * 4);
+
+  // Yellow cards: 0-5, slightly correlated with fouls
+  const homeYellow = Math.min(5, Math.round(homeFouls * 0.15 + Math.random() * 1.5));
+  const awayYellow = Math.min(5, Math.round(awayFouls * 0.15 + Math.random() * 1.5));
+
+  // Red cards: rare (~5% chance per team)
+  const homeRed = Math.random() < 0.05 ? 1 : 0;
+  const awayRed = Math.random() < 0.05 ? 1 : 0;
+
+  return {
+    possession: [possHome, possAway],
+    shotsTotal: [homeShotsTotal, awayShotsTotal],
+    shotsOnTarget: [homeOnTarget, awayOnTarget],
+    xG: [homeXg, awayXg],
+    fouls: [homeFouls, awayFouls],
+    corners: [homeCorners, awayCorners],
+    offsides: [homeOffsides, awayOffsides],
+    yellowCards: [homeYellow, awayYellow],
+    redCards: [homeRed, awayRed],
   };
 }
