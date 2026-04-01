@@ -19,6 +19,7 @@ import {
 import PreliminaryPhasesIcon from "@/components/icons/PreliminaryPhasesIcon";
 import { useTournamentStore } from "@/store/tournamentStore";
 import { resolveTeam } from "@/lib/teamHistoryUtils";
+import { buildSeasonViewTournament, getSeasonTeamIds, inferKnockoutStartStage } from "@/lib/seasonSnapshot";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
@@ -113,22 +114,40 @@ export default function TournamentDetailPage() {
     ? tournament.seasons?.find((s) => s.year === viewingYear)
     : null;
 
+  const isLiga = tournament.format === "liga";
+  const isMataMata = tournament.format === "mata-mata";
+  const isGrupos = tournament.format === "grupos";
+  const isSuico = tournament.format === "suico";
+  const hasKnockout = isMataMata || isGrupos || isSuico;
+
+  const seasonTeamIds = getSeasonTeamIds(tournament, seasonData, isViewingPastSeason);
+  const activeSettings = isViewingPastSeason ? (seasonData?.settings || tournament.settings) : tournament.settings;
+  const activeMatches = isViewingPastSeason ? (seasonData?.matches || []) : (tournament.matches || []);
+  const activeGroupCount = isViewingPastSeason
+    ? (seasonData?.groupCount || tournament.gruposQuantidade || 1)
+    : (tournament.gruposQuantidade || 1);
+  const defaultKnockoutStart = isSuico
+    ? (tournament.suicoMataMataInicio || "1/8")
+    : isGrupos
+      ? (tournament.gruposMataMataInicio || "1/8")
+      : tournament.mataMataInicio;
+  const activeKnockoutStart = inferKnockoutStartStage(
+    activeMatches.filter((match) => !match.isThirdPlace && (!(isGrupos || isSuico) || match.stage === "knockout")),
+    defaultKnockoutStart,
+  );
+  const activeTournament = buildSeasonViewTournament({
+    tournament,
+    activeYear,
+    isViewingPastSeason,
+    teamIds: seasonTeamIds,
+    matches: activeMatches,
+    settings: activeSettings,
+    groupCount: activeGroupCount,
+    knockoutStart: activeKnockoutStart,
+  });
+
   // Resolve teams based on the active year (current or past season)
   const resolvedTeams = teams.map((t) => resolveTeam(t, activeYear, teamHistories));
-  const seasonTeamIds = (() => {
-    if (!isViewingPastSeason) return tournament.teamIds;
-    if (seasonData?.teamIds) return seasonData.teamIds;
-    // Derive from season data if teamIds wasn't saved
-    if (seasonData) {
-      const fromStandings = seasonData.standings?.map(s => s.teamId).filter(Boolean) || [];
-      if (fromStandings.length > 0) return fromStandings;
-      const fromMatches = seasonData.matches
-        ? [...new Set(seasonData.matches.flatMap(m => [m.homeTeamId, m.awayTeamId]).filter(Boolean))]
-        : [];
-      return fromMatches;
-    }
-    return [];
-  })();
 
   const seasonRecordForYear = (tournament.seasons || []).find((s) => s.year === activeYear);
   const championRecord = isViewingPastSeason
@@ -141,12 +160,6 @@ export default function TournamentDetailPage() {
     : null;
   const championDisplayName = championRecord?.championName || championTeam?.name;
   const championDisplayLogo = championRecord?.championLogo || championTeam?.logo;
-
-  const isLiga = tournament.format === "liga";
-  const isMataMata = tournament.format === "mata-mata";
-  const isGrupos = tournament.format === "grupos";
-  const isSuico = tournament.format === "suico";
-  const hasKnockout = isMataMata || isGrupos || isSuico;
 
   // Map season standings to StandingRow[] (adding missing fields)
   const seasonStandings: import("@/lib/standings").StandingRow[] = (seasonData?.standings || []).map((s) => {
@@ -162,7 +175,7 @@ export default function TournamentDetailPage() {
   // For past seasons with groups, build per-group standings
   const seasonStandingsByGroup: Record<number, import("@/lib/standings").StandingRow[]> = {};
   if (isViewingPastSeason && seasonData && isGrupos) {
-    const pastGroupCount = seasonData.groupCount || tournament.gruposQuantidade || 1;
+    const pastGroupCount = seasonData.groupCount || activeGroupCount || 1;
     // If standings have group info, use it directly
     const hasGroupInfo = seasonData.standings.some((s) => s.group != null);
     if (hasGroupInfo) {
@@ -172,7 +185,7 @@ export default function TournamentDetailPage() {
     } else {
       // Derive from season matches
       const pastMatches = seasonData.matches || [];
-      const pastSettings = seasonData.settings || tournament.settings;
+      const pastSettings = seasonData.settings || activeSettings;
       for (let g = 1; g <= pastGroupCount; g++) {
         const gMatches = pastMatches.filter((m) => m.group === g && (m.stage === "group" || !m.stage));
         const gTeamIds = [...new Set(gMatches.flatMap((m) => [m.homeTeamId, m.awayTeamId]))].filter(Boolean);
@@ -183,18 +196,18 @@ export default function TournamentDetailPage() {
     }
   }
 
-  const settings = tournament.settings;
+  const settings = activeSettings;
 
   // For grupos/suico format, separate group and knockout matches
   const groupMatches = (isGrupos || isSuico)
-    ? (tournament.matches || []).filter((m) => m.stage === "group" || (!m.stage && !m.isThirdPlace))
-    : tournament.matches || [];
+    ? activeMatches.filter((m) => m.stage === "group" || (!m.stage && !m.isThirdPlace))
+    : activeMatches;
   const knockoutMatches = (isGrupos || isSuico)
-    ? (tournament.matches || []).filter((m) => m.stage === "knockout")
+    ? activeMatches.filter((m) => m.stage === "knockout" || m.isThirdPlace)
     : [];
 
   // Group count and assignments
-  const groupCount = tournament.gruposQuantidade || 1;
+  const groupCount = activeGroupCount;
 
   // Derive current group assignments from settings or existing matches
   const currentAssignments: Record<string, string[]> = (() => {
@@ -212,7 +225,7 @@ export default function TournamentDetailPage() {
   })();
 
   const assignedTeamIds = new Set(Object.values(currentAssignments).flat());
-  const unassignedTeamIds = isGrupos ? tournament.teamIds.filter((id) => !assignedTeamIds.has(id)) : [];
+  const unassignedTeamIds = isGrupos ? activeTournament.teamIds.filter((id) => !assignedTeamIds.has(id)) : [];
 
   // Compute standings per group using assignments
   const standingsByGroup: Record<number, import("@/lib/standings").StandingRow[]> = {};
@@ -233,21 +246,21 @@ export default function TournamentDetailPage() {
   const standings = isGrupos
     ? Object.values(standingsByGroup).flat()
     : isSuico
-    ? calculateStandings(tournament.teamIds, suicoLeagueMatches, settings, resolvedTeams)
-    : calculateStandings(tournament.teamIds, tournament.matches || [], settings, resolvedTeams);
+    ? calculateStandings(activeTournament.teamIds, suicoLeagueMatches, settings, resolvedTeams)
+    : calculateStandings(activeTournament.teamIds, activeMatches, settings, resolvedTeams);
 
   const allGroupMatchesPlayed = isGrupos && groupMatches.length > 0 && groupMatches.every((m) => m.played);
   const allSuicoLeagueMatchesPlayed = isSuico && suicoLeagueMatches.length > 0 && suicoLeagueMatches.every((m) => m.played);
 
   const groupTournament = isGrupos
-    ? { ...tournament, matches: groupMatches }
+    ? { ...activeTournament, matches: groupMatches }
     : isSuico
-    ? { ...tournament, matches: suicoLeagueMatches }
-    : tournament;
+    ? { ...activeTournament, matches: suicoLeagueMatches }
+    : activeTournament;
 
   const knockoutTournament = (isGrupos || isSuico)
-    ? { ...tournament, matches: knockoutMatches, mataMataInicio: isSuico ? (tournament.suicoMataMataInicio || "1/8") : (tournament.gruposMataMataInicio || "1/8") }
-    : tournament;
+    ? { ...activeTournament, matches: knockoutMatches, mataMataInicio: activeKnockoutStart || defaultKnockoutStart }
+    : { ...activeTournament, mataMataInicio: activeKnockoutStart || defaultKnockoutStart };
 
   // ─── Group management functions ───
   const regenerateGroupMatches = (assignments: Record<string, string[]>) => {
@@ -295,10 +308,10 @@ export default function TournamentDetailPage() {
   // ─── Confirm manual qualifiers & generate knockout ───────────────────────
   const qualifiersPerGroup = (() => {
     const startStage = isSuico
-      ? (tournament.suicoMataMataInicio || "1/8")
-      : (tournament.gruposMataMataInicio || "1/8");
+      ? (activeKnockoutStart || tournament.suicoMataMataInicio || "1/8")
+      : (activeKnockoutStart || tournament.gruposMataMataInicio || "1/8");
     const stageTotal = STAGE_TEAM_COUNTS[startStage] || 8;
-    return Math.max(2, Math.min(stageTotal, tournament.teamIds.length));
+    return Math.max(2, Math.min(stageTotal, activeTournament.teamIds.length));
   })();
 
   const handleResetQualification = () => {
@@ -1104,8 +1117,8 @@ export default function TournamentDetailPage() {
                     <div className="flex justify-end">
                       <ScreenshotButton targetRef={groupsRef as any} filename="fase-de-grupos.png" discrete />
                     </div>
-                    <div ref={groupsRef} className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                      {Array.from({ length: isViewingPastSeason && seasonData?.groupCount ? seasonData.groupCount : groupCount }, (_, i) => i + 1).map((groupNum) => (
+                      <div ref={groupsRef} className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                      {Array.from({ length: groupCount }, (_, i) => i + 1).map((groupNum) => (
                         <div key={groupNum} className="space-y-3">
                           <div className="flex items-center justify-between px-1">
                             <h3 className="font-display font-bold text-lg text-foreground">Grupo {String.fromCharCode(64 + groupNum)}</h3>
@@ -1158,12 +1171,12 @@ export default function TournamentDetailPage() {
                           <div className="rounded-xl border border-border bg-card shadow-sm overflow-hidden">
                             <StandingsTable
                               standings={isViewingPastSeason ? (seasonStandingsByGroup[groupNum] || seasonStandings) : (standingsByGroup[groupNum] || [])}
-                              promotions={tournament.settings.promotions}
+                              promotions={settings.promotions}
                               qualifyUntil={qualifiersPerGroup}
                               onRemoveTeam={!isViewingPastSeason && !tournament.finalized
                                 ? (teamId) => removeTeamFromGroup(teamId, groupNum)
                                 : undefined}
-                              matches={isViewingPastSeason ? (seasonData?.matches || []).filter(m => m.group === groupNum) : tournament.matches.filter(m => m.group === groupNum)}
+                              matches={groupMatches.filter((m) => m.group === groupNum)}
                               allTeams={resolvedTeams}
                               hideScreenshot
                             />
@@ -1200,8 +1213,8 @@ export default function TournamentDetailPage() {
               <div className="rounded-xl border border-border bg-card shadow-sm overflow-hidden">
                 <StandingsTable
                   standings={isViewingPastSeason ? seasonStandings : standings}
-                  promotions={tournament.settings.promotions}
-                  matches={isViewingPastSeason ? (seasonData?.matches || []) : (isSuico ? suicoLeagueMatches : tournament.matches)}
+                  promotions={settings.promotions}
+                  matches={isSuico ? suicoLeagueMatches : activeMatches}
                   allTeams={resolvedTeams}
                 />
               </div>
@@ -1212,15 +1225,15 @@ export default function TournamentDetailPage() {
         <TabsContent value="rounds" className="mt-0 outline-none">
           <div className="space-y-4">
             <RoundsView
-              tournament={isViewingPastSeason
-                ? { ...tournament, matches: (seasonData?.matches || []).filter((m) => isGrupos ? (m.stage === "group" || (!m.stage && !m.isThirdPlace)) : true) }
-                : groupTournament}
+              tournament={groupTournament}
               teams={resolvedTeams}
               onUpdateMatch={(updated) => {
+                if (isViewingPastSeason) return;
                 const newMatches = (tournament.matches || []).map((m) => (m.id === updated.id ? updated : m));
                 updateTournament(tournament.id, { matches: newMatches });
               }}
               onBatchUpdateMatches={(updatedMatches) => {
+                if (isViewingPastSeason) return;
                 const existingIds = new Set((tournament.matches || []).map((m) => m.id));
                 const updates = updatedMatches.filter((m) => existingIds.has(m.id));
                 const additions = updatedMatches.filter((m) => !existingIds.has(m.id));
@@ -1284,15 +1297,15 @@ export default function TournamentDetailPage() {
                     </div>
                   )}
                   <BracketView
-                    tournament={isViewingPastSeason
-                      ? { ...tournament, matches: (seasonData?.matches || []).filter((m) => m.stage === "knockout" || m.isThirdPlace), mataMataInicio: isSuico ? (tournament.suicoMataMataInicio || "1/8") : isGrupos ? (tournament.gruposMataMataInicio || "1/8") : tournament.mataMataInicio }
-                      : knockoutTournament}
+                    tournament={knockoutTournament}
                     teams={resolvedTeams}
                     onUpdateMatch={(updated) => {
+                      if (isViewingPastSeason) return;
                       const newMatches = (tournament.matches || []).map((m) => (m.id === updated.id ? updated : m));
                       updateTournament(tournament.id, { matches: newMatches });
                     }}
                     onBatchUpdateMatches={(updatedMatches) => {
+                      if (isViewingPastSeason) return;
                       const tagged = updatedMatches.map((m) => ({ ...m, stage: ((isGrupos || isSuico) ? "knockout" : m.stage) as any }));
                       const existingIds = new Set((tournament.matches || []).map((m) => m.id));
                       const updates = tagged.filter((m) => existingIds.has(m.id));
@@ -1307,13 +1320,15 @@ export default function TournamentDetailPage() {
                       updateTournament(tournament.id, { matches: newMatches });
                       toast.success("Chaveamento atualizado!");
                     }}
-                    onGenerateBracket={() => autoGenerate()}
-                    onFinalize={handleFinalizeSeason}
+                    onGenerateBracket={() => { if (!isViewingPastSeason) autoGenerate(); }}
+                    onFinalize={isViewingPastSeason ? undefined : handleFinalizeSeason}
                     onAddMatch={(match) => {
+                      if (isViewingPastSeason) return;
                       const tagged = { ...match, stage: ((isGrupos || isSuico) ? "knockout" : match.stage) as any };
                       updateTournament(tournament.id, { matches: [...(tournament.matches || []), tagged] });
                     }}
                     onRemoveMatch={(matchId, pairId) => {
+                      if (isViewingPastSeason) return;
                       const newMatches = (tournament.matches || []).filter((m) => {
                         if (pairId) return m.pairId !== pairId;
                         return m.id !== matchId;
@@ -1329,7 +1344,7 @@ export default function TournamentDetailPage() {
 
         <TabsContent value="stats" className="mt-0 outline-none">
           <StatsView
-            tournament={isViewingPastSeason ? { ...tournament, matches: seasonData?.matches || [], teamIds: seasonTeamIds } : tournament}
+            tournament={activeTournament}
             teams={resolvedTeams}
           />
         </TabsContent>
