@@ -55,11 +55,13 @@ export default function RoundsView({
       const homeRate = tournament.settings.rateInfluence ? (home?.rate ?? 5) : 5;
       const awayRate = tournament.settings.rateInfluence ? (away?.rate ?? 5) : 5;
       const result = simulateFullMatch(homeRate, awayRate);
+      const stats = generateMatchStats(homeRate, awayRate, result.total[0], result.total[1]);
       return {
         ...match,
         homeScore: result.total[0],
         awayScore: result.total[1],
         played: true,
+        stats,
       };
     });
     if (onBatchUpdateMatches) {
