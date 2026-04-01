@@ -285,6 +285,13 @@ export default function MatchPopup({
       return;
     }
 
+    // Generate stats if not already generated
+    const homeRate = rateInfluence && homeTeam ? homeTeam.rate : 3;
+    const awayRate = rateInfluence && awayTeam ? awayTeam.rate : 3;
+    const finalHomeGoals = regularHome + (showExtraTime ? etHome : 0);
+    const finalAwayGoals = regularAway + (showExtraTime ? etAway : 0);
+    const stats = matchStats || generateMatchStats(homeRate, awayRate, finalHomeGoals, finalAwayGoals);
+
     onSave({
       ...match,
       homeScore: regularHome,
@@ -294,6 +301,7 @@ export default function MatchPopup({
       homePenalties: showPenalties ? penaltyScore("home") : undefined,
       awayPenalties: showPenalties ? penaltyScore("away") : undefined,
       played: true,
+      stats,
     });
   };
 
