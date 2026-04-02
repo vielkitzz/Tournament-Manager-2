@@ -545,8 +545,8 @@ export default function MatchPopup({
           </div>
         )}
 
-        {/* Match Statistics */}
-        {displayStats && (
+        {/* Match Statistics - toggled by button */}
+        {showStats && displayStats && (
           <div className="px-6 py-4 border-t border-border space-y-3">
             <p className="text-sm font-display font-bold text-foreground text-center">Estatísticas da Partida</p>
             <div className="space-y-2.5">
@@ -558,6 +558,10 @@ export default function MatchPopup({
               <StatRow label="Faltas" homeValue={displayStats.homeStats.fouls} awayValue={displayStats.awayStats.fouls} />
               <StatRow label="Cartões Amarelos" homeValue={displayStats.homeStats.yellowCards} awayValue={displayStats.awayStats.yellowCards} />
               <StatRow label="Cartões Vermelhos" homeValue={displayStats.homeStats.redCards} awayValue={displayStats.awayStats.redCards} />
+              <StatRow label="Impedimentos" homeValue={displayStats.homeStats.offsides} awayValue={displayStats.awayStats.offsides} />
+            </div>
+          </div>
+        )}
               <StatRow label="Impedimentos" homeValue={displayStats.homeStats.offsides} awayValue={displayStats.awayStats.offsides} />
             </div>
           </div>
