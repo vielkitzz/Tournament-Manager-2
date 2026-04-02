@@ -193,19 +193,14 @@ export default function MatchPopup({
       if (match.homeStats && match.awayStats) {
         setMatchStats({ homeStats: match.homeStats, awayStats: match.awayStats });
       } else {
-        // Auto-generate and save for legacy matches
+        // Auto-generate for legacy matches (save pending, will persist on next Finalizar)
         const homeRate = rateInfluence && homeTeam ? homeTeam.rate : 3;
         const awayRate = rateInfluence && awayTeam ? awayTeam.rate : 3;
         const totalGoalsHome = match.homeScore + (match.homeExtraTime || 0);
         const totalGoalsAway = match.awayScore + (match.awayExtraTime || 0);
         const stats = generateMatchStats(homeRate, awayRate, totalGoalsHome, totalGoalsAway);
         setMatchStats(stats);
-        // Auto-save stats to the match
-        onSave({
-          ...match,
-          homeStats: stats.homeStats,
-          awayStats: stats.awayStats,
-        });
+        setPendingLegacyStats(stats);
       }
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
