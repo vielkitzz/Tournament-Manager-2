@@ -562,10 +562,6 @@ export default function MatchPopup({
             </div>
           </div>
         )}
-              <StatRow label="Impedimentos" homeValue={displayStats.homeStats.offsides} awayValue={displayStats.awayStats.offsides} />
-            </div>
-          </div>
-        )}
 
         {/* Standings */}
         {bottomStandings.length > 0 && (
