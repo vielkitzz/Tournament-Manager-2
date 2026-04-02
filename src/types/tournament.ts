@@ -70,6 +70,9 @@ export interface Match {
   awayPenalties?: number;
   // Third-place flag
   isThirdPlace?: boolean;
+  // Match statistics
+  homeStats?: TeamMatchStats;
+  awayStats?: TeamMatchStats;
 }
 
 export interface SeasonRecord {
