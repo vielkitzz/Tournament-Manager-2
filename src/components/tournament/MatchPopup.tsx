@@ -1,8 +1,8 @@
-import { useState, useEffect, useCallback } from "react";
-import { Match, Team, Tournament } from "@/types/tournament";
+import { useState, useEffect, useCallback, useMemo } from "react";
+import { Match, Team, Tournament, TeamMatchStats } from "@/types/tournament";
 import { Shield, ChevronUp, ChevronDown, Play } from "lucide-react";
 import { calculateStandings, StandingRow } from "@/lib/standings";
-import { simulateHalf } from "@/lib/simulation";
+import { simulateHalf, generateMatchStats } from "@/lib/simulation";
 
 interface MatchPopupProps {
   match: Match;
@@ -18,8 +18,68 @@ interface MatchPopupProps {
 type HalfKey = "h1" | "h2" | "et1" | "et2";
 
 function simulatePenaltyKick(): boolean {
-  // ~75% chance to score
   return Math.random() < 0.75;
+}
+
+// Stats comparison bar row component
+function StatRow({ label, homeValue, awayValue, format }: { label: string; homeValue: number; awayValue: number; format?: "decimal" | "percent" | "integer" }) {
+  const total = homeValue + awayValue;
+  const homePercent = total > 0 ? (homeValue / total) * 100 : 50;
+  const awayPercent = total > 0 ? (awayValue / total) * 100 : 50;
+
+  const formatValue = (v: number) => {
+    if (format === "decimal") return v.toFixed(2);
+    if (format === "percent") return `${v}%`;
+    return String(v);
+  };
+
+  const homeBetter = homeValue > awayValue;
+  const awayBetter = awayValue > homeValue;
+
+  return (
+    <div className="space-y-1">
+      <div className="text-center text-xs text-muted-foreground font-medium">{label}</div>
+      <div className="flex items-center gap-2">
+        <span className={`text-xs font-bold w-10 text-right ${homeBetter ? "text-foreground" : "text-muted-foreground"}`}>
+          {formatValue(homeValue)}
+        </span>
+        <div className="flex-1 flex h-2 rounded-full overflow-hidden bg-secondary gap-[1px]">
+          <div
+            className="h-full rounded-l-full transition-all"
+            style={{
+              width: `${homePercent}%`,
+              backgroundColor: homeBetter ? "hsl(var(--primary))" : "hsl(var(--muted-foreground) / 0.4)",
+            }}
+          />
+          <div
+            className="h-full rounded-r-full transition-all"
+            style={{
+              width: `${awayPercent}%`,
+              backgroundColor: awayBetter ? "hsl(var(--primary))" : "hsl(var(--muted-foreground) / 0.4)",
+            }}
+          />
+        </div>
+        <span className={`text-xs font-bold w-10 text-left ${awayBetter ? "text-foreground" : "text-muted-foreground"}`}>
+          {formatValue(awayValue)}
+        </span>
+      </div>
+    </div>
+  );
+}
+
+// Card indicators component
+function CardIndicators({ yellowCards, redCards }: { yellowCards: number; redCards: number }) {
+  if (yellowCards === 0 && redCards === 0) return null;
+  return (
+    <div className="flex gap-1 justify-center mt-1">
+      {Array.from({ length: yellowCards }, (_, i) => (
+        <div key={`y${i}`} className="w-2.5 h-3.5 rounded-[1px] bg-yellow-400" />
+      ))}
+      {Array.from({ length: redCards }, (_, i) => (
+        <div key={`r${i}`} className="w-2.5 h-3.5 rounded-[1px] bg-red-500" />
+      ))}
+    </div>
+  );
 }
 
 export default function MatchPopup({
@@ -33,7 +93,6 @@ export default function MatchPopup({
   onCancel,
 }: MatchPopupProps) {
   const isKnockoutFormat = match.stage === "knockout" || tournament?.format === "mata-mata";
-  // Leg1 of a home-away pair should NOT trigger extra time/penalties - only leg2 or single matches
   const isLeg1OfPair = !!(match.pairId && match.leg === 1);
   const pairLeg1 = match.pairId
     ? tournament?.matches.find((m) => m.pairId === match.pairId && m.leg === 1 && m.id !== match.id)
@@ -59,6 +118,7 @@ export default function MatchPopup({
   });
   const [penaltyIndex, setPenaltyIndex] = useState(0);
   const [penaltyFinished, setPenaltyFinished] = useState(false);
+  const [matchStats, setMatchStats] = useState<{ homeStats: TeamMatchStats; awayStats: TeamMatchStats } | null>(null);
 
   const setHalfScore = (half: HalfKey, side: 0 | 1, value: number) => {
     setScores((prev) => ({
@@ -76,24 +136,16 @@ export default function MatchPopup({
 
   const getTwoLegTieContext = (includeExtraTime: boolean) => {
     if (!pairLeg1) return null;
-
     const leg1HomeTotal = (pairLeg1.homeScore || 0) + (pairLeg1.homeExtraTime || 0);
     const leg1AwayTotal = (pairLeg1.awayScore || 0) + (pairLeg1.awayExtraTime || 0);
     const leg2HomeTotal = regularHome + (includeExtraTime ? etHome : 0);
     const leg2AwayTotal = regularAway + (includeExtraTime ? etAway : 0);
-
     const aggregateHome = leg1HomeTotal + leg2AwayTotal;
     const aggregateAway = leg1AwayTotal + leg2HomeTotal;
     const awayGoalsHome = leg2AwayTotal;
     const awayGoalsAway = leg1AwayTotal;
     const awayGoalsBreakTie = awayGoalsRule && awayGoalsHome !== awayGoalsAway;
-
-    return {
-      aggregateHome,
-      aggregateAway,
-      isAggregateTied: aggregateHome === aggregateAway,
-      awayGoalsBreakTie,
-    };
+    return { aggregateHome, aggregateAway, isAggregateTied: aggregateHome === aggregateAway, awayGoalsBreakTie };
   };
 
   const regularTieContext = isLeg2OfPair ? getTwoLegTieContext(false) : null;
@@ -113,11 +165,9 @@ export default function MatchPopup({
 
   const [simulatedHalves, setSimulatedHalves] = useState<Set<HalfKey>>(new Set());
 
-  // Bug fix #10: Pre-load existing scores when opening a played match for editing
+  // Auto-generate stats for legacy matches that don't have them
   useEffect(() => {
     if (match.played) {
-      // Distribute existing score into h1/h2 halves (best approximation)
-      // We store the full score in h1 and leave h2 as 0, so the total is correct
       setScores({
         h1: [match.homeScore, match.awayScore],
         h2: [0, 0],
@@ -135,18 +185,34 @@ export default function MatchPopup({
         setPenalties({ home: homeKicks, away: awayKicks });
         setPenaltyFinished(true);
       }
-      // Mark halves as simulated so the UI shows the loaded scores
       setSimulatedHalves(new Set(["h1", "h2"]));
+
+      // Load existing stats or auto-generate for legacy matches
+      if (match.homeStats && match.awayStats) {
+        setMatchStats({ homeStats: match.homeStats, awayStats: match.awayStats });
+      } else {
+        // Auto-generate and save for legacy matches
+        const homeRate = rateInfluence && homeTeam ? homeTeam.rate : 3;
+        const awayRate = rateInfluence && awayTeam ? awayTeam.rate : 3;
+        const totalGoalsHome = match.homeScore + (match.homeExtraTime || 0);
+        const totalGoalsAway = match.awayScore + (match.awayExtraTime || 0);
+        const stats = generateMatchStats(homeRate, awayRate, totalGoalsHome, totalGoalsAway);
+        setMatchStats(stats);
+        // Auto-save stats to the match
+        onSave({
+          ...match,
+          homeStats: stats.homeStats,
+          awayStats: stats.awayStats,
+        });
+      }
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [match.id]); // Re-run only when a different match is opened
+  }, [match.id]);
 
-  // After h2 is simulated in knockout: auto trigger extra time or penalties
   useEffect(() => {
     if (!isKnockout) return;
     if (!simulatedHalves.has("h2")) return;
     if (!requiresDeciderAfterRegular) return;
-
     if (extraTimeEnabled && !showExtraTime) {
       setShowExtraTime(true);
       setActiveHalf("et1");
@@ -155,7 +221,6 @@ export default function MatchPopup({
     }
   }, [simulatedHalves, isKnockout, requiresDeciderAfterRegular, extraTimeEnabled, showExtraTime, showPenalties]);
 
-  // After et2 is simulated in knockout: auto trigger penalties if still drawn
   useEffect(() => {
     if (!isKnockout || !showExtraTime) return;
     if (!simulatedHalves.has("et2")) return;
@@ -168,14 +233,10 @@ export default function MatchPopup({
   useEffect(() => {
     if (!isKnockout) return;
     if (requiresDeciderAfterRegular) return;
-
     if (showExtraTime) {
       setShowExtraTime(false);
-      if (activeHalf === "et1" || activeHalf === "et2") {
-        setActiveHalf("h2");
-      }
+      if (activeHalf === "et1" || activeHalf === "et2") setActiveHalf("h2");
     }
-
     if (showPenalties) {
       setShowPenalties(false);
       setPenalties({ home: [], away: [] });
@@ -184,7 +245,6 @@ export default function MatchPopup({
     }
   }, [isKnockout, requiresDeciderAfterRegular, showExtraTime, showPenalties, activeHalf]);
 
-  // Accumulated scores up to and including the active half (visual only)
   const halvesOrder: HalfKey[] = ["h1", "h2", "et1", "et2"];
   const activeIndex = halvesOrder.indexOf(activeHalf);
   const accumulatedHome = halvesOrder.slice(0, activeIndex + 1).reduce((sum, k) => sum + scores[k][0], 0);
@@ -210,46 +270,29 @@ export default function MatchPopup({
     : simulatedHalves.has("h1") && simulatedHalves.has("h2");
   const canSimulate = !showPenalties && !simulatedHalves.has(activeHalf) && !allRequiredSimulated;
 
-  // Penalty shootout: one-by-one
   const penaltyScore = (side: "home" | "away") => penalties[side].filter((p) => p === true).length;
 
   const handleShootPenalty = useCallback(() => {
     if (penaltyFinished) return;
-
     const isHomeKick = penaltyIndex % 2 === 0;
     const side = isHomeKick ? "home" : "away";
     const result = simulatePenaltyKick();
-
-    setPenalties((prev) => ({
-      ...prev,
-      [side]: [...prev[side], result],
-    }));
+    setPenalties((prev) => ({ ...prev, [side]: [...prev[side], result] }));
     setPenaltyIndex((i) => i + 1);
   }, [penaltyIndex, penaltyFinished]);
 
-  // Check if penalties are decided
   useEffect(() => {
     if (!showPenalties || penaltyFinished) return;
-
     const homeKicks = penalties.home.length;
     const awayKicks = penalties.away.length;
     const homeScore = penaltyScore("home");
     const awayScore = penaltyScore("away");
-    const maxRound = Math.max(homeKicks, awayKicks);
-
-    // Both have equal kicks and we're past 5 rounds each
     if (homeKicks === awayKicks && homeKicks >= 5) {
-      if (homeScore !== awayScore) {
-        setPenaltyFinished(true);
-        return;
-      }
+      if (homeScore !== awayScore) { setPenaltyFinished(true); return; }
     }
-
-    // During first 5: check if it's mathematically decided
     if (homeKicks === awayKicks && homeKicks <= 5 && homeKicks >= 1) {
       const remainingHome = Math.max(5 - homeKicks, 0);
       const remainingAway = Math.max(5 - awayKicks, 0);
-      // Can't catch up
       if (homeScore + remainingHome < awayScore) { setPenaltyFinished(true); return; }
       if (awayScore + remainingAway < homeScore) { setPenaltyFinished(true); return; }
     }
@@ -258,10 +301,21 @@ export default function MatchPopup({
   const togglePenalty = (side: "home" | "away", index: number) => {
     setPenalties((prev) => {
       const arr = [...prev[side]];
-      if (arr[index] === true) arr[index] = false;
-      else arr[index] = true;
+      arr[index] = !arr[index];
       return { ...prev, [side]: arr };
     });
+  };
+
+  // Generate stats when finishing if not yet generated
+  const ensureStats = (): { homeStats: TeamMatchStats; awayStats: TeamMatchStats } => {
+    if (matchStats) return matchStats;
+    const homeRate = rateInfluence && homeTeam ? homeTeam.rate : 3;
+    const awayRate = rateInfluence && awayTeam ? awayTeam.rate : 3;
+    const finalHome = totalHome;
+    const finalAway = totalAway;
+    const stats = generateMatchStats(homeRate, awayRate, finalHome, finalAway);
+    setMatchStats(stats);
+    return stats;
   };
 
   const handleFinish = () => {
@@ -271,17 +325,15 @@ export default function MatchPopup({
         setActiveHalf("et1");
         return;
       }
-
       const penaltiesNeeded = showExtraTime ? requiresPenaltiesAfterExtraTime : !extraTimeEnabled;
       if (penaltiesNeeded && !showPenalties) {
         setShowPenalties(true);
         return;
       }
     }
+    if (showPenalties && penaltyScore("home") === penaltyScore("away")) return;
 
-    if (showPenalties && penaltyScore("home") === penaltyScore("away")) {
-      return;
-    }
+    const stats = ensureStats();
 
     onSave({
       ...match,
@@ -291,34 +343,23 @@ export default function MatchPopup({
       awayExtraTime: showExtraTime ? etAway : undefined,
       homePenalties: showPenalties ? penaltyScore("home") : undefined,
       awayPenalties: showPenalties ? penaltyScore("away") : undefined,
+      homeStats: stats.homeStats,
+      awayStats: stats.awayStats,
       played: true,
     });
   };
 
-  // Build a live version of matches that includes the current popup score
   const liveMatches = (() => {
     if (!tournament) return [];
-    const regularHome = scores.h1[0] + scores.h2[0];
-    const regularAway = scores.h1[1] + scores.h2[1];
-    const liveMatch: Match = {
-      ...match,
-      homeScore: regularHome,
-      awayScore: regularAway,
-      played: true,
-    };
+    const liveMatch: Match = { ...match, homeScore: regularHome, awayScore: regularAway, played: true };
     return tournament.matches.map((m) => (m.id === match.id ? liveMatch : m));
   })();
 
-  // Bottom standings logic
   const bottomStandings: (StandingRow & { position: number })[] = (() => {
     if (!tournament || !allTeams) return [];
-    // Mata-mata puro: nada
     if (tournament.format === "mata-mata") return [];
-    // Knockout stage of grupos: nada
     if (match.stage === "knockout") return [];
-
     if (tournament.format === "grupos" && match.group) {
-      // Show only teams from this group
       const groupTeamIds = tournament.teamIds.filter((tid) => {
         const groupMatch = liveMatches.find(
           (m) => m.stage === "group" && m.group === match.group && (m.homeTeamId === tid || m.awayTeamId === tid)
@@ -330,8 +371,6 @@ export default function MatchPopup({
       const withPos = all.map((s, i) => ({ ...s, position: i + 1 }));
       return withPos.filter((s) => s.teamId === match.homeTeamId || s.teamId === match.awayTeamId);
     }
-
-    // Liga or Suíço: full standings, filter to match teams only
     const all = calculateStandings(tournament.teamIds, liveMatches, tournament.settings, allTeams);
     const withPos = all.map((s, i) => ({ ...s, position: i + 1 }));
     return withPos.filter((s) => s.teamId === match.homeTeamId || s.teamId === match.awayTeamId);
@@ -349,6 +388,9 @@ export default function MatchPopup({
       { key: "et2" as HalfKey, label: "Prorr 2" },
     ] : []),
   ];
+
+  // Display stats (from state)
+  const displayStats = matchStats;
 
   return (
     <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4" onClick={onCancel}>
@@ -370,6 +412,9 @@ export default function MatchPopup({
               <div>
                 <p className="font-display font-bold text-foreground text-sm">{homeTeam?.name || "Time Excluído"}</p>
                 <p className="text-xs text-primary font-mono">{homeTeam?.rate?.toFixed(2) ?? "—"}</p>
+                {displayStats && (
+                  <CardIndicators yellowCards={displayStats.homeStats.yellowCards} redCards={displayStats.homeStats.redCards} />
+                )}
               </div>
             </div>
             <span className="text-muted-foreground font-bold text-sm px-4 shrink-0">VS</span>
@@ -377,6 +422,9 @@ export default function MatchPopup({
               <div>
                 <p className="font-display font-bold text-foreground text-sm">{awayTeam?.name || "Time Excluído"}</p>
                 <p className="text-xs text-primary font-mono">{awayTeam?.rate?.toFixed(2) ?? "—"}</p>
+                {displayStats && (
+                  <CardIndicators yellowCards={displayStats.awayStats.yellowCards} redCards={displayStats.awayStats.redCards} />
+                )}
               </div>
               <div className="w-12 h-12 flex items-center justify-center shrink-0">
                 {awayTeam?.logo ? (
@@ -411,7 +459,7 @@ export default function MatchPopup({
           )}
         </div>
 
-        {/* Score Controls (hidden during penalties) */}
+        {/* Score Controls */}
         {!showPenalties && (
           <>
             <div className="flex items-center justify-center gap-4 py-6 px-6">
@@ -452,56 +500,37 @@ export default function MatchPopup({
           </>
         )}
 
-        {/* Penalties - One by One */}
+        {/* Penalties */}
         {showPenalties && (
           <div className="px-6 py-6 space-y-4">
             <p className="text-sm font-display font-bold text-foreground text-center">Disputa de Pênaltis</p>
-
             <div className="space-y-3">
-              {/* Home kicks */}
               <div className="flex items-center gap-2 justify-center">
                 <span className="text-xs text-muted-foreground w-16 text-right truncate">{homeTeam?.abbreviation || homeTeam?.shortName}</span>
                 <div className="flex gap-1.5 min-w-[140px]">
                   {penalties.home.map((p, i) => (
-                    <button
-                      key={i}
-                      onClick={() => togglePenalty("home", i)}
-                      className={`w-7 h-7 rounded-full border-2 transition-all ${
-                        p === true
-                          ? "bg-primary border-primary"
-                          : "bg-destructive border-destructive"
-                      }`}
+                    <button key={i} onClick={() => togglePenalty("home", i)}
+                      className={`w-7 h-7 rounded-full border-2 transition-all ${p === true ? "bg-primary border-primary" : "bg-destructive border-destructive"}`}
                     />
                   ))}
                 </div>
                 <span className="text-lg font-bold text-foreground w-8 text-center">{penaltyScore("home")}</span>
               </div>
-
-              {/* Away kicks */}
               <div className="flex items-center gap-2 justify-center">
                 <span className="text-xs text-muted-foreground w-16 text-right truncate">{awayTeam?.abbreviation || awayTeam?.shortName}</span>
                 <div className="flex gap-1.5 min-w-[140px]">
                   {penalties.away.map((p, i) => (
-                    <button
-                      key={i}
-                      onClick={() => togglePenalty("away", i)}
-                      className={`w-7 h-7 rounded-full border-2 transition-all ${
-                        p === true
-                          ? "bg-primary border-primary"
-                          : "bg-destructive border-destructive"
-                      }`}
+                    <button key={i} onClick={() => togglePenalty("away", i)}
+                      className={`w-7 h-7 rounded-full border-2 transition-all ${p === true ? "bg-primary border-primary" : "bg-destructive border-destructive"}`}
                     />
                   ))}
                 </div>
                 <span className="text-lg font-bold text-foreground w-8 text-center">{penaltyScore("away")}</span>
               </div>
             </div>
-
-            {/* Shoot button */}
             {!penaltyFinished && (
               <div className="flex justify-center">
-                <button
-                  onClick={handleShootPenalty}
+                <button onClick={handleShootPenalty}
                   className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-primary text-primary-foreground font-display font-bold text-sm hover:bg-primary/90 transition-colors"
                 >
                   <Play className="w-4 h-4" />
@@ -509,7 +538,6 @@ export default function MatchPopup({
                 </button>
               </div>
             )}
-
             {penaltyFinished && (
               <p className="text-xs text-center text-primary font-bold">
                 {penaltyScore("home") > penaltyScore("away")
@@ -517,12 +545,28 @@ export default function MatchPopup({
                   : `${awayTeam?.name || "Fora"} vence nos pênaltis!`}
               </p>
             )}
-
-            
           </div>
         )}
 
-        {/* Standings Section */}
+        {/* Match Statistics */}
+        {displayStats && (
+          <div className="px-6 py-4 border-t border-border space-y-3">
+            <p className="text-sm font-display font-bold text-foreground text-center">Estatísticas da Partida</p>
+            <div className="space-y-2.5">
+              <StatRow label="Posse de Bola" homeValue={displayStats.homeStats.possession} awayValue={displayStats.awayStats.possession} format="percent" />
+              <StatRow label="Gols Esperados (xG)" homeValue={displayStats.homeStats.expectedGoals} awayValue={displayStats.awayStats.expectedGoals} format="decimal" />
+              <StatRow label="Finalizações" homeValue={displayStats.homeStats.shots} awayValue={displayStats.awayStats.shots} />
+              <StatRow label="Finalizações ao Gol" homeValue={displayStats.homeStats.shotsOnTarget} awayValue={displayStats.awayStats.shotsOnTarget} />
+              <StatRow label="Escanteios" homeValue={displayStats.homeStats.corners} awayValue={displayStats.awayStats.corners} />
+              <StatRow label="Faltas" homeValue={displayStats.homeStats.fouls} awayValue={displayStats.awayStats.fouls} />
+              <StatRow label="Cartões Amarelos" homeValue={displayStats.homeStats.yellowCards} awayValue={displayStats.awayStats.yellowCards} />
+              <StatRow label="Cartões Vermelhos" homeValue={displayStats.homeStats.redCards} awayValue={displayStats.awayStats.redCards} />
+              <StatRow label="Impedimentos" homeValue={displayStats.homeStats.offsides} awayValue={displayStats.awayStats.offsides} />
+            </div>
+          </div>
+        )}
+
+        {/* Standings */}
         {bottomStandings.length > 0 && (
           <div className="px-6 pb-4">
             <p className="text-xs font-display font-bold text-muted-foreground mb-2">{standingsTitle}</p>
@@ -549,10 +593,7 @@ export default function MatchPopup({
                     const promo = tournament?.settings?.promotions?.find((p) => p.position === row.position);
                     return (
                       <tr key={row.teamId} className={`border-t border-border/50 ${isMatchTeam ? "bg-primary/5 font-semibold" : ""}`}>
-                        <td
-                          className="py-1.5 px-2 text-muted-foreground"
-                          style={promo ? { borderLeft: `3px solid ${promo.color}` } : undefined}
-                        >
+                        <td className="py-1.5 px-2 text-muted-foreground" style={promo ? { borderLeft: `3px solid ${promo.color}` } : undefined}>
                           {row.position}
                         </td>
                         <td className="py-1.5 px-2">
@@ -588,9 +629,6 @@ export default function MatchPopup({
         <div className="flex items-center justify-between border-t border-border px-6 py-4">
           <button onClick={onCancel} className="text-destructive font-display font-bold text-sm hover:text-destructive/80 transition-colors">
             Cancelar
-          </button>
-          <button className="text-foreground font-display font-bold text-sm hover:text-foreground/80 transition-colors">
-            Eventos
           </button>
           <button onClick={handleFinish} className="text-primary font-display font-bold text-sm hover:text-primary/80 transition-colors">
             Finalizar
