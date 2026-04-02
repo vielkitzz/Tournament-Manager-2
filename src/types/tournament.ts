@@ -34,6 +34,18 @@ export interface PromotionRule {
   targetCompetitionId?: string;
 }
 
+export interface TeamMatchStats {
+  possession: number;
+  expectedGoals: number;
+  shots: number;
+  shotsOnTarget: number;
+  fouls: number;
+  corners: number;
+  yellowCards: number;
+  redCards: number;
+  offsides: number;
+}
+
 export interface Match {
   id: string;
   tournamentId: string;
