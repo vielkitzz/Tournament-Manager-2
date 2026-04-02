@@ -3,13 +3,11 @@
  *
  * Uses a Poisson model where each team's expected goals per half
  * is derived from their rate relative to the opponent's rate.
- *
- * Rate acts as "strength": higher rate = more likely to score and less likely to concede.
- * But football is unpredictable — upsets happen naturally through the Poisson variance.
  */
 
+import { TeamMatchStats } from "@/types/tournament";
+
 function poissonRandom(lambda: number): number {
-  // Knuth algorithm for Poisson-distributed random variable
   const L = Math.exp(-lambda);
   let k = 0;
   let p = 1;
@@ -20,45 +18,19 @@ function poissonRandom(lambda: number): number {
   return k - 1;
 }
 
-/**
- * Calculates expected goals for a half based on team strengths.
- *
- * Base expected goals per half ≈ 0.75 (realistic ~1.5 goals/game per team on average in football).
- * The ratio of rates determines how goals are distributed.
- *
- * Examples with base 0.75:
- *   - Equal rates (5 vs 5): both expect ~0.75 goals/half
- *   - Dominant vs weak (8 vs 2): dominant expects ~1.2, weak expects ~0.3
- *   - Slight edge (6 vs 4): stronger expects ~0.9, weaker expects ~0.6
- */
 function getExpectedGoals(teamRate: number, opponentRate: number): number {
   const BASE_GOALS_PER_HALF = 0.75;
-
-  // Strength ratio: how much stronger this team is relative to opponent
-  // Using sqrt to dampen extreme differences (a 9.0 vs 1.0 shouldn't be 9x more likely)
   const strengthRatio = Math.sqrt(teamRate / opponentRate);
-
-  // Apply ratio to base, with a small random "form" factor (±15%)
   const formFactor = 0.85 + Math.random() * 0.30;
-
   return BASE_GOALS_PER_HALF * strengthRatio * formFactor;
 }
 
-/**
- * Simulates a single half of a match.
- * Returns [homeGoals, awayGoals].
- */
 export function simulateHalf(homeRate: number, awayRate: number): [number, number] {
   const homeExpected = getExpectedGoals(homeRate, awayRate);
   const awayExpected = getExpectedGoals(awayRate, homeRate);
-
   return [poissonRandom(homeExpected), poissonRandom(awayExpected)];
 }
 
-/**
- * Simulates a full match (two halves).
- * Returns { h1: [home, away], h2: [home, away], total: [home, away] }.
- */
 export function simulateFullMatch(
   homeRate: number,
   awayRate: number
@@ -73,5 +45,98 @@ export function simulateFullMatch(
     h1,
     h2,
     total: [h1[0] + h2[0], h1[1] + h2[1]],
+  };
+}
+
+function randInt(min: number, max: number): number {
+  return Math.floor(Math.random() * (max - min + 1)) + min;
+}
+
+function roundTo2(n: number): number {
+  return Math.round(n * 100) / 100;
+}
+
+/**
+ * Generate realistic match statistics based on team rates and final scores.
+ * Can be used both during simulation and to retroactively generate stats for legacy matches.
+ */
+export function generateMatchStats(
+  homeRate: number,
+  awayRate: number,
+  homeGoals: number,
+  awayGoals: number
+): { homeStats: TeamMatchStats; awayStats: TeamMatchStats } {
+  // Possession based on rates with some randomness
+  const homeStrength = homeRate + (Math.random() - 0.5) * 1.5;
+  const awayStrength = awayRate + (Math.random() - 0.5) * 1.5;
+  const totalStrength = Math.max(homeStrength, 0.5) + Math.max(awayStrength, 0.5);
+  const rawHomePoss = (Math.max(homeStrength, 0.5) / totalStrength) * 100;
+  const homePossession = Math.round(Math.max(25, Math.min(75, rawHomePoss)));
+  const awayPossession = 100 - homePossession;
+
+  // Shots: proportional to possession and rate (5-20 range)
+  const homeShotsBase = 5 + (homePossession / 100) * 10 + (homeRate / 10) * 5;
+  const awayShotsBase = 5 + (awayPossession / 100) * 10 + (awayRate / 10) * 5;
+  const homeShots = Math.max(homeGoals + 1, randInt(Math.floor(homeShotsBase - 2), Math.ceil(homeShotsBase + 3)));
+  const awayShots = Math.max(awayGoals + 1, randInt(Math.floor(awayShotsBase - 2), Math.ceil(awayShotsBase + 3)));
+
+  // Shots on target: 10%-50% of shots, but never less than goals scored
+  const homeSotMin = Math.max(homeGoals, Math.ceil(homeShots * 0.1));
+  const homeSotMax = Math.max(homeSotMin, Math.floor(homeShots * 0.5));
+  const homeShotsOnTarget = randInt(homeSotMin, homeSotMax);
+
+  const awaySotMin = Math.max(awayGoals, Math.ceil(awayShots * 0.1));
+  const awaySotMax = Math.max(awaySotMin, Math.floor(awayShots * 0.5));
+  const awayShotsOnTarget = randInt(awaySotMin, awaySotMax);
+
+  // xG: proportional to shots on target, min 0.10 per shot on target
+  // With variation around actual goals
+  const homeXgBase = homeShotsOnTarget * (0.10 + Math.random() * 0.15);
+  const homeXg = roundTo2(Math.max(homeXgBase, homeShotsOnTarget * 0.10));
+
+  const awayXgBase = awayShotsOnTarget * (0.10 + Math.random() * 0.15);
+  const awayXg = roundTo2(Math.max(awayXgBase, awayShotsOnTarget * 0.10));
+
+  // Fouls (8-22), inversely related to possession (less possession = more fouls)
+  const homeFouls = randInt(8, 18) + Math.round((awayPossession - 50) / 10);
+  const awayFouls = randInt(8, 18) + Math.round((homePossession - 50) / 10);
+
+  // Corners (2-12), proportional to shots/possession
+  const homeCorners = randInt(2, Math.max(3, Math.round(homeShots * 0.5)));
+  const awayCorners = randInt(2, Math.max(3, Math.round(awayShots * 0.5)));
+
+  // Cards: based on fouls
+  const homeYellow = Math.min(homeFouls, randInt(0, Math.max(0, Math.floor(homeFouls / 5))));
+  const awayYellow = Math.min(awayFouls, randInt(0, Math.max(0, Math.floor(awayFouls / 5))));
+  const homeRed = Math.random() < 0.08 ? 1 : 0;
+  const awayRed = Math.random() < 0.08 ? 1 : 0;
+
+  // Offsides (0-6)
+  const homeOffsides = randInt(0, 5);
+  const awayOffsides = randInt(0, 5);
+
+  return {
+    homeStats: {
+      possession: homePossession,
+      expectedGoals: homeXg,
+      shots: homeShots,
+      shotsOnTarget: homeShotsOnTarget,
+      fouls: Math.max(0, homeFouls),
+      corners: homeCorners,
+      yellowCards: homeYellow,
+      redCards: homeRed,
+      offsides: homeOffsides,
+    },
+    awayStats: {
+      possession: awayPossession,
+      expectedGoals: awayXg,
+      shots: awayShots,
+      shotsOnTarget: awayShotsOnTarget,
+      fouls: Math.max(0, awayFouls),
+      corners: awayCorners,
+      yellowCards: awayYellow,
+      redCards: awayRed,
+      offsides: awayOffsides,
+    },
   };
 }
