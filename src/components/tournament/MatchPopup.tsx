@@ -631,6 +631,12 @@ export default function MatchPopup({
           <button onClick={onCancel} className="text-destructive font-display font-bold text-sm hover:text-destructive/80 transition-colors">
             Cancelar
           </button>
+          <button
+            onClick={() => setShowStats((prev) => !prev)}
+            className={`font-display font-bold text-sm transition-colors ${showStats ? "text-primary" : "text-foreground hover:text-foreground/80"}`}
+          >
+            Estatísticas
+          </button>
           <button onClick={handleFinish} className="text-primary font-display font-bold text-sm hover:text-primary/80 transition-colors">
             Finalizar
           </button>
