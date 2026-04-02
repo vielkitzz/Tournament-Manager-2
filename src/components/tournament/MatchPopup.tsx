@@ -119,6 +119,8 @@ export default function MatchPopup({
   const [penaltyIndex, setPenaltyIndex] = useState(0);
   const [penaltyFinished, setPenaltyFinished] = useState(false);
   const [matchStats, setMatchStats] = useState<{ homeStats: TeamMatchStats; awayStats: TeamMatchStats } | null>(null);
+  const [showStats, setShowStats] = useState(false);
+  const [pendingLegacyStats, setPendingLegacyStats] = useState<{ homeStats: TeamMatchStats; awayStats: TeamMatchStats } | null>(null);
 
   const setHalfScore = (half: HalfKey, side: 0 | 1, value: number) => {
     setScores((prev) => ({
@@ -191,19 +193,14 @@ export default function MatchPopup({
       if (match.homeStats && match.awayStats) {
         setMatchStats({ homeStats: match.homeStats, awayStats: match.awayStats });
       } else {
-        // Auto-generate and save for legacy matches
+        // Auto-generate for legacy matches (save pending, will persist on next Finalizar)
         const homeRate = rateInfluence && homeTeam ? homeTeam.rate : 3;
         const awayRate = rateInfluence && awayTeam ? awayTeam.rate : 3;
         const totalGoalsHome = match.homeScore + (match.homeExtraTime || 0);
         const totalGoalsAway = match.awayScore + (match.awayExtraTime || 0);
         const stats = generateMatchStats(homeRate, awayRate, totalGoalsHome, totalGoalsAway);
         setMatchStats(stats);
-        // Auto-save stats to the match
-        onSave({
-          ...match,
-          homeStats: stats.homeStats,
-          awayStats: stats.awayStats,
-        });
+        setPendingLegacyStats(stats);
       }
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -548,8 +545,8 @@ export default function MatchPopup({
           </div>
         )}
 
-        {/* Match Statistics */}
-        {displayStats && (
+        {/* Match Statistics - toggled by button */}
+        {showStats && displayStats && (
           <div className="px-6 py-4 border-t border-border space-y-3">
             <p className="text-sm font-display font-bold text-foreground text-center">Estatísticas da Partida</p>
             <div className="space-y-2.5">
@@ -629,6 +626,12 @@ export default function MatchPopup({
         <div className="flex items-center justify-between border-t border-border px-6 py-4">
           <button onClick={onCancel} className="text-destructive font-display font-bold text-sm hover:text-destructive/80 transition-colors">
             Cancelar
+          </button>
+          <button
+            onClick={() => setShowStats((prev) => !prev)}
+            className={`font-display font-bold text-sm transition-colors ${showStats ? "text-primary" : "text-foreground hover:text-foreground/80"}`}
+          >
+            Estatísticas
           </button>
           <button onClick={handleFinish} className="text-primary font-display font-bold text-sm hover:text-primary/80 transition-colors">
             Finalizar
