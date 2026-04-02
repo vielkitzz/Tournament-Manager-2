@@ -119,6 +119,8 @@ export default function MatchPopup({
   const [penaltyIndex, setPenaltyIndex] = useState(0);
   const [penaltyFinished, setPenaltyFinished] = useState(false);
   const [matchStats, setMatchStats] = useState<{ homeStats: TeamMatchStats; awayStats: TeamMatchStats } | null>(null);
+  const [showStats, setShowStats] = useState(false);
+  const [pendingLegacyStats, setPendingLegacyStats] = useState<{ homeStats: TeamMatchStats; awayStats: TeamMatchStats } | null>(null);
 
   const setHalfScore = (half: HalfKey, side: 0 | 1, value: number) => {
     setScores((prev) => ({
