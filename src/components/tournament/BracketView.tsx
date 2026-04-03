@@ -1113,6 +1113,7 @@ export default function BracketView({
           rateInfluence={tournament.settings.rateInfluence}
           tournament={tournament}
           allTeams={teams}
+          onPersist={onUpdateMatch}
           onSave={(updated) => {
             onUpdateMatch(updated);
             setSelectedMatch(null);
