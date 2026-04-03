@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useMemo } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Match, Team, Tournament, TeamMatchStats } from "@/types/tournament";
 import { Shield, ChevronUp, ChevronDown, Play } from "lucide-react";
 import { calculateStandings, StandingRow } from "@/lib/standings";
@@ -12,6 +12,7 @@ interface MatchPopupProps {
   tournament?: Tournament;
   allTeams?: Team[];
   onSave: (updated: Match) => void;
+  onPersist?: (updated: Match) => void;
   onCancel: () => void;
 }
 
@@ -24,8 +25,8 @@ function simulatePenaltyKick(): boolean {
 // Stats comparison bar row — Sofascore-style: bars grow from center outward
 function StatRow({ label, homeValue, awayValue, format }: { label: string; homeValue: number; awayValue: number; format?: "decimal" | "percent" | "integer" }) {
   const total = homeValue + awayValue;
-  const homePercent = total > 0 ? (homeValue / total) * 100 : 50;
-  const awayPercent = total > 0 ? (awayValue / total) * 100 : 50;
+  const homePercent = total > 0 ? (homeValue / total) * 100 : 0;
+  const awayPercent = total > 0 ? (awayValue / total) * 100 : 0;
 
   const formatValue = (v: number) => {
     if (format === "decimal") return v.toFixed(2);
@@ -35,37 +36,32 @@ function StatRow({ label, homeValue, awayValue, format }: { label: string; homeV
 
   const homeBetter = homeValue > awayValue;
   const awayBetter = awayValue > homeValue;
+  const homeBarClass = homeBetter ? "bg-primary" : awayBetter ? "bg-primary/35" : "bg-primary/60";
+  const awayBarClass = awayBetter ? "bg-primary" : homeBetter ? "bg-primary/35" : "bg-primary/60";
 
   return (
-    <div className="space-y-1.5">
+    <div className="space-y-2">
       <div className="flex items-center justify-between">
         <span className={`text-xs font-bold ${homeBetter ? "text-foreground" : "text-muted-foreground"}`}>
           {formatValue(homeValue)}
         </span>
-        <span className="text-xs text-muted-foreground font-medium">{label}</span>
         <span className={`text-xs font-bold ${awayBetter ? "text-foreground" : "text-muted-foreground"}`}>
           {formatValue(awayValue)}
         </span>
       </div>
-      <div className="flex items-center gap-0.5 h-[6px]">
-        {/* Home bar — grows from right to left */}
-        <div className="flex-1 flex justify-end">
+      <p className="text-[11px] font-medium text-muted-foreground text-center">{label}</p>
+      <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-1.5">
+        <div className="h-2 rounded-full bg-muted overflow-hidden flex justify-end">
           <div
-            className="h-full rounded-l-sm transition-all duration-500"
-            style={{
-              width: `${homePercent}%`,
-              backgroundColor: homeBetter ? "hsl(var(--primary))" : "hsl(var(--muted-foreground) / 0.3)",
-            }}
+            className={`h-full rounded-full transition-[width] duration-500 ${homeBarClass}`}
+            style={{ width: `${homePercent}%` }}
           />
         </div>
-        {/* Away bar — grows from left to right */}
-        <div className="flex-1 flex justify-start">
+        <div className="h-3 w-px bg-border" />
+        <div className="h-2 rounded-full bg-muted overflow-hidden">
           <div
-            className="h-full rounded-r-sm transition-all duration-500"
-            style={{
-              width: `${awayPercent}%`,
-              backgroundColor: awayBetter ? "hsl(var(--primary))" : "hsl(var(--muted-foreground) / 0.3)",
-            }}
+            className={`h-full rounded-full transition-[width] duration-500 ${awayBarClass}`}
+            style={{ width: `${awayPercent}%` }}
           />
         </div>
       </div>
@@ -96,6 +92,7 @@ export default function MatchPopup({
   tournament,
   allTeams,
   onSave,
+  onPersist,
   onCancel,
 }: MatchPopupProps) {
   const isKnockoutFormat = match.stage === "knockout" || tournament?.format === "mata-mata";
@@ -126,7 +123,6 @@ export default function MatchPopup({
   const [penaltyFinished, setPenaltyFinished] = useState(false);
   const [matchStats, setMatchStats] = useState<{ homeStats: TeamMatchStats; awayStats: TeamMatchStats } | null>(null);
   const [showStats, setShowStats] = useState(false);
-  const [pendingLegacyStats, setPendingLegacyStats] = useState<{ homeStats: TeamMatchStats; awayStats: TeamMatchStats } | null>(null);
 
   const setHalfScore = (half: HalfKey, side: 0 | 1, value: number) => {
     setScores((prev) => ({
@@ -199,18 +195,30 @@ export default function MatchPopup({
       if (match.homeStats && match.awayStats) {
         setMatchStats({ homeStats: match.homeStats, awayStats: match.awayStats });
       } else {
-        // Auto-generate for legacy matches (save pending, will persist on next Finalizar)
+        // Auto-generate once for legacy matches and persist without closing the popup
         const homeRate = rateInfluence && homeTeam ? homeTeam.rate : 3;
         const awayRate = rateInfluence && awayTeam ? awayTeam.rate : 3;
         const totalGoalsHome = match.homeScore + (match.homeExtraTime || 0);
         const totalGoalsAway = match.awayScore + (match.awayExtraTime || 0);
         const stats = generateMatchStats(homeRate, awayRate, totalGoalsHome, totalGoalsAway);
         setMatchStats(stats);
-        setPendingLegacyStats(stats);
+        onPersist?.({
+          ...match,
+          homeStats: stats.homeStats,
+          awayStats: stats.awayStats,
+        });
       }
+    } else {
+      setMatchStats(null);
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [match.id]);
+
+  const hasScoreChanges =
+    regularHome !== match.homeScore ||
+    regularAway !== match.awayScore ||
+    (showExtraTime ? etHome : undefined) !== match.homeExtraTime ||
+    (showExtraTime ? etAway : undefined) !== match.awayExtraTime;
 
   useEffect(() => {
     if (!isKnockout) return;
@@ -309,9 +317,9 @@ export default function MatchPopup({
     });
   };
 
-  // Generate stats when finishing if not yet generated
+  // Generate stats when finishing if not yet generated or if the score changed
   const ensureStats = (): { homeStats: TeamMatchStats; awayStats: TeamMatchStats } => {
-    if (matchStats) return matchStats;
+    if (matchStats && !hasScoreChanges) return matchStats;
     const homeRate = rateInfluence && homeTeam ? homeTeam.rate : 3;
     const awayRate = rateInfluence && awayTeam ? awayTeam.rate : 3;
     const finalHome = totalHome;
