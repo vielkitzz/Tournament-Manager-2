@@ -57,8 +57,65 @@ function roundTo2(n: number): number {
 }
 
 /**
+ * Generate a single shot with a realistic xG value.
+ * On-target shots have higher xG; off-target shots have lower xG.
+ */
+function generateShot(isOnTarget: boolean): { xG_value: number; onTarget: boolean } {
+  if (isOnTarget) {
+    // On-target: xG between 0.05 and 0.75 (big chances up to 0.75)
+    const rand = Math.random();
+    // Most shots are low xG, fewer are big chances
+    const xG_value = rand < 0.5
+      ? 0.05 + Math.random() * 0.10  // 50% chance: 0.05-0.15 (routine save)
+      : rand < 0.8
+        ? 0.15 + Math.random() * 0.25 // 30% chance: 0.15-0.40 (decent chance)
+        : 0.40 + Math.random() * 0.35; // 20% chance: 0.40-0.75 (big chance)
+    return { xG_value: roundTo2(xG_value), onTarget: true };
+  } else {
+    // Off-target: xG between 0.01 and 0.12
+    const xG_value = 0.01 + Math.random() * 0.11;
+    return { xG_value: roundTo2(xG_value), onTarget: false };
+  }
+}
+
+/**
+ * Generate an array of shots for a team, ensuring consistency between
+ * total shots, shots on target, goals scored, and xG.
+ */
+function generateShotsArray(
+  totalShots: number,
+  shotsOnTarget: number,
+  goalsScored: number
+): { xG_value: number; onTarget: boolean }[] {
+  const shots: { xG_value: number; onTarget: boolean }[] = [];
+
+  // Generate on-target shots first
+  for (let i = 0; i < shotsOnTarget; i++) {
+    shots.push(generateShot(true));
+  }
+
+  // Generate off-target shots
+  for (let i = 0; i < totalShots - shotsOnTarget; i++) {
+    shots.push(generateShot(false));
+  }
+
+  // If goals > 0, ensure at least 'goalsScored' shots have high xG
+  // to make the xG total somewhat realistic relative to actual goals
+  if (goalsScored > 0) {
+    const onTargetShots = shots.filter(s => s.onTarget);
+    // Boost the top shots to represent the actual goals scored
+    for (let i = 0; i < Math.min(goalsScored, onTargetShots.length); i++) {
+      // Goals typically come from higher xG chances
+      onTargetShots[i].xG_value = roundTo2(0.20 + Math.random() * 0.55);
+    }
+  }
+
+  return shots;
+}
+
+/**
  * Generate realistic match statistics based on team rates and final scores.
- * Can be used both during simulation and to retroactively generate stats for legacy matches.
+ * xG is calculated as the sum of individual shot xG values.
  */
 export function generateMatchStats(
   homeRate: number,
@@ -89,13 +146,12 @@ export function generateMatchStats(
   const awaySotMax = Math.max(awaySotMin, Math.floor(awayShots * 0.5));
   const awayShotsOnTarget = randInt(awaySotMin, awaySotMax);
 
-  // xG: proportional to shots on target, min 0.10 per shot on target
-  // With variation around actual goals
-  const homeXgBase = homeShotsOnTarget * (0.10 + Math.random() * 0.15);
-  const homeXg = roundTo2(Math.max(homeXgBase, homeShotsOnTarget * 0.10));
+  // Generate shot arrays and calculate xG as sum of individual shot xG values
+  const homeShotsArray = generateShotsArray(homeShots, homeShotsOnTarget, homeGoals);
+  const awayShotsArray = generateShotsArray(awayShots, awayShotsOnTarget, awayGoals);
 
-  const awayXgBase = awayShotsOnTarget * (0.10 + Math.random() * 0.15);
-  const awayXg = roundTo2(Math.max(awayXgBase, awayShotsOnTarget * 0.10));
+  const homeXg = roundTo2(homeShotsArray.reduce((sum, s) => sum + s.xG_value, 0));
+  const awayXg = roundTo2(awayShotsArray.reduce((sum, s) => sum + s.xG_value, 0));
 
   // Fouls (8-22), inversely related to possession (less possession = more fouls)
   const homeFouls = randInt(8, 18) + Math.round((awayPossession - 50) / 10);
