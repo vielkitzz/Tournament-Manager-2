@@ -21,7 +21,7 @@ function simulatePenaltyKick(): boolean {
   return Math.random() < 0.75;
 }
 
-// Stats comparison bar row component
+// Stats comparison bar row — Sofascore-style: bars grow from center outward
 function StatRow({ label, homeValue, awayValue, format }: { label: string; homeValue: number; awayValue: number; format?: "decimal" | "percent" | "integer" }) {
   const total = homeValue + awayValue;
   const homePercent = total > 0 ? (homeValue / total) * 100 : 50;
@@ -37,31 +37,37 @@ function StatRow({ label, homeValue, awayValue, format }: { label: string; homeV
   const awayBetter = awayValue > homeValue;
 
   return (
-    <div className="space-y-1">
-      <div className="text-center text-xs text-muted-foreground font-medium">{label}</div>
-      <div className="flex items-center gap-2">
-        <span className={`text-xs font-bold w-10 text-right ${homeBetter ? "text-foreground" : "text-muted-foreground"}`}>
+    <div className="space-y-1.5">
+      <div className="flex items-center justify-between">
+        <span className={`text-xs font-bold ${homeBetter ? "text-foreground" : "text-muted-foreground"}`}>
           {formatValue(homeValue)}
         </span>
-        <div className="flex-1 flex h-2 rounded-full overflow-hidden bg-secondary gap-[1px]">
+        <span className="text-xs text-muted-foreground font-medium">{label}</span>
+        <span className={`text-xs font-bold ${awayBetter ? "text-foreground" : "text-muted-foreground"}`}>
+          {formatValue(awayValue)}
+        </span>
+      </div>
+      <div className="flex items-center gap-0.5 h-[6px]">
+        {/* Home bar — grows from right to left */}
+        <div className="flex-1 flex justify-end">
           <div
-            className="h-full rounded-l-full transition-all"
+            className="h-full rounded-l-sm transition-all duration-500"
             style={{
               width: `${homePercent}%`,
-              backgroundColor: homeBetter ? "hsl(var(--primary))" : "hsl(var(--muted-foreground) / 0.4)",
-            }}
-          />
-          <div
-            className="h-full rounded-r-full transition-all"
-            style={{
-              width: `${awayPercent}%`,
-              backgroundColor: awayBetter ? "hsl(var(--primary))" : "hsl(var(--muted-foreground) / 0.4)",
+              backgroundColor: homeBetter ? "hsl(var(--primary))" : "hsl(var(--muted-foreground) / 0.3)",
             }}
           />
         </div>
-        <span className={`text-xs font-bold w-10 text-left ${awayBetter ? "text-foreground" : "text-muted-foreground"}`}>
-          {formatValue(awayValue)}
-        </span>
+        {/* Away bar — grows from left to right */}
+        <div className="flex-1 flex justify-start">
+          <div
+            className="h-full rounded-r-sm transition-all duration-500"
+            style={{
+              width: `${awayPercent}%`,
+              backgroundColor: awayBetter ? "hsl(var(--primary))" : "hsl(var(--muted-foreground) / 0.3)",
+            }}
+          />
+        </div>
       </div>
     </div>
   );
