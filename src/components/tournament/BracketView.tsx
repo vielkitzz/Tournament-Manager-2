@@ -38,8 +38,16 @@ const STAGE_LABELS: Record<string, string> = {
 
 function getStagesFromStart(start: string): string[] {
   const all = ["1/64", "1/32", "1/16", "1/8", "1/4", "1/2"];
-  const idx = all.indexOf(start);
-  return idx >= 0 ? all.slice(idx) : ["1/2"];
+  let idx = all.indexOf(start);
+
+  // Se não achar a chave, tenta buscar pelo label (ex: "Oitavas de Final")
+  if (idx === -1) {
+    const foundKey = Object.keys(STAGE_LABELS).find((k) => STAGE_LABELS[k] === start);
+    if (foundKey) idx = all.indexOf(foundKey);
+  }
+
+  // Fallback mais seguro: retorna a partir das oitavas em vez de colapsar tudo na final
+  return idx >= 0 ? all.slice(idx) : ["1/8", "1/4", "1/2"];
 }
 
 function getAggregate(leg1: Match, leg2: Match): { home: number; away: number } {
@@ -562,11 +570,17 @@ export default function BracketView({
               Editar Resultado
             </ContextMenuItem>
             <ContextMenuSeparator />
-            <ContextMenuItem onClick={() => handleResetMatchResult(pair.leg1)} className="gap-2 text-warning focus:text-warning">
+            <ContextMenuItem
+              onClick={() => handleResetMatchResult(pair.leg1)}
+              className="gap-2 text-warning focus:text-warning"
+            >
               <RotateCcw className="w-3.5 h-3.5" />
               Reiniciar Resultado
             </ContextMenuItem>
-            <ContextMenuItem onClick={() => handleResetMatchTeams(pair.leg1)} className="gap-2 text-destructive focus:text-destructive">
+            <ContextMenuItem
+              onClick={() => handleResetMatchTeams(pair.leg1)}
+              className="gap-2 text-destructive focus:text-destructive"
+            >
               <UserMinus className="w-3.5 h-3.5" />
               Reiniciar Times
             </ContextMenuItem>
@@ -607,11 +621,17 @@ export default function BracketView({
                 Editar Resultado
               </ContextMenuItem>
               <ContextMenuSeparator />
-              <ContextMenuItem onClick={() => handleResetMatchResult(pair.leg2!)} className="gap-2 text-warning focus:text-warning">
+              <ContextMenuItem
+                onClick={() => handleResetMatchResult(pair.leg2!)}
+                className="gap-2 text-warning focus:text-warning"
+              >
                 <RotateCcw className="w-3.5 h-3.5" />
                 Reiniciar Resultado
               </ContextMenuItem>
-              <ContextMenuItem onClick={() => handleResetMatchTeams(pair.leg2!)} className="gap-2 text-destructive focus:text-destructive">
+              <ContextMenuItem
+                onClick={() => handleResetMatchTeams(pair.leg2!)}
+                className="gap-2 text-destructive focus:text-destructive"
+              >
                 <UserMinus className="w-3.5 h-3.5" />
                 Reiniciar Times
               </ContextMenuItem>
@@ -671,11 +691,17 @@ export default function BracketView({
             Editar Resultado
           </ContextMenuItem>
           <ContextMenuSeparator />
-          <ContextMenuItem onClick={() => handleResetMatchResult(match)} className="gap-2 text-warning focus:text-warning">
+          <ContextMenuItem
+            onClick={() => handleResetMatchResult(match)}
+            className="gap-2 text-warning focus:text-warning"
+          >
             <RotateCcw className="w-3.5 h-3.5" />
             Reiniciar Resultado
           </ContextMenuItem>
-          <ContextMenuItem onClick={() => handleResetMatchTeams(match)} className="gap-2 text-destructive focus:text-destructive">
+          <ContextMenuItem
+            onClick={() => handleResetMatchTeams(match)}
+            className="gap-2 text-destructive focus:text-destructive"
+          >
             <UserMinus className="w-3.5 h-3.5" />
             Reiniciar Times
           </ContextMenuItem>
