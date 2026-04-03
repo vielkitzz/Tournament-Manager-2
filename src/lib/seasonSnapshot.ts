@@ -18,18 +18,30 @@ export function getSeasonTeamIds(
     : [];
 }
 
-export function inferKnockoutStartStage(
-  matches: Match[],
-  fallback?: KnockoutStage,
-): KnockoutStage | undefined {
+export function inferKnockoutStartStage(matches: Match[], fallback?: KnockoutStage): KnockoutStage | undefined {
   const knockoutMatches = matches.filter((match) => !match.isThirdPlace);
   if (knockoutMatches.length === 0) return fallback;
 
-  const maxRound = Math.max(...knockoutMatches.map((match) => match.round).filter((round) => round > 0), 0);
-  if (maxRound <= 0) return fallback;
+  // Conta pares únicos no round 1 para saber quantos times entraram
+  const round1Matches = knockoutMatches.filter((m) => m.round === 1);
+  const pairIds = new Set(round1Matches.filter((m) => m.pairId).map((m) => m.pairId));
+  const singles = round1Matches.filter((m) => !m.pairId).length;
+  const confrontos = pairIds.size + singles;
 
-  const startIndex = Math.max(0, KNOCKOUT_STAGES.length - maxRound);
-  return KNOCKOUT_STAGES[startIndex] || fallback;
+  // confrontos = times / 2, então times = confrontos * 2
+  const teamCount = confrontos * 2;
+
+  // Encontra o stage correspondente ao número de times
+  const stageMap: Record<number, KnockoutStage> = {
+    64: "1/64",
+    32: "1/32",
+    16: "1/16",
+    8: "1/8",
+    4: "1/4",
+    2: "1/2",
+  };
+
+  return stageMap[teamCount] || fallback;
 }
 
 interface BuildSeasonViewTournamentParams {
