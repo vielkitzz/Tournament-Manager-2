@@ -2,11 +2,12 @@ import { useParams, useNavigate } from "react-router-dom";
 import { ArrowLeft, Trophy } from "lucide-react";
 import { useTournamentStore } from "@/store/tournamentStore";
 import GalleryView from "@/components/tournament/GalleryView";
+import { SeasonRecord } from "@/types/tournament";
 
 export default function TournamentGalleryPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const { tournaments } = useTournamentStore();
+  const { tournaments, teams, updateTournament } = useTournamentStore();
   const tournament = tournaments.find((t) => t.id === id);
 
   if (!tournament) {
@@ -21,6 +22,10 @@ export default function TournamentGalleryPage() {
     );
   }
 
+  const handleUpdateSeasons = (seasons: SeasonRecord[]) => {
+    updateTournament(tournament.id, { seasons });
+  };
+
   return (
     <div className="p-6 lg:p-8">
       <div className="flex items-center gap-4 mb-6">
@@ -30,7 +35,11 @@ export default function TournamentGalleryPage() {
         <h1 className="text-xl font-display font-bold text-foreground">Galeria de Campeões — {tournament.name}</h1>
       </div>
 
-      <GalleryView seasons={tournament.seasons || []} />
+      <GalleryView
+        seasons={tournament.seasons || []}
+        teams={teams}
+        onUpdateSeasons={handleUpdateSeasons}
+      />
     </div>
   );
 }
