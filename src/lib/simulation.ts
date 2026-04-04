@@ -18,16 +18,17 @@ function poissonRandom(lambda: number): number {
   return k - 1;
 }
 
-function getExpectedGoals(teamRate: number, opponentRate: number): number {
+function getExpectedGoals(teamRate: number, opponentRate: number, isExtraTime = false): number {
   const BASE_GOALS_PER_HALF = 0.75;
   const strengthRatio = Math.sqrt(teamRate / opponentRate);
   const formFactor = 0.85 + Math.random() * 0.30;
-  return BASE_GOALS_PER_HALF * strengthRatio * formFactor;
+  const fatigueFactor = isExtraTime ? 0.40 : 1.0; // ~60% reduction in extra time
+  return BASE_GOALS_PER_HALF * strengthRatio * formFactor * fatigueFactor;
 }
 
-export function simulateHalf(homeRate: number, awayRate: number): [number, number] {
-  const homeExpected = getExpectedGoals(homeRate, awayRate);
-  const awayExpected = getExpectedGoals(awayRate, homeRate);
+export function simulateHalf(homeRate: number, awayRate: number, isExtraTime = false): [number, number] {
+  const homeExpected = getExpectedGoals(homeRate, awayRate, isExtraTime);
+  const awayExpected = getExpectedGoals(awayRate, homeRate, isExtraTime);
   return [poissonRandom(homeExpected), poissonRandom(awayExpected)];
 }
 

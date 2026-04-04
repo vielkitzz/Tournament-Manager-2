@@ -233,8 +233,8 @@ export default function BracketView({
 
       if (!awayGoalsDecidesRegular) {
         if (tournament.settings.extraTime) {
-          const et1 = simulateHalf(homeRate, awayRate);
-          const et2 = simulateHalf(homeRate, awayRate);
+          const et1 = simulateHalf(homeRate, awayRate, true);
+          const et2 = simulateHalf(homeRate, awayRate, true);
           homeExtraTime = et1[0] + et2[0];
           awayExtraTime = et1[1] + et2[1];
 

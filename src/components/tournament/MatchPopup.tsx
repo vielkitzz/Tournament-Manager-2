@@ -267,7 +267,8 @@ export default function MatchPopup({
   const handleSimulate = () => {
     const homeRate = rateInfluence && homeTeam ? homeTeam.rate : 3;
     const awayRate = rateInfluence && awayTeam ? awayTeam.rate : 3;
-    const [h, a] = simulateHalf(homeRate, awayRate);
+    const isET = activeHalf === "et1" || activeHalf === "et2";
+    const [h, a] = simulateHalf(homeRate, awayRate, isET);
     setHalfScore(activeHalf, 0, h);
     setHalfScore(activeHalf, 1, a);
     setSimulatedHalves((prev) => new Set(prev).add(activeHalf));
