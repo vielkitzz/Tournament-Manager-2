@@ -96,6 +96,7 @@ export interface SeasonRecord {
   groupCount?: number;
   teamIds?: string[];
   settings?: TournamentSettings;
+  manual?: boolean; // Manually added champion entry
 }
 
 export type PreliminaryPhaseFormat = "mata-mata" | "grupos";
