@@ -26,9 +26,9 @@ function getExpectedGoals(teamRate: number, opponentRate: number, isExtraTime = 
   return BASE_GOALS_PER_HALF * strengthRatio * formFactor * fatigueFactor;
 }
 
-export function simulateHalf(homeRate: number, awayRate: number): [number, number] {
-  const homeExpected = getExpectedGoals(homeRate, awayRate);
-  const awayExpected = getExpectedGoals(awayRate, homeRate);
+export function simulateHalf(homeRate: number, awayRate: number, isExtraTime = false): [number, number] {
+  const homeExpected = getExpectedGoals(homeRate, awayRate, isExtraTime);
+  const awayExpected = getExpectedGoals(awayRate, homeRate, isExtraTime);
   return [poissonRandom(homeExpected), poissonRandom(awayExpected)];
 }
 
