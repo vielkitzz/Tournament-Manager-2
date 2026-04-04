@@ -62,9 +62,19 @@ export interface Match {
   leg?: 1 | 2;
   // Pair ID to link two-legged ties
   pairId?: string;
+  // Per-half scores (regular time)
+  homeScoreH1?: number;
+  awayScoreH1?: number;
+  homeScoreH2?: number;
+  awayScoreH2?: number;
   // Extra time scores (only for knockout)
   homeExtraTime?: number;
   awayExtraTime?: number;
+  // Per-half extra time scores
+  homeScoreET1?: number;
+  awayScoreET1?: number;
+  homeScoreET2?: number;
+  awayScoreET2?: number;
   // Penalties
   homePenalties?: number;
   awayPenalties?: number;
@@ -86,6 +96,7 @@ export interface SeasonRecord {
   groupCount?: number;
   teamIds?: string[];
   settings?: TournamentSettings;
+  manual?: boolean; // Manually added champion entry
 }
 
 export type PreliminaryPhaseFormat = "mata-mata" | "grupos";

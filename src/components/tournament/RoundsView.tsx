@@ -59,6 +59,10 @@ export default function RoundsView({
         ...match,
         homeScore: result.total[0],
         awayScore: result.total[1],
+        homeScoreH1: result.h1[0],
+        awayScoreH1: result.h1[1],
+        homeScoreH2: result.h2[0],
+        awayScoreH2: result.h2[1],
         played: true,
       };
     });

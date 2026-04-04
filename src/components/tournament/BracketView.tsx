@@ -198,6 +198,10 @@ export default function BracketView({
       ...match,
       homeScore,
       awayScore,
+      homeScoreH1: result.h1[0],
+      awayScoreH1: result.h1[1],
+      homeScoreH2: result.h2[0],
+      awayScoreH2: result.h2[1],
       played: true,
       ...(homePenalties !== undefined && { homePenalties, awayPenalties }),
     };
@@ -213,6 +217,10 @@ export default function BracketView({
     let awayScore = result.total[1];
     let homeExtraTime: number | undefined;
     let awayExtraTime: number | undefined;
+    let homeScoreET1: number | undefined;
+    let awayScoreET1: number | undefined;
+    let homeScoreET2: number | undefined;
+    let awayScoreET2: number | undefined;
     let homePenalties: number | undefined;
     let awayPenalties: number | undefined;
 
@@ -237,6 +245,10 @@ export default function BracketView({
           const et2 = simulateHalf(homeRate, awayRate, true);
           homeExtraTime = et1[0] + et2[0];
           awayExtraTime = et1[1] + et2[1];
+          homeScoreET1 = et1[0];
+          awayScoreET1 = et1[1];
+          homeScoreET2 = et2[0];
+          awayScoreET2 = et2[1];
 
           const extraAggregate = getAggregate(leg1, {
             ...leg2,
@@ -267,8 +279,12 @@ export default function BracketView({
       ...leg2,
       homeScore,
       awayScore,
+      homeScoreH1: result.h1[0],
+      awayScoreH1: result.h1[1],
+      homeScoreH2: result.h2[0],
+      awayScoreH2: result.h2[1],
       played: true,
-      ...(homeExtraTime !== undefined && { homeExtraTime, awayExtraTime }),
+      ...(homeExtraTime !== undefined && { homeExtraTime, awayExtraTime, homeScoreET1, awayScoreET1, homeScoreET2, awayScoreET2 }),
       ...(homePenalties !== undefined && { homePenalties, awayPenalties }),
     };
   };

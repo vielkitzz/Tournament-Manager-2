@@ -172,11 +172,20 @@ export default function MatchPopup({
   // Auto-generate stats for legacy matches that don't have them
   useEffect(() => {
     if (match.played) {
+      // Load per-half scores if available, otherwise put all in h1 (legacy)
+      const h1Home = match.homeScoreH1 ?? match.homeScore;
+      const h1Away = match.awayScoreH1 ?? match.awayScore;
+      const h2Home = match.homeScoreH2 ?? 0;
+      const h2Away = match.awayScoreH2 ?? 0;
+      const et1Home = match.homeScoreET1 ?? (match.homeExtraTime ?? 0);
+      const et1Away = match.awayScoreET1 ?? (match.awayExtraTime ?? 0);
+      const et2Home = match.homeScoreET2 ?? 0;
+      const et2Away = match.awayScoreET2 ?? 0;
       setScores({
-        h1: [match.homeScore, match.awayScore],
-        h2: [0, 0],
-        et1: [match.homeExtraTime ? match.homeExtraTime : 0, match.awayExtraTime ? match.awayExtraTime : 0],
-        et2: [0, 0],
+        h1: [h1Home, h1Away],
+        h2: [h2Home, h2Away],
+        et1: [et1Home, et1Away],
+        et2: [et2Home, et2Away],
       });
       if (isKnockout && (match.homeExtraTime !== undefined || match.awayExtraTime !== undefined)) {
         setShowExtraTime(true);
@@ -351,8 +360,16 @@ export default function MatchPopup({
       ...match,
       homeScore: regularHome,
       awayScore: regularAway,
+      homeScoreH1: scores.h1[0],
+      awayScoreH1: scores.h1[1],
+      homeScoreH2: scores.h2[0],
+      awayScoreH2: scores.h2[1],
       homeExtraTime: showExtraTime ? etHome : undefined,
       awayExtraTime: showExtraTime ? etAway : undefined,
+      homeScoreET1: showExtraTime ? scores.et1[0] : undefined,
+      awayScoreET1: showExtraTime ? scores.et1[1] : undefined,
+      homeScoreET2: showExtraTime ? scores.et2[0] : undefined,
+      awayScoreET2: showExtraTime ? scores.et2[1] : undefined,
       homePenalties: showPenalties ? penaltyScore("home") : undefined,
       awayPenalties: showPenalties ? penaltyScore("away") : undefined,
       homeStats: stats.homeStats,
