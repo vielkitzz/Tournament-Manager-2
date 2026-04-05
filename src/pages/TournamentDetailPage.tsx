@@ -1107,7 +1107,8 @@ export default function TournamentDetailPage() {
                               setViewingYear(year === tournament.year ? null : year);
                               setShowYearPicker(false);
                             }}
-                            className={`flex-1 text-left px-3 py-1.5 rounded text-sm transition-colors ${
+                            // Adicionado "flex items-center" e removido o "text-left"
+                            className={`flex-1 flex items-center px-3 py-1.5 rounded text-sm transition-colors ${
                               year === activeYear
                                 ? "bg-primary/10 text-primary font-bold"
                                 : "text-foreground hover:bg-secondary"
@@ -1115,7 +1116,7 @@ export default function TournamentDetailPage() {
                           >
                             {year}
                             {seasonYears.includes(year) && year !== tournament.year && (
-                              <Check className="w-3 h-3 text-muted-foreground ml-1" strokeWidth={3} />
+                              <Check className="w-3 h-3 text-muted-foreground ml-1.5 shrink-0" strokeWidth={3} />
                             )}
                           </button>
                           <AlertDialog>
