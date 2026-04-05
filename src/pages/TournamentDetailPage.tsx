@@ -67,23 +67,41 @@ export default function TournamentDetailPage() {
     if (id) trackTournamentOpen(id);
   }, [id]);
 
-  // Auto-generate rounds for liga/suico format when teams exist but no matches
+  // Auto-generate / regenerate rounds for liga/suico format when teams change
   useEffect(() => {
     if (!tournament) return;
     if (tournament.format !== "liga" && tournament.format !== "suico") return;
     if (tournament.finalized) return;
-    if (tournament.teamIds.length < 2) return;
-    if ((tournament.matches || []).length > 0) return;
-    if (tournament.format === "suico") {
-      const rounds = tournament.suicoJogosLiga || 8;
-      const newMatches = generateSwissLeagueMatches(tournament.id, tournament.teamIds, rounds);
-      updateTournament(tournament.id, { matches: newMatches });
-    } else {
-      const turnos = tournament.ligaTurnos || 1;
-      const newMatches = generateRoundRobin(tournament.id, tournament.teamIds, turnos);
-      updateTournament(tournament.id, { matches: newMatches });
+    if (tournament.teamIds.length < 2) {
+      // Clear matches if less than 2 teams
+      if ((tournament.matches || []).length > 0) {
+        updateTournament(tournament.id, { matches: [] });
+      }
+      return;
     }
-  }, [tournament?.id, tournament?.teamIds?.length, tournament?.matches?.length, tournament?.format, tournament?.finalized]);
+
+    const currentMatches = tournament.matches || [];
+    // Check if teams in matches match current teamIds
+    const matchTeamIds = new Set(currentMatches.flatMap((m) => [m.homeTeamId, m.awayTeamId]));
+    const tournamentTeamSet = new Set(tournament.teamIds);
+    const teamsMatch = matchTeamIds.size > 0 &&
+      [...matchTeamIds].every((id) => tournamentTeamSet.has(id)) &&
+      [...tournamentTeamSet].every((id) => matchTeamIds.has(id));
+
+    // Only regenerate if no matches exist, or teams changed AND no matches have been played
+    const hasPlayedMatches = currentMatches.some((m) => m.played);
+    if (currentMatches.length === 0 || (!teamsMatch && !hasPlayedMatches)) {
+      if (tournament.format === "suico") {
+        const rounds = tournament.suicoJogosLiga || 8;
+        const newMatches = generateSwissLeagueMatches(tournament.id, tournament.teamIds, rounds);
+        updateTournament(tournament.id, { matches: newMatches });
+      } else {
+        const turnos = tournament.ligaTurnos || 1;
+        const newMatches = generateRoundRobin(tournament.id, tournament.teamIds, turnos);
+        updateTournament(tournament.id, { matches: newMatches });
+      }
+    }
+  }, [tournament?.id, JSON.stringify(tournament?.teamIds), tournament?.format, tournament?.finalized]);
 
   // Resolve teams with historical logo/rate - deferred until activeYear is known
 
