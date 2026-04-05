@@ -15,6 +15,7 @@ import {
   Shield,
   Pencil,
   Shuffle,
+  Check,
 } from "lucide-react";
 import PreliminaryPhasesIcon from "@/components/icons/PreliminaryPhasesIcon";
 import { useTournamentStore } from "@/store/tournamentStore";
@@ -67,44 +68,31 @@ export default function TournamentDetailPage() {
     if (id) trackTournamentOpen(id);
   }, [id]);
 
-  // Auto-generate / regenerate rounds for liga/suico format when teams change
+  // Auto-generate rounds for liga/suico format when teams exist but no matches
   useEffect(() => {
     if (!tournament) return;
     if (tournament.format !== "liga" && tournament.format !== "suico") return;
     if (tournament.finalized) return;
-    if (tournament.teamIds.length < 2) {
-      // Clear matches if less than 2 teams
-      if ((tournament.matches || []).length > 0) {
-        updateTournament(tournament.id, { matches: [] });
-      }
-      return;
+    if (tournament.teamIds.length < 2) return;
+    if ((tournament.matches || []).length > 0) return;
+    if (tournament.format === "suico") {
+      const rounds = tournament.suicoJogosLiga || 8;
+      const newMatches = generateSwissLeagueMatches(tournament.id, tournament.teamIds, rounds);
+      updateTournament(tournament.id, { matches: newMatches });
+    } else {
+      const turnos = tournament.ligaTurnos || 1;
+      const newMatches = generateRoundRobin(tournament.id, tournament.teamIds, turnos);
+      updateTournament(tournament.id, { matches: newMatches });
     }
-
-    const currentMatches = tournament.matches || [];
-    // Check if teams in matches match current teamIds
-    const matchTeamIds = new Set(currentMatches.flatMap((m) => [m.homeTeamId, m.awayTeamId]));
-    const tournamentTeamSet = new Set(tournament.teamIds);
-    const teamsMatch = matchTeamIds.size > 0 &&
-      [...matchTeamIds].every((id) => tournamentTeamSet.has(id)) &&
-      [...tournamentTeamSet].every((id) => matchTeamIds.has(id));
-
-    // Only regenerate if no matches exist, or teams changed AND no matches have been played
-    const hasPlayedMatches = currentMatches.some((m) => m.played);
-    if (currentMatches.length === 0 || (!teamsMatch && !hasPlayedMatches)) {
-      if (tournament.format === "suico") {
-        const rounds = tournament.suicoJogosLiga || 8;
-        const newMatches = generateSwissLeagueMatches(tournament.id, tournament.teamIds, rounds);
-        updateTournament(tournament.id, { matches: newMatches });
-      } else {
-        const turnos = tournament.ligaTurnos || 1;
-        const newMatches = generateRoundRobin(tournament.id, tournament.teamIds, turnos);
-        updateTournament(tournament.id, { matches: newMatches });
-      }
-    }
-  }, [tournament?.id, JSON.stringify(tournament?.teamIds), tournament?.format, tournament?.finalized]);
+  }, [
+    tournament?.id,
+    tournament?.teamIds?.length,
+    tournament?.matches?.length,
+    tournament?.format,
+    tournament?.finalized,
+  ]);
 
   // Resolve teams with historical logo/rate - deferred until activeYear is known
-
 
   const [activeTab, setActiveTab] = useState(tournament?.format === "mata-mata" ? "bracket" : "standings");
   const [viewingYear, setViewingYear] = useState<number | null>(null);
@@ -128,9 +116,7 @@ export default function TournamentDetailPage() {
 
   const activeYear = viewingYear || tournament.year;
   const isViewingPastSeason = viewingYear !== null && viewingYear !== tournament.year;
-  const seasonData = isViewingPastSeason
-    ? tournament.seasons?.find((s) => s.year === viewingYear)
-    : null;
+  const seasonData = isViewingPastSeason ? tournament.seasons?.find((s) => s.year === viewingYear) : null;
 
   const isLiga = tournament.format === "liga";
   const isMataMata = tournament.format === "mata-mata";
@@ -139,15 +125,15 @@ export default function TournamentDetailPage() {
   const hasKnockout = isMataMata || isGrupos || isSuico;
 
   const seasonTeamIds = getSeasonTeamIds(tournament, seasonData, isViewingPastSeason);
-  const activeSettings = isViewingPastSeason ? (seasonData?.settings || tournament.settings) : tournament.settings;
-  const activeMatches = isViewingPastSeason ? (seasonData?.matches || []) : (tournament.matches || []);
+  const activeSettings = isViewingPastSeason ? seasonData?.settings || tournament.settings : tournament.settings;
+  const activeMatches = isViewingPastSeason ? seasonData?.matches || [] : tournament.matches || [];
   const activeGroupCount = isViewingPastSeason
-    ? (seasonData?.groupCount || tournament.gruposQuantidade || 1)
-    : (tournament.gruposQuantidade || 1);
+    ? seasonData?.groupCount || tournament.gruposQuantidade || 1
+    : tournament.gruposQuantidade || 1;
   const defaultKnockoutStart = isSuico
-    ? (tournament.suicoMataMataInicio || "1/8")
+    ? tournament.suicoMataMataInicio || "1/8"
     : isGrupos
-      ? (tournament.gruposMataMataInicio || "1/8")
+      ? tournament.gruposMataMataInicio || "1/8"
       : tournament.mataMataInicio;
   const activeKnockoutStart = inferKnockoutStartStage(
     activeMatches.filter((match) => !match.isThirdPlace && (!(isGrupos || isSuico) || match.stage === "knockout")),
@@ -168,11 +154,7 @@ export default function TournamentDetailPage() {
   const resolvedTeams = teams.map((t) => resolveTeam(t, activeYear, teamHistories));
 
   const seasonRecordForYear = (tournament.seasons || []).find((s) => s.year === activeYear);
-  const championRecord = isViewingPastSeason
-    ? seasonData
-    : tournament.finalized
-      ? seasonRecordForYear
-      : null;
+  const championRecord = isViewingPastSeason ? seasonData : tournament.finalized ? seasonRecordForYear : null;
   const championTeam = championRecord?.championId
     ? resolvedTeams.find((t) => t.id === championRecord.championId)
     : null;
@@ -183,11 +165,21 @@ export default function TournamentDetailPage() {
   const seasonStandings: import("@/lib/standings").StandingRow[] = (seasonData?.standings || []).map((s) => {
     const resolved = resolvedTeams.find((t) => t.id === s.teamId);
     const fallbackTeam: import("@/types/tournament").Team = {
-      id: s.teamId, name: (s as any).teamName || "—", shortName: (s as any).teamName || "—",
-      abbreviation: (s as any).teamName || "—", logo: (s as any).teamLogo, colors: [], rate: 0,
+      id: s.teamId,
+      name: (s as any).teamName || "—",
+      shortName: (s as any).teamName || "—",
+      abbreviation: (s as any).teamName || "—",
+      logo: (s as any).teamLogo,
+      colors: [],
+      rate: 0,
       isArchived: false,
     };
-    return { ...s, played: s.wins + s.draws + s.losses, goalDifference: s.goalsFor - s.goalsAgainst, team: resolved || fallbackTeam };
+    return {
+      ...s,
+      played: s.wins + s.draws + s.losses,
+      goalDifference: s.goalsFor - s.goalsAgainst,
+      team: resolved || fallbackTeam,
+    };
   });
 
   // For past seasons with groups, build per-group standings
@@ -217,12 +209,12 @@ export default function TournamentDetailPage() {
   const settings = activeSettings;
 
   // For grupos/suico format, separate group and knockout matches
-  const groupMatches = (isGrupos || isSuico)
-    ? activeMatches.filter((m) => m.stage === "group" || (!m.stage && !m.isThirdPlace))
-    : activeMatches;
-  const knockoutMatches = (isGrupos || isSuico)
-    ? activeMatches.filter((m) => m.stage === "knockout" || m.isThirdPlace)
-    : [];
+  const groupMatches =
+    isGrupos || isSuico
+      ? activeMatches.filter((m) => m.stage === "group" || (!m.stage && !m.isThirdPlace))
+      : activeMatches;
+  const knockoutMatches =
+    isGrupos || isSuico ? activeMatches.filter((m) => m.stage === "knockout" || m.isThirdPlace) : [];
 
   // Group count and assignments
   const groupCount = activeGroupCount;
@@ -251,9 +243,8 @@ export default function TournamentDetailPage() {
     for (let g = 1; g <= groupCount; g++) {
       const assignedTeams = currentAssignments[String(g)] || [];
       const gMatches = groupMatches.filter((m) => m.group === g);
-      const gTeamIds = assignedTeams.length > 0
-        ? assignedTeams
-        : [...new Set(gMatches.flatMap((m) => [m.homeTeamId, m.awayTeamId]))];
+      const gTeamIds =
+        assignedTeams.length > 0 ? assignedTeams : [...new Set(gMatches.flatMap((m) => [m.homeTeamId, m.awayTeamId]))];
       standingsByGroup[g] = calculateStandings(gTeamIds, gMatches, settings, resolvedTeams);
     }
   }
@@ -264,21 +255,23 @@ export default function TournamentDetailPage() {
   const standings = isGrupos
     ? Object.values(standingsByGroup).flat()
     : isSuico
-    ? calculateStandings(activeTournament.teamIds, suicoLeagueMatches, settings, resolvedTeams)
-    : calculateStandings(activeTournament.teamIds, activeMatches, settings, resolvedTeams);
+      ? calculateStandings(activeTournament.teamIds, suicoLeagueMatches, settings, resolvedTeams)
+      : calculateStandings(activeTournament.teamIds, activeMatches, settings, resolvedTeams);
 
   const allGroupMatchesPlayed = isGrupos && groupMatches.length > 0 && groupMatches.every((m) => m.played);
-  const allSuicoLeagueMatchesPlayed = isSuico && suicoLeagueMatches.length > 0 && suicoLeagueMatches.every((m) => m.played);
+  const allSuicoLeagueMatchesPlayed =
+    isSuico && suicoLeagueMatches.length > 0 && suicoLeagueMatches.every((m) => m.played);
 
   const groupTournament = isGrupos
     ? { ...activeTournament, matches: groupMatches }
     : isSuico
-    ? { ...activeTournament, matches: suicoLeagueMatches }
-    : activeTournament;
+      ? { ...activeTournament, matches: suicoLeagueMatches }
+      : activeTournament;
 
-  const knockoutTournament = (isGrupos || isSuico)
-    ? { ...activeTournament, matches: knockoutMatches, mataMataInicio: activeKnockoutStart || defaultKnockoutStart }
-    : { ...activeTournament, mataMataInicio: activeKnockoutStart || defaultKnockoutStart };
+  const knockoutTournament =
+    isGrupos || isSuico
+      ? { ...activeTournament, matches: knockoutMatches, mataMataInicio: activeKnockoutStart || defaultKnockoutStart }
+      : { ...activeTournament, mataMataInicio: activeKnockoutStart || defaultKnockoutStart };
 
   // ─── Group management functions ───
   const regenerateGroupMatches = (assignments: Record<string, string[]>) => {
@@ -326,8 +319,8 @@ export default function TournamentDetailPage() {
   // ─── Confirm manual qualifiers & generate knockout ───────────────────────
   const qualifiersPerGroup = (() => {
     const startStage = isSuico
-      ? (activeKnockoutStart || tournament.suicoMataMataInicio || "1/8")
-      : (activeKnockoutStart || tournament.gruposMataMataInicio || "1/8");
+      ? activeKnockoutStart || tournament.suicoMataMataInicio || "1/8"
+      : activeKnockoutStart || tournament.gruposMataMataInicio || "1/8";
     const stageTotal = STAGE_TEAM_COUNTS[startStage] || 8;
     return Math.max(2, Math.min(stageTotal, activeTournament.teamIds.length));
   })();
@@ -355,7 +348,7 @@ export default function TournamentDetailPage() {
 
       for (let g = 1; g <= groupCount; g++) {
         const rows = standingsByGroup[g] || [];
-        rows.slice(0, directPerGroup).forEach(r => autoSelected.push(r.teamId));
+        rows.slice(0, directPerGroup).forEach((r) => autoSelected.push(r.teamId));
         if (bestOfQualifiers > 0 && rows.length >= bestOfPosition) {
           const row = rows[bestOfPosition - 1];
           bestOfCandidates.push({
@@ -369,7 +362,7 @@ export default function TournamentDetailPage() {
 
       if (bestOfQualifiers > 0) {
         bestOfCandidates.sort((a, b) => b.points - a.points || b.gd - a.gd || b.gf - a.gf);
-        bestOfCandidates.slice(0, bestOfQualifiers).forEach(c => autoSelected.push(c.teamId));
+        bestOfCandidates.slice(0, bestOfQualifiers).forEach((c) => autoSelected.push(c.teamId));
       }
 
       selectedTeamIds = autoSelected;
@@ -384,7 +377,9 @@ export default function TournamentDetailPage() {
         toast.error(`Selecione um número par de times (atual: ${selectedTeamIds.length}).`);
         return;
       }
-      toast.warning(`${selectedTeamIds.length} times selecionados (esperado: ${totalKnockoutTeams}). Gerando mata-mata assim mesmo.`);
+      toast.warning(
+        `${selectedTeamIds.length} times selecionados (esperado: ${totalKnockoutTeams}). Gerando mata-mata assim mesmo.`,
+      );
     }
 
     const teamGroupPos: Record<string, { group: number; pos: number }> = {};
@@ -408,10 +403,44 @@ export default function TournamentDetailPage() {
       const away = seededFinal[seededFinal.length - 1 - i];
       if (legMode === "home-away") {
         const pairId = crypto.randomUUID();
-        newMatches.push({ id: crypto.randomUUID(), tournamentId: tournament.id, round: 1, homeTeamId: home, awayTeamId: away, homeScore: 0, awayScore: 0, played: false, stage: "knockout", leg: 1, pairId });
-        newMatches.push({ id: crypto.randomUUID(), tournamentId: tournament.id, round: 1, homeTeamId: away, awayTeamId: home, homeScore: 0, awayScore: 0, played: false, stage: "knockout", leg: 2, pairId });
+        newMatches.push({
+          id: crypto.randomUUID(),
+          tournamentId: tournament.id,
+          round: 1,
+          homeTeamId: home,
+          awayTeamId: away,
+          homeScore: 0,
+          awayScore: 0,
+          played: false,
+          stage: "knockout",
+          leg: 1,
+          pairId,
+        });
+        newMatches.push({
+          id: crypto.randomUUID(),
+          tournamentId: tournament.id,
+          round: 1,
+          homeTeamId: away,
+          awayTeamId: home,
+          homeScore: 0,
+          awayScore: 0,
+          played: false,
+          stage: "knockout",
+          leg: 2,
+          pairId,
+        });
       } else {
-        newMatches.push({ id: crypto.randomUUID(), tournamentId: tournament.id, round: 1, homeTeamId: home, awayTeamId: away, homeScore: 0, awayScore: 0, played: false, stage: "knockout" });
+        newMatches.push({
+          id: crypto.randomUUID(),
+          tournamentId: tournament.id,
+          round: 1,
+          homeTeamId: home,
+          awayTeamId: away,
+          homeScore: 0,
+          awayScore: 0,
+          played: false,
+          stage: "knockout",
+        });
       }
     }
 
@@ -428,8 +457,8 @@ export default function TournamentDetailPage() {
   const handleConfirmSwissQualifiers = () => {
     const playoffSlots = tournament.suicoPlayoffVagas || 8;
     const startStage = tournament.suicoMataMataInicio || "1/8";
-    const topTeams = standings.slice(0, playoffSlots).map(s => s.teamId);
-    
+    const topTeams = standings.slice(0, playoffSlots).map((s) => s.teamId);
+
     if (topTeams.length < 2) {
       toast.error("Selecione pelo menos 2 times para os play-offs.");
       return;
@@ -444,10 +473,44 @@ export default function TournamentDetailPage() {
       const away = topTeams[topTeams.length - 1 - i];
       if (legMode === "home-away") {
         const pairId = crypto.randomUUID();
-        newMatches.push({ id: crypto.randomUUID(), tournamentId: tournament.id, round: 1, homeTeamId: home, awayTeamId: away, homeScore: 0, awayScore: 0, played: false, stage: "knockout", leg: 1, pairId });
-        newMatches.push({ id: crypto.randomUUID(), tournamentId: tournament.id, round: 1, homeTeamId: away, awayTeamId: home, homeScore: 0, awayScore: 0, played: false, stage: "knockout", leg: 2, pairId });
+        newMatches.push({
+          id: crypto.randomUUID(),
+          tournamentId: tournament.id,
+          round: 1,
+          homeTeamId: home,
+          awayTeamId: away,
+          homeScore: 0,
+          awayScore: 0,
+          played: false,
+          stage: "knockout",
+          leg: 1,
+          pairId,
+        });
+        newMatches.push({
+          id: crypto.randomUUID(),
+          tournamentId: tournament.id,
+          round: 1,
+          homeTeamId: away,
+          awayTeamId: home,
+          homeScore: 0,
+          awayScore: 0,
+          played: false,
+          stage: "knockout",
+          leg: 2,
+          pairId,
+        });
       } else {
-        newMatches.push({ id: crypto.randomUUID(), tournamentId: tournament.id, round: 1, homeTeamId: home, awayTeamId: away, homeScore: 0, awayScore: 0, played: false, stage: "knockout" });
+        newMatches.push({
+          id: crypto.randomUUID(),
+          tournamentId: tournament.id,
+          round: 1,
+          homeTeamId: home,
+          awayTeamId: away,
+          homeScore: 0,
+          awayScore: 0,
+          played: false,
+          stage: "knockout",
+        });
       }
     }
 
@@ -466,7 +529,7 @@ export default function TournamentDetailPage() {
 
     // Check if all matches are played
     const allMatches = tournament.matches || [];
-    const hasUnplayedMatches = allMatches.some(m => !m.played);
+    const hasUnplayedMatches = allMatches.some((m) => !m.played);
     if (hasUnplayedMatches) {
       toast.error("Todos os jogos precisam ser simulados antes de finalizar a temporada.");
       return;
@@ -478,15 +541,17 @@ export default function TournamentDetailPage() {
 
     if (isMataMata || isGrupos || isSuico) {
       const stages = ["1/64", "1/32", "1/16", "1/8", "1/4", "1/2"];
-      const startStage = isSuico ? (tournament.suicoMataMataInicio || "1/8") : (isGrupos ? tournament.gruposMataMataInicio : tournament.mataMataInicio) || "1/8";
+      const startStage = isSuico
+        ? tournament.suicoMataMataInicio || "1/8"
+        : (isGrupos ? tournament.gruposMataMataInicio : tournament.mataMataInicio) || "1/8";
       const idx = stages.indexOf(startStage);
       const activeStages = idx >= 0 ? stages.slice(idx) : ["1/2"];
       const finalRound = activeStages.length;
-      
+
       const finalMatches = (tournament.matches || []).filter(
-        (m) => !m.isThirdPlace && m.round === finalRound && ((isGrupos || isSuico) ? m.stage === "knockout" : true)
+        (m) => !m.isThirdPlace && m.round === finalRound && (isGrupos || isSuico ? m.stage === "knockout" : true),
       );
-      
+
       if (finalMatches.length > 0) {
         const pairMap = new Map<string, { leg1?: Match; leg2?: Match }>();
         const singles: Match[] = [];
@@ -500,11 +565,12 @@ export default function TournamentDetailPage() {
             singles.push(m);
           }
         }
-        
+
         const finalPairs = [];
-        for (const pair of pairMap.values()) if (pair.leg1) finalPairs.push({ leg1: pair.leg1, leg2: pair.leg2 || null });
+        for (const pair of pairMap.values())
+          if (pair.leg1) finalPairs.push({ leg1: pair.leg1, leg2: pair.leg2 || null });
         for (const s of singles) finalPairs.push({ leg1: s, leg2: null });
-        
+
         if (finalPairs.length > 0) {
           const pair = finalPairs[0];
           let winnerId = null;
@@ -520,17 +586,26 @@ export default function TournamentDetailPage() {
               }
             }
           } else if (pair.leg1.played && pair.leg2.played) {
-            const h = (pair.leg1.homeScore || 0) + (pair.leg1.homeExtraTime || 0) + (pair.leg2.awayScore || 0) + (pair.leg2.awayExtraTime || 0);
-            const a = (pair.leg1.awayScore || 0) + (pair.leg1.awayExtraTime || 0) + (pair.leg2.homeScore || 0) + (pair.leg2.homeExtraTime || 0);
+            const h =
+              (pair.leg1.homeScore || 0) +
+              (pair.leg1.homeExtraTime || 0) +
+              (pair.leg2.awayScore || 0) +
+              (pair.leg2.awayExtraTime || 0);
+            const a =
+              (pair.leg1.awayScore || 0) +
+              (pair.leg1.awayExtraTime || 0) +
+              (pair.leg2.homeScore || 0) +
+              (pair.leg2.homeExtraTime || 0);
             if (h > a) winnerId = pair.leg1.homeTeamId;
             else if (a > h) winnerId = pair.leg1.awayTeamId;
             else if (pair.leg2.homePenalties !== undefined && pair.leg2.awayPenalties !== undefined) {
-              winnerId = pair.leg2.awayPenalties > pair.leg2.homePenalties ? pair.leg1.homeTeamId : pair.leg1.awayTeamId;
+              winnerId =
+                pair.leg2.awayPenalties > pair.leg2.homePenalties ? pair.leg1.homeTeamId : pair.leg1.awayTeamId;
             }
           }
-          
+
           if (winnerId) {
-            const winnerTeam = resolvedTeams.find(t => t.id === winnerId);
+            const winnerTeam = resolvedTeams.find((t) => t.id === winnerId);
             if (winnerTeam) {
               championTeamId = winnerTeam.id;
               championName = winnerTeam.name;
@@ -560,12 +635,14 @@ export default function TournamentDetailPage() {
         losses: s.losses,
         goalsFor: s.goalsFor,
         goalsAgainst: s.goalsAgainst,
-        group: isGrupos ? (() => {
-          for (const [g, ids] of Object.entries(currentAssignments)) {
-            if (ids.includes(s.teamId)) return parseInt(g);
-          }
-          return undefined;
-        })() : undefined,
+        group: isGrupos
+          ? (() => {
+              for (const [g, ids] of Object.entries(currentAssignments)) {
+                if (ids.includes(s.teamId)) return parseInt(g);
+              }
+              return undefined;
+            })()
+          : undefined,
       })),
       matches: [...(tournament.matches || [])],
     };
@@ -624,7 +701,6 @@ export default function TournamentDetailPage() {
     }
 
     return { teamsLeaving: teamsLeavingThis, transfersByTarget: byTarget };
-
   };
 
   const handleNewSeason = () => {
@@ -668,7 +744,7 @@ export default function TournamentDetailPage() {
           // Tournament already advanced — use the last season snapshot
           const seasonSettings = lastSeason.settings || otherT.settings;
           sourcePromos = seasonSettings.promotions || [];
-          const seasonTeamIds = lastSeason.teamIds || lastSeason.standings.map(s => s.teamId);
+          const seasonTeamIds = lastSeason.teamIds || lastSeason.standings.map((s) => s.teamId);
           const seasonMatches = lastSeason.matches || [];
           sourceStandings = calculateStandings(seasonTeamIds, seasonMatches, seasonSettings, resolvedTeams);
         }
@@ -751,12 +827,17 @@ export default function TournamentDetailPage() {
 
     // If the current season has matches played, snapshot it as a season record before switching
     const existingSeasons = [...(tournament.seasons || [])];
-    const currentHasData = (tournament.matches || []).some(m => m.played);
+    const currentHasData = (tournament.matches || []).some((m) => m.played);
     if (currentHasData && !tournament.finalized) {
       // Auto-save current season as an unfinalized snapshot so teamIds/matches aren't lost
-      const alreadySaved = existingSeasons.some(s => s.year === tournament.year);
+      const alreadySaved = existingSeasons.some((s) => s.year === tournament.year);
       if (!alreadySaved) {
-        const currentStandings = calculateStandings(tournament.teamIds, tournament.matches || [], tournament.settings, resolvedTeams);
+        const currentStandings = calculateStandings(
+          tournament.teamIds,
+          tournament.matches || [],
+          tournament.settings,
+          resolvedTeams,
+        );
         const snapshotRecord: SeasonRecord = {
           year: tournament.year,
           championId: currentStandings[0]?.teamId || "",
@@ -820,7 +901,7 @@ export default function TournamentDetailPage() {
     // Allow regeneration if all existing matches are empty placeholders (no teams assigned or played)
     const hasRealMatches = tournament.matches.some((m) => m.played || (m.homeTeamId && m.awayTeamId));
     if (hasRealMatches || tournament.teamIds.length < 2) return;
-    
+
     if (tournament.format === "liga") {
       const turnos = tournament.ligaTurnos || 1;
       const matches = generateRoundRobin(tournament.id, tournament.teamIds, turnos);
@@ -842,7 +923,7 @@ export default function TournamentDetailPage() {
         else groupIdx = groupCount - 1 - (i % groupCount);
         groups[groupIdx].push(sortedTeamIds[i]);
       }
-      
+
       const allMatches: Match[] = [];
       for (let g = 0; g < groupCount; g++) {
         if (groups[g].length < 2) continue;
@@ -885,13 +966,47 @@ export default function TournamentDetailPage() {
         if (!homeId && !awayId) continue;
         if (legMode === "home-away" && homeId && awayId) {
           const pairId = crypto.randomUUID();
-          newMatches.push({ id: crypto.randomUUID(), tournamentId: tournament.id, round: 1, homeTeamId: homeId, awayTeamId: awayId, homeScore: 0, awayScore: 0, played: false, leg: 1, pairId, stage: "knockout" });
-          newMatches.push({ id: crypto.randomUUID(), tournamentId: tournament.id, round: 1, homeTeamId: awayId, awayTeamId: homeId, homeScore: 0, awayScore: 0, played: false, leg: 2, pairId, stage: "knockout" });
+          newMatches.push({
+            id: crypto.randomUUID(),
+            tournamentId: tournament.id,
+            round: 1,
+            homeTeamId: homeId,
+            awayTeamId: awayId,
+            homeScore: 0,
+            awayScore: 0,
+            played: false,
+            leg: 1,
+            pairId,
+            stage: "knockout",
+          });
+          newMatches.push({
+            id: crypto.randomUUID(),
+            tournamentId: tournament.id,
+            round: 1,
+            homeTeamId: awayId,
+            awayTeamId: homeId,
+            homeScore: 0,
+            awayScore: 0,
+            played: false,
+            leg: 2,
+            pairId,
+            stage: "knockout",
+          });
         } else {
           const matchHomeId = homeId || awayId!;
           const matchAwayId = homeId && awayId ? awayId : "";
           const isBye = !homeId || !awayId;
-          newMatches.push({ id: crypto.randomUUID(), tournamentId: tournament.id, round: 1, homeTeamId: matchHomeId, awayTeamId: matchAwayId, homeScore: isBye ? 1 : 0, awayScore: 0, played: isBye, stage: "knockout" });
+          newMatches.push({
+            id: crypto.randomUUID(),
+            tournamentId: tournament.id,
+            round: 1,
+            homeTeamId: matchHomeId,
+            awayTeamId: matchAwayId,
+            homeScore: isBye ? 1 : 0,
+            awayScore: 0,
+            played: isBye,
+            stage: "knockout",
+          });
         }
       }
       updateTournament(tournament.id, { matches: newMatches });
@@ -908,8 +1023,16 @@ export default function TournamentDetailPage() {
   const optionIcons = [
     { icon: Pencil, label: "Editar Competição", action: () => navigate(`/tournament/${id}/edit`) },
     { icon: Settings, label: "Editar Sistemas", action: () => navigate(`/tournament/${id}/settings`) },
-    { icon: Shield, label: "Times", action: () => navigate(`/tournament/${id}/teams${viewingYear ? `?season=${activeYear}` : ''}`) },
-    { icon: PreliminaryPhasesIcon, label: "Fases Preliminares", action: () => navigate(`/tournament/${id}/preliminary`) },
+    {
+      icon: Shield,
+      label: "Times",
+      action: () => navigate(`/tournament/${id}/teams${viewingYear ? `?season=${activeYear}` : ""}`),
+    },
+    {
+      icon: PreliminaryPhasesIcon,
+      label: "Fases Preliminares",
+      action: () => navigate(`/tournament/${id}/preliminary`),
+    },
     { icon: Trophy, label: "Galeria", action: () => navigate(`/tournament/${id}/gallery`) },
   ];
 
@@ -919,7 +1042,10 @@ export default function TournamentDetailPage() {
 
       <div className="flex items-start justify-between mb-6 gap-2 flex-wrap">
         <div className="flex items-center gap-3">
-          <button onClick={() => navigate("/")} className="text-muted-foreground hover:text-foreground transition-colors shrink-0">
+          <button
+            onClick={() => navigate("/")}
+            className="text-muted-foreground hover:text-foreground transition-colors shrink-0"
+          >
             <ArrowLeft className="w-4 h-4" />
           </button>
           <div className="flex items-center gap-2">
@@ -935,7 +1061,9 @@ export default function TournamentDetailPage() {
             </div>
             <div className="min-w-0">
               <div className="flex items-center gap-1.5 flex-wrap">
-                <h1 className="text-base lg:text-xl font-display font-bold text-foreground truncate max-w-[160px] sm:max-w-none">{tournament.name}</h1>
+                <h1 className="text-base lg:text-xl font-display font-bold text-foreground truncate max-w-[160px] sm:max-w-none">
+                  {tournament.name}
+                </h1>
                 <div className="flex items-center gap-1">
                   {optionIcons.map((item) => (
                     <button
@@ -987,7 +1115,7 @@ export default function TournamentDetailPage() {
                           >
                             {year}
                             {seasonYears.includes(year) && year !== tournament.year && (
-                              <span className="text-xs text-muted-foreground ml-1">✓</span>
+                              <Check className="w-3 h-3 text-muted-foreground ml-1" strokeWidth={3} />
                             )}
                           </button>
                           <AlertDialog>
@@ -1009,7 +1137,10 @@ export default function TournamentDetailPage() {
                               <AlertDialogFooter>
                                 <AlertDialogCancel>Cancelar</AlertDialogCancel>
                                 <AlertDialogAction
-                                  onClick={() => { handleDeleteSeason(year); setShowYearPicker(false); }}
+                                  onClick={() => {
+                                    handleDeleteSeason(year);
+                                    setShowYearPicker(false);
+                                  }}
                                   className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
                                 >
                                   Excluir
@@ -1060,7 +1191,11 @@ export default function TournamentDetailPage() {
           </div>
           <div className="w-9 h-9 flex items-center justify-center shrink-0">
             {championDisplayLogo ? (
-              <img src={championDisplayLogo} alt={`Escudo do campeão ${championDisplayName}`} className="w-9 h-9 object-contain" />
+              <img
+                src={championDisplayLogo}
+                alt={`Escudo do campeão ${championDisplayName}`}
+                className="w-9 h-9 object-contain"
+              />
             ) : (
               <Shield className="w-4 h-4 text-muted-foreground" />
             )}
@@ -1072,23 +1207,47 @@ export default function TournamentDetailPage() {
         <div className="flex items-center justify-between gap-4 flex-wrap">
           <TabsList className="bg-secondary/50 border border-border p-1">
             {!isMataMata && (
-              <TabsTrigger value="standings" className="data-[state=active]:bg-card data-[state=active]:shadow-sm text-xs lg:text-sm">Classificação</TabsTrigger>
+              <TabsTrigger
+                value="standings"
+                className="data-[state=active]:bg-card data-[state=active]:shadow-sm text-xs lg:text-sm"
+              >
+                Classificação
+              </TabsTrigger>
             )}
             {!isMataMata && (
-              <TabsTrigger value="rounds" className="data-[state=active]:bg-card data-[state=active]:shadow-sm text-xs lg:text-sm">Jogos</TabsTrigger>
+              <TabsTrigger
+                value="rounds"
+                className="data-[state=active]:bg-card data-[state=active]:shadow-sm text-xs lg:text-sm"
+              >
+                Jogos
+              </TabsTrigger>
             )}
             {hasKnockout && (
-              <TabsTrigger value="bracket" className="data-[state=active]:bg-card data-[state=active]:shadow-sm text-xs lg:text-sm">Chaveamento</TabsTrigger>
+              <TabsTrigger
+                value="bracket"
+                className="data-[state=active]:bg-card data-[state=active]:shadow-sm text-xs lg:text-sm"
+              >
+                Chaveamento
+              </TabsTrigger>
             )}
-            <TabsTrigger value="stats" className="data-[state=active]:bg-card data-[state=active]:shadow-sm text-xs lg:text-sm">Estatísticas</TabsTrigger>
+            <TabsTrigger
+              value="stats"
+              className="data-[state=active]:bg-card data-[state=active]:shadow-sm text-xs lg:text-sm"
+            >
+              Estatísticas
+            </TabsTrigger>
           </TabsList>
           <div className="flex items-center gap-2">
-            {!isViewingPastSeason && !tournament.finalized && isLiga && standings.length > 0 && standings.every(s => s.played > 0) && (
-              <Button onClick={handleFinalizeSeason} size="sm" className="gap-1.5 bg-primary text-primary-foreground">
-                <Trophy className="w-4 h-4" />
-                Finalizar Temporada
-              </Button>
-            )}
+            {!isViewingPastSeason &&
+              !tournament.finalized &&
+              isLiga &&
+              standings.length > 0 &&
+              standings.every((s) => s.played > 0) && (
+                <Button onClick={handleFinalizeSeason} size="sm" className="gap-1.5 bg-primary text-primary-foreground">
+                  <Trophy className="w-4 h-4" />
+                  Finalizar Temporada
+                </Button>
+              )}
           </div>
         </div>
 
@@ -1099,8 +1258,8 @@ export default function TournamentDetailPage() {
                 <div className="flex items-center justify-between gap-4 flex-wrap">
                   <span className="text-sm text-muted-foreground">
                     {unassignedTeamIds.length > 0
-                      ? `${unassignedTeamIds.length} ${unassignedTeamIds.length === 1 ? 'time' : 'times'} sem grupo`
-                      : 'Todos os times distribuídos'}
+                      ? `${unassignedTeamIds.length} ${unassignedTeamIds.length === 1 ? "time" : "times"} sem grupo`
+                      : "Todos os times distribuídos"}
                   </span>
                   <Button onClick={() => setShowDrawDialog(true)} size="sm" variant="outline" className="gap-1.5">
                     <Shuffle className="w-3.5 h-3.5" />
@@ -1117,12 +1276,18 @@ export default function TournamentDetailPage() {
                     <div>
                       <p className="text-sm font-bold text-foreground">Fase de Grupos em andamento</p>
                       <p className="text-xs text-muted-foreground">
-                        {allGroupMatchesPlayed ? "Todos os jogos concluídos! Confirme os classificados." : "Acompanhe a classificação em tempo real."}
+                        {allGroupMatchesPlayed
+                          ? "Todos os jogos concluídos! Confirme os classificados."
+                          : "Acompanhe a classificação em tempo real."}
                       </p>
                     </div>
                   </div>
                   {allGroupMatchesPlayed && (
-                    <Button onClick={() => setActiveTab("bracket")} size="sm" className="gap-1.5 bg-primary text-primary-foreground w-full sm:w-auto">
+                    <Button
+                      onClick={() => setActiveTab("bracket")}
+                      size="sm"
+                      className="gap-1.5 bg-primary text-primary-foreground w-full sm:w-auto"
+                    >
                       Confirmar Classificados
                     </Button>
                   )}
@@ -1135,11 +1300,13 @@ export default function TournamentDetailPage() {
                     <div className="flex justify-end">
                       <ScreenshotButton targetRef={groupsRef as any} filename="fase-de-grupos.png" discrete />
                     </div>
-                      <div ref={groupsRef} className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    <div ref={groupsRef} className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                       {Array.from({ length: groupCount }, (_, i) => i + 1).map((groupNum) => (
                         <div key={groupNum} className="space-y-3">
                           <div className="flex items-center justify-between px-1">
-                            <h3 className="font-display font-bold text-lg text-foreground">Grupo {String.fromCharCode(64 + groupNum)}</h3>
+                            <h3 className="font-display font-bold text-lg text-foreground">
+                              Grupo {String.fromCharCode(64 + groupNum)}
+                            </h3>
                             {!isViewingPastSeason && !tournament.finalized && (
                               <Popover>
                                 <PopoverTrigger asChild>
@@ -1160,11 +1327,19 @@ export default function TournamentDetailPage() {
                                       {unassignedTeamIds
                                         .map((tid) => resolvedTeams.find((t) => t.id === tid))
                                         .filter((t): t is NonNullable<typeof t> => !!t)
-                                        .filter((t) => !groupTeamSearch || t.name.toLowerCase().includes(groupTeamSearch.toLowerCase()) || t.abbreviation?.toLowerCase().includes(groupTeamSearch.toLowerCase()))
+                                        .filter(
+                                          (t) =>
+                                            !groupTeamSearch ||
+                                            t.name.toLowerCase().includes(groupTeamSearch.toLowerCase()) ||
+                                            t.abbreviation?.toLowerCase().includes(groupTeamSearch.toLowerCase()),
+                                        )
                                         .map((team) => (
                                           <button
                                             key={team.id}
-                                            onClick={() => { addTeamToGroup(team.id, groupNum); setGroupTeamSearch(""); }}
+                                            onClick={() => {
+                                              addTeamToGroup(team.id, groupNum);
+                                              setGroupTeamSearch("");
+                                            }}
                                             className="w-full flex items-center gap-2 px-2 py-1.5 rounded hover:bg-secondary/60 transition-colors text-left"
                                           >
                                             <div className="w-5 h-5 flex items-center justify-center shrink-0">
@@ -1178,7 +1353,9 @@ export default function TournamentDetailPage() {
                                           </button>
                                         ))}
                                       {unassignedTeamIds.length === 0 && (
-                                        <p className="text-xs text-muted-foreground text-center py-2">Todos os times já estão em grupos</p>
+                                        <p className="text-xs text-muted-foreground text-center py-2">
+                                          Todos os times já estão em grupos
+                                        </p>
                                       )}
                                     </div>
                                   </div>
@@ -1188,12 +1365,18 @@ export default function TournamentDetailPage() {
                           </div>
                           <div className="rounded-xl border border-border bg-card shadow-sm overflow-hidden">
                             <StandingsTable
-                              standings={isViewingPastSeason ? (seasonStandingsByGroup[groupNum] || seasonStandings) : (standingsByGroup[groupNum] || [])}
+                              standings={
+                                isViewingPastSeason
+                                  ? seasonStandingsByGroup[groupNum] || seasonStandings
+                                  : standingsByGroup[groupNum] || []
+                              }
                               promotions={settings.promotions}
                               qualifyUntil={qualifiersPerGroup}
-                              onRemoveTeam={!isViewingPastSeason && !tournament.finalized
-                                ? (teamId) => removeTeamFromGroup(teamId, groupNum)
-                                : undefined}
+                              onRemoveTeam={
+                                !isViewingPastSeason && !tournament.finalized
+                                  ? (teamId) => removeTeamFromGroup(teamId, groupNum)
+                                  : undefined
+                              }
                               matches={groupMatches.filter((m) => m.group === groupNum)}
                               allTeams={resolvedTeams}
                               hideScreenshot
@@ -1217,12 +1400,18 @@ export default function TournamentDetailPage() {
                     <div>
                       <p className="text-sm font-bold text-foreground">Fase de Liga em andamento</p>
                       <p className="text-xs text-muted-foreground">
-                        {allSuicoLeagueMatchesPlayed ? "Todos os jogos concluídos! Confirme os classificados para os play-offs." : "Acompanhe a classificação em tempo real."}
+                        {allSuicoLeagueMatchesPlayed
+                          ? "Todos os jogos concluídos! Confirme os classificados para os play-offs."
+                          : "Acompanhe a classificação em tempo real."}
                       </p>
                     </div>
                   </div>
                   {allSuicoLeagueMatchesPlayed && (
-                    <Button onClick={() => setActiveTab("bracket")} size="sm" className="gap-1.5 bg-primary text-primary-foreground w-full sm:w-auto">
+                    <Button
+                      onClick={() => setActiveTab("bracket")}
+                      size="sm"
+                      className="gap-1.5 bg-primary text-primary-foreground w-full sm:w-auto"
+                    >
                       Confirmar Classificados
                     </Button>
                   )}
@@ -1272,7 +1461,7 @@ export default function TournamentDetailPage() {
         {hasKnockout && (
           <TabsContent value="bracket" className="mt-0 outline-none">
             <div className="space-y-6">
-           {hasKnockout && (
+              {hasKnockout && (
                 <div className="space-y-4">
                   {isGrupos && !tournament.groupsFinalized && allGroupMatchesPlayed && (
                     <div className="flex items-center justify-between p-3 rounded-lg border border-border bg-card">
@@ -1298,22 +1487,23 @@ export default function TournamentDetailPage() {
                   )}
                   {(isGrupos || isSuico) && tournament.groupsFinalized && (
                     <div className="flex items-center justify-between p-3 rounded-lg border border-border bg-card">
-                      <span className="text-sm text-muted-foreground">
-                        Classificados confirmados
-                      </span>
+                      <span className="text-sm text-muted-foreground">Classificados confirmados</span>
                       <Button onClick={handleResetQualification} size="sm" variant="outline">
                         Resetar
                       </Button>
                     </div>
                   )}
-                  {isMataMata && !tournament.finalized && tournament.teamIds.length >= 2 && (tournament.matches || []).length === 0 && (
-                    <div className="flex justify-end">
-                      <Button onClick={() => autoGenerate()} size="sm" variant="outline" className="gap-1.5">
-                        <Shuffle className="w-3.5 h-3.5" />
-                        Sortear Times
-                      </Button>
-                    </div>
-                  )}
+                  {isMataMata &&
+                    !tournament.finalized &&
+                    tournament.teamIds.length >= 2 &&
+                    (tournament.matches || []).length === 0 && (
+                      <div className="flex justify-end">
+                        <Button onClick={() => autoGenerate()} size="sm" variant="outline" className="gap-1.5">
+                          <Shuffle className="w-3.5 h-3.5" />
+                          Sortear Times
+                        </Button>
+                      </div>
+                    )}
                   <BracketView
                     tournament={knockoutTournament}
                     teams={resolvedTeams}
@@ -1324,7 +1514,10 @@ export default function TournamentDetailPage() {
                     }}
                     onBatchUpdateMatches={(updatedMatches) => {
                       if (isViewingPastSeason) return;
-                      const tagged = updatedMatches.map((m) => ({ ...m, stage: ((isGrupos || isSuico) ? "knockout" : m.stage) as any }));
+                      const tagged = updatedMatches.map((m) => ({
+                        ...m,
+                        stage: (isGrupos || isSuico ? "knockout" : m.stage) as any,
+                      }));
                       const existingIds = new Set((tournament.matches || []).map((m) => m.id));
                       const updates = tagged.filter((m) => existingIds.has(m.id));
                       const additions = tagged.filter((m) => !existingIds.has(m.id));
@@ -1338,11 +1531,13 @@ export default function TournamentDetailPage() {
                       updateTournament(tournament.id, { matches: newMatches });
                       toast.success("Chaveamento atualizado!");
                     }}
-                    onGenerateBracket={() => { if (!isViewingPastSeason) autoGenerate(); }}
+                    onGenerateBracket={() => {
+                      if (!isViewingPastSeason) autoGenerate();
+                    }}
                     onFinalize={isViewingPastSeason ? undefined : handleFinalizeSeason}
                     onAddMatch={(match) => {
                       if (isViewingPastSeason) return;
-                      const tagged = { ...match, stage: ((isGrupos || isSuico) ? "knockout" : match.stage) as any };
+                      const tagged = { ...match, stage: (isGrupos || isSuico ? "knockout" : match.stage) as any };
                       updateTournament(tournament.id, { matches: [...(tournament.matches || []), tagged] });
                     }}
                     onRemoveMatch={(matchId, pairId) => {
@@ -1361,10 +1556,7 @@ export default function TournamentDetailPage() {
         )}
 
         <TabsContent value="stats" className="mt-0 outline-none">
-          <StatsView
-            tournament={activeTournament}
-            teams={resolvedTeams}
-          />
+          <StatsView tournament={activeTournament} teams={resolvedTeams} />
         </TabsContent>
       </Tabs>
 
