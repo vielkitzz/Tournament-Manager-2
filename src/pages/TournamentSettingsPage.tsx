@@ -327,7 +327,7 @@ export default function TournamentSettingsPage() {
                   por posição
                 </p>
               )}
-              {remainderSlots === 0 && <p className="text-primary">→ Vagas exatas: {qualifiersPerGroup} por grupo ✓</p>}
+              {remainderSlots === 0 && <p className="text-primary">→ Vagas exatas: {qualifiersPerGroup} por grupo</p>}
             </div>
 
             {remainderSlots > 0 && (
