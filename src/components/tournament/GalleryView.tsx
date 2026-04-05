@@ -1,7 +1,8 @@
 import { useState } from "react";
 import { SeasonRecord, Team } from "@/types/tournament";
-import { Trophy, Shield, Plus, Pencil, Trash2, Check, X } from "lucide-react";
+import { Trophy, Shield, Plus, Pencil, Trash2, Check, X, Search } from "lucide-react";
 import { Input } from "@/components/ui/input";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 
 interface GalleryViewProps {
   seasons: SeasonRecord[];
@@ -15,47 +16,52 @@ export default function GalleryView({ seasons, teams, onUpdateSeasons }: Gallery
   const [formYear, setFormYear] = useState("");
   const [formName, setFormName] = useState("");
   const [formTeamId, setFormTeamId] = useState("");
+  const [formLogo, setFormLogo] = useState<string | undefined>();
+  const [teamPickerOpen, setTeamPickerOpen] = useState(false);
+  const [teamSearch, setTeamSearch] = useState("");
 
   const editable = !!onUpdateSeasons;
   const sorted = [...seasons].sort((a, b) => b.year - a.year);
 
   const getTeamById = (id: string) => teams?.find((t) => t.id === id);
 
-  const handleSelectTeam = (teamId: string) => {
-    const team = getTeamById(teamId);
-    if (team) {
-      setFormTeamId(teamId);
-      setFormName(team.name);
-    }
+  const filteredTeams = (teams || [])
+    .filter((t) => !t.isArchived)
+    .filter((t) =>
+      t.name.toLowerCase().includes(teamSearch.toLowerCase()) ||
+      t.shortName?.toLowerCase().includes(teamSearch.toLowerCase())
+    )
+    .sort((a, b) => a.name.localeCompare(b.name));
+
+  const handleSelectTeam = (team: Team) => {
+    setFormTeamId(team.id);
+    setFormName(team.name);
+    setFormLogo(team.logo);
+    setTeamPickerOpen(false);
+    setTeamSearch("");
   };
 
   const handleAdd = () => {
     if (!onUpdateSeasons || !formYear || !formName) return;
     const year = parseInt(formYear);
     if (isNaN(year)) return;
-    // Don't allow duplicate years
     if (seasons.some((s) => s.year === year)) return;
-    const team = formTeamId ? getTeamById(formTeamId) : undefined;
     const newSeason: SeasonRecord = {
       year,
       championId: formTeamId || `manual-${year}`,
       championName: formName,
-      championLogo: team?.logo,
+      championLogo: formLogo,
       standings: [],
       manual: true,
     };
     onUpdateSeasons([...seasons, newSeason]);
-    setAdding(false);
-    setFormYear("");
-    setFormName("");
-    setFormTeamId("");
+    resetForm();
   };
 
   const handleEdit = (oldYear: number) => {
     if (!onUpdateSeasons || !formName) return;
     const year = parseInt(formYear);
     if (isNaN(year)) return;
-    const team = formTeamId ? getTeamById(formTeamId) : undefined;
     const updated = seasons.map((s) => {
       if (s.year !== oldYear) return s;
       return {
@@ -63,14 +69,11 @@ export default function GalleryView({ seasons, teams, onUpdateSeasons }: Gallery
         year,
         championId: formTeamId || s.championId,
         championName: formName,
-        championLogo: team?.logo ?? s.championLogo,
+        championLogo: formLogo ?? s.championLogo,
       };
     });
     onUpdateSeasons(updated);
-    setEditingYear(null);
-    setFormYear("");
-    setFormName("");
-    setFormTeamId("");
+    resetForm();
   };
 
   const handleDelete = (year: number) => {
@@ -83,89 +86,134 @@ export default function GalleryView({ seasons, teams, onUpdateSeasons }: Gallery
     setFormYear(String(season.year));
     setFormName(season.championName);
     setFormTeamId(season.championId);
+    setFormLogo(season.championLogo);
     setAdding(false);
   };
 
   const startAdd = () => {
     setAdding(true);
     setEditingYear(null);
-    setFormYear("");
-    setFormName("");
-    setFormTeamId("");
+    resetFormFields();
   };
 
-  const cancelForm = () => {
-    setAdding(false);
-    setEditingYear(null);
+  const resetFormFields = () => {
     setFormYear("");
     setFormName("");
     setFormTeamId("");
+    setFormLogo(undefined);
+  };
+
+  const resetForm = () => {
+    setAdding(false);
+    setEditingYear(null);
+    resetFormFields();
   };
 
   if (seasons.length === 0 && !editable) {
     return (
       <div className="text-center py-12">
         <Trophy className="w-10 h-10 text-muted-foreground/30 mx-auto mb-3" />
-        <p className="text-sm text-muted-foreground">
-          Nenhuma temporada finalizada ainda
-        </p>
-        <p className="text-xs text-muted-foreground mt-1">
-          Finalize uma temporada para registrar o campeão
-        </p>
+        <p className="text-sm text-muted-foreground">Nenhuma temporada finalizada ainda</p>
+        <p className="text-xs text-muted-foreground mt-1">Finalize uma temporada para registrar o campeão</p>
       </div>
     );
   }
 
+  const renderTeamPicker = () => (
+    <Dialog open={teamPickerOpen} onOpenChange={setTeamPickerOpen}>
+      <DialogContent className="max-w-sm p-0 gap-0 overflow-hidden">
+        <DialogHeader className="p-4 pb-2">
+          <DialogTitle className="text-sm font-bold">Selecionar Time</DialogTitle>
+        </DialogHeader>
+        <div className="px-4 pb-2">
+          <div className="relative">
+            <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
+            <Input
+              placeholder="Buscar time..."
+              value={teamSearch}
+              onChange={(e) => setTeamSearch(e.target.value)}
+              className="h-8 text-xs pl-8"
+              autoFocus
+            />
+          </div>
+        </div>
+        <div className="max-h-60 overflow-y-auto px-2 pb-3">
+          {filteredTeams.length === 0 ? (
+            <p className="text-xs text-muted-foreground text-center py-4">Nenhum time encontrado</p>
+          ) : (
+            <div className="space-y-0.5">
+              {filteredTeams.map((t) => (
+                <button
+                  key={t.id}
+                  onClick={() => handleSelectTeam(t)}
+                  className="w-full flex items-center gap-2.5 px-2.5 py-2 rounded-lg hover:bg-secondary/50 transition-colors text-left"
+                >
+                  <div className="w-6 h-6 flex items-center justify-center shrink-0">
+                    {t.logo ? (
+                      <img src={t.logo} alt="" className="w-6 h-6 object-contain" />
+                    ) : (
+                      <Shield className="w-4 h-4 text-muted-foreground" />
+                    )}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-xs font-medium text-foreground truncate">{t.name}</p>
+                    {t.shortName && <p className="text-[10px] text-muted-foreground truncate">{t.shortName}</p>}
+                  </div>
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+
   const renderForm = (onSubmit: () => void) => (
-    <div className="flex items-center gap-2 p-3 rounded-xl bg-secondary/30 border border-primary/30">
-      <Input
-        type="number"
-        placeholder="Ano"
-        value={formYear}
-        onChange={(e) => setFormYear(e.target.value)}
-        className="w-20 h-8 text-xs"
-      />
-      {teams && teams.length > 0 ? (
-        <select
-          value={formTeamId}
-          onChange={(e) => handleSelectTeam(e.target.value)}
-          className="h-8 text-xs rounded-md border border-border bg-background px-2 flex-1 min-w-0"
-        >
-          <option value="">Selecione um time...</option>
-          {teams
-            .filter((t) => !t.isArchived)
-            .sort((a, b) => a.name.localeCompare(b.name))
-            .map((t) => (
-              <option key={t.id} value={t.id}>{t.name}</option>
-            ))}
-        </select>
-      ) : (
+    <div className="flex flex-col gap-2 p-3 rounded-xl bg-secondary/30 border border-primary/30">
+      <div className="flex items-center gap-2">
         <Input
-          placeholder="Nome do campeão"
-          value={formName}
-          onChange={(e) => setFormName(e.target.value)}
-          className="h-8 text-xs flex-1"
+          type="number"
+          placeholder="Ano"
+          value={formYear}
+          onChange={(e) => setFormYear(e.target.value)}
+          className="w-20 h-8 text-xs"
         />
-      )}
+        <button
+          type="button"
+          onClick={() => setTeamPickerOpen(true)}
+          className="flex items-center gap-2 flex-1 h-8 px-2.5 rounded-md border border-border bg-background text-xs hover:border-primary/40 transition-colors min-w-0"
+        >
+          {formLogo ? (
+            <img src={formLogo} alt="" className="w-4 h-4 object-contain shrink-0" />
+          ) : formTeamId ? (
+            <Shield className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
+          ) : null}
+          <span className={`truncate ${formName ? "text-foreground" : "text-muted-foreground"}`}>
+            {formName || "Selecionar time..."}
+          </span>
+        </button>
+        <button onClick={onSubmit} className="p-1.5 text-primary hover:text-primary/80">
+          <Check className="w-4 h-4" />
+        </button>
+        <button onClick={resetForm} className="p-1.5 text-destructive hover:text-destructive/80">
+          <X className="w-4 h-4" />
+        </button>
+      </div>
       {formTeamId && (
         <Input
           placeholder="Nome personalizado"
           value={formName}
           onChange={(e) => setFormName(e.target.value)}
-          className="h-8 text-xs w-32"
+          className="h-8 text-xs"
         />
       )}
-      <button onClick={onSubmit} className="p-1.5 text-primary hover:text-primary/80">
-        <Check className="w-4 h-4" />
-      </button>
-      <button onClick={cancelForm} className="p-1.5 text-destructive hover:text-destructive/80">
-        <X className="w-4 h-4" />
-      </button>
     </div>
   );
 
   return (
     <div className="space-y-2">
+      {renderTeamPicker()}
+
       {editable && !adding && (
         <button
           onClick={startAdd}
@@ -178,7 +226,7 @@ export default function GalleryView({ seasons, teams, onUpdateSeasons }: Gallery
 
       {adding && renderForm(handleAdd)}
 
-      {sorted.map((season) => (
+      {sorted.map((season) =>
         editingYear === season.year ? (
           <div key={season.year}>
             {renderForm(() => handleEdit(season.year))}
@@ -214,7 +262,7 @@ export default function GalleryView({ seasons, teams, onUpdateSeasons }: Gallery
             )}
           </div>
         )
-      ))}
+      )}
 
       {seasons.length === 0 && editable && !adding && (
         <div className="text-center py-8">

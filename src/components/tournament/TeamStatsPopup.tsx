@@ -1,11 +1,8 @@
 import { useState, useMemo } from "react";
-import { Shield, TrendingUp, TrendingDown, Minus, Swords, Users, BarChart3 } from "lucide-react";
+import { Shield, TrendingUp, TrendingDown, Minus, Swords, Users, BarChart3, Target, Award, Percent } from "lucide-react";
 import { Team, Match } from "@/types/tournament";
 import { StandingRow } from "@/lib/standings";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
-import { Badge } from "@/components/ui/badge";
-import { Progress } from "@/components/ui/progress";
+import { Dialog, DialogContent } from "@/components/ui/dialog";
 
 interface TeamStatsPopupProps {
   open: boolean;
@@ -18,7 +15,7 @@ interface TeamStatsPopupProps {
 }
 
 export default function TeamStatsPopup({ open, onClose, team, standing, matches, allTeams, allStandings = [] }: TeamStatsPopupProps) {
-  const [activeTab, setActiveTab] = useState("overview");
+  const [activeTab, setActiveTab] = useState<"overview" | "h2h" | "compare">("overview");
   const [h2hTeamId, setH2hTeamId] = useState<string | null>(null);
   const [compareTeamIds, setCompareTeamIds] = useState<string[]>([]);
 
@@ -115,166 +112,210 @@ export default function TeamStatsPopup({ open, onClose, team, standing, matches,
     );
   };
 
-  const renderMatchList = (list: Match[], emptyMsg: string) => {
-    if (list.length === 0) return <p className="text-xs text-muted-foreground italic">{emptyMsg}</p>;
+  const teamColors = team.colors || [];
+  const primaryColor = teamColors[0] || "hsl(var(--primary))";
+
+  const tabs = [
+    { id: "overview" as const, label: "Visão Geral", icon: BarChart3 },
+    { id: "h2h" as const, label: "H2H", icon: Swords },
+    { id: "compare" as const, label: "Comparar", icon: Users },
+  ];
+
+  const StatBar = ({ value, max, color = "bg-primary" }: { value: number; max: number; color?: string }) => {
+    const pct = max > 0 ? Math.min((value / max) * 100, 100) : 0;
     return (
-      <div className="space-y-1 max-h-32 overflow-y-auto">
-        {list.map((m) => {
-          const opp = getOpponent(m);
-          return (
-            <div key={m.id} className="flex items-center gap-2 text-xs py-1.5 px-2.5 rounded-lg bg-secondary/30 border border-border/50">
-              <div className="w-4 h-4 shrink-0 flex items-center justify-center">
-                {opp?.logo ? <img src={opp.logo} alt="" className="w-4 h-4 object-contain" /> : <Shield className="w-3 h-3 text-muted-foreground" />}
-              </div>
-              <span className="text-foreground truncate flex-1">{opp?.shortName || opp?.name || "—"}</span>
-              <span className="font-mono font-bold text-foreground shrink-0">{getScore(m)}</span>
-              <span className="text-[10px] text-muted-foreground shrink-0">
-                {m.homeTeamId === team.id ? "(C)" : "(F)"}
-              </span>
-            </div>
-          );
-        })}
+      <div className="h-1.5 rounded-full bg-muted overflow-hidden">
+        <div className={`h-full rounded-full transition-all duration-500 ${color}`} style={{ width: `${pct}%` }} />
+      </div>
+    );
+  };
+
+  const renderMatchResult = (m: Match) => {
+    const opp = getOpponent(m);
+    const result = getResult(m);
+    const resultColor = result === "W" ? "bg-emerald-500" : result === "D" ? "bg-amber-500" : "bg-destructive";
+    const resultLabel = result === "W" ? "V" : result === "D" ? "E" : "D";
+    return (
+      <div key={m.id} className="flex items-center gap-2 py-1.5 px-2 rounded-lg bg-muted/30">
+        <div className={`w-5 h-5 rounded ${resultColor} text-white text-[10px] font-bold flex items-center justify-center shrink-0`}>
+          {resultLabel}
+        </div>
+        <div className="w-5 h-5 shrink-0 flex items-center justify-center">
+          {opp?.logo ? <img src={opp.logo} alt="" className="w-5 h-5 object-contain" /> : <Shield className="w-3.5 h-3.5 text-muted-foreground" />}
+        </div>
+        <span className="text-xs text-foreground truncate flex-1">{opp?.shortName || opp?.name || "—"}</span>
+        <span className="text-xs font-mono font-bold text-foreground">{getScore(m)}</span>
+        <span className="text-[9px] text-muted-foreground">
+          {m.homeTeamId === team.id ? "C" : "F"}
+        </span>
       </div>
     );
   };
 
   return (
     <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
-      <DialogContent className="max-w-lg p-0 gap-0 overflow-hidden">
-        {/* Header */}
-        <div className="bg-secondary/40 border-b border-border px-5 py-4">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-3">
-              <div className="w-12 h-12 rounded-xl bg-background/80 border border-border flex items-center justify-center shrink-0">
-                {team.logo ? (
-                  <img src={team.logo} alt="" className="w-10 h-10 object-contain" />
-                ) : (
-                  <Shield className="w-6 h-6 text-muted-foreground" />
+      <DialogContent className="max-w-md p-0 gap-0 overflow-hidden rounded-2xl border-0 shadow-2xl">
+        {/* Hero Header */}
+        <div
+          className="relative px-5 pt-5 pb-4"
+          style={{
+            background: `linear-gradient(135deg, ${primaryColor}22 0%, transparent 60%)`,
+          }}
+        >
+          <div className="flex items-start gap-3">
+            <div className="w-14 h-14 rounded-2xl bg-background/80 backdrop-blur border border-border/50 flex items-center justify-center shrink-0 shadow-sm">
+              {team.logo ? (
+                <img src={team.logo} alt="" className="w-11 h-11 object-contain" />
+              ) : (
+                <Shield className="w-7 h-7 text-muted-foreground" />
+              )}
+            </div>
+            <div className="flex-1 min-w-0 pt-0.5">
+              <h2 className="text-lg font-bold text-foreground truncate leading-tight">{team.name}</h2>
+              <div className="flex items-center gap-2 mt-1">
+                {position > 0 && (
+                  <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-md bg-primary/10 text-primary">
+                    {position}º
+                  </span>
                 )}
+                <span className="text-xs text-muted-foreground">
+                  {standing.points} pts • {standing.played} jogos
+                </span>
               </div>
-              <div className="flex-1 min-w-0">
-                <p className="text-base font-bold text-foreground truncate">{team.name}</p>
-                <div className="flex items-center gap-2 mt-0.5">
-                  {team.shortName && <span className="text-xs text-muted-foreground">{team.shortName}</span>}
-                  {position > 0 && (
-                    <Badge variant="secondary" className="text-[10px] px-1.5 py-0">
-                      {position}º lugar
-                    </Badge>
-                  )}
-                </div>
-              </div>
-              <div className="flex gap-0.5 shrink-0">
-                {recentForm.map((r, i) => (
-                  <div
-                    key={i}
-                    className={`w-5 h-5 rounded text-[10px] font-bold flex items-center justify-center ${
-                      r === "W" ? "bg-emerald-500/20 text-emerald-500" :
-                      r === "D" ? "bg-amber-500/20 text-amber-500" :
-                      "bg-destructive/20 text-destructive"
-                    }`}
-                  >
-                    {r === "W" ? "V" : r === "D" ? "E" : "D"}
-                  </div>
-                ))}
-              </div>
-            </DialogTitle>
-          </DialogHeader>
-        </div>
-
-        <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1">
-          <div className="border-b border-border px-4">
-            <TabsList className="bg-transparent h-9 p-0 gap-0">
-              <TabsTrigger value="overview" className="data-[state=active]:bg-transparent data-[state=active]:shadow-none data-[state=active]:border-b-2 data-[state=active]:border-primary rounded-none text-xs px-3 h-9">
-                <BarChart3 className="w-3.5 h-3.5 mr-1" /> Visão Geral
-              </TabsTrigger>
-              <TabsTrigger value="h2h" className="data-[state=active]:bg-transparent data-[state=active]:shadow-none data-[state=active]:border-b-2 data-[state=active]:border-primary rounded-none text-xs px-3 h-9">
-                <Swords className="w-3.5 h-3.5 mr-1" /> H2H
-              </TabsTrigger>
-              <TabsTrigger value="compare" className="data-[state=active]:bg-transparent data-[state=active]:shadow-none data-[state=active]:border-b-2 data-[state=active]:border-primary rounded-none text-xs px-3 h-9">
-                <Users className="w-3.5 h-3.5 mr-1" /> Comparar
-              </TabsTrigger>
-            </TabsList>
+            </div>
           </div>
 
-          <div className="p-4 max-h-[60vh] overflow-y-auto">
-            <TabsContent value="overview" className="mt-0 space-y-4">
-              <div className="grid grid-cols-4 gap-2">
+          {/* Recent form */}
+          {recentForm.length > 0 && (
+            <div className="flex items-center gap-1 mt-3">
+              <span className="text-[10px] text-muted-foreground mr-1">Forma:</span>
+              {recentForm.map((r, i) => (
+                <div
+                  key={i}
+                  className={`w-5 h-5 rounded-md text-[10px] font-bold flex items-center justify-center text-white ${
+                    r === "W" ? "bg-emerald-500" : r === "D" ? "bg-amber-500" : "bg-destructive"
+                  }`}
+                >
+                  {r === "W" ? "V" : r === "D" ? "E" : "D"}
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* Tabs */}
+        <div className="flex border-b border-border">
+          {tabs.map((tab) => (
+            <button
+              key={tab.id}
+              onClick={() => setActiveTab(tab.id)}
+              className={`flex-1 flex items-center justify-center gap-1.5 py-2.5 text-xs font-medium transition-colors relative ${
+                activeTab === tab.id
+                  ? "text-primary"
+                  : "text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              <tab.icon className="w-3.5 h-3.5" />
+              {tab.label}
+              {activeTab === tab.id && (
+                <div className="absolute bottom-0 left-1/4 right-1/4 h-0.5 bg-primary rounded-full" />
+              )}
+            </button>
+          ))}
+        </div>
+
+        {/* Content */}
+        <div className="p-4 max-h-[55vh] overflow-y-auto">
+          {/* Overview Tab */}
+          {activeTab === "overview" && (
+            <div className="space-y-4">
+              {/* Key stats grid */}
+              <div className="grid grid-cols-4 gap-1.5">
                 {[
-                  { label: "Pts", value: standing.points, color: "text-primary" },
                   { label: "V", value: standing.wins, color: "text-emerald-500" },
                   { label: "E", value: standing.draws, color: "text-amber-500" },
                   { label: "D", value: standing.losses, color: "text-destructive" },
+                  { label: "SG", value: standing.goalDifference, color: standing.goalDifference > 0 ? "text-emerald-500" : standing.goalDifference < 0 ? "text-destructive" : "text-muted-foreground", prefix: standing.goalDifference > 0 ? "+" : "" },
                 ].map((s) => (
-                  <div key={s.label} className="text-center p-2.5 rounded-xl bg-secondary/40 border border-border">
-                    <p className={`text-xl font-bold ${s.color}`}>{s.value}</p>
-                    <p className="text-[10px] text-muted-foreground uppercase tracking-wider">{s.label}</p>
+                  <div key={s.label} className="text-center py-2.5 rounded-xl bg-muted/30">
+                    <p className={`text-lg font-bold ${s.color}`}>{(s as any).prefix || ""}{s.value}</p>
+                    <p className="text-[9px] text-muted-foreground uppercase tracking-wider font-medium">{s.label}</p>
                   </div>
                 ))}
               </div>
 
-              <div className="space-y-3">
+              {/* Performance bars */}
+              <div className="space-y-3 px-1">
                 <div>
-                  <div className="flex justify-between text-xs mb-1">
-                    <span className="text-muted-foreground">Aproveitamento</span>
+                  <div className="flex justify-between text-xs mb-1.5">
+                    <span className="text-muted-foreground flex items-center gap-1">
+                      <Percent className="w-3 h-3" /> Aproveitamento
+                    </span>
                     <span className="font-bold text-primary">{pointsRate.toFixed(0)}%</span>
                   </div>
-                  <Progress value={pointsRate} className="h-2" />
+                  <StatBar value={pointsRate} max={100} />
                 </div>
                 <div>
-                  <div className="flex justify-between text-xs mb-1">
-                    <span className="text-muted-foreground">Taxa de Vitórias</span>
+                  <div className="flex justify-between text-xs mb-1.5">
+                    <span className="text-muted-foreground flex items-center gap-1">
+                      <Award className="w-3 h-3" /> Vitórias
+                    </span>
                     <span className="font-bold text-emerald-500">{winRate.toFixed(0)}%</span>
                   </div>
-                  <Progress value={winRate} className="h-2" />
+                  <StatBar value={winRate} max={100} color="bg-emerald-500" />
                 </div>
               </div>
 
-              <div className="grid grid-cols-3 gap-2">
-                {[
-                  { label: "Jogos", value: standing.played },
-                  { label: "GP", value: standing.goalsFor },
-                  { label: "GC", value: standing.goalsAgainst },
-                ].map((s) => (
-                  <div key={s.label} className="text-center p-2 rounded-xl bg-secondary/40 border border-border">
-                    <p className="text-sm font-bold text-foreground">{s.value}</p>
-                    <p className="text-[10px] text-muted-foreground uppercase">{s.label}</p>
+              {/* Goals */}
+              <div className="flex gap-1.5">
+                <div className="flex-1 text-center py-2 rounded-xl bg-muted/30">
+                  <div className="flex items-center justify-center gap-1">
+                    <Target className="w-3 h-3 text-emerald-500" />
+                    <span className="text-sm font-bold text-foreground">{standing.goalsFor}</span>
                   </div>
+                  <p className="text-[9px] text-muted-foreground uppercase mt-0.5">Gols Pró</p>
+                </div>
+                <div className="flex-1 text-center py-2 rounded-xl bg-muted/30">
+                  <div className="flex items-center justify-center gap-1">
+                    <Target className="w-3 h-3 text-destructive" />
+                    <span className="text-sm font-bold text-foreground">{standing.goalsAgainst}</span>
+                  </div>
+                  <p className="text-[9px] text-muted-foreground uppercase mt-0.5">Gols Contra</p>
+                </div>
+                <div className="flex-1 text-center py-2 rounded-xl bg-muted/30">
+                  <span className="text-sm font-bold text-foreground">
+                    {standing.played > 0 ? (standing.goalsFor / standing.played).toFixed(1) : "0.0"}
+                  </span>
+                  <p className="text-[9px] text-muted-foreground uppercase mt-0.5">Média/Jogo</p>
+                </div>
+              </div>
+
+              {/* Match history by category */}
+              <div className="space-y-1.5">
+                {[
+                  { label: "Vitórias", list: wins, icon: TrendingUp, color: "text-emerald-500" },
+                  { label: "Empates", list: draws, icon: Minus, color: "text-amber-500" },
+                  { label: "Derrotas", list: losses, icon: TrendingDown, color: "text-destructive" },
+                ].map(({ label, list, icon: Icon, color }) => (
+                  <details key={label} className="group">
+                    <summary className={`flex items-center gap-2 cursor-pointer text-xs font-semibold ${color} py-1.5 px-1`}>
+                      <Icon className="w-3.5 h-3.5" />
+                      <span>{label} ({list.length})</span>
+                    </summary>
+                    <div className="mt-1 space-y-0.5 max-h-32 overflow-y-auto">
+                      {list.length === 0
+                        ? <p className="text-xs text-muted-foreground italic px-2 py-2">Nenhuma</p>
+                        : list.map(renderMatchResult)}
+                    </div>
+                  </details>
                 ))}
               </div>
+            </div>
+          )}
 
-              <div className="flex items-center justify-between px-1 py-1">
-                <span className="text-xs text-muted-foreground">Saldo de gols</span>
-                <span className={`text-sm font-bold ${standing.goalDifference > 0 ? "text-emerald-500" : standing.goalDifference < 0 ? "text-destructive" : "text-muted-foreground"}`}>
-                  {standing.goalDifference > 0 ? `+${standing.goalDifference}` : standing.goalDifference}
-                </span>
-              </div>
-
-              <div className="space-y-2">
-                <details className="group">
-                  <summary className="flex items-center gap-2 cursor-pointer text-xs font-semibold text-emerald-500 hover:text-emerald-400 py-1">
-                    <TrendingUp className="w-3.5 h-3.5" />
-                    <span>Vitórias ({wins.length})</span>
-                  </summary>
-                  <div className="mt-1.5">{renderMatchList(wins, "Nenhuma vitória")}</div>
-                </details>
-                <details className="group">
-                  <summary className="flex items-center gap-2 cursor-pointer text-xs font-semibold text-amber-500 hover:text-amber-400 py-1">
-                    <Minus className="w-3.5 h-3.5" />
-                    <span>Empates ({draws.length})</span>
-                  </summary>
-                  <div className="mt-1.5">{renderMatchList(draws, "Nenhum empate")}</div>
-                </details>
-                <details className="group">
-                  <summary className="flex items-center gap-2 cursor-pointer text-xs font-semibold text-destructive hover:text-destructive/80 py-1">
-                    <TrendingDown className="w-3.5 h-3.5" />
-                    <span>Derrotas ({losses.length})</span>
-                  </summary>
-                  <div className="mt-1.5">{renderMatchList(losses, "Nenhuma derrota")}</div>
-                </details>
-              </div>
-            </TabsContent>
-
-            <TabsContent value="h2h" className="mt-0 space-y-4">
+          {/* H2H Tab */}
+          {activeTab === "h2h" && (
+            <div className="space-y-4">
               <div>
                 <p className="text-xs text-muted-foreground mb-2">Selecione um adversário:</p>
                 <div className="flex flex-wrap gap-1.5 max-h-28 overflow-y-auto">
@@ -282,10 +323,10 @@ export default function TeamStatsPopup({ open, onClose, team, standing, matches,
                     <button
                       key={opp.id}
                       onClick={() => setH2hTeamId(opp.id)}
-                      className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs border transition-colors ${
+                      className={`flex items-center gap-1.5 px-2 py-1.5 rounded-lg text-xs border transition-all ${
                         h2hTeamId === opp.id
-                          ? "border-primary bg-primary/10 text-primary"
-                          : "border-border bg-secondary/30 text-foreground hover:border-primary/40"
+                          ? "border-primary bg-primary/10 text-primary shadow-sm"
+                          : "border-border bg-muted/20 text-foreground hover:border-primary/40"
                       }`}
                     >
                       <div className="w-4 h-4 shrink-0 flex items-center justify-center">
@@ -299,45 +340,48 @@ export default function TeamStatsPopup({ open, onClose, team, standing, matches,
 
               {h2hData && h2hTeam && (
                 <div className="space-y-3">
-                  <div className="flex items-center justify-center gap-4 py-3">
-                    <div className="flex items-center gap-2">
-                      <div className="w-8 h-8 flex items-center justify-center">
+                  {/* VS header */}
+                  <div className="flex items-center justify-center gap-5 py-3">
+                    <div className="flex flex-col items-center gap-1">
+                      <div className="w-10 h-10 rounded-xl bg-muted/30 flex items-center justify-center">
                         {team.logo ? <img src={team.logo} alt="" className="w-8 h-8 object-contain" /> : <Shield className="w-5 h-5 text-muted-foreground" />}
                       </div>
-                      <span className="text-xs font-bold text-foreground">{team.shortName || team.name}</span>
+                      <span className="text-[10px] font-bold text-foreground">{team.shortName || team.abbreviation}</span>
                     </div>
-                    <Swords className="w-4 h-4 text-muted-foreground" />
                     <div className="flex items-center gap-2">
-                      <span className="text-xs font-bold text-foreground">{h2hTeam.shortName || h2hTeam.name}</span>
-                      <div className="w-8 h-8 flex items-center justify-center">
+                      <span className="text-2xl font-bold text-emerald-500">{h2hData.wins}</span>
+                      <span className="text-lg text-muted-foreground">-</span>
+                      <span className="text-sm font-bold text-amber-500">{h2hData.draws}</span>
+                      <span className="text-lg text-muted-foreground">-</span>
+                      <span className="text-2xl font-bold text-destructive">{h2hData.losses}</span>
+                    </div>
+                    <div className="flex flex-col items-center gap-1">
+                      <div className="w-10 h-10 rounded-xl bg-muted/30 flex items-center justify-center">
                         {h2hTeam.logo ? <img src={h2hTeam.logo} alt="" className="w-8 h-8 object-contain" /> : <Shield className="w-5 h-5 text-muted-foreground" />}
                       </div>
+                      <span className="text-[10px] font-bold text-foreground">{h2hTeam.shortName || h2hTeam.abbreviation}</span>
                     </div>
                   </div>
 
-                  <div className="grid grid-cols-3 gap-2">
-                    <div className="text-center p-2.5 rounded-xl bg-emerald-500/10 border border-emerald-500/20">
-                      <p className="text-xl font-bold text-emerald-500">{h2hData.wins}</p>
-                      <p className="text-[10px] text-muted-foreground uppercase">Vitórias</p>
+                  {/* H2H Stats */}
+                  <div className="flex gap-1.5">
+                    <div className="flex-1 text-center py-2 rounded-xl bg-muted/30">
+                      <p className="text-sm font-bold text-foreground">{h2hData.goalsFor}</p>
+                      <p className="text-[9px] text-muted-foreground uppercase">Gols</p>
                     </div>
-                    <div className="text-center p-2.5 rounded-xl bg-amber-500/10 border border-amber-500/20">
-                      <p className="text-xl font-bold text-amber-500">{h2hData.draws}</p>
-                      <p className="text-[10px] text-muted-foreground uppercase">Empates</p>
+                    <div className="flex-1 text-center py-2 rounded-xl bg-muted/30">
+                      <p className="text-sm font-bold text-foreground">{h2hData.goalsAgainst}</p>
+                      <p className="text-[9px] text-muted-foreground uppercase">Sofridos</p>
                     </div>
-                    <div className="text-center p-2.5 rounded-xl bg-destructive/10 border border-destructive/20">
-                      <p className="text-xl font-bold text-destructive">{h2hData.losses}</p>
-                      <p className="text-[10px] text-muted-foreground uppercase">Derrotas</p>
+                    <div className="flex-1 text-center py-2 rounded-xl bg-muted/30">
+                      <p className="text-sm font-bold text-foreground">{h2hData.matches.length}</p>
+                      <p className="text-[9px] text-muted-foreground uppercase">Jogos</p>
                     </div>
                   </div>
 
-                  <div className="flex items-center justify-between px-2 text-xs">
-                    <span className="text-muted-foreground">Gols</span>
-                    <span className="font-bold text-foreground">{h2hData.goalsFor} – {h2hData.goalsAgainst}</span>
-                  </div>
-
-                  <div className="space-y-1">
-                    <p className="text-xs font-semibold text-muted-foreground mb-1">Confrontos</p>
-                    {renderMatchList(h2hData.matches, "Nenhum confronto")}
+                  {/* Match list */}
+                  <div className="space-y-0.5 max-h-36 overflow-y-auto">
+                    {h2hData.matches.map(renderMatchResult)}
                   </div>
                 </div>
               )}
@@ -345,22 +389,25 @@ export default function TeamStatsPopup({ open, onClose, team, standing, matches,
               {!h2hTeamId && opponents.length === 0 && (
                 <p className="text-xs text-muted-foreground italic text-center py-6">Nenhum jogo disputado ainda</p>
               )}
-            </TabsContent>
+            </div>
+          )}
 
-            <TabsContent value="compare" className="mt-0 space-y-4">
+          {/* Compare Tab */}
+          {activeTab === "compare" && (
+            <div className="space-y-4">
               <div>
                 <p className="text-xs text-muted-foreground mb-2">Selecione times para comparar:</p>
-                <div className="flex flex-wrap gap-1.5 max-h-36 overflow-y-auto">
+                <div className="flex flex-wrap gap-1.5 max-h-28 overflow-y-auto">
                   {allTeams.filter((t) => t.id !== team.id).map((t) => {
                     const isSelected = compareTeamIds.includes(t.id);
                     return (
                       <button
                         key={t.id}
                         onClick={() => toggleCompareTeam(t.id)}
-                        className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs border transition-colors ${
+                        className={`flex items-center gap-1.5 px-2 py-1.5 rounded-lg text-xs border transition-all ${
                           isSelected
-                            ? "border-primary bg-primary/10 text-primary"
-                            : "border-border bg-secondary/30 text-foreground hover:border-primary/40"
+                            ? "border-primary bg-primary/10 text-primary shadow-sm"
+                            : "border-border bg-muted/20 text-foreground hover:border-primary/40"
                         }`}
                       >
                         <div className="w-4 h-4 shrink-0 flex items-center justify-center">
@@ -374,20 +421,20 @@ export default function TeamStatsPopup({ open, onClose, team, standing, matches,
               </div>
 
               {compareData.length > 0 && (
-                <div className="overflow-x-auto">
+                <div className="overflow-x-auto rounded-xl border border-border">
                   <table className="w-full text-xs">
                     <thead>
-                      <tr className="border-b border-border text-muted-foreground">
-                        <th className="text-left py-2 px-2">Time</th>
-                        <th className="text-center py-2 px-1">P</th>
-                        <th className="text-center py-2 px-1">J</th>
-                        <th className="text-center py-2 px-1">V</th>
-                        <th className="text-center py-2 px-1">E</th>
-                        <th className="text-center py-2 px-1">D</th>
-                        <th className="text-center py-2 px-1">GP</th>
-                        <th className="text-center py-2 px-1">GC</th>
-                        <th className="text-center py-2 px-1">SG</th>
-                        <th className="text-center py-2 px-1">%</th>
+                      <tr className="bg-muted/30 text-muted-foreground">
+                        <th className="text-left py-2 px-2.5 font-medium">Time</th>
+                        <th className="text-center py-2 px-1 font-medium">P</th>
+                        <th className="text-center py-2 px-1 font-medium">J</th>
+                        <th className="text-center py-2 px-1 font-medium">V</th>
+                        <th className="text-center py-2 px-1 font-medium">E</th>
+                        <th className="text-center py-2 px-1 font-medium">D</th>
+                        <th className="text-center py-2 px-1 font-medium">GP</th>
+                        <th className="text-center py-2 px-1 font-medium">GC</th>
+                        <th className="text-center py-2 px-1 font-medium">SG</th>
+                        <th className="text-center py-2 px-1 font-medium">%</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -396,20 +443,20 @@ export default function TeamStatsPopup({ open, onClose, team, standing, matches,
                         const isMain = ct.id === team.id;
                         const rate = cs.played > 0 ? ((cs.points / (cs.played * 3)) * 100).toFixed(0) : "0";
                         return (
-                          <tr key={ct.id} className={`border-b border-border/50 ${isMain ? "bg-primary/5 font-semibold" : ""}`}>
-                            <td className="py-2 px-2">
+                          <tr key={ct.id} className={`border-t border-border/50 ${isMain ? "bg-primary/5" : ""}`}>
+                            <td className="py-2 px-2.5">
                               <div className="flex items-center gap-1.5">
                                 <div className="w-4 h-4 shrink-0 flex items-center justify-center">
                                   {ct.logo ? <img src={ct.logo} alt="" className="w-4 h-4 object-contain" /> : <Shield className="w-3 h-3 text-muted-foreground" />}
                                 </div>
-                                <span className="truncate text-foreground">{ct.shortName || ct.name}</span>
+                                <span className={`truncate text-foreground ${isMain ? "font-bold" : ""}`}>{ct.shortName || ct.name}</span>
                               </div>
                             </td>
                             <td className="text-center py-2 px-1 font-bold text-foreground">{cs.points}</td>
                             <td className="text-center py-2 px-1 text-muted-foreground">{cs.played}</td>
-                            <td className="text-center py-2 px-1 text-muted-foreground">{cs.wins}</td>
-                            <td className="text-center py-2 px-1 text-muted-foreground">{cs.draws}</td>
-                            <td className="text-center py-2 px-1 text-muted-foreground">{cs.losses}</td>
+                            <td className="text-center py-2 px-1 text-emerald-500 font-medium">{cs.wins}</td>
+                            <td className="text-center py-2 px-1 text-amber-500 font-medium">{cs.draws}</td>
+                            <td className="text-center py-2 px-1 text-destructive font-medium">{cs.losses}</td>
                             <td className="text-center py-2 px-1 text-muted-foreground">{cs.goalsFor}</td>
                             <td className="text-center py-2 px-1 text-muted-foreground">{cs.goalsAgainst}</td>
                             <td className="text-center py-2 px-1 text-muted-foreground">
@@ -425,11 +472,11 @@ export default function TeamStatsPopup({ open, onClose, team, standing, matches,
               )}
 
               {compareTeamIds.length === 0 && (
-                <p className="text-xs text-muted-foreground italic text-center py-4">Selecione times acima para comparar estatísticas</p>
+                <p className="text-xs text-muted-foreground italic text-center py-4">Selecione times acima para comparar</p>
               )}
-            </TabsContent>
-          </div>
-        </Tabs>
+            </div>
+          )}
+        </div>
       </DialogContent>
     </Dialog>
   );
