@@ -18,23 +18,34 @@ function poissonRandom(lambda: number): number {
   return k - 1;
 }
 
-function getExpectedGoals(teamRate: number, opponentRate: number, isExtraTime = false): number {
-  const BASE_GOALS_PER_HALF = 0.75;
-  const strengthRatio = Math.sqrt(teamRate / opponentRate);
-  const formFactor = 0.85 + Math.random() * 0.30;
-  const fatigueFactor = isExtraTime ? 0.40 : 1.0; // ~60% reduction in extra time
-  return BASE_GOALS_PER_HALF * strengthRatio * formFactor * fatigueFactor;
+function getExpectedGoals(teamRate: number, opponentRate: number, isExtraTime = false, isHome = false): number {
+  // Reduz a média base de gols para refletir o futebol real
+  const BASE_GOALS_PER_HALF = 0.55;
+
+  // Substitui a raiz quadrada por uma potência. Isso faz com que a diferença
+  // de rate pese muito mais, diminuindo as zebras irreais.
+  const strengthRatio = Math.pow(teamRate / opponentRate, 1.8);
+
+  // Leve bônus de 5% para o mandante
+  const homeAdvantage = isHome ? 1.05 : 1.0;
+
+  // Fator sorte/fase do time com variação menor (de 0.90 a 1.10)
+  const formFactor = 0.9 + Math.random() * 0.2;
+
+  const fatigueFactor = isExtraTime ? 0.35 : 1.0;
+
+  return BASE_GOALS_PER_HALF * strengthRatio * homeAdvantage * formFactor * fatigueFactor;
 }
 
 export function simulateHalf(homeRate: number, awayRate: number, isExtraTime = false): [number, number] {
-  const homeExpected = getExpectedGoals(homeRate, awayRate, isExtraTime);
-  const awayExpected = getExpectedGoals(awayRate, homeRate, isExtraTime);
-  return [poissonRandom(homeExpected), poissonRandom(awayExpected)];
+  const homeExpected = getExpectedGoals(homeRate, awayRate, isExtraTime, true);
+  const awayExpected = getExpectedGoals(awayRate, homeRate, isExtraTime, false);
+  return [poissonRandom(homeExpected), Math.max(0, poissonRandom(awayExpected))];
 }
 
 export function simulateFullMatch(
   homeRate: number,
-  awayRate: number
+  awayRate: number,
 ): {
   h1: [number, number];
   h2: [number, number];
@@ -66,11 +77,12 @@ function generateShot(isOnTarget: boolean): { xG_value: number; onTarget: boolea
     // On-target: xG between 0.05 and 0.75 (big chances up to 0.75)
     const rand = Math.random();
     // Most shots are low xG, fewer are big chances
-    const xG_value = rand < 0.5
-      ? 0.05 + Math.random() * 0.10  // 50% chance: 0.05-0.15 (routine save)
-      : rand < 0.8
-        ? 0.15 + Math.random() * 0.25 // 30% chance: 0.15-0.40 (decent chance)
-        : 0.40 + Math.random() * 0.35; // 20% chance: 0.40-0.75 (big chance)
+    const xG_value =
+      rand < 0.5
+        ? 0.05 + Math.random() * 0.1 // 50% chance: 0.05-0.15 (routine save)
+        : rand < 0.8
+          ? 0.15 + Math.random() * 0.25 // 30% chance: 0.15-0.40 (decent chance)
+          : 0.4 + Math.random() * 0.35; // 20% chance: 0.40-0.75 (big chance)
     return { xG_value: roundTo2(xG_value), onTarget: true };
   } else {
     // Off-target: xG between 0.01 and 0.12
@@ -86,7 +98,7 @@ function generateShot(isOnTarget: boolean): { xG_value: number; onTarget: boolea
 function generateShotsArray(
   totalShots: number,
   shotsOnTarget: number,
-  goalsScored: number
+  goalsScored: number,
 ): { xG_value: number; onTarget: boolean }[] {
   const shots: { xG_value: number; onTarget: boolean }[] = [];
 
@@ -103,11 +115,11 @@ function generateShotsArray(
   // If goals > 0, ensure at least 'goalsScored' shots have high xG
   // to make the xG total somewhat realistic relative to actual goals
   if (goalsScored > 0) {
-    const onTargetShots = shots.filter(s => s.onTarget);
+    const onTargetShots = shots.filter((s) => s.onTarget);
     // Boost the top shots to represent the actual goals scored
     for (let i = 0; i < Math.min(goalsScored, onTargetShots.length); i++) {
       // Goals typically come from higher xG chances
-      onTargetShots[i].xG_value = roundTo2(0.20 + Math.random() * 0.55);
+      onTargetShots[i].xG_value = roundTo2(0.2 + Math.random() * 0.55);
     }
   }
 
@@ -122,7 +134,7 @@ export function generateMatchStats(
   homeRate: number,
   awayRate: number,
   homeGoals: number,
-  awayGoals: number
+  awayGoals: number,
 ): { homeStats: TeamMatchStats; awayStats: TeamMatchStats } {
   // Possession based on rates with some randomness
   const homeStrength = homeRate + (Math.random() - 0.5) * 1.5;
@@ -158,9 +170,9 @@ export function generateMatchStats(
   const homeFouls = randInt(8, 18) + Math.round((awayPossession - 50) / 10);
   const awayFouls = randInt(8, 18) + Math.round((homePossession - 50) / 10);
 
-  // Corners (2-12), proportional to shots/possession
-  const homeCorners = randInt(2, Math.max(3, Math.round(homeShots * 0.5)));
-  const awayCorners = randInt(2, Math.max(3, Math.round(awayShots * 0.5)));
+  // Corners: estritamente ligado à posse e pressão (número de chutes)
+  const homeCorners = randInt(0, Math.round(homeShots * 0.4 * homePossessionMultiplier));
+  const awayCorners = randInt(0, Math.round(awayShots * 0.4 * awayPossessionMultiplier));
 
   // Cards: based on fouls
   const homeYellow = Math.min(homeFouls, randInt(0, Math.max(0, Math.floor(homeFouls / 5))));
