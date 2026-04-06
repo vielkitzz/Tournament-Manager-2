@@ -211,7 +211,7 @@ export default function SharedTournamentPage() {
       id: s.teamId, name: (s as any).teamName || "—", shortName: (s as any).teamName || "—",
       abbreviation: (s as any).teamName || "—", logo: (s as any).teamLogo, colors: [], rate: 0, isArchived: false,
     };
-    return { ...s, played: s.wins + s.draws + s.losses, goalDifference: s.goalsFor - s.goalsAgainst, team: resolved || fallbackTeam };
+    return { ...s, played: s.wins + s.draws + s.losses, goalDifference: s.goalsFor - s.goalsAgainst, yellowCards: 0, redCards: 0, team: resolved || fallbackTeam };
   });
 
   const groupMatches = (isGrupos || isSuico)
