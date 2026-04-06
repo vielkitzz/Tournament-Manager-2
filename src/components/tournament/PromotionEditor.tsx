@@ -179,6 +179,7 @@ export default function PromotionEditor({
                   teamId: `placeholder-${g}-${j}`,
                   played: 0, wins: 0, draws: 0, losses: 0,
                   goalsFor: 0, goalsAgainst: 0, goalDifference: 0, points: 0,
+                  yellowCards: 0, redCards: 0,
                 }));
               }
               return (

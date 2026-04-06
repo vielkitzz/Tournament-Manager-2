@@ -178,6 +178,8 @@ export default function TournamentDetailPage() {
       ...s,
       played: s.wins + s.draws + s.losses,
       goalDifference: s.goalsFor - s.goalsAgainst,
+      yellowCards: 0,
+      redCards: 0,
       team: resolved || fallbackTeam,
     };
   });

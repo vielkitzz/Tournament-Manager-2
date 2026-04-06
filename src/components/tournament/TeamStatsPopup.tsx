@@ -71,7 +71,7 @@ export default function TeamStatsPopup({ open, onClose, team, standing, matches,
 
   const compareData = useMemo(() => {
     if (compareTeamIds.length === 0) return [];
-    const emptyStanding: StandingRow = { teamId: "", played: 0, wins: 0, draws: 0, losses: 0, goalsFor: 0, goalsAgainst: 0, goalDifference: 0, points: 0 };
+    const emptyStanding: StandingRow = { teamId: "", played: 0, wins: 0, draws: 0, losses: 0, goalsFor: 0, goalsAgainst: 0, goalDifference: 0, points: 0, yellowCards: 0, redCards: 0 };
     return compareTeamIds.map((cid) => ({
       team: allTeams.find((t) => t.id === cid),
       standing: allStandings.find((s) => s.teamId === cid) || { ...emptyStanding, teamId: cid },

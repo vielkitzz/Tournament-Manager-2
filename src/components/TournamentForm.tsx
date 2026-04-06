@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Trophy, Upload, Loader2 } from "lucide-react";
+import { Trophy, Loader2 } from "lucide-react";
 import type { TournamentTemplate } from "@/data/templates";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -23,8 +23,9 @@ import {
 } from "@/types/tournament";
 import { useTournamentStore } from "@/store/tournamentStore";
 import { toast } from "sonner";
-import { processImage, revokeImagePreview } from "@/lib/imageUtils";
+import { revokeImagePreview } from "@/lib/imageUtils";
 import { uploadLogo } from "@/lib/storageUtils";
+import ImageUpload from "@/components/ImageUpload";
 
 interface TournamentFormProps {
   onSuccess?: () => void;
@@ -49,8 +50,6 @@ export default function TournamentForm({ onSuccess, editTournament, initialTempl
   const [previewUrl, setPreviewUrl] = useState<string | undefined>(editTournament?.logo);
   const [pendingBlob, setPendingBlob] = useState<{ blob: Blob; filename: string } | null>(null);
   const [uploading, setUploading] = useState(false);
-
-  const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Liga
   const [ligaTurnos, setLigaTurnos] = useState<"1" | "2">((editTournament?.ligaTurnos?.toString() || tpl?.ligaTurnos?.toString() || "2") as "1" | "2");
@@ -98,26 +97,11 @@ export default function TournamentForm({ onSuccess, editTournament, initialTempl
     };
   }, [previewUrl]);
 
-  const handleLogoSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    if (previewUrl?.startsWith("blob:")) revokeImagePreview(previewUrl);
-    try {
-      const processed = await processImage(file);
-      setPreviewUrl(processed.previewUrl);
-      setPendingBlob({ blob: processed.blob, filename: processed.filename });
-    } catch (err) {
-      toast.error("Erro ao processar imagem");
-      console.error(err);
-    }
-  };
-
   const handleRemoveLogo = () => {
     if (previewUrl?.startsWith("blob:")) revokeImagePreview(previewUrl);
     setPreviewUrl(undefined);
     setLogoUrl(undefined);
     setPendingBlob(null);
-    if (fileInputRef.current) fileInputRef.current.value = "";
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -221,31 +205,16 @@ export default function TournamentForm({ onSuccess, editTournament, initialTempl
       {/* Logo Upload */}
       <div className="space-y-2">
         <Label className="text-sm font-medium text-foreground">Logo da Competição</Label>
-        <div className="flex items-center gap-4">
-          <div
-            onClick={() => fileInputRef.current?.click()}
-            className="w-20 h-20 rounded-xl bg-secondary border border-border flex items-center justify-center cursor-pointer hover:border-primary/50 transition-colors overflow-hidden"
-          >
-            {previewUrl ? (
-              <img src={previewUrl} alt="Logo" className="w-full h-full object-cover" />
-            ) : (
-              <div className="flex flex-col items-center gap-1">
-                <Upload className="w-5 h-5 text-muted-foreground" />
-                <span className="text-[10px] text-muted-foreground">Upload</span>
-              </div>
-            )}
-          </div>
-          <input ref={fileInputRef} type="file" accept="image/*" onChange={handleLogoSelect} className="hidden" />
-          {previewUrl && (
-            <button
-              type="button"
-              onClick={handleRemoveLogo}
-              className="text-xs text-destructive hover:underline"
-            >
-              Remover
-            </button>
-          )}
-        </div>
+        <ImageUpload
+          previewUrl={previewUrl}
+          onImageSelected={(result) => {
+            if (previewUrl?.startsWith("blob:")) revokeImagePreview(previewUrl);
+            setPreviewUrl(result.previewUrl);
+            setPendingBlob({ blob: result.blob, filename: result.filename });
+          }}
+          onRemove={handleRemoveLogo}
+          placeholder={<Trophy className="w-5 h-5 text-muted-foreground" />}
+        />
       </div>
 
       <div className="space-y-2">

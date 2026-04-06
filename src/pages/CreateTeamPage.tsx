@@ -1,16 +1,17 @@
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
 import { motion, Reorder } from "framer-motion";
-import { ArrowLeft, Upload, Loader2, Trash2, Plus, GripVertical } from "lucide-react";
+import { ArrowLeft, Loader2, Trash2, Plus, GripVertical } from "lucide-react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useTournamentStore } from "@/store/tournamentStore";
 import { toast } from "sonner";
-import { processImage, revokeImagePreview } from "@/lib/imageUtils";
+import { revokeImagePreview } from "@/lib/imageUtils";
 import { uploadLogo } from "@/lib/storageUtils";
 import { supabase } from "@/integrations/supabase/client";
 import TeamHistoryEditor from "@/components/TeamHistoryEditor";
+import ImageUpload from "@/components/ImageUpload";
 
 // Função auxiliar para extrair o caminho correto do arquivo na nuvem a partir da URL pública
 const extractFilePathFromUrl = (url: string, bucketName: string) => {
@@ -45,7 +46,6 @@ export default function CreateTeamPage() {
 
   const [uploading, setUploading] = useState(false);
   const [initialized, setInitialized] = useState(false);
-  const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Revoke Object URLs on unmount to free memory
   useEffect(() => {
@@ -69,29 +69,17 @@ export default function CreateTeamPage() {
     }
   }, [existingTeam, initialized]);
 
-  const handleLogoSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
-    // Revoke old preview
-    if (previewUrl && previewUrl.startsWith("blob:")) revokeImagePreview(previewUrl);
-
-    try {
-      const processed = await processImage(file);
-      setPreviewUrl(processed.previewUrl);
-      setPendingBlob({ blob: processed.blob, filename: processed.filename });
-    } catch (err) {
-      toast.error("Erro ao processar imagem");
-      console.error(err);
-    }
-  };
+  const handleImageSelected = useCallback((result: { previewUrl: string; blob: Blob; filename: string }) => {
+    if (previewUrl?.startsWith("blob:")) revokeImagePreview(previewUrl);
+    setPreviewUrl(result.previewUrl);
+    setPendingBlob({ blob: result.blob, filename: result.filename });
+  }, [previewUrl]);
 
   const handleRemoveLogo = () => {
     if (previewUrl?.startsWith("blob:")) revokeImagePreview(previewUrl);
     setPreviewUrl(undefined);
     // NÃO limpe logoUrl aqui, precisamos dele no submit para saber o que deletar do Supabase
     setPendingBlob(null);
-    if (fileInputRef.current) fileInputRef.current.value = "";
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -195,34 +183,11 @@ export default function CreateTeamPage() {
           {/* Logo Upload */}
           <div className="space-y-2">
             <Label className="text-sm font-medium text-foreground">Escudo</Label>
-            <div className="flex items-center gap-4">
-              <div
-                onClick={() => fileInputRef.current?.click()}
-                className="w-20 h-20 rounded-xl bg-secondary border border-border flex items-center justify-center cursor-pointer hover:border-primary/50 transition-colors overflow-hidden"
-              >
-                {displayLogo ? (
-                  <img src={displayLogo} alt="Escudo" className="w-full h-full object-cover" />
-                ) : (
-                  <div className="flex flex-col items-center gap-1">
-                    <Upload className="w-5 h-5 text-muted-foreground" />
-                    <span className="text-[10px] text-muted-foreground">Upload</span>
-                  </div>
-                )}
-              </div>
-              <input ref={fileInputRef} type="file" accept="image/*" onChange={handleLogoSelect} className="hidden" />
-              <div className="flex flex-col gap-1">
-                {displayLogo && (
-                  <button
-                    type="button"
-                    onClick={handleRemoveLogo}
-                    className="text-xs text-destructive hover:underline text-left"
-                  >
-                    Remover
-                  </button>
-                )}
-                {pendingBlob && <span className="text-[10px] text-muted-foreground">WebP • pronto para envio</span>}
-              </div>
-            </div>
+            <ImageUpload
+              previewUrl={displayLogo}
+              onImageSelected={handleImageSelected}
+              onRemove={handleRemoveLogo}
+            />
           </div>
 
           {/* Name */}

@@ -1,14 +1,15 @@
 import { useState, useRef } from "react";
-import { Plus, Trash2, Upload, Loader2, Pencil, X, Check, Image, Type, Hash, Palette, Star, FileText } from "lucide-react";
+import { Plus, Trash2, Loader2, Pencil, X, Check, Image, Type, Hash, Palette, Star, FileText } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { HistoryFieldType, TeamHistory, FIELD_TYPE_LABELS, findOverlappingHistory } from "@/lib/teamHistoryUtils";
 import { useTournamentStore } from "@/store/tournamentStore";
-import { processImage, revokeImagePreview } from "@/lib/imageUtils";
+import { revokeImagePreview } from "@/lib/imageUtils";
 import { uploadLogo } from "@/lib/storageUtils";
 import { toast } from "sonner";
+import ImageUpload from "@/components/ImageUpload";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -67,8 +68,6 @@ export default function TeamHistoryEditor({ teamId }: TeamHistoryEditorProps) {
   const [editState, setEditState] = useState<AddingState | null>(null);
   const [uploading, setUploading] = useState(false);
   const [deleteId, setDeleteId] = useState<string | null>(null);
-  const fileInputRef = useRef<HTMLInputElement>(null);
-  const editFileInputRef = useRef<HTMLInputElement>(null);
 
   const getEntriesForType = (ft: Exclude<HistoryFieldType, 'legacy'>) =>
     histories
@@ -114,19 +113,12 @@ export default function TeamHistoryEditor({ teamId }: TeamHistoryEditorProps) {
     pendingBlob: null,
   });
 
-  const handleLogoSelect = async (e: React.ChangeEvent<HTMLInputElement>, isEdit: boolean) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
+  const handleLogoImageSelected = (result: { previewUrl: string; blob: Blob; filename: string }, isEdit: boolean) => {
     const state = isEdit ? editState : adding;
     if (state?.logoPreview?.startsWith("blob:")) revokeImagePreview(state.logoPreview);
-    try {
-      const processed = await processImage(file);
-      const patch = { logoPreview: processed.previewUrl, pendingBlob: { blob: processed.blob, filename: processed.filename } };
-      if (isEdit) setEditState((p) => p ? { ...p, ...patch } : p);
-      else setAdding((p) => p ? { ...p, ...patch } : p);
-    } catch {
-      toast.error("Erro ao processar imagem");
-    }
+    const patch = { logoPreview: result.previewUrl, pendingBlob: { blob: result.blob, filename: result.filename } };
+    if (isEdit) setEditState((p) => p ? { ...p, ...patch } : p);
+    else setAdding((p) => p ? { ...p, ...patch } : p);
   };
 
   const validatePeriod = (state: AddingState): { startYear: number; endYear: number } | null => {
@@ -278,24 +270,12 @@ export default function TeamHistoryEditor({ teamId }: TeamHistoryEditorProps) {
         return (
           <div className="space-y-1">
             <Label className="text-xs text-foreground">Escudo da Época</Label>
-            <div className="flex items-center gap-3">
-              <div
-                onClick={() => (isEdit ? editFileInputRef : fileInputRef).current?.click()}
-                className="w-12 h-12 rounded-lg bg-secondary border border-border flex items-center justify-center cursor-pointer hover:border-primary/50 transition-colors overflow-hidden"
-              >
-                {state.logoPreview ? (
-                  <img src={state.logoPreview} alt="" className="w-full h-full object-contain" />
-                ) : (
-                  <Upload className="w-4 h-4 text-muted-foreground" />
-                )}
-              </div>
-              <input ref={isEdit ? editFileInputRef : fileInputRef} type="file" accept="image/*" onChange={(e) => handleLogoSelect(e, isEdit)} className="hidden" />
-              {state.logoPreview && (
-                <button type="button" onClick={() => setState({ logoPreview: undefined, pendingBlob: null })} className="text-[10px] text-destructive hover:underline">
-                  Remover
-                </button>
-              )}
-            </div>
+            <ImageUpload
+              previewUrl={state.logoPreview}
+              onImageSelected={(result) => handleLogoImageSelected(result, isEdit)}
+              onRemove={() => setState({ logoPreview: undefined, pendingBlob: null })}
+              size="sm"
+            />
           </div>
         );
       case 'name':
