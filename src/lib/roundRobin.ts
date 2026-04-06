@@ -10,6 +10,13 @@ export function generateRoundRobin(
   turnos: 1 | 2 | 3 | 4 = 1
 ): Match[] {
   const ids = [...teamIds];
+
+  // Shuffle to ensure different round orders each time (e.g. across seasons)
+  for (let i = ids.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [ids[i], ids[j]] = [ids[j], ids[i]];
+  }
+
   // If odd number of teams, add a "bye" placeholder
   const hasBye = ids.length % 2 !== 0;
   if (hasBye) ids.push("__BYE__");

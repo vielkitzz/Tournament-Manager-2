@@ -11,6 +11,8 @@ export interface StandingRow {
   goalsAgainst: number;
   goalDifference: number;
   points: number;
+  yellowCards: number;
+  redCards: number;
 }
 
 export function calculateStandings(
@@ -42,6 +44,8 @@ export function calculateStandings(
       goalsAgainst: 0,
       goalDifference: 0,
       points: 0,
+      yellowCards: 0,
+      redCards: 0,
     });
   }
 
@@ -57,6 +61,16 @@ export function calculateStandings(
     home.goalsAgainst += m.awayScore;
     away.goalsFor += m.awayScore;
     away.goalsAgainst += m.homeScore;
+
+    // Accumulate cards
+    if (m.homeStats) {
+      home.yellowCards += m.homeStats.yellowCards || 0;
+      home.redCards += m.homeStats.redCards || 0;
+    }
+    if (m.awayStats) {
+      away.yellowCards += m.awayStats.yellowCards || 0;
+      away.redCards += m.awayStats.redCards || 0;
+    }
 
     if (m.homeScore > m.awayScore) {
       home.wins++;
@@ -123,6 +137,14 @@ export function calculateStandings(
           diff = ptsB - ptsA;
           break;
         }
+        case "Cartões Amarelos":
+          // Fewer yellow cards = better (discipline)
+          diff = a.yellowCards - b.yellowCards;
+          break;
+        case "Cartões Vermelhos":
+          // Fewer red cards = better
+          diff = a.redCards - b.redCards;
+          break;
       }
       if (diff !== 0) return diff;
     }

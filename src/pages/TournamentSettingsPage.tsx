@@ -95,6 +95,8 @@ export default function TournamentSettingsPage() {
       "Empates",
       "Gols Sofridos",
       "Confronto Direto",
+      "Cartões Amarelos",
+      "Cartões Vermelhos",
     ],
     promotions: [],
     bestOfPosition: 3,

@@ -182,7 +182,7 @@ export const DEFAULT_SETTINGS: TournamentSettings = {
   pointsWin: 3,
   pointsDraw: 1,
   pointsLoss: 0,
-  tiebreakers: ["Pontos", "Vitórias", "Saldo de Gols", "Gols Marcados", "Empates", "Gols Sofridos", "Confronto Direto"],
+  tiebreakers: ["Pontos", "Vitórias", "Saldo de Gols", "Gols Marcados", "Empates", "Gols Sofridos", "Confronto Direto", "Cartões Amarelos", "Cartões Vermelhos"],
   awayGoalsRule: false,
   extraTime: false,
   goldenGoal: false,
