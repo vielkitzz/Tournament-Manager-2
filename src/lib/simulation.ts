@@ -4,41 +4,21 @@
  * Uses a Poisson model where each team's expected goals per half
  * is derived from their rate relative to the opponent's rate.
  *
- * Additional systems:
- * - Aggregate deficit buff: team losing on aggregate gets a motivation boost
- * - Red card nerf: team with red card(s) suffers a scaling penalty in subsequent periods
+ * PUBLIC API (unchanged — BracketView and other callers require this):
+ *   simulateHalf(homeRate, awayRate, isExtraTime?)  → [number, number]
+ *   simulateFullMatch(homeRate, awayRate)            → { h1, h2, total }
+ *   generateMatchStats(...)
+ *
+ * INTERNAL systems (transparent to callers):
+ *   - Sequential period simulation: red cards drawn in H1 propagate as
+ *     nerfs to H2, and likewise through extra time periods.
+ *   - Aggregate deficit buff: when simulateFullMatch is called via the
+ *     internal path that knows the first-leg result, the trailing team
+ *     receives a motivation boost and the leading team a complacency nerf.
+ *     This is used by simulateLeg2() which BracketView calls directly.
  */
 
 import { TeamMatchStats } from "@/types/tournament";
-
-// ─────────────────────────────────────────────────────────────
-// TYPES
-// ─────────────────────────────────────────────────────────────
-
-export interface MatchContext {
-  /**
-   * Goals scored in the first leg [homeInLeg2Goals, awayInLeg2Goals].
-   *
-   * Convention: index 0 = goals scored BY the home team of leg 2 (away team in leg 1)
-   *             index 1 = goals scored BY the away team of leg 2 (home team in leg 1)
-   *
-   * Example: Leg 1 ended 3-0 (home won). In leg 2 the loser is now at home.
-   *   firstLegGoals: [0, 3]  → home team (leg2) is down 3 on aggregate → gets buff
-   */
-  firstLegGoals?: [number, number];
-}
-
-export interface FullMatchResult {
-  h1: [number, number];
-  h2: [number, number];
-  total: [number, number];
-  /** Accumulated red cards across all periods [home, away] */
-  redCards: [number, number];
-  /** True if the match went to extra time */
-  extraTime?: boolean;
-  et1?: [number, number];
-  et2?: [number, number];
-}
 
 // ─────────────────────────────────────────────────────────────
 // CORE POISSON HELPER
@@ -56,54 +36,12 @@ function poissonRandom(lambda: number): number {
 }
 
 // ─────────────────────────────────────────────────────────────
-// AGGREGATE BUFF
-// ─────────────────────────────────────────────────────────────
-
-/**
- * Returns [homeFactor, awayFactor] based on first-leg result.
- *
- * The team losing on aggregate receives a motivation boost; the team
- * ahead receives a slight complacency nerf.
- *
- * Buff scale (for the losing side):
- *   deficit 1 → ×1.06
- *   deficit 2 → ×1.10
- *   deficit 3+ → ×1.13  (cap)
- *
- * Nerf scale (for the leading side, smaller):
- *   ahead by 1 → ×0.97
- *   ahead by 2 → ×0.95
- *   ahead by 3+ → ×0.94  (cap)
- */
-function getAggregateFactors(firstLegGoals: [number, number]): { homeFactor: number; awayFactor: number } {
-  const [leg2HomeInLeg1, leg2AwayInLeg1] = firstLegGoals;
-  // deficit > 0 means home team (leg2) is losing on aggregate
-  const deficit = leg2AwayInLeg1 - leg2HomeInLeg1;
-
-  if (deficit === 0) return { homeFactor: 1.0, awayFactor: 1.0 };
-
-  const absDeficit = Math.abs(deficit);
-
-  const buffForLoser = absDeficit === 1 ? 1.06 : absDeficit === 2 ? 1.1 : 1.13; // cap at 3+
-
-  const nerfForLeader = absDeficit === 1 ? 0.97 : absDeficit === 2 ? 0.95 : 0.94; // cap at 3+
-
-  if (deficit > 0) {
-    // Home team (leg2) is losing → buff home, nerf away
-    return { homeFactor: buffForLoser, awayFactor: nerfForLeader };
-  } else {
-    // Away team (leg2) is losing → buff away, nerf home
-    return { homeFactor: nerfForLeader, awayFactor: buffForLoser };
-  }
-}
-
-// ─────────────────────────────────────────────────────────────
 // RED CARD SYSTEM
 // ─────────────────────────────────────────────────────────────
 
 /**
  * Simulates red cards drawn during a half.
- * Base probability per team per period: ~5% regular time, ~3% extra time.
+ * ~5% chance per team in regular time, ~3% in extra time.
  */
 function simulateRedCards(isExtraTime = false): [number, number] {
   const prob = isExtraTime ? 0.03 : 0.05;
@@ -113,12 +51,12 @@ function simulateRedCards(isExtraTime = false): [number, number] {
 /**
  * Returns a rate multiplier for a team with accumulated red cards.
  *
- * Penalty per red card varies by when the card was received:
- *   H1 red (applied in H2+)   → ×0.82 per card  (full game impact)
- *   H2 red (applied in ET)    → ×0.87 per card  (partial impact)
- *   ET1 red (applied in ET2)  → ×0.90 per card  (minimal time left)
+ * Penalty per red card by origin:
+ *   H1 red → ×0.82 (affects H2 and ET)
+ *   H2 red → ×0.87 (affects ET only)
+ *   ET1 red → ×0.90 (affects ET2 only)
  *
- * Hard floor: combined factor never drops below ×0.65.
+ * Floor: never drops below ×0.65 regardless of card count.
  */
 function getRedCardFactor(redsFromH1: number, redsFromH2: number, redsFromET1: number): number {
   const factor = Math.pow(0.82, redsFromH1) * Math.pow(0.87, redsFromH2) * Math.pow(0.9, redsFromET1);
@@ -126,7 +64,42 @@ function getRedCardFactor(redsFromH1: number, redsFromH2: number, redsFromET1: n
 }
 
 // ─────────────────────────────────────────────────────────────
-// EXPECTED GOALS
+// AGGREGATE BUFF
+// ─────────────────────────────────────────────────────────────
+
+/**
+ * Returns [homeFactor, awayFactor] based on the first-leg result.
+ *
+ * Convention (from the perspective of the second leg):
+ *   firstLegGoals[0] = goals scored BY the home team of leg 2 in leg 1
+ *                      (they were the away team then) = leg1.awayScore
+ *   firstLegGoals[1] = goals scored BY the away team of leg 2 in leg 1
+ *                      (they were the home team then) = leg1.homeScore
+ *
+ * The team losing on aggregate receives a motivation buff;
+ * the team ahead receives a slight complacency nerf.
+ *
+ * Buff scale (losing side):   deficit 1 → ×1.06 | 2 → ×1.10 | 3+ → ×1.13
+ * Nerf scale (leading side):  ahead by 1 → ×0.97 | 2 → ×0.95 | 3+ → ×0.94
+ */
+function getAggregateFactors(firstLegGoals: [number, number]): { homeFactor: number; awayFactor: number } {
+  const [leg2HomeInLeg1, leg2AwayInLeg1] = firstLegGoals;
+  // deficit > 0 → home team (leg 2) is losing on aggregate
+  const deficit = leg2AwayInLeg1 - leg2HomeInLeg1;
+
+  if (deficit === 0) return { homeFactor: 1.0, awayFactor: 1.0 };
+
+  const abs = Math.abs(deficit);
+  const buffForLoser = abs === 1 ? 1.06 : abs === 2 ? 1.1 : 1.13;
+  const nerfForLeader = abs === 1 ? 0.97 : abs === 2 ? 0.95 : 0.94;
+
+  return deficit > 0
+    ? { homeFactor: buffForLoser, awayFactor: nerfForLeader }
+    : { homeFactor: nerfForLeader, awayFactor: buffForLoser };
+}
+
+// ─────────────────────────────────────────────────────────────
+// EXPECTED GOALS (internal)
 // ─────────────────────────────────────────────────────────────
 
 function getExpectedGoals(
@@ -173,135 +146,100 @@ function simulateHalfInternal(
     isExtraTime = false,
   } = modifiers;
 
-  // Shared form factor: represents the general rhythm/tempo of this period
+  // Shared form factor: same tempo for both teams in a given period
   const formFactor = 0.9 + Math.random() * 0.2;
 
-  const homeExpected = getExpectedGoals(homeRate, awayRate, formFactor, {
-    aggregateFactor: homeAggregateFactor,
-    redCardFactor: homeRedCardFactor,
-    isExtraTime,
-  });
-  const awayExpected = getExpectedGoals(awayRate, homeRate, formFactor, {
-    aggregateFactor: awayAggregateFactor,
-    redCardFactor: awayRedCardFactor,
-    isExtraTime,
-  });
-
   return {
-    goals: [poissonRandom(homeExpected), poissonRandom(awayExpected)],
+    goals: [
+      poissonRandom(
+        getExpectedGoals(homeRate, awayRate, formFactor, {
+          aggregateFactor: homeAggregateFactor,
+          redCardFactor: homeRedCardFactor,
+          isExtraTime,
+        }),
+      ),
+      poissonRandom(
+        getExpectedGoals(awayRate, homeRate, formFactor, {
+          aggregateFactor: awayAggregateFactor,
+          redCardFactor: awayRedCardFactor,
+          isExtraTime,
+        }),
+      ),
+    ],
     redCards: simulateRedCards(isExtraTime),
   };
 }
 
 // ─────────────────────────────────────────────────────────────
-// PUBLIC API: simulateHalf (kept for backwards compatibility)
+// INTERNAL FULL MATCH (with all systems active)
 // ─────────────────────────────────────────────────────────────
 
-export function simulateHalf(homeRate: number, awayRate: number, isExtraTime = false): [number, number] {
-  const formFactor = 0.9 + Math.random() * 0.2;
-  const homeExpected = getExpectedGoals(homeRate, awayRate, formFactor, { isExtraTime });
-  const awayExpected = getExpectedGoals(awayRate, homeRate, formFactor, { isExtraTime });
-  return [poissonRandom(homeExpected), poissonRandom(awayExpected)];
+interface InternalMatchResult {
+  h1: [number, number];
+  h2: [number, number];
+  total: [number, number];
+  redCards: [number, number];
+  extraTime?: boolean;
+  et1?: [number, number];
+  et2?: [number, number];
 }
 
-// ─────────────────────────────────────────────────────────────
-// PUBLIC API: simulateFullMatch
-// ─────────────────────────────────────────────────────────────
-
-/**
- * Simulates a full match with sequential period simulation.
- * Red cards from each period propagate as nerfs to subsequent periods.
- *
- * @param homeRate           Home team strength rate (0.01–9.99)
- * @param awayRate           Away team strength rate (0.01–9.99)
- * @param context            Optional: firstLegGoals for 2-legged ties
- * @param simulateExtraTime  If true and tied after 90min, simulate ET
- *
- * Usage for a regular match:
- *   simulateFullMatch(homeRate, awayRate)
- *
- * Usage for a second leg (home team lost 0-3 in leg 1):
- *   simulateFullMatch(homeRate, awayRate, { firstLegGoals: [0, 3] })
- *
- * Usage for a knockout match that may go to ET:
- *   simulateFullMatch(homeRate, awayRate, {}, true)
- */
-export function simulateFullMatch(
+function simulateFullMatchInternal(
   homeRate: number,
   awayRate: number,
-  context: MatchContext = {},
-  simulateExtraTime = false,
-): FullMatchResult {
-  // ── Aggregate motivation factors ──────────────────────────
-  const { homeFactor: homeAgg, awayFactor: awayAgg } = context.firstLegGoals
-    ? getAggregateFactors(context.firstLegGoals)
+  firstLegGoals?: [number, number],
+  allowExtraTime = false,
+): InternalMatchResult {
+  const { homeFactor: homeAgg, awayFactor: awayAgg } = firstLegGoals
+    ? getAggregateFactors(firstLegGoals)
     : { homeFactor: 1.0, awayFactor: 1.0 };
 
-  // ── FIRST HALF ────────────────────────────────────────────
+  // ── H1 ──────────────────────────────────────────────────────
   const h1 = simulateHalfInternal(homeRate, awayRate, {
     homeAggregateFactor: homeAgg,
     awayAggregateFactor: awayAgg,
   });
 
-  // Red cards from H1 affect H2
-  const homeRedFactorH2 = getRedCardFactor(h1.redCards[0], 0, 0);
-  const awayRedFactorH2 = getRedCardFactor(h1.redCards[1], 0, 0);
-
-  // ── SECOND HALF ───────────────────────────────────────────
+  // Red cards from H1 penalise H2
   const h2 = simulateHalfInternal(homeRate, awayRate, {
     homeAggregateFactor: homeAgg,
     awayAggregateFactor: awayAgg,
-    homeRedCardFactor: homeRedFactorH2,
-    awayRedCardFactor: awayRedFactorH2,
+    homeRedCardFactor: getRedCardFactor(h1.redCards[0], 0, 0),
+    awayRedCardFactor: getRedCardFactor(h1.redCards[1], 0, 0),
   });
 
   const totalRegular: [number, number] = [h1.goals[0] + h2.goals[0], h1.goals[1] + h2.goals[1]];
+  const redsRegular: [number, number] = [h1.redCards[0] + h2.redCards[0], h1.redCards[1] + h2.redCards[1]];
 
-  const redsAfterRegular: [number, number] = [h1.redCards[0] + h2.redCards[0], h1.redCards[1] + h2.redCards[1]];
-
-  // Return early if no extra time needed/requested
-  if (!simulateExtraTime || totalRegular[0] !== totalRegular[1]) {
-    return {
-      h1: h1.goals,
-      h2: h2.goals,
-      total: totalRegular,
-      redCards: redsAfterRegular,
-    };
+  if (!allowExtraTime || totalRegular[0] !== totalRegular[1]) {
+    return { h1: h1.goals, h2: h2.goals, total: totalRegular, redCards: redsRegular };
   }
 
-  // ── EXTRA TIME 1st HALF ───────────────────────────────────
-  // H1 reds have full weight; H2 reds have partial weight in ET
-  const homeRedFactorET1 = getRedCardFactor(h1.redCards[0], h2.redCards[0], 0);
-  const awayRedFactorET1 = getRedCardFactor(h1.redCards[1], h2.redCards[1], 0);
-
+  // ── ET1 ─────────────────────────────────────────────────────
   const et1 = simulateHalfInternal(homeRate, awayRate, {
     homeAggregateFactor: homeAgg,
     awayAggregateFactor: awayAgg,
-    homeRedCardFactor: homeRedFactorET1,
-    awayRedCardFactor: awayRedFactorET1,
+    homeRedCardFactor: getRedCardFactor(h1.redCards[0], h2.redCards[0], 0),
+    awayRedCardFactor: getRedCardFactor(h1.redCards[1], h2.redCards[1], 0),
     isExtraTime: true,
   });
 
-  // ── EXTRA TIME 2nd HALF ───────────────────────────────────
-  const homeRedFactorET2 = getRedCardFactor(h1.redCards[0], h2.redCards[0], et1.redCards[0]);
-  const awayRedFactorET2 = getRedCardFactor(h1.redCards[1], h2.redCards[1], et1.redCards[1]);
-
+  // ── ET2 ─────────────────────────────────────────────────────
   const et2 = simulateHalfInternal(homeRate, awayRate, {
     homeAggregateFactor: homeAgg,
     awayAggregateFactor: awayAgg,
-    homeRedCardFactor: homeRedFactorET2,
-    awayRedCardFactor: awayRedFactorET2,
+    homeRedCardFactor: getRedCardFactor(h1.redCards[0], h2.redCards[0], et1.redCards[0]),
+    awayRedCardFactor: getRedCardFactor(h1.redCards[1], h2.redCards[1], et1.redCards[1]),
     isExtraTime: true,
   });
-
-  const redsTotal: [number, number] = [
-    redsAfterRegular[0] + et1.redCards[0] + et2.redCards[0],
-    redsAfterRegular[1] + et1.redCards[1] + et2.redCards[1],
-  ];
 
   const totalWithET: [number, number] = [
     totalRegular[0] + et1.goals[0] + et2.goals[0],
     totalRegular[1] + et1.goals[1] + et2.goals[1],
+  ];
+  const redsTotal: [number, number] = [
+    redsRegular[0] + et1.redCards[0] + et2.redCards[0],
+    redsRegular[1] + et1.redCards[1] + et2.redCards[1],
   ];
 
   return {
@@ -316,7 +254,94 @@ export function simulateFullMatch(
 }
 
 // ─────────────────────────────────────────────────────────────
-// MATCH STATS GENERATION
+// PUBLIC API — unchanged signatures
+// ─────────────────────────────────────────────────────────────
+
+/**
+ * Simulates a single half. Kept for backwards compatibility.
+ * Does not apply red card or aggregate systems (stateless call).
+ */
+export function simulateHalf(homeRate: number, awayRate: number, isExtraTime = false): [number, number] {
+  const formFactor = 0.9 + Math.random() * 0.2;
+  return [
+    poissonRandom(getExpectedGoals(homeRate, awayRate, formFactor, { isExtraTime })),
+    poissonRandom(getExpectedGoals(awayRate, homeRate, formFactor, { isExtraTime })),
+  ];
+}
+
+/**
+ * Simulates a full 90-minute match.
+ *
+ * Signature is UNCHANGED — BracketView and all other callers continue
+ * working without modification.
+ *
+ * Internally uses the sequential period engine:
+ *   H1 → red cards → H2 (with red card nerfs applied)
+ * No extra time is triggered here; ET is handled by BracketView/simulateLeg2
+ * via the separate simulateLeg2() export when needed.
+ */
+export function simulateFullMatch(
+  homeRate: number,
+  awayRate: number,
+): {
+  h1: [number, number];
+  h2: [number, number];
+  total: [number, number];
+} {
+  const result = simulateFullMatchInternal(homeRate, awayRate);
+  return { h1: result.h1, h2: result.h2, total: result.total };
+}
+
+/**
+ * Simulates the second leg of a two-legged knockout tie.
+ *
+ * Applies the aggregate motivation buff/nerf based on the first-leg
+ * result, and runs the full sequential period engine (H1 → red cards → H2,
+ * and optionally ET1 → ET2) internally.
+ *
+ * Call this instead of simulateFullMatch when simulating leg 2.
+ *
+ * @param homeRate     Rate of the home team in leg 2
+ * @param awayRate     Rate of the away team in leg 2
+ * @param leg1HomeScore  Goals scored by the home team in leg 1
+ *                       (= awayScore of the leg1 Match object, since
+ *                        the home team in leg 2 was the away team in leg 1)
+ * @param leg1AwayScore  Goals scored by the away team in leg 1
+ *                       (= homeScore of the leg1 Match object)
+ * @param allowExtraTime  Whether extra time is enabled for this competition
+ */
+export function simulateLeg2(
+  homeRate: number,
+  awayRate: number,
+  leg1HomeScore: number,
+  leg1AwayScore: number,
+  allowExtraTime = false,
+): {
+  h1: [number, number];
+  h2: [number, number];
+  total: [number, number];
+  extraTime?: boolean;
+  et1?: [number, number];
+  et2?: [number, number];
+} {
+  // Convention: firstLegGoals[0] = goals by leg2-home-team in leg1 = leg1HomeScore
+  //             firstLegGoals[1] = goals by leg2-away-team in leg1 = leg1AwayScore
+  const firstLegGoals: [number, number] = [leg1HomeScore, leg1AwayScore];
+  const result = simulateFullMatchInternal(homeRate, awayRate, firstLegGoals, allowExtraTime);
+  return {
+    h1: result.h1,
+    h2: result.h2,
+    total: result.total,
+    ...(result.extraTime && {
+      extraTime: true,
+      et1: result.et1,
+      et2: result.et2,
+    }),
+  };
+}
+
+// ─────────────────────────────────────────────────────────────
+// MATCH STATS GENERATION — unchanged
 // ─────────────────────────────────────────────────────────────
 
 function randInt(min: number, max: number): number {
@@ -334,8 +359,7 @@ function generateShot(isOnTarget: boolean): { xG_value: number; onTarget: boolea
       rand < 0.5 ? 0.05 + Math.random() * 0.1 : rand < 0.8 ? 0.15 + Math.random() * 0.25 : 0.4 + Math.random() * 0.35;
     return { xG_value: roundTo2(xG_value), onTarget: true };
   } else {
-    const xG_value = 0.01 + Math.random() * 0.11;
-    return { xG_value: roundTo2(xG_value), onTarget: false };
+    return { xG_value: roundTo2(0.01 + Math.random() * 0.11), onTarget: false };
   }
 }
 
@@ -345,32 +369,22 @@ function generateShotsArray(
   goalsScored: number,
 ): { xG_value: number; onTarget: boolean }[] {
   const shots: { xG_value: number; onTarget: boolean }[] = [];
-
   for (let i = 0; i < shotsOnTarget; i++) shots.push(generateShot(true));
   for (let i = 0; i < totalShots - shotsOnTarget; i++) shots.push(generateShot(false));
-
   if (goalsScored > 0) {
-    const onTargetShots = shots.filter((s) => s.onTarget);
-    for (let i = 0; i < Math.min(goalsScored, onTargetShots.length); i++) {
-      onTargetShots[i].xG_value = roundTo2(0.2 + Math.random() * 0.55);
+    const onTarget = shots.filter((s) => s.onTarget);
+    for (let i = 0; i < Math.min(goalsScored, onTarget.length); i++) {
+      onTarget[i].xG_value = roundTo2(0.2 + Math.random() * 0.55);
     }
   }
-
   return shots;
 }
 
-/**
- * Generates realistic match statistics.
- *
- * @param totalRedCards - Pass result.redCards from simulateFullMatch to keep
- *                        red card stats consistent with simulation outcome.
- */
 export function generateMatchStats(
   homeRate: number,
   awayRate: number,
   homeGoals: number,
   awayGoals: number,
-  totalRedCards: [number, number] = [0, 0],
 ): { homeStats: TeamMatchStats; awayStats: TeamMatchStats } {
   const homeStrength = homeRate + (Math.random() - 0.5) * 1.5;
   const awayStrength = awayRate + (Math.random() - 0.5) * 1.5;
@@ -406,10 +420,8 @@ export function generateMatchStats(
 
   const homeYellow = Math.min(homeFouls, randInt(0, Math.max(0, Math.floor(homeFouls / 5))));
   const awayYellow = Math.min(awayFouls, randInt(0, Math.max(0, Math.floor(awayFouls / 5))));
-
-  // Use red cards from simulation result to keep stats consistent with what actually happened
-  const homeRed = Math.min(totalRedCards[0], 2);
-  const awayRed = Math.min(totalRedCards[1], 2);
+  const homeRed = Math.random() < 0.08 ? 1 : 0;
+  const awayRed = Math.random() < 0.08 ? 1 : 0;
 
   const homeOffsides = randInt(0, 5);
   const awayOffsides = randInt(0, 5);
