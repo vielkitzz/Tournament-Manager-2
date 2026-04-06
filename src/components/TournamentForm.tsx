@@ -102,7 +102,6 @@ export default function TournamentForm({ onSuccess, editTournament, initialTempl
     setPreviewUrl(undefined);
     setLogoUrl(undefined);
     setPendingBlob(null);
-    if (fileInputRef.current) fileInputRef.current.value = "";
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
