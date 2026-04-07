@@ -153,7 +153,7 @@ export default function TournamentDetailPage() {
   // Resolve teams based on the active year (current or past season)
   const resolvedTeams = teams.map((t) => resolveTeam(t, activeYear, teamHistories));
 
-  const seasonRecordForYear = (tournament.seasons || []).find((s) => s.year === activeYear);
+  const seasonRecordForYear = (tournament.seasons || []).find((s) => s.year === activeYear && !(s as any).manual);
   const championRecord = isViewingPastSeason ? seasonData : tournament.finalized ? seasonRecordForYear : null;
   const championTeam = championRecord?.championId
     ? resolvedTeams.find((t) => t.id === championRecord.championId)
