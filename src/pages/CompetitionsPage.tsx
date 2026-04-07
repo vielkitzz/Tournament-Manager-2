@@ -230,6 +230,7 @@ const CompetitionFolderNode = memo(function CompetitionFolderNode({
   editingFolderId,
   editingFolderName,
   onToggle,
+  onNavigateInto,
   onEdit,
   onRename,
   onCancelEdit,
