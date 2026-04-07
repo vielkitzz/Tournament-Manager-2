@@ -493,8 +493,9 @@ export default function TeamsPage() {
     return map;
   }, [folders]);
 
-  const unfolderedTeams = teamsByFolder.get("root") || [];
-  const rootFolders = foldersByParent.get("root") || [];
+  const currentParentKey = currentFolderId || "root";
+  const unfolderedTeams = teamsByFolder.get(currentParentKey) || [];
+  const rootFolders = foldersByParent.get(currentParentKey) || [];
 
   const toggleFolder = useCallback((id: string) => {
     setOpenFolders((prev) => {
