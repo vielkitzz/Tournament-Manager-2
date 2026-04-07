@@ -1,5 +1,6 @@
 import { useState, useCallback, DragEvent, useMemo, memo, useEffect } from "react";
 import { motion } from "framer-motion";
+import FolderBreadcrumb from "@/components/FolderBreadcrumb";
 import {
   Shield,
   Plus,
@@ -188,6 +189,7 @@ interface FolderNodeProps {
   editingFolderId: string | null;
   editingFolderName: string;
   onToggle: (id: string) => void;
+  onNavigateInto: (id: string) => void;
   onEdit: (id: string, name: string) => void;
   onRename: (id: string) => void;
   onCancelEdit: () => void;
@@ -416,6 +418,7 @@ export default function TeamsPage() {
   const navigate = useNavigate();
   const [search, setSearch] = useState("");
   const [sortBy, setSortBy] = useState<"name" | "rate">("name");
+  const [currentFolderId, setCurrentFolderId] = useState<string | null>(null);
   const [openFolders, setOpenFolders] = useState<Set<string>>(() => new Set(folders.map((f) => f.id)));
   const [editingFolderId, setEditingFolderId] = useState<string | null>(null);
   const [editingFolderName, setEditingFolderName] = useState("");
