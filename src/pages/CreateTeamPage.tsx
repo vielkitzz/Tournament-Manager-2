@@ -93,14 +93,30 @@ export default function CreateTeamPage() {
     let finalLogoUrl = logoUrl; // default: keep existing URL
 
     try {
+      const teamId = editId || crypto.randomUUID();
+
+      const teamData = {
+        name: name.trim(),
+        shortName: shortName.trim() || name.trim().substring(0, 10),
+        abbreviation: abbreviation.trim() || name.trim().substring(0, 3).toUpperCase(),
+        foundingYear: foundingYear ? parseInt(foundingYear) : undefined,
+        colors: colorItems.map(c => c.value),
+        rate: Math.min(9.99, Math.max(0.01, parseFloat(rate) || 3)),
+        logo: logoUrl, // temporariamente mantém a URL antiga
+      };
+
+      // Se é criação, salva o time ANTES do upload (para que check_logo_ownership funcione)
+      if (!editId) {
+        await addTeam({ id: teamId, ...teamData });
+      }
+
       // Cenário 1: Usuário escolheu uma imagem nova
       if (pendingBlob) {
-        const teamId = editId || crypto.randomUUID();
-        const path = `teams/${teamId}_${Date.now()}.webp`; // Adicionei Date.now() para evitar problemas de cache do navegador
+        const path = `teams/${teamId}_${Date.now()}.webp`;
 
         // Se tinha imagem antiga, deleta da nuvem antes de subir a nova
         if (logoUrl) {
-          const oldPath = extractFilePathFromUrl(logoUrl, "logos"); // Confirme se o bucket chama "logos" ou mude aqui
+          const oldPath = extractFilePathFromUrl(logoUrl, "logos");
           if (oldPath) {
             await supabase.storage.from("logos").remove([oldPath]);
           }
@@ -114,28 +130,20 @@ export default function CreateTeamPage() {
       }
       // Cenário 2: Usuário removeu a imagem e não escolheu nenhuma nova
       else if (!previewUrl && logoUrl) {
-        const oldPath = extractFilePathFromUrl(logoUrl, "logos"); // Confirme se o bucket chama "logos" ou mude aqui
+        const oldPath = extractFilePathFromUrl(logoUrl, "logos");
         if (oldPath) {
           await supabase.storage.from("logos").remove([oldPath]);
         }
         finalLogoUrl = undefined;
       }
 
-      const teamData = {
-        name: name.trim(),
-        shortName: shortName.trim() || name.trim().substring(0, 10),
-        abbreviation: abbreviation.trim() || name.trim().substring(0, 3).toUpperCase(),
-        foundingYear: foundingYear ? parseInt(foundingYear) : undefined,
-        colors: colorItems.map(c => c.value),
-        rate: Math.min(9.99, Math.max(0.01, parseFloat(rate) || 3)),
-        logo: finalLogoUrl,
-      };
-
+      // Atualiza o time com a URL final do logo
       if (editId && existingTeam) {
-        await updateTeam(editId, teamData);
+        await updateTeam(editId, { ...teamData, logo: finalLogoUrl });
         toast.success(`"${teamData.name}" atualizado!`);
       } else {
-        await addTeam({ id: crypto.randomUUID(), ...teamData });
+        // Time já foi criado acima, agora atualiza com o logo
+        await updateTeam(teamId, { logo: finalLogoUrl });
         toast.success(`"${teamData.name}" criado!`);
       }
       navigate("/teams");
