@@ -1,6 +1,8 @@
 // Extracted from the old HomePage – lists all competitions
 import { useState, useCallback, DragEvent, useMemo, memo, useEffect } from "react";
 import { motion } from "framer-motion";
+import FolderBreadcrumb from "@/components/FolderBreadcrumb";
+import { motion } from "framer-motion";
 import {
   Trophy,
   Plus,
@@ -416,6 +418,7 @@ export default function CompetitionsPage() {
   const navigate = useNavigate();
 
   const [search, setSearch] = useState("");
+  const [currentFolderId, setCurrentFolderId] = useState<string | null>(null);
   const [openFolders, setOpenFolders] = useState<Set<string>>(() => new Set(tournamentFolders.map((f) => f.id)));
   const [editingFolderId, setEditingFolderId] = useState<string | null>(null);
   const [editingFolderName, setEditingFolderName] = useState("");
