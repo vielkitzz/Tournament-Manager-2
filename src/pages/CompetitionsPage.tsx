@@ -200,6 +200,7 @@ interface FolderNodeProps {
   editingFolderId: string | null;
   editingFolderName: string;
   onToggle: (id: string) => void;
+  onNavigateInto: (id: string) => void;
   onEdit: (id: string, name: string) => void;
   onRename: (id: string) => void;
   onCancelEdit: () => void;
