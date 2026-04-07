@@ -489,8 +489,9 @@ export default function CompetitionsPage() {
     return map;
   }, [tournamentFolders]);
 
-  const unfolderedTournaments = tournamentsByFolder.get("root") || [];
-  const rootFolders = foldersByParent.get("root") || [];
+  const currentParentKey = currentFolderId || "root";
+  const unfolderedTournaments = tournamentsByFolder.get(currentParentKey) || [];
+  const rootFolders = foldersByParent.get(currentParentKey) || [];
 
   const toggleFolder = useCallback((id: string) => {
     setOpenFolders((prev) => {
