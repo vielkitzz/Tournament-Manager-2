@@ -282,7 +282,10 @@ const FolderNode = memo(function FolderNode({
             className="h-6 w-36 text-xs"
           />
         ) : (
-          <span className="font-display font-bold text-foreground text-xs flex-1 truncate">{folder.name}</span>
+          <span
+            className="font-display font-bold text-foreground text-xs flex-1 truncate cursor-pointer hover:text-primary transition-colors"
+            onDoubleClick={(e) => { e.stopPropagation(); onNavigateInto(folder.id); }}
+          >{folder.name}</span>
         )}
 
         <span className="text-[10px] text-muted-foreground">{folderTeams.length}</span>
@@ -353,6 +356,7 @@ const FolderNode = memo(function FolderNode({
               editingFolderId={editingFolderId}
               editingFolderName={editingFolderName}
               onToggle={onToggle}
+              onNavigateInto={onNavigateInto}
               onEdit={onEdit}
               onRename={onRename}
               onCancelEdit={onCancelEdit}
@@ -771,6 +775,7 @@ export default function TeamsPage() {
                   editingFolderId={editingFolderId}
                   editingFolderName={editingFolderName}
                   onToggle={toggleFolder}
+                  onNavigateInto={setCurrentFolderId}
                   onEdit={(id, name) => {
                     setEditingFolderId(id);
                     setEditingFolderName(name);
