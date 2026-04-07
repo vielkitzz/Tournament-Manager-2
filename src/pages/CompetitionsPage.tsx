@@ -2,7 +2,6 @@
 import { useState, useCallback, DragEvent, useMemo, memo, useEffect } from "react";
 import { motion } from "framer-motion";
 import FolderBreadcrumb from "@/components/FolderBreadcrumb";
-import { motion } from "framer-motion";
 import {
   Trophy,
   Plus,
