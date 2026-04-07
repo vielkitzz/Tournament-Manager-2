@@ -220,6 +220,7 @@ const FolderNode = memo(function FolderNode({
   editingFolderId,
   editingFolderName,
   onToggle,
+  onNavigateInto,
   onEdit,
   onRename,
   onCancelEdit,
