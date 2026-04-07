@@ -185,6 +185,9 @@ export default function TournamentForm({ onSuccess, editTournament, initialTempl
       };
 
       await addTournament(tournament);
+      // Track as recently opened so it appears in Dashboard
+      const { trackTournamentOpen } = await import("@/lib/recentTournaments");
+      trackTournamentOpen(tournament.id);
       toast.success(`"${tournament.name}" criado com sucesso!`);
       onSuccess?.();
     } catch (err) {

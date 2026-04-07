@@ -1,5 +1,6 @@
 import { useState, useCallback, DragEvent, useMemo, memo, useEffect } from "react";
 import { motion } from "framer-motion";
+import FolderBreadcrumb from "@/components/FolderBreadcrumb";
 import {
   Shield,
   Plus,
@@ -188,6 +189,7 @@ interface FolderNodeProps {
   editingFolderId: string | null;
   editingFolderName: string;
   onToggle: (id: string) => void;
+  onNavigateInto: (id: string) => void;
   onEdit: (id: string, name: string) => void;
   onRename: (id: string) => void;
   onCancelEdit: () => void;
@@ -218,6 +220,7 @@ const FolderNode = memo(function FolderNode({
   editingFolderId,
   editingFolderName,
   onToggle,
+  onNavigateInto,
   onEdit,
   onRename,
   onCancelEdit,
@@ -279,7 +282,10 @@ const FolderNode = memo(function FolderNode({
             className="h-6 w-36 text-xs"
           />
         ) : (
-          <span className="font-display font-bold text-foreground text-xs flex-1 truncate">{folder.name}</span>
+          <span
+            className="font-display font-bold text-foreground text-xs flex-1 truncate cursor-pointer hover:text-primary transition-colors"
+            onDoubleClick={(e) => { e.stopPropagation(); onNavigateInto(folder.id); }}
+          >{folder.name}</span>
         )}
 
         <span className="text-[10px] text-muted-foreground">{folderTeams.length}</span>
@@ -350,6 +356,7 @@ const FolderNode = memo(function FolderNode({
               editingFolderId={editingFolderId}
               editingFolderName={editingFolderName}
               onToggle={onToggle}
+              onNavigateInto={onNavigateInto}
               onEdit={onEdit}
               onRename={onRename}
               onCancelEdit={onCancelEdit}
@@ -416,6 +423,7 @@ export default function TeamsPage() {
   const navigate = useNavigate();
   const [search, setSearch] = useState("");
   const [sortBy, setSortBy] = useState<"name" | "rate">("name");
+  const [currentFolderId, setCurrentFolderId] = useState<string | null>(null);
   const [openFolders, setOpenFolders] = useState<Set<string>>(() => new Set(folders.map((f) => f.id)));
   const [editingFolderId, setEditingFolderId] = useState<string | null>(null);
   const [editingFolderName, setEditingFolderName] = useState("");
@@ -485,8 +493,9 @@ export default function TeamsPage() {
     return map;
   }, [folders]);
 
-  const unfolderedTeams = teamsByFolder.get("root") || [];
-  const rootFolders = foldersByParent.get("root") || [];
+  const currentParentKey = currentFolderId || "root";
+  const unfolderedTeams = teamsByFolder.get(currentParentKey) || [];
+  const rootFolders = foldersByParent.get(currentParentKey) || [];
 
   const toggleFolder = useCallback((id: string) => {
     setOpenFolders((prev) => {
@@ -712,6 +721,14 @@ export default function TeamsPage() {
         </div>
       </div>
 
+      {/* Breadcrumb */}
+      <FolderBreadcrumb
+        currentFolderId={currentFolderId}
+        folders={folders}
+        rootLabel="Times"
+        onNavigate={setCurrentFolderId}
+      />
+
       {loading ? (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
           {Array.from({ length: 4 }).map((_, i) => (
@@ -767,6 +784,7 @@ export default function TeamsPage() {
                   editingFolderId={editingFolderId}
                   editingFolderName={editingFolderName}
                   onToggle={toggleFolder}
+                  onNavigateInto={setCurrentFolderId}
                   onEdit={(id, name) => {
                     setEditingFolderId(id);
                     setEditingFolderName(name);

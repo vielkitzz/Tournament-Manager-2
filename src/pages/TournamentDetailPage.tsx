@@ -116,7 +116,7 @@ export default function TournamentDetailPage() {
 
   const activeYear = viewingYear || tournament.year;
   const isViewingPastSeason = viewingYear !== null && viewingYear !== tournament.year;
-  const seasonData = isViewingPastSeason ? tournament.seasons?.find((s) => s.year === viewingYear) : null;
+  const seasonData = isViewingPastSeason ? tournament.seasons?.find((s) => s.year === viewingYear && !(s as any).manual) : null;
 
   const isLiga = tournament.format === "liga";
   const isMataMata = tournament.format === "mata-mata";
@@ -153,7 +153,7 @@ export default function TournamentDetailPage() {
   // Resolve teams based on the active year (current or past season)
   const resolvedTeams = teams.map((t) => resolveTeam(t, activeYear, teamHistories));
 
-  const seasonRecordForYear = (tournament.seasons || []).find((s) => s.year === activeYear);
+  const seasonRecordForYear = (tournament.seasons || []).find((s) => s.year === activeYear && !(s as any).manual);
   const championRecord = isViewingPastSeason ? seasonData : tournament.finalized ? seasonRecordForYear : null;
   const championTeam = championRecord?.championId
     ? resolvedTeams.find((t) => t.id === championRecord.championId)
@@ -1098,7 +1098,7 @@ export default function TournamentDetailPage() {
             {showYearPicker && (
               <div className="absolute right-0 top-full mt-1 bg-card border border-border rounded-lg shadow-xl z-20 p-2 min-w-[220px]">
                 {(() => {
-                  const seasonYears = (tournament.seasons || []).map((s) => s.year);
+                  const seasonYears = (tournament.seasons || []).filter((s) => !(s as any).manual).map((s) => s.year);
                   const allYears = Array.from(new Set([...seasonYears, tournament.year])).sort((a, b) => b - a);
                   return (
                     <>

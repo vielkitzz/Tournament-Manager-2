@@ -1,6 +1,7 @@
 // Extracted from the old HomePage – lists all competitions
 import { useState, useCallback, DragEvent, useMemo, memo, useEffect } from "react";
 import { motion } from "framer-motion";
+import FolderBreadcrumb from "@/components/FolderBreadcrumb";
 import {
   Trophy,
   Plus,
@@ -199,6 +200,7 @@ interface FolderNodeProps {
   editingFolderId: string | null;
   editingFolderName: string;
   onToggle: (id: string) => void;
+  onNavigateInto: (id: string) => void;
   onEdit: (id: string, name: string) => void;
   onRename: (id: string) => void;
   onCancelEdit: () => void;
@@ -228,6 +230,7 @@ const CompetitionFolderNode = memo(function CompetitionFolderNode({
   editingFolderId,
   editingFolderName,
   onToggle,
+  onNavigateInto,
   onEdit,
   onRename,
   onCancelEdit,
@@ -287,7 +290,10 @@ const CompetitionFolderNode = memo(function CompetitionFolderNode({
             className="h-6 w-36 text-xs"
           />
         ) : (
-          <span className="font-display font-bold text-foreground text-xs flex-1 truncate">{folder.name}</span>
+          <span
+            className="font-display font-bold text-foreground text-xs flex-1 truncate cursor-pointer hover:text-primary transition-colors"
+            onDoubleClick={(e) => { e.stopPropagation(); onNavigateInto(folder.id); }}
+          >{folder.name}</span>
         )}
 
         <span className="text-[10px] text-muted-foreground">{folderTournaments.length}</span>
@@ -357,6 +363,7 @@ const CompetitionFolderNode = memo(function CompetitionFolderNode({
               editingFolderId={editingFolderId}
               editingFolderName={editingFolderName}
               onToggle={onToggle}
+              onNavigateInto={onNavigateInto}
               onEdit={onEdit}
               onRename={onRename}
               onCancelEdit={onCancelEdit}
@@ -416,6 +423,7 @@ export default function CompetitionsPage() {
   const navigate = useNavigate();
 
   const [search, setSearch] = useState("");
+  const [currentFolderId, setCurrentFolderId] = useState<string | null>(null);
   const [openFolders, setOpenFolders] = useState<Set<string>>(() => new Set(tournamentFolders.map((f) => f.id)));
   const [editingFolderId, setEditingFolderId] = useState<string | null>(null);
   const [editingFolderName, setEditingFolderName] = useState("");
@@ -487,8 +495,9 @@ export default function CompetitionsPage() {
     return map;
   }, [tournamentFolders]);
 
-  const unfolderedTournaments = tournamentsByFolder.get("root") || [];
-  const rootFolders = foldersByParent.get("root") || [];
+  const currentParentKey = currentFolderId || "root";
+  const unfolderedTournaments = tournamentsByFolder.get(currentParentKey) || [];
+  const rootFolders = foldersByParent.get(currentParentKey) || [];
 
   const toggleFolder = useCallback((id: string) => {
     setOpenFolders((prev) => {
@@ -693,6 +702,14 @@ export default function CompetitionsPage() {
         </div>
       )}
 
+      {/* Breadcrumb */}
+      <FolderBreadcrumb
+        currentFolderId={currentFolderId}
+        folders={tournamentFolders}
+        rootLabel="Competições"
+        onNavigate={setCurrentFolderId}
+      />
+
       {loading ? (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {Array.from({ length: 3 }).map((_, i) => (
@@ -724,6 +741,7 @@ export default function CompetitionsPage() {
                   editingFolderId={editingFolderId}
                   editingFolderName={editingFolderName}
                   onToggle={toggleFolder}
+                  onNavigateInto={setCurrentFolderId}
                   onEdit={(id, name) => {
                     setEditingFolderId(id);
                     setEditingFolderName(name);
