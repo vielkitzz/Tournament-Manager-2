@@ -360,6 +360,7 @@ const CompetitionFolderNode = memo(function CompetitionFolderNode({
               editingFolderId={editingFolderId}
               editingFolderName={editingFolderName}
               onToggle={onToggle}
+              onNavigateInto={onNavigateInto}
               onEdit={onEdit}
               onRename={onRename}
               onCancelEdit={onCancelEdit}
@@ -737,6 +738,7 @@ export default function CompetitionsPage() {
                   editingFolderId={editingFolderId}
                   editingFolderName={editingFolderName}
                   onToggle={toggleFolder}
+                  onNavigateInto={setCurrentFolderId}
                   onEdit={(id, name) => {
                     setEditingFolderId(id);
                     setEditingFolderName(name);
