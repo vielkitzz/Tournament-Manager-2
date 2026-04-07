@@ -3,7 +3,7 @@ import { ChevronRight, Home } from "lucide-react";
 interface BreadcrumbFolder {
   id: string;
   name: string;
-  parentId: string | null;
+  parentId?: string | null;
 }
 
 interface FolderBreadcrumbProps {
