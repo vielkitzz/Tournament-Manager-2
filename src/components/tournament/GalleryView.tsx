@@ -23,6 +23,23 @@ export default function GalleryView({ seasons, teams, onUpdateSeasons }: Gallery
   const editable = !!onUpdateSeasons;
   const sorted = [...seasons].sort((a, b) => b.year - a.year);
 
+  const topChampions = useMemo(() => {
+    const counts: Record<string, { name: string; logo?: string; titles: number; years: number[] }> = {};
+    for (const s of seasons) {
+      const key = s.championId || s.championName;
+      if (!counts[key]) {
+        counts[key] = { name: s.championName, logo: s.championLogo, titles: 0, years: [] };
+      }
+      counts[key].titles++;
+      counts[key].years.push(s.year);
+      // Keep latest logo/name
+      if (s.championLogo) counts[key].logo = s.championLogo;
+      counts[key].name = s.championName;
+    }
+    return Object.values(counts)
+      .sort((a, b) => b.titles - a.titles || a.name.localeCompare(b.name));
+  }, [seasons]);
+
   const getTeamById = (id: string) => teams?.find((t) => t.id === id);
 
   const filteredTeams = (teams || [])
