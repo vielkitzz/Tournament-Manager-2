@@ -3,6 +3,7 @@ import { SeasonRecord, Team } from "@/types/tournament";
 import { Trophy, Shield, Plus, Pencil, Trash2, Check, X, Search, Crown } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 
 interface GalleryViewProps {
   seasons: SeasonRecord[];
