@@ -232,95 +232,113 @@ export default function GalleryView({ seasons, teams, onUpdateSeasons }: Gallery
     <div className="space-y-2">
       {renderTeamPicker()}
 
-      {topChampions.length > 0 && (
-        <div className="mb-4 p-4 rounded-xl bg-secondary/20 border border-border">
-          <div className="flex items-center gap-2 mb-3">
-            <Crown className="w-4 h-4 text-primary" />
-            <h3 className="text-sm font-bold text-foreground">Maiores Campeões</h3>
-          </div>
-          <div className="space-y-1.5">
-            {topChampions.map((ch, i) => (
-              <div key={ch.name} className="flex items-center gap-2.5 px-2 py-1.5 rounded-lg hover:bg-secondary/40 transition-colors">
-                <span className={`text-xs font-bold min-w-[20px] text-center ${i === 0 ? "text-primary" : "text-muted-foreground"}`}>
-                  {i + 1}º
+      <Tabs defaultValue="titles" className="w-full">
+        <TabsList className="w-full">
+          <TabsTrigger value="titles" className="flex-1 gap-1.5 text-xs">
+            <Trophy className="w-3.5 h-3.5" />
+            Títulos por Ano
+          </TabsTrigger>
+          <TabsTrigger value="ranking" className="flex-1 gap-1.5 text-xs">
+            <Crown className="w-3.5 h-3.5" />
+            Maiores Campeões
+          </TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="titles" className="space-y-2">
+          {editable && !adding && (
+            <button
+              onClick={startAdd}
+              className="w-full flex items-center justify-center gap-2 p-2.5 rounded-xl border border-dashed border-border hover:border-primary/30 text-muted-foreground hover:text-primary transition-colors text-xs font-medium"
+            >
+              <Plus className="w-3.5 h-3.5" />
+              Adicionar Campeão
+            </button>
+          )}
+
+          {adding && renderForm(handleAdd)}
+
+          {sorted.map((season) =>
+            editingYear === season.year ? (
+              <div key={season.year}>
+                {renderForm(() => handleEdit(season.year))}
+              </div>
+            ) : (
+              <div
+                key={season.year}
+                className="flex items-center gap-3 p-3 rounded-xl bg-secondary/30 border border-border hover:border-primary/30 transition-colors group"
+              >
+                <Trophy className="w-4 h-4 text-primary shrink-0" />
+                <span className="text-xs font-bold text-muted-foreground min-w-[40px]">
+                  {season.year}
                 </span>
-                <div className="w-6 h-6 flex items-center justify-center shrink-0">
-                  {ch.logo ? (
-                    <img src={ch.logo} alt="" className="w-6 h-6 object-contain" />
+                <div className="w-7 h-7 flex items-center justify-center shrink-0">
+                  {season.championLogo ? (
+                    <img src={season.championLogo} alt="" className="w-7 h-7 object-contain" />
                   ) : (
                     <Shield className="w-4 h-4 text-muted-foreground" />
                   )}
                 </div>
-                <span className={`text-xs font-bold truncate flex-1 ${i === 0 ? "text-foreground" : "text-foreground/80"}`}>
-                  {ch.name}
+                <span className="text-sm font-bold text-foreground truncate flex-1">
+                  {season.championName}
                 </span>
-                <span className="text-xs font-bold text-primary">{ch.titles}×</span>
-                <span className="text-[10px] text-muted-foreground hidden sm:inline truncate max-w-[120px]">
-                  {ch.years.sort((a, b) => a - b).join(", ")}
-                </span>
+                {editable && (
+                  <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <button onClick={() => startEdit(season)} className="p-1 text-muted-foreground hover:text-foreground">
+                      <Pencil className="w-3.5 h-3.5" />
+                    </button>
+                    <button onClick={() => handleDelete(season.year)} className="p-1 text-muted-foreground hover:text-destructive">
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                )}
               </div>
-            ))}
-          </div>
-        </div>
-      )}
+            )
+          )}
 
-      {editable && !adding && (
-        <button
-          onClick={startAdd}
-          className="w-full flex items-center justify-center gap-2 p-2.5 rounded-xl border border-dashed border-border hover:border-primary/30 text-muted-foreground hover:text-primary transition-colors text-xs font-medium"
-        >
-          <Plus className="w-3.5 h-3.5" />
-          Adicionar Campeão
-        </button>
-      )}
-
-      {adding && renderForm(handleAdd)}
-
-      {sorted.map((season) =>
-        editingYear === season.year ? (
-          <div key={season.year}>
-            {renderForm(() => handleEdit(season.year))}
-          </div>
-        ) : (
-          <div
-            key={season.year}
-            className="flex items-center gap-3 p-3 rounded-xl bg-secondary/30 border border-border hover:border-primary/30 transition-colors group"
-          >
-            <Trophy className="w-4 h-4 text-yellow-500 shrink-0" />
-            <span className="text-xs font-bold text-muted-foreground min-w-[40px]">
-              {season.year}
-            </span>
-            <div className="w-7 h-7 flex items-center justify-center shrink-0">
-              {season.championLogo ? (
-                <img src={season.championLogo} alt="" className="w-7 h-7 object-contain" />
-              ) : (
-                <Shield className="w-4 h-4 text-muted-foreground" />
-              )}
+          {seasons.length === 0 && editable && !adding && (
+            <div className="text-center py-8">
+              <Trophy className="w-10 h-10 text-muted-foreground/30 mx-auto mb-3" />
+              <p className="text-sm text-muted-foreground">Nenhum campeão registrado</p>
+              <p className="text-xs text-muted-foreground mt-1">Clique em "Adicionar Campeão" para registrar manualmente</p>
             </div>
-            <span className="text-sm font-bold text-foreground truncate flex-1">
-              {season.championName}
-            </span>
-            {editable && (
-              <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                <button onClick={() => startEdit(season)} className="p-1 text-muted-foreground hover:text-foreground">
-                  <Pencil className="w-3.5 h-3.5" />
-                </button>
-                <button onClick={() => handleDelete(season.year)} className="p-1 text-muted-foreground hover:text-destructive">
-                  <Trash2 className="w-3.5 h-3.5" />
-                </button>
-              </div>
-            )}
-          </div>
-        )
-      )}
+          )}
+        </TabsContent>
 
-      {seasons.length === 0 && editable && !adding && (
-        <div className="text-center py-8">
-          <Trophy className="w-10 h-10 text-muted-foreground/30 mx-auto mb-3" />
-          <p className="text-sm text-muted-foreground">Nenhum campeão registrado</p>
-          <p className="text-xs text-muted-foreground mt-1">Clique em "Adicionar Campeão" para registrar manualmente</p>
-        </div>
-      )}
+        <TabsContent value="ranking">
+          {topChampions.length > 0 ? (
+            <div className="p-4 rounded-xl bg-secondary/20 border border-border">
+              <div className="space-y-1.5">
+                {topChampions.map((ch, i) => (
+                  <div key={ch.name} className="flex items-center gap-2.5 px-2 py-1.5 rounded-lg hover:bg-secondary/40 transition-colors">
+                    <span className={`text-xs font-bold min-w-[20px] text-center ${i === 0 ? "text-primary" : "text-muted-foreground"}`}>
+                      {i + 1}º
+                    </span>
+                    <div className="w-6 h-6 flex items-center justify-center shrink-0">
+                      {ch.logo ? (
+                        <img src={ch.logo} alt="" className="w-6 h-6 object-contain" />
+                      ) : (
+                        <Shield className="w-4 h-4 text-muted-foreground" />
+                      )}
+                    </div>
+                    <span className={`text-xs font-bold truncate flex-1 ${i === 0 ? "text-foreground" : "text-foreground/80"}`}>
+                      {ch.name}
+                    </span>
+                    <span className="text-xs font-bold text-primary">{ch.titles}×</span>
+                    <span className="text-[10px] text-muted-foreground hidden sm:inline truncate max-w-[120px]">
+                      {ch.years.sort((a, b) => a - b).join(", ")}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          ) : (
+            <div className="text-center py-8">
+              <Crown className="w-10 h-10 text-muted-foreground/30 mx-auto mb-3" />
+              <p className="text-sm text-muted-foreground">Nenhum campeão registrado</p>
+            </div>
+          )}
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }
