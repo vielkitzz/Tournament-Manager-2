@@ -231,6 +231,38 @@ export default function GalleryView({ seasons, teams, onUpdateSeasons }: Gallery
     <div className="space-y-2">
       {renderTeamPicker()}
 
+      {topChampions.length > 0 && (
+        <div className="mb-4 p-4 rounded-xl bg-secondary/20 border border-border">
+          <div className="flex items-center gap-2 mb-3">
+            <Crown className="w-4 h-4 text-primary" />
+            <h3 className="text-sm font-bold text-foreground">Maiores Campeões</h3>
+          </div>
+          <div className="space-y-1.5">
+            {topChampions.map((ch, i) => (
+              <div key={ch.name} className="flex items-center gap-2.5 px-2 py-1.5 rounded-lg hover:bg-secondary/40 transition-colors">
+                <span className={`text-xs font-bold min-w-[20px] text-center ${i === 0 ? "text-primary" : "text-muted-foreground"}`}>
+                  {i + 1}º
+                </span>
+                <div className="w-6 h-6 flex items-center justify-center shrink-0">
+                  {ch.logo ? (
+                    <img src={ch.logo} alt="" className="w-6 h-6 object-contain" />
+                  ) : (
+                    <Shield className="w-4 h-4 text-muted-foreground" />
+                  )}
+                </div>
+                <span className={`text-xs font-bold truncate flex-1 ${i === 0 ? "text-foreground" : "text-foreground/80"}`}>
+                  {ch.name}
+                </span>
+                <span className="text-xs font-bold text-primary">{ch.titles}×</span>
+                <span className="text-[10px] text-muted-foreground hidden sm:inline truncate max-w-[120px]">
+                  {ch.years.sort((a, b) => a - b).join(", ")}
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
       {editable && !adding && (
         <button
           onClick={startAdd}
