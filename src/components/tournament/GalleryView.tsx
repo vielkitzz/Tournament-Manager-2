@@ -1,6 +1,6 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { SeasonRecord, Team } from "@/types/tournament";
-import { Trophy, Shield, Plus, Pencil, Trash2, Check, X, Search } from "lucide-react";
+import { Trophy, Shield, Plus, Pencil, Trash2, Check, X, Search, Crown } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 
