@@ -185,6 +185,7 @@ interface TournamentState {
 export const useTournamentStore = create<TournamentState>((set, get) => ({
   tournaments: [],
   teams: [],
+  players: [],
   folders: [],
   tournamentFolders: [],
   teamHistories: [],
@@ -193,17 +194,18 @@ export const useTournamentStore = create<TournamentState>((set, get) => ({
 
   initialize: async (userId) => {
     if (!userId) {
-      set({ tournaments: [], teams: [], folders: [], tournamentFolders: [], teamHistories: [], loading: false, _userId: null });
+      set({ tournaments: [], teams: [], players: [], folders: [], tournamentFolders: [], teamHistories: [], loading: false, _userId: null });
       return;
     }
     if (userId === get()._userId && !get().loading) return;
     set({ loading: true, _userId: userId });
-    const [tRes, teRes, fRes, tfRes, hRes] = await Promise.all([
+    const [tRes, teRes, fRes, tfRes, hRes, pRes] = await Promise.all([
       db.from("tournaments").select("*").eq("user_id", userId),
       db.from("teams").select("*").eq("user_id", userId),
       db.from("team_folders").select("*").eq("user_id", userId),
       db.from("tournament_folders").select("*").eq("user_id", userId),
       db.from("team_histories").select("*").eq("user_id", userId),
+      db.from("players").select("*").eq("user_id", userId),
     ]) as any[];
     set({
       tournaments: tRes.data ? tRes.data.map(dbToTournament) : [],
@@ -223,6 +225,7 @@ export const useTournamentStore = create<TournamentState>((set, get) => ({
         abbreviation: h.abbreviation || undefined,
         colors: h.colors ? parseColors(h.colors) : undefined,
       })) : [],
+      players: pRes.data ? pRes.data.map(dbToPlayer) : [],
       loading: false,
     });
   },
