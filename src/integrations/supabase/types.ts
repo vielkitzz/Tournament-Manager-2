@@ -14,6 +14,42 @@ export type Database = {
   }
   public: {
     Tables: {
+      players: {
+        Row: {
+          created_at: string
+          id: string
+          name: string
+          photo_url: string | null
+          position: string | null
+          rating: number | null
+          shirt_number: number | null
+          team_id: string | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          name: string
+          photo_url?: string | null
+          position?: string | null
+          rating?: number | null
+          shirt_number?: number | null
+          team_id?: string | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          name?: string
+          photo_url?: string | null
+          position?: string | null
+          rating?: number | null
+          shirt_number?: number | null
+          team_id?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       published_tournaments: {
         Row: {
           created_at: string | null

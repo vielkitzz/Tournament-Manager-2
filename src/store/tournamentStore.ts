@@ -1,5 +1,5 @@
 import { create } from "zustand";
-import { Tournament, Team, TeamFolder, TournamentFolder, TournamentSettings, Match, SeasonRecord, PreliminaryPhase } from "@/types/tournament";
+import { Tournament, Team, TeamFolder, TournamentFolder, TournamentSettings, Match, SeasonRecord, PreliminaryPhase, Player } from "@/types/tournament";
 import { supabase } from "@/integrations/supabase/client";
 import { Json } from "@/integrations/supabase/types";
 import { TeamHistory } from "@/lib/teamHistoryUtils";
@@ -70,6 +70,18 @@ function dbToTeam(row: any): Team {
   };
 }
 
+function dbToPlayer(row: any): Player {
+  return {
+    id: row.id ?? "",
+    teamId: row.team_id || null,
+    name: row.name ?? "",
+    position: row.position || undefined,
+    shirtNumber: row.shirt_number != null ? Number(row.shirt_number) : undefined,
+    rating: row.rating != null ? Number(row.rating) : undefined,
+    photoUrl: row.photo_url || undefined,
+  };
+}
+
 function tournamentToDb(tournament: Tournament, userId: string) {
   return {
     id: tournament.id,
@@ -130,6 +142,7 @@ interface TournamentState {
   // State
   tournaments: Tournament[];
   teams: Team[];
+  players: Player[];
   folders: TeamFolder[];
   tournamentFolders: TournamentFolder[];
   teamHistories: TeamHistory[];
@@ -162,11 +175,17 @@ interface TournamentState {
   updateTeamHistory: (id: string, updates: Partial<TeamHistory>) => Promise<void>;
   removeTeamHistory: (id: string) => Promise<void>;
   getTeamHistories: (teamId: string) => TeamHistory[];
+  // Players
+  addPlayer: (player: Player) => Promise<void>;
+  updatePlayer: (id: string, updates: Partial<Player>) => Promise<void>;
+  removePlayer: (id: string) => Promise<void>;
+  transferPlayer: (playerId: string, teamId: string | null) => Promise<void>;
 }
 
 export const useTournamentStore = create<TournamentState>((set, get) => ({
   tournaments: [],
   teams: [],
+  players: [],
   folders: [],
   tournamentFolders: [],
   teamHistories: [],
@@ -175,17 +194,18 @@ export const useTournamentStore = create<TournamentState>((set, get) => ({
 
   initialize: async (userId) => {
     if (!userId) {
-      set({ tournaments: [], teams: [], folders: [], tournamentFolders: [], teamHistories: [], loading: false, _userId: null });
+      set({ tournaments: [], teams: [], players: [], folders: [], tournamentFolders: [], teamHistories: [], loading: false, _userId: null });
       return;
     }
     if (userId === get()._userId && !get().loading) return;
     set({ loading: true, _userId: userId });
-    const [tRes, teRes, fRes, tfRes, hRes] = await Promise.all([
+    const [tRes, teRes, fRes, tfRes, hRes, pRes] = await Promise.all([
       db.from("tournaments").select("*").eq("user_id", userId),
       db.from("teams").select("*").eq("user_id", userId),
       db.from("team_folders").select("*").eq("user_id", userId),
       db.from("tournament_folders").select("*").eq("user_id", userId),
       db.from("team_histories").select("*").eq("user_id", userId),
+      db.from("players").select("*").eq("user_id", userId),
     ]) as any[];
     set({
       tournaments: tRes.data ? tRes.data.map(dbToTournament) : [],
@@ -205,6 +225,7 @@ export const useTournamentStore = create<TournamentState>((set, get) => ({
         abbreviation: h.abbreviation || undefined,
         colors: h.colors ? parseColors(h.colors) : undefined,
       })) : [],
+      players: pRes.data ? pRes.data.map(dbToPlayer) : [],
       loading: false,
     });
   },
@@ -462,5 +483,50 @@ export const useTournamentStore = create<TournamentState>((set, get) => ({
 
   getTeamHistories: (teamId) => {
     return get().teamHistories.filter((h) => h.teamId === teamId);
+  },
+
+  // Players CRUD
+  addPlayer: async (player) => {
+    const userId = get()._userId;
+    if (!userId) return;
+    const { data } = await db.from("players").insert({
+      id: player.id,
+      user_id: userId,
+      name: player.name,
+      team_id: player.teamId || null,
+      position: player.position || null,
+      shirt_number: player.shirtNumber ?? null,
+      rating: player.rating ?? 0,
+      photo_url: player.photoUrl || null,
+    }).select().single();
+    if (data) set((s) => ({ players: [...s.players, dbToPlayer(data)] }));
+  },
+
+  updatePlayer: async (id, updates) => {
+    const userId = get()._userId;
+    if (!userId) return;
+    const dbUpdates: any = {};
+    if (updates.name !== undefined) dbUpdates.name = updates.name;
+    if (updates.teamId !== undefined) dbUpdates.team_id = updates.teamId;
+    if (updates.position !== undefined) dbUpdates.position = updates.position || null;
+    if (updates.shirtNumber !== undefined) dbUpdates.shirt_number = updates.shirtNumber;
+    if (updates.rating !== undefined) dbUpdates.rating = updates.rating;
+    if (updates.photoUrl !== undefined) dbUpdates.photo_url = updates.photoUrl || null;
+    set((s) => ({ players: s.players.map((p) => (p.id === id ? { ...p, ...updates } : p)) }));
+    await db.from("players").update(dbUpdates).eq("id", id).eq("user_id", userId);
+  },
+
+  removePlayer: async (id) => {
+    const userId = get()._userId;
+    if (!userId) return;
+    set((s) => ({ players: s.players.filter((p) => p.id !== id) }));
+    await db.from("players").delete().eq("id", id).eq("user_id", userId);
+  },
+
+  transferPlayer: async (playerId, teamId) => {
+    const userId = get()._userId;
+    if (!userId) return;
+    set((s) => ({ players: s.players.map((p) => (p.id === playerId ? { ...p, teamId } : p)) }));
+    await db.from("players").update({ team_id: teamId }).eq("id", playerId).eq("user_id", userId);
   },
 }));
