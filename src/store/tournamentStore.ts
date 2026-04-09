@@ -484,4 +484,49 @@ export const useTournamentStore = create<TournamentState>((set, get) => ({
   getTeamHistories: (teamId) => {
     return get().teamHistories.filter((h) => h.teamId === teamId);
   },
+
+  // Players CRUD
+  addPlayer: async (player) => {
+    const userId = get()._userId;
+    if (!userId) return;
+    const { data } = await db.from("players").insert({
+      id: player.id,
+      user_id: userId,
+      name: player.name,
+      team_id: player.teamId || null,
+      position: player.position || null,
+      shirt_number: player.shirtNumber ?? null,
+      rating: player.rating ?? 0,
+      photo_url: player.photoUrl || null,
+    }).select().single();
+    if (data) set((s) => ({ players: [...s.players, dbToPlayer(data)] }));
+  },
+
+  updatePlayer: async (id, updates) => {
+    const userId = get()._userId;
+    if (!userId) return;
+    const dbUpdates: any = {};
+    if (updates.name !== undefined) dbUpdates.name = updates.name;
+    if (updates.teamId !== undefined) dbUpdates.team_id = updates.teamId;
+    if (updates.position !== undefined) dbUpdates.position = updates.position || null;
+    if (updates.shirtNumber !== undefined) dbUpdates.shirt_number = updates.shirtNumber;
+    if (updates.rating !== undefined) dbUpdates.rating = updates.rating;
+    if (updates.photoUrl !== undefined) dbUpdates.photo_url = updates.photoUrl || null;
+    set((s) => ({ players: s.players.map((p) => (p.id === id ? { ...p, ...updates } : p)) }));
+    await db.from("players").update(dbUpdates).eq("id", id).eq("user_id", userId);
+  },
+
+  removePlayer: async (id) => {
+    const userId = get()._userId;
+    if (!userId) return;
+    set((s) => ({ players: s.players.filter((p) => p.id !== id) }));
+    await db.from("players").delete().eq("id", id).eq("user_id", userId);
+  },
+
+  transferPlayer: async (playerId, teamId) => {
+    const userId = get()._userId;
+    if (!userId) return;
+    set((s) => ({ players: s.players.map((p) => (p.id === playerId ? { ...p, teamId } : p)) }));
+    await db.from("players").update({ team_id: teamId }).eq("id", playerId).eq("user_id", userId);
+  },
 }));

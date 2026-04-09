@@ -119,7 +119,7 @@ export default function PlayersPage() {
                   const team = getTeamForLogo(player.teamId);
                   return (
                     <TableRow key={player.id}>
-                      <TableCell className="text-muted-foreground text-xs">{idx + 1}</TableCell>
+                      <TableCell className="text-muted-foreground text-xs">{String(idx + 1)}</TableCell>
                       <TableCell className="font-medium">{player.name}</TableCell>
                       <TableCell className="text-muted-foreground">{player.position || "—"}</TableCell>
                       <TableCell className="text-muted-foreground">{player.shirtNumber ?? "—"}</TableCell>
