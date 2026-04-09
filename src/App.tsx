@@ -28,6 +28,7 @@ const AuthPage = lazy(() => import("@/pages/AuthPage"));
 const SharedTournamentPage = lazy(() => import("@/pages/SharedTournamentPage"));
 const PreliminaryPhasesPage = lazy(() => import("@/pages/PreliminaryPhasesPage"));
 const PlayersPage = lazy(() => import("@/pages/PlayersPage"));
+const ClubSquadPage = lazy(() => import("@/pages/ClubSquadPage"));
 const CreatePlayerPage = lazy(() => import("@/pages/CreatePlayerPage"));
 const NotFound = lazy(() => import("@/pages/NotFound"));
 
@@ -88,7 +89,8 @@ const App = () => (
                   <Route path="/publish" element={<PublishPage />} />
                   <Route path="/friendly" element={<FriendlyMatchPage />} />
                   <Route path="/players" element={<PlayersPage />} />
-                  <Route path="/players/create" element={<CreatePlayerPage />} />
+                  <Route path="/players/team/:teamId" element={<ClubSquadPage />} />
+                  <Route path="/players/team/:teamId/create" element={<CreatePlayerPage />} />
                   <Route path="/players/:id/edit" element={<CreatePlayerPage />} />
                 </Route>
                 <Route path="/shared/:token" element={<SharedTournamentPage />} />
