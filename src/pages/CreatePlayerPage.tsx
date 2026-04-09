@@ -12,10 +12,64 @@ import PageTransition from "@/components/PageTransition";
 import { toast } from "sonner";
 import { COUNTRIES } from "@/data/countries";
 
-const POSITIONS = ["Goleiro", "Zagueiro", "Lateral Direito", "Lateral Esquerdo", "Volante", "Meia", "Meia Atacante", "Ponta Direita", "Ponta Esquerda", "Centroavante", "Segundo Atacante"];
+const POSITIONS = [
+  "Goleiro",
+  "Zagueiro",
+  "Lateral Direito",
+  "Lateral Esquerdo",
+  "Volante",
+  "Meia",
+  "Meia Atacante",
+  "Ponta Direita",
+  "Ponta Esquerda",
+  "Centroavante",
+  "Segundo Atacante",
+];
 
-const FIRST_NAMES = ["Lucas","Pedro","Gabriel","Rafael","Bruno","Carlos","Diego","Felipe","André","Marco","João","Matheus","Thiago","Daniel","Eduardo","Gustavo","Leonardo","Victor","Alex","Fernando"];
-const LAST_NAMES = ["Silva","Santos","Oliveira","Souza","Pereira","Costa","Rodrigues","Almeida","Nascimento","Lima","Araújo","Fernandes","Barbosa","Ribeiro","Martins","Carvalho","Gomes","Rocha","Correia","Mendes"];
+const FIRST_NAMES = [
+  "Lucas",
+  "Pedro",
+  "Gabriel",
+  "Rafael",
+  "Bruno",
+  "Carlos",
+  "Diego",
+  "Felipe",
+  "André",
+  "Marco",
+  "João",
+  "Matheus",
+  "Thiago",
+  "Daniel",
+  "Eduardo",
+  "Gustavo",
+  "Leonardo",
+  "Victor",
+  "Alex",
+  "Fernando",
+];
+const LAST_NAMES = [
+  "Silva",
+  "Santos",
+  "Oliveira",
+  "Souza",
+  "Pereira",
+  "Costa",
+  "Rodrigues",
+  "Almeida",
+  "Nascimento",
+  "Lima",
+  "Araújo",
+  "Fernandes",
+  "Barbosa",
+  "Ribeiro",
+  "Martins",
+  "Carvalho",
+  "Gomes",
+  "Rocha",
+  "Correia",
+  "Mendes",
+];
 
 function randomName() {
   return `${FIRST_NAMES[Math.floor(Math.random() * FIRST_NAMES.length)]} ${LAST_NAMES[Math.floor(Math.random() * LAST_NAMES.length)]}`;
@@ -55,13 +109,17 @@ export default function CreatePlayerPage() {
   const [saving, setSaving] = useState(false);
 
   const usedShirtNumbers = useMemo(
-    () => players.filter((p) => p.teamId === effectiveTeamId && p.id !== existing?.id).map((p) => p.shirtNumber).filter((n): n is number => n != null),
-    [players, effectiveTeamId, existing?.id]
+    () =>
+      players
+        .filter((p) => p.teamId === effectiveTeamId && p.id !== existing?.id)
+        .map((p) => p.shirtNumber)
+        .filter((n): n is number => n != null),
+    [players, effectiveTeamId, existing?.id],
   );
 
   const teamPlayerCount = useMemo(
     () => players.filter((p) => p.teamId === effectiveTeamId && p.id !== existing?.id).length,
-    [players, effectiveTeamId, existing?.id]
+    [players, effectiveTeamId, existing?.id],
   );
 
   useEffect(() => {
@@ -79,10 +137,19 @@ export default function CreatePlayerPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!name.trim()) { toast.error("O nome do jogador é obrigatório"); return; }
+    if (!name.trim()) {
+      toast.error("O nome do jogador é obrigatório");
+      return;
+    }
     const ratingVal = rating ? parseFloat(rating) : undefined;
-    if (ratingVal !== undefined && (ratingVal < 0.01 || ratingVal > 9.99)) { toast.error("Rating deve estar entre 0,01 e 9,99"); return; }
-    if (!isEdit && teamPlayerCount >= 24) { toast.error("Este clube já atingiu o máximo de 24 jogadores"); return; }
+    if (ratingVal !== undefined && (ratingVal < 0.01 || ratingVal > 9.99)) {
+      toast.error("Rating deve estar entre 0,01 e 9,99");
+      return;
+    }
+    if (!isEdit && teamPlayerCount >= 24) {
+      toast.error("Este clube já atingiu o máximo de 24 jogadores");
+      return;
+    }
 
     setSaving(true);
     try {
@@ -142,7 +209,13 @@ export default function CreatePlayerPage() {
               <div className="space-y-2">
                 <div className="flex items-center justify-between">
                   <Label htmlFor="name">Nome *</Label>
-                  <Button type="button" variant="ghost" size="sm" className="h-7 gap-1 text-xs" onClick={() => setName(randomName())}>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    className="h-7 gap-1 text-xs"
+                    onClick={() => setName(randomName())}
+                  >
                     <Shuffle className="w-3 h-3" /> Aleatório
                   </Button>
                 </div>
@@ -153,7 +226,13 @@ export default function CreatePlayerPage() {
               <div className="space-y-2">
                 <div className="flex items-center justify-between">
                   <Label htmlFor="nationality">Nacionalidade</Label>
-                  <Button type="button" variant="ghost" size="sm" className="h-7 gap-1 text-xs" onClick={() => setNationality(randomNationality())}>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    className="h-7 gap-1 text-xs"
+                    onClick={() => setNationality(randomNationality())}
+                  >
                     <Shuffle className="w-3 h-3" /> Aleatório
                   </Button>
                 </div>
@@ -163,7 +242,9 @@ export default function CreatePlayerPage() {
                   </SelectTrigger>
                   <SelectContent className="max-h-60">
                     {COUNTRIES.map((c) => (
-                      <SelectItem key={c} value={c}>{c}</SelectItem>
+                      <SelectItem key={c} value={c}>
+                        {c}
+                      </SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
@@ -174,7 +255,13 @@ export default function CreatePlayerPage() {
                 <div className="space-y-2">
                   <div className="flex items-center justify-between">
                     <Label htmlFor="position">Posição</Label>
-                    <Button type="button" variant="ghost" size="sm" className="h-7 gap-1 text-xs" onClick={() => setPosition(randomPosition())}>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      className="h-7 gap-1 text-xs"
+                      onClick={() => setPosition(randomPosition())}
+                    >
                       <Shuffle className="w-3 h-3" /> Aleatório
                     </Button>
                   </div>
@@ -184,7 +271,9 @@ export default function CreatePlayerPage() {
                     </SelectTrigger>
                     <SelectContent>
                       {POSITIONS.map((p) => (
-                        <SelectItem key={p} value={p}>{p}</SelectItem>
+                        <SelectItem key={p} value={p}>
+                          {p}
+                        </SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
@@ -194,11 +283,25 @@ export default function CreatePlayerPage() {
                 <div className="space-y-2">
                   <div className="flex items-center justify-between">
                     <Label htmlFor="age">Idade</Label>
-                    <Button type="button" variant="ghost" size="sm" className="h-7 gap-1 text-xs" onClick={() => setAge(String(randomAge()))}>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      className="h-7 gap-1 text-xs"
+                      onClick={() => setAge(String(randomAge()))}
+                    >
                       <Shuffle className="w-3 h-3" /> Aleatório
                     </Button>
                   </div>
-                  <Input id="age" type="number" min={15} max={50} value={age} onChange={(e) => setAge(e.target.value)} placeholder="Ex: 25" />
+                  <Input
+                    id="age"
+                    type="number"
+                    min={16}
+                    max={50}
+                    value={age}
+                    onChange={(e) => setAge(e.target.value)}
+                    placeholder="Ex: 25"
+                  />
                 </div>
               </div>
 
@@ -207,22 +310,51 @@ export default function CreatePlayerPage() {
                 <div className="space-y-2">
                   <div className="flex items-center justify-between">
                     <Label htmlFor="shirt">Nº da Camisa</Label>
-                    <Button type="button" variant="ghost" size="sm" className="h-7 gap-1 text-xs" onClick={() => setShirtNumber(String(randomShirt(usedShirtNumbers)))}>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      className="h-7 gap-1 text-xs"
+                      onClick={() => setShirtNumber(String(randomShirt(usedShirtNumbers)))}
+                    >
                       <Shuffle className="w-3 h-3" /> Aleatório
                     </Button>
                   </div>
-                  <Input id="shirt" type="number" min={1} max={99} value={shirtNumber} onChange={(e) => setShirtNumber(e.target.value)} placeholder="Ex: 10" />
+                  <Input
+                    id="shirt"
+                    type="number"
+                    min={1}
+                    max={99}
+                    value={shirtNumber}
+                    onChange={(e) => setShirtNumber(e.target.value)}
+                    placeholder="Ex: 10"
+                  />
                 </div>
 
                 {/* Rating */}
                 <div className="space-y-2">
                   <div className="flex items-center justify-between">
                     <Label htmlFor="rating">Rating (0,01 – 9,99)</Label>
-                    <Button type="button" variant="ghost" size="sm" className="h-7 gap-1 text-xs" onClick={() => setRating(String(randomRating()))}>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      className="h-7 gap-1 text-xs"
+                      onClick={() => setRating(String(randomRating()))}
+                    >
                       <Shuffle className="w-3 h-3" /> Aleatório
                     </Button>
                   </div>
-                  <Input id="rating" type="number" min={0.01} max={9.99} step={0.01} value={rating} onChange={(e) => setRating(e.target.value)} placeholder="Ex: 7.50" />
+                  <Input
+                    id="rating"
+                    type="number"
+                    min={0.01}
+                    max={9.99}
+                    step={0.01}
+                    value={rating}
+                    onChange={(e) => setRating(e.target.value)}
+                    placeholder="Ex: 7.50"
+                  />
                 </div>
               </div>
 
