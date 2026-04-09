@@ -1,3 +1,13 @@
+export interface Player {
+  id: string;
+  teamId: string | null;
+  name: string;
+  position?: string;
+  shirtNumber?: number;
+  rating?: number;
+  photoUrl?: string;
+}
+
 export type TournamentFormat = "liga" | "grupos" | "mata-mata" | "suico";
 
 export type KnockoutStage = "1/64" | "1/32" | "1/16" | "1/8" | "1/4" | "1/2";
