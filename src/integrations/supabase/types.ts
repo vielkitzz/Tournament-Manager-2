@@ -16,9 +16,11 @@ export type Database = {
     Tables: {
       players: {
         Row: {
+          age: number | null
           created_at: string
           id: string
           name: string
+          nationality: string | null
           photo_url: string | null
           position: string | null
           rating: number | null
@@ -27,9 +29,11 @@ export type Database = {
           user_id: string
         }
         Insert: {
+          age?: number | null
           created_at?: string
           id?: string
           name: string
+          nationality?: string | null
           photo_url?: string | null
           position?: string | null
           rating?: number | null
@@ -38,9 +42,11 @@ export type Database = {
           user_id: string
         }
         Update: {
+          age?: number | null
           created_at?: string
           id?: string
           name?: string
+          nationality?: string | null
           photo_url?: string | null
           position?: string | null
           rating?: number | null

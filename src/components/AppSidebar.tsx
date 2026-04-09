@@ -28,7 +28,6 @@ const navSections = [
     items: [
       { to: "/tournament/create", icon: PlusCircle, label: "Nova Competição", end: false },
       { to: "/teams/create", icon: PlusCircle, label: "Novo Time", end: false },
-      { to: "/players/create", icon: PlusCircle, label: "Novo Jogador", end: false },
     ],
   },
 ];

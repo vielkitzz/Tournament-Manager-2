@@ -75,7 +75,9 @@ function dbToPlayer(row: any): Player {
     id: row.id ?? "",
     teamId: row.team_id || null,
     name: row.name ?? "",
+    nationality: row.nationality || undefined,
     position: row.position || undefined,
+    age: row.age != null ? Number(row.age) : undefined,
     shirtNumber: row.shirt_number != null ? Number(row.shirt_number) : undefined,
     rating: row.rating != null ? Number(row.rating) : undefined,
     photoUrl: row.photo_url || undefined,
@@ -494,7 +496,9 @@ export const useTournamentStore = create<TournamentState>((set, get) => ({
       user_id: userId,
       name: player.name,
       team_id: player.teamId || null,
+      nationality: player.nationality || null,
       position: player.position || null,
+      age: player.age ?? null,
       shirt_number: player.shirtNumber ?? null,
       rating: player.rating ?? 0,
       photo_url: player.photoUrl || null,
@@ -508,7 +512,9 @@ export const useTournamentStore = create<TournamentState>((set, get) => ({
     const dbUpdates: any = {};
     if (updates.name !== undefined) dbUpdates.name = updates.name;
     if (updates.teamId !== undefined) dbUpdates.team_id = updates.teamId;
+    if (updates.nationality !== undefined) dbUpdates.nationality = updates.nationality || null;
     if (updates.position !== undefined) dbUpdates.position = updates.position || null;
+    if (updates.age !== undefined) dbUpdates.age = updates.age;
     if (updates.shirtNumber !== undefined) dbUpdates.shirt_number = updates.shirtNumber;
     if (updates.rating !== undefined) dbUpdates.rating = updates.rating;
     if (updates.photoUrl !== undefined) dbUpdates.photo_url = updates.photoUrl || null;

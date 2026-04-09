@@ -2,7 +2,9 @@ export interface Player {
   id: string;
   teamId: string | null;
   name: string;
+  nationality?: string;
   position?: string;
+  age?: number;
   shirtNumber?: number;
   rating?: number;
   photoUrl?: string;
