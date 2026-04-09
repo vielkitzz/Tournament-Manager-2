@@ -126,7 +126,7 @@ export default function PlayersPage() {
                       <TableCell className="text-muted-foreground">{player.rating ?? "—"}</TableCell>
                       <TableCell>
                         <div className="flex items-center gap-2">
-                          {team && <TeamLogo team={team} size={16} />}
+                          {team && <TeamLogo src={team.logo} alt={team.name} size={16} />}
                           <span className="text-sm">{getTeamName(player.teamId)}</span>
                         </div>
                       </TableCell>
