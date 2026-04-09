@@ -70,6 +70,18 @@ function dbToTeam(row: any): Team {
   };
 }
 
+function dbToPlayer(row: any): Player {
+  return {
+    id: row.id ?? "",
+    teamId: row.team_id || null,
+    name: row.name ?? "",
+    position: row.position || undefined,
+    shirtNumber: row.shirt_number != null ? Number(row.shirt_number) : undefined,
+    rating: row.rating != null ? Number(row.rating) : undefined,
+    photoUrl: row.photo_url || undefined,
+  };
+}
+
 function tournamentToDb(tournament: Tournament, userId: string) {
   return {
     id: tournament.id,
@@ -130,6 +142,7 @@ interface TournamentState {
   // State
   tournaments: Tournament[];
   teams: Team[];
+  players: Player[];
   folders: TeamFolder[];
   tournamentFolders: TournamentFolder[];
   teamHistories: TeamHistory[];
@@ -162,6 +175,11 @@ interface TournamentState {
   updateTeamHistory: (id: string, updates: Partial<TeamHistory>) => Promise<void>;
   removeTeamHistory: (id: string) => Promise<void>;
   getTeamHistories: (teamId: string) => TeamHistory[];
+  // Players
+  addPlayer: (player: Player) => Promise<void>;
+  updatePlayer: (id: string, updates: Partial<Player>) => Promise<void>;
+  removePlayer: (id: string) => Promise<void>;
+  transferPlayer: (playerId: string, teamId: string | null) => Promise<void>;
 }
 
 export const useTournamentStore = create<TournamentState>((set, get) => ({

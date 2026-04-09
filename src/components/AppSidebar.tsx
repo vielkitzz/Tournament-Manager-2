@@ -18,6 +18,7 @@ const navSections = [
     items: [
       { to: "/competitions", icon: Trophy, label: "Competições", end: false },
       { to: "/teams", icon: Shield, label: "Times", end: false },
+      { to: "/players", icon: Users, label: "Jogadores", end: false },
       { to: "/publish", icon: Share2, label: "Publicar", end: false },
       { to: "/friendly", icon: Swords, label: "Amistoso", end: false },
     ],
@@ -27,6 +28,7 @@ const navSections = [
     items: [
       { to: "/tournament/create", icon: PlusCircle, label: "Nova Competição", end: false },
       { to: "/teams/create", icon: PlusCircle, label: "Novo Time", end: false },
+      { to: "/players/create", icon: PlusCircle, label: "Novo Jogador", end: false },
     ],
   },
 ];
