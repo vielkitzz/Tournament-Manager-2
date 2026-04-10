@@ -2544,7 +2544,7 @@ const NAMES_BY_COUNTRY: Record<string, NamePool> = {
       "Miquissone",
     ],
   },
-  Argentina: {
+  Solara: {
     first: [
       "Lionel",
       "Ángel",
