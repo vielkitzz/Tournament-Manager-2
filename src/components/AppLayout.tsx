@@ -1,8 +1,6 @@
-import { useState } from "react";
+import { useState, Suspense } from "react";
 import { Outlet, useLocation } from "react-router-dom";
 import AppSidebar from "@/components/AppSidebar";
-import { AnimatePresence } from "framer-motion";
-import PageTransition from "@/components/PageTransition";
 import { Menu, X } from "lucide-react";
 
 export default function AppLayout() {
@@ -25,10 +23,7 @@ export default function AppLayout() {
 
       {/* Mobile overlay */}
       {sidebarOpen && (
-        <div
-          className="fixed inset-0 z-50 bg-black/60 lg:hidden"
-          onClick={() => setSidebarOpen(false)}
-        />
+        <div className="fixed inset-0 z-50 bg-black/60 lg:hidden" onClick={() => setSidebarOpen(false)} />
       )}
 
       {/* Sidebar */}
@@ -49,13 +44,22 @@ export default function AppLayout() {
       </div>
 
       {/* Main content */}
-      {/* Bug fix #13: pt-16 ensures content is not hidden behind the fixed mobile header (h-14 = 56px) */}
       <main className="flex-1 overflow-auto pt-16 lg:pt-0 min-w-0 relative">
-        <AnimatePresence mode="wait">
-          <PageTransition key={location.pathname}>
-            <Outlet />
-          </PageTransition>
-        </AnimatePresence>
+        <Suspense
+          fallback={
+            <div className="p-6 lg:p-8 space-y-4">
+              <div className="h-8 w-48 bg-muted rounded animate-pulse" />
+              <div className="h-4 w-32 bg-muted rounded animate-pulse" />
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mt-6">
+                {[1, 2, 3].map((i) => (
+                  <div key={i} className="h-24 bg-muted rounded-xl animate-pulse" />
+                ))}
+              </div>
+            </div>
+          }
+        >
+          <Outlet />
+        </Suspense>
       </main>
     </div>
   );
