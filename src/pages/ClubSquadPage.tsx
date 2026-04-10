@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { ArrowLeft, PlusCircle, Pencil, Trash2 } from "lucide-react";
 import TeamLogo from "@/components/TeamLogo";
+import CountryFlag from "@/components/CountryFlag";
 import PageTransition from "@/components/PageTransition";
 import { toast } from "sonner";
 
@@ -89,7 +90,14 @@ export default function ClubSquadPage() {
                   <TableRow key={player.id}>
                     <TableCell className="font-medium">{player.shirtNumber ?? "—"}</TableCell>
                     <TableCell className="font-medium">{player.name}</TableCell>
-                    <TableCell className="text-muted-foreground">{player.nationality || "—"}</TableCell>
+                    <TableCell className="text-muted-foreground">
+                      {player.nationality ? (
+                        <span className="flex items-center gap-1.5">
+                          <CountryFlag country={player.nationality} size={18} />
+                          {player.nationality}
+                        </span>
+                      ) : "—"}
+                    </TableCell>
                     <TableCell className="text-muted-foreground">{player.position || "—"}</TableCell>
                     <TableCell className="text-muted-foreground">{player.age ?? "—"}</TableCell>
                     <TableCell className="text-muted-foreground">{player.rating?.toFixed(2) ?? "—"}</TableCell>

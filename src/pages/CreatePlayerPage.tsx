@@ -9,8 +9,10 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ArrowLeft, Save, Shuffle } from "lucide-react";
 import PageTransition from "@/components/PageTransition";
+import CountryFlag from "@/components/CountryFlag";
 import { toast } from "sonner";
-import { COUNTRIES } from "@/data/countries";
+import { COUNTRIES_DATA } from "@/data/countries";
+import { randomNameForCountry } from "@/data/playerNames";
 
 const POSITIONS = [
   "Goleiro",
@@ -26,56 +28,8 @@ const POSITIONS = [
   "Segundo Atacante",
 ];
 
-const FIRST_NAMES = [
-  "Lucas",
-  "Pedro",
-  "Gabriel",
-  "Rafael",
-  "Bruno",
-  "Carlos",
-  "Diego",
-  "Felipe",
-  "André",
-  "Marco",
-  "João",
-  "Matheus",
-  "Thiago",
-  "Daniel",
-  "Eduardo",
-  "Gustavo",
-  "Leonardo",
-  "Victor",
-  "Alex",
-  "Fernando",
-];
-const LAST_NAMES = [
-  "Silva",
-  "Santos",
-  "Oliveira",
-  "Souza",
-  "Pereira",
-  "Costa",
-  "Rodrigues",
-  "Almeida",
-  "Nascimento",
-  "Lima",
-  "Araújo",
-  "Fernandes",
-  "Barbosa",
-  "Ribeiro",
-  "Martins",
-  "Carvalho",
-  "Gomes",
-  "Rocha",
-  "Correia",
-  "Mendes",
-];
-
-function randomName() {
-  return `${FIRST_NAMES[Math.floor(Math.random() * FIRST_NAMES.length)]} ${LAST_NAMES[Math.floor(Math.random() * LAST_NAMES.length)]}`;
-}
 function randomNationality() {
-  return COUNTRIES[Math.floor(Math.random() * COUNTRIES.length)];
+  return COUNTRIES_DATA[Math.floor(Math.random() * COUNTRIES_DATA.length)].name;
 }
 function randomPosition() {
   return POSITIONS[Math.floor(Math.random() * POSITIONS.length)];
@@ -214,7 +168,7 @@ export default function CreatePlayerPage() {
                     variant="ghost"
                     size="sm"
                     className="h-7 gap-1 text-xs"
-                    onClick={() => setName(randomName())}
+                    onClick={() => setName(randomNameForCountry(nationality || undefined))}
                   >
                     <Shuffle className="w-3 h-3" /> Aleatório
                   </Button>
@@ -231,19 +185,36 @@ export default function CreatePlayerPage() {
                     variant="ghost"
                     size="sm"
                     className="h-7 gap-1 text-xs"
-                    onClick={() => setNationality(randomNationality())}
+                    onClick={() => {
+                      const nat = randomNationality();
+                      setNationality(nat);
+                      setName(randomNameForCountry(nat));
+                    }}
                   >
                     <Shuffle className="w-3 h-3" /> Aleatório
                   </Button>
                 </div>
-                <Select value={nationality} onValueChange={setNationality}>
+                <Select value={nationality} onValueChange={(val) => {
+                  setNationality(val);
+                  if (!name.trim()) setName(randomNameForCountry(val));
+                }}>
                   <SelectTrigger>
-                    <SelectValue placeholder="Selecione o país" />
+                    <SelectValue placeholder="Selecione o país">
+                      {nationality && (
+                        <span className="flex items-center gap-2">
+                          <CountryFlag country={nationality} size={18} />
+                          {nationality}
+                        </span>
+                      )}
+                    </SelectValue>
                   </SelectTrigger>
                   <SelectContent className="max-h-60">
-                    {COUNTRIES.map((c) => (
-                      <SelectItem key={c} value={c}>
-                        {c}
+                    {COUNTRIES_DATA.map((c) => (
+                      <SelectItem key={c.code} value={c.name}>
+                        <span className="flex items-center gap-2">
+                          <CountryFlag country={c.name} size={18} />
+                          {c.name}
+                        </span>
                       </SelectItem>
                     ))}
                   </SelectContent>
