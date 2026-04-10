@@ -78,11 +78,7 @@ export default function PlayersPage() {
                         <div className="mt-1.5 h-1.5 rounded-full bg-muted overflow-hidden">
                           <div
                             className={`h-full rounded-full transition-all ${
-                              count >= 11 && count <= 30
-                                ? "bg-green-500"
-                                : count > 30
-                                  ? "bg-destructive"
-                                  : "bg-amber-500"
+                              count >= 11 && count <= 30 ? "bg-primary" : count > 30 ? "bg-destructive" : "bg-amber-500"
                             }`}
                             style={{ width: `${Math.min((count / 30) * 100, 100)}%` }}
                           />
