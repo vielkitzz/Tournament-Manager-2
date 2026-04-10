@@ -215,7 +215,7 @@ export function getFlagUrl(countryName: string): string | undefined {
   const country = COUNTRIES_DATA.find((c) => c.name === countryName);
   if (!country) return undefined;
   if (country.customFlag) return country.customFlag;
-  return `https://flagcdn.com/w20/${country.code}.png`;
+  return `https://flagcdn.com/${country.code}.svg`;
 }
 
 /** Get country data by name */
