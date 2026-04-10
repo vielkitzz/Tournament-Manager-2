@@ -17,19 +17,19 @@ const POSITION_WEIGHTS: Record<string, number> = {
 
   // Defensores
   Zagueiro: 2,
-  "Lateral Direito": 2,
-  "Lateral Esquerdo": 2,
+  "Lateral Direito": 3,
+  "Lateral Esquerdo": 4,
 
   // Meio-campistas
-  Volante: 3,
-  Meia: 3,
-  "Meia Atacante": 3,
+  Volante: 5,
+  Meia: 6,
+  "Meia Atacante": 7,
 
   // Atacantes
-  "Ponta Direita": 4,
-  "Ponta Esquerda": 4,
-  Centroavante: 4,
-  Atacante: 4,
+  "Ponta Direita": 8,
+  "Ponta Esquerda": 9,
+  Centroavante: 10,
+  Atacante: 11,
 };
 
 export default function ClubSquadPage() {
