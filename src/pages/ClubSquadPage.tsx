@@ -17,10 +17,27 @@ export default function ClubSquadPage() {
   const { teams, players, removePlayer } = useTournamentStore();
 
   const team = useMemo(() => teams.find((t) => t.id === teamId), [teams, teamId]);
-  const squad = useMemo(
-    () => players.filter((p) => p.teamId === teamId).sort((a, b) => (a.shirtNumber ?? 99) - (b.shirtNumber ?? 99)),
-    [players, teamId]
-  );
+  const squad = useMemo(() => {
+    return players
+      .filter((p) => p.teamId === teamId)
+      .sort((a, b) => {
+        // Pega a posição exata (ou string vazia se não tiver)
+        const posA = a.position || "";
+        const posB = b.position || "";
+
+        // Busca o peso correspondente no objeto
+        const weightA = POSITION_WEIGHTS[posA] || 99;
+        const weightB = POSITION_WEIGHTS[posB] || 99;
+
+        // Ordena pelo setor do campo (Goleiro -> Defesa -> Meio -> Ataque)
+        if (weightA !== weightB) {
+          return weightA - weightB;
+        }
+
+        // Se forem da mesma posição (ex: dois zagueiros), ordena pelo número da camisa
+        return (a.shirtNumber ?? 99) - (b.shirtNumber ?? 99);
+      });
+  }, [players, teamId]);
 
   const handleDelete = async (id: string, name: string) => {
     await removePlayer(id);
@@ -96,7 +113,9 @@ export default function ClubSquadPage() {
                           <CountryFlag country={player.nationality} size={18} />
                           {player.nationality}
                         </span>
-                      ) : "—"}
+                      ) : (
+                        "—"
+                      )}
                     </TableCell>
                     <TableCell className="text-muted-foreground">{player.position || "—"}</TableCell>
                     <TableCell className="text-muted-foreground">{player.age ?? "—"}</TableCell>

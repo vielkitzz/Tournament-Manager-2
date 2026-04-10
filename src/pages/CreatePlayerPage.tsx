@@ -14,19 +14,26 @@ import { toast } from "sonner";
 import { COUNTRIES_DATA } from "@/data/countries";
 import { randomNameForCountry } from "@/data/playerNames";
 
-const POSITIONS = [
-  "Goleiro",
-  "Zagueiro",
-  "Lateral Direito",
-  "Lateral Esquerdo",
-  "Volante",
-  "Meia",
-  "Meia Atacante",
-  "Ponta Direita",
-  "Ponta Esquerda",
-  "Centroavante",
-  "Segundo Atacante",
-];
+const POSITION_WEIGHTS: Record<string, number> = {
+  // Goleiro
+  Goleiro: 1,
+
+  // Defensores
+  Zagueiro: 2,
+  "Lateral Direito": 2,
+  "Lateral Esquerdo": 2,
+
+  // Meio-campistas
+  Volante: 3,
+  Meia: 3,
+  "Meia Atacante": 3,
+
+  // Atacantes
+  "Ponta Direita": 4,
+  "Ponta Esquerda": 4,
+  Atacante: 4,
+  Centroavante: 4,
+};
 
 function randomNationality() {
   return COUNTRIES_DATA[Math.floor(Math.random() * COUNTRIES_DATA.length)].name;
@@ -194,10 +201,13 @@ export default function CreatePlayerPage() {
                     <Shuffle className="w-3 h-3" /> Aleatório
                   </Button>
                 </div>
-                <Select value={nationality} onValueChange={(val) => {
-                  setNationality(val);
-                  if (!name.trim()) setName(randomNameForCountry(val));
-                }}>
+                <Select
+                  value={nationality}
+                  onValueChange={(val) => {
+                    setNationality(val);
+                    if (!name.trim()) setName(randomNameForCountry(val));
+                  }}
+                >
                   <SelectTrigger>
                     <SelectValue placeholder="Selecione o país">
                       {nationality && (
