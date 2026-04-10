@@ -77,7 +77,7 @@ export default function PlayersPage() {
                 <div
                   key={team.id}
                   onClick={() => navigate(`/players/team/${team.id}`)}
-                  className="p-3 rounded-xl card-gradient border border-border hover:border-primary/40 transition-all relative overflow-hidden group cursor-pointer active:scale-[0.98]"
+                  className="min-h-[76px] p-3 rounded-xl card-gradient border border-border hover:border-primary/40 transition-all relative overflow-hidden group cursor-pointer active:scale-[0.98]"
                 >
                   {/* ✅ Mesma barra lateral colorida do TeamsPage */}
                   <div className="absolute left-0 top-0 bottom-0 w-1.5 rounded-l-xl overflow-hidden flex flex-col">
