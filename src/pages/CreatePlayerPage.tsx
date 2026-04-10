@@ -100,8 +100,8 @@ export default function CreatePlayerPage() {
       toast.error("Rating deve estar entre 0,01 e 9,99");
       return;
     }
-    if (!isEdit && teamPlayerCount >= 24) {
-      toast.error("Este clube já atingiu o máximo de 24 jogadores");
+    if (!isEdit && teamPlayerCount >= 30) {
+      toast.error("Este clube já atingiu o máximo de 30 jogadores");
       return;
     }
 
