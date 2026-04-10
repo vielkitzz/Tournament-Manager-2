@@ -31,6 +31,7 @@ export default function PlayersPage() {
           <div>
             {/* ✅ Mesmo font-display e tracking-tight do TeamsPage */}
             <h1 className="text-2xl font-display font-bold text-foreground tracking-tight flex items-center gap-2">
+              <Users className="w-6 h-6" />
               Elencos
             </h1>
             <p className="text-sm text-muted-foreground mt-1">
@@ -89,7 +90,7 @@ export default function PlayersPage() {
                   </div>
 
                   {/* ✅ Mesmo layout interno do TeamCard */}
-                  <div className="flex items-center gap-2 pl-2">
+                  <div className="flex items-center gap-3 pl-3">
                     <div className="w-10 h-10 flex items-center justify-center shrink-0">
                       <TeamLogo src={team.logo} alt={team.name} size={40} />
                     </div>
