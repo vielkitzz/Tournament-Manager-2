@@ -31,7 +31,6 @@ export default function PlayersPage() {
           <div>
             {/* ✅ Mesmo font-display e tracking-tight do TeamsPage */}
             <h1 className="text-2xl font-display font-bold text-foreground tracking-tight flex items-center gap-2">
-              <Users className="w-6 h-6" />
               Elencos
             </h1>
             <p className="text-sm text-muted-foreground mt-1">
