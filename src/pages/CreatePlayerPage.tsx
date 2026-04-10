@@ -14,26 +14,19 @@ import { toast } from "sonner";
 import { COUNTRIES_DATA } from "@/data/countries";
 import { randomNameForCountry } from "@/data/playerNames";
 
-const POSITION_WEIGHTS: Record<string, number> = {
-  // Goleiro
-  Goleiro: 1,
-
-  // Defensores
-  Zagueiro: 2,
-  "Lateral Direito": 2,
-  "Lateral Esquerdo": 2,
-
-  // Meio-campistas
-  Volante: 3,
-  Meia: 3,
-  "Meia Atacante": 3,
-
-  // Atacantes
-  "Ponta Direita": 4,
-  "Ponta Esquerda": 4,
-  Atacante: 4,
-  Centroavante: 4,
-};
+const POSITIONS = [
+  "Goleiro",
+  "Zagueiro",
+  "Lateral Direito",
+  "Lateral Esquerdo",
+  "Volante",
+  "Meia",
+  "Meia Atacante",
+  "Ponta Direita",
+  "Ponta Esquerda",
+  "Centroavante",
+  "Atacante",
+];
 
 function randomNationality() {
   return COUNTRIES_DATA[Math.floor(Math.random() * COUNTRIES_DATA.length)].name;

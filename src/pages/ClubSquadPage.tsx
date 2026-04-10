@@ -11,6 +11,27 @@ import { toast } from "sonner";
 
 const MAX_PLAYERS = 24;
 
+const POSITION_WEIGHTS: Record<string, number> = {
+  // Goleiro
+  Goleiro: 1,
+
+  // Defensores
+  Zagueiro: 2,
+  "Lateral Direito": 2,
+  "Lateral Esquerdo": 2,
+
+  // Meio-campistas
+  Volante: 3,
+  Meia: 3,
+  "Meia Atacante": 3,
+
+  // Atacantes
+  "Ponta Direita": 4,
+  "Ponta Esquerda": 4,
+  Centroavante: 4,
+  Atacante: 4,
+};
+
 export default function ClubSquadPage() {
   const { teamId } = useParams<{ teamId: string }>();
   const navigate = useNavigate();
