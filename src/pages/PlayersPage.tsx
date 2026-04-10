@@ -1,7 +1,6 @@
 import { useMemo } from "react";
 import { Link } from "react-router-dom";
 import { useTournamentStore } from "@/store/tournamentStore";
-import { Card, CardContent } from "@/components/ui/card";
 import { Users } from "lucide-react";
 import TeamLogo from "@/components/TeamLogo";
 import PageTransition from "@/components/PageTransition";
@@ -24,7 +23,7 @@ export default function PlayersPage() {
   if (loading) {
     return (
       <PageTransition>
-        <div className="p-6 lg:p-8 space-y-4">
+        <div className="p-4 sm:p-6 lg:p-8 max-w-7xl mx-auto space-y-6">
           <div className="h-8 w-48 bg-muted animate-pulse rounded" />
           <div className="h-4 w-32 bg-muted animate-pulse rounded" />
         </div>
@@ -34,65 +33,97 @@ export default function PlayersPage() {
 
   return (
     <PageTransition>
-      <div className="p-6 lg:p-8 space-y-6">
-        <div>
-          <h1 className="text-2xl font-bold text-foreground flex items-center gap-2">
-            <Users className="w-6 h-6" />
-            Elencos
-          </h1>
-          <p className="text-sm text-muted-foreground mt-1">
-            Selecione um clube para gerir o seu elenco ({activeTeams.length} clubes)
-          </p>
+      {/* Container padronizado com o TeamsPage (max-w-7xl) */}
+      <div className="p-4 sm:p-6 lg:p-8 max-w-7xl mx-auto space-y-6">
+        {/* Cabeçalho */}
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div>
+            <h1 className="text-2xl font-bold flex items-center gap-2 text-foreground">
+              <Users className="w-6 h-6 text-primary" />
+              Elencos
+            </h1>
+            <p className="text-sm text-muted-foreground mt-1">
+              Selecione um clube para gerir o seu elenco ({activeTeams.length} clubes)
+            </p>
+          </div>
         </div>
 
+        {/* Estado Vazio (Igual ao do TeamsPage) */}
         {activeTeams.length === 0 ? (
-          <div className="text-center py-12 text-muted-foreground">
-            <Users className="w-12 h-12 mx-auto mb-3 opacity-40" />
-            <p className="font-medium">Nenhum clube cadastrado</p>
-            <p className="text-sm mt-1">
+          <div className="text-center py-16">
+            <Users className="w-12 h-12 text-muted-foreground/30 mx-auto mb-3" />
+            <p className="text-muted-foreground text-sm">Nenhum clube cadastrado</p>
+            <p className="text-xs text-muted-foreground/70 mt-1">
               Crie um time primeiro em{" "}
-              <Link to="/teams/create" className="text-primary underline">
+              <Link to="/teams/create" className="text-primary hover:underline">
                 Novo Time
               </Link>
-              .
             </p>
           </div>
         ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+          /* Grid padronizado com o TeamsPage */
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-4">
             {activeTeams.map((team) => {
               const count = playerCountByTeam[team.id] || 0;
+              const maxPlayers = 30; // Altere se o limite for outro
+              const percentage = Math.min((count / maxPlayers) * 100, 100);
+
+              const barColorClass =
+                count >= 11 && count <= maxPlayers
+                  ? "bg-primary"
+                  : count > maxPlayers
+                    ? "bg-destructive"
+                    : "bg-amber-500";
+
               return (
-                <Link key={team.id} to={`/players/team/${team.id}`}>
-                  <Card className="hover:border-primary/40 hover:shadow-md transition-all cursor-pointer group">
-                    <CardContent className="p-5 flex items-center gap-4">
-                      <div className="w-14 h-14 flex items-center justify-center shrink-0">
-                        <TeamLogo src={team.logo} alt={team.name} size={48} />
-                      </div>
-                      <div className="min-w-0 flex-1">
-                        <p className="font-semibold text-foreground truncate group-hover:text-primary transition-colors">
+                <Link
+                  key={team.id}
+                  to={`/players/team/${team.id}`}
+                  // Classes exatas do TeamCard (com altura levemente maior para caber a barra de progresso)
+                  className="group relative bg-card rounded-xl border border-border/50 shadow-sm hover:shadow-md transition-all duration-200 overflow-hidden flex items-center h-[84px]"
+                >
+                  {/* Listra lateral de cor (Igual ao TeamsPage) */}
+                  <div
+                    className="w-1.5 h-full shrink-0"
+                    style={{ backgroundColor: team.colors?.[0] || "hsl(var(--primary))" }}
+                  />
+
+                  {/* Conteúdo do Card */}
+                  <div className="flex-1 flex items-center p-3 gap-3 min-w-0">
+                    {/* Fundo do Logo (Igual ao TeamsPage) */}
+                    <div className="w-10 h-10 shrink-0 flex items-center justify-center bg-secondary/20 rounded-md p-1">
+                      <TeamLogo src={team.logo} alt={team.name} size={32} />
+                    </div>
+
+                    <div className="flex-1 min-w-0 flex flex-col justify-center">
+                      <div className="flex items-center justify-between gap-2">
+                        <p className="font-semibold text-sm truncate text-foreground group-hover:text-primary transition-colors">
                           {team.name}
                         </p>
-                        <p className="text-xs text-muted-foreground mt-0.5">
-                          {count} jogador{count !== 1 ? "es" : ""}
-                        </p>
-                        <div className="mt-1.5 h-1.5 rounded-full bg-muted overflow-hidden">
+                        {/* Indicador de capacidade no lugar do rating do TeamsPage */}
+                        <span className="text-[11px] text-muted-foreground font-mono shrink-0">
+                          {count}/{maxPlayers}
+                        </span>
+                      </div>
+
+                      {/* Barra de Progresso adaptada para o layout compacto */}
+                      <div className="mt-1.5 w-full">
+                        <div className="h-1.5 w-full rounded-full bg-secondary overflow-hidden">
                           <div
-                            className={`h-full rounded-full transition-all ${
-                              count >= 11 && count <= 30 ? "bg-primary" : count > 30 ? "bg-destructive" : "bg-amber-500"
-                            }`}
-                            style={{ width: `${Math.min((count / 30) * 100, 100)}%` }}
+                            className={`h-full rounded-full transition-all duration-700 ease-out ${barColorClass}`}
+                            style={{ width: `${percentage}%` }}
                           />
                         </div>
-                        <p className="text-[10px] text-muted-foreground mt-0.5">
+                        <p className="text-[10px] text-muted-foreground mt-1 truncate">
                           {count < 11
                             ? `Faltam ${11 - count} (mín. 11)`
-                            : count <= 30
-                              ? `${30 - count} vagas restantes`
-                              : "Elenco cheio"}
+                            : count < maxPlayers
+                              ? `${maxPlayers - count} vagas livres`
+                              : "Elenco Lotado"}
                         </p>
                       </div>
-                    </CardContent>
-                  </Card>
+                    </div>
+                  </div>
                 </Link>
               );
             })}
