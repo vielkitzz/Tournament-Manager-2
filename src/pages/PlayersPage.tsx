@@ -78,17 +78,21 @@ export default function PlayersPage() {
                         <div className="mt-1.5 h-1.5 rounded-full bg-muted overflow-hidden">
                           <div
                             className={`h-full rounded-full transition-all ${
-                              count >= 11 && count <= 24
+                              count >= 11 && count <= 30
                                 ? "bg-green-500"
-                                : count > 24
-                                ? "bg-destructive"
-                                : "bg-amber-500"
+                                : count > 30
+                                  ? "bg-destructive"
+                                  : "bg-amber-500"
                             }`}
-                            style={{ width: `${Math.min((count / 24) * 100, 100)}%` }}
+                            style={{ width: `${Math.min((count / 30) * 100, 100)}%` }}
                           />
                         </div>
                         <p className="text-[10px] text-muted-foreground mt-0.5">
-                          {count < 11 ? `Faltam ${11 - count} (mín. 11)` : count <= 24 ? `${24 - count} vagas restantes` : "Elenco cheio"}
+                          {count < 11
+                            ? `Faltam ${11 - count} (mín. 11)`
+                            : count <= 30
+                              ? `${30 - count} vagas restantes`
+                              : "Elenco cheio"}
                         </p>
                       </div>
                     </CardContent>
