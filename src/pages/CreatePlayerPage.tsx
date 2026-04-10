@@ -205,7 +205,7 @@ export default function CreatePlayerPage() {
                     <SelectValue placeholder="Selecione o país">
                       {nationality && (
                         <span className="flex items-center gap-2">
-                          <CountryFlag country={nationality} size={18} />
+                          <CountryFlag country={nationality} size={24} />
                           {nationality}
                         </span>
                       )}
@@ -215,7 +215,7 @@ export default function CreatePlayerPage() {
                     {COUNTRIES_DATA.map((c) => (
                       <SelectItem key={c.code} value={c.name}>
                         <span className="flex items-center gap-2">
-                          <CountryFlag country={c.name} size={18} />
+                          <CountryFlag country={c.name} size={24} />
                           {c.name}
                         </span>
                       </SelectItem>
