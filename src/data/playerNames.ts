@@ -1,0 +1,199 @@
+/**
+ * Country-specific first/last name pools for random player generation.
+ * Keyed by country name (Portuguese). Falls back to a generic pool.
+ */
+
+type NamePool = { first: string[]; last: string[] };
+
+const NAMES_BY_COUNTRY: Record<string, NamePool> = {
+  Brasil: {
+    first: ["Lucas", "Pedro", "Gabriel", "Rafael", "Bruno", "Carlos", "Diego", "Felipe", "André", "Marco", "João", "Matheus", "Thiago", "Daniel", "Eduardo", "Gustavo", "Leonardo", "Victor", "Alex", "Fernando"],
+    last: ["Silva", "Santos", "Oliveira", "Souza", "Pereira", "Costa", "Rodrigues", "Almeida", "Nascimento", "Lima", "Araújo", "Fernandes", "Barbosa", "Ribeiro", "Martins", "Carvalho", "Gomes", "Rocha", "Correia", "Mendes"],
+  },
+  Argentina: {
+    first: ["Lionel", "Ángel", "Paulo", "Lautaro", "Julián", "Emiliano", "Nicolás", "Rodrigo", "Gonzalo", "Sergio", "Enzo", "Alejandro", "Mauro", "Leandro", "Cristian", "Franco", "Maximiliano", "Federico", "Lucas", "Matías"],
+    last: ["Martínez", "González", "Rodríguez", "López", "Fernández", "García", "Pérez", "Álvarez", "Díaz", "Romero", "Sosa", "Torres", "Acuña", "Otamendi", "Paredes", "Ruíz", "Correa", "Molina", "Tagliafico", "Palacios"],
+  },
+  Portugal: {
+    first: ["Cristiano", "Bernardo", "Bruno", "Diogo", "Rúben", "João", "Rafael", "André", "Gonçalo", "Nuno", "Pedro", "Pepe", "Danilo", "Vitinha", "Otávio", "Renato", "Ricardo", "Rafa", "William", "Nelson"],
+    last: ["Silva", "Santos", "Fernandes", "Dias", "Pereira", "Jota", "Cancelo", "Neves", "Mendes", "Ramos", "Costa", "Leão", "Inácio", "Guerreiro", "Carvalho", "Neto", "Palhinha", "Horta", "Guedes", "Conceição"],
+  },
+  Espanha: {
+    first: ["Sergio", "Pedri", "Gavi", "Álvaro", "Dani", "Ferrán", "Marco", "Pablo", "Jordi", "Rodri", "Unai", "Aymeric", "César", "Marcos", "Alejandro", "Mikel", "Iker", "Hugo", "Nico", "Ansu"],
+    last: ["García", "Morata", "Torres", "Olmo", "Alba", "Busquets", "Azpilicueta", "Carvajal", "Simón", "Laporte", "Rodríguez", "Hernández", "López", "Martínez", "Pedri", "Asensio", "Sarabia", "Merino", "Oyarzabal", "Williams"],
+  },
+  França: {
+    first: ["Kylian", "Antoine", "Ousmane", "Olivier", "Hugo", "Raphaël", "Aurélien", "Adrien", "Eduardo", "Ibrahima", "Jules", "Lucas", "Theo", "Marcus", "Kingsley", "Moussa", "Dayot", "William", "Randal", "Youssouf"],
+    last: ["Mbappé", "Griezmann", "Dembélé", "Giroud", "Lloris", "Varane", "Tchouaméni", "Rabiot", "Camavinga", "Konaté", "Koundé", "Hernández", "Coman", "Thuram", "Diaby", "Upamecano", "Saliba", "Kolo Muani", "Fofana", "Maignan"],
+  },
+  Alemanha: {
+    first: ["Manuel", "Joshua", "Leon", "Thomas", "Jamal", "Kai", "Leroy", "Ilkay", "Serge", "Antonio", "Florian", "Niklas", "Robin", "David", "Jonas", "Timo", "Julian", "Marco", "Mario", "Lukas"],
+    last: ["Neuer", "Kimmich", "Goretzka", "Müller", "Musiala", "Havertz", "Sané", "Gündoğan", "Gnabry", "Rüdiger", "Wirtz", "Süle", "Gosens", "Raum", "Hofmann", "Werner", "Brandt", "Reus", "Götze", "Schlotterbeck"],
+  },
+  Inglaterra: {
+    first: ["Harry", "Jude", "Bukayo", "Phil", "Marcus", "Raheem", "Jack", "Declan", "Jordan", "Trent", "Mason", "Kalvin", "Ben", "Kyle", "John", "Luke", "Kieran", "James", "Conor", "Dominic"],
+    last: ["Kane", "Bellingham", "Saka", "Foden", "Rashford", "Sterling", "Grealish", "Rice", "Henderson", "Alexander-Arnold", "Mount", "Phillips", "White", "Walker", "Stones", "Shaw", "Trippier", "Maddison", "Gallagher", "Calvert-Lewin"],
+  },
+  Itália: {
+    first: ["Gianluigi", "Leonardo", "Federico", "Nicolò", "Lorenzo", "Marco", "Ciro", "Alessandro", "Gianluca", "Sandro", "Matteo", "Rafael", "Giacomo", "Manuel", "Andrea", "Giovanni", "Domenico", "Bryan", "Davide", "Simone"],
+    last: ["Donnarumma", "Bonucci", "Chiesa", "Barella", "Insigne", "Verratti", "Immobile", "Bastoni", "Scamacca", "Tonali", "Pessina", "Tolói", "Raspadori", "Locatelli", "Belotti", "Di Lorenzo", "Berardi", "Cristante", "Frattesi", "Inzaghi"],
+  },
+  Holanda: {
+    first: ["Virgil", "Frenkie", "Memphis", "Matthijs", "Daley", "Steven", "Denzel", "Cody", "Wout", "Teun", "Jurriën", "Nathan", "Xavi", "Marten", "Tyrell", "Jeremie", "Noa", "Donyell", "Kenneth", "Lutsharel"],
+    last: ["van Dijk", "de Jong", "Depay", "de Ligt", "Blind", "Bergwijn", "Dumfries", "Gakpo", "Weghorst", "Koopmeiners", "Timber", "Aké", "Simons", "de Roon", "Malacia", "Frimpong", "Lang", "Malen", "Taylor", "Geertruida"],
+  },
+  Colômbia: {
+    first: ["James", "Luis", "Juan", "Radamel", "David", "Yerry", "Wilmar", "Duván", "Stefan", "Jhon", "Miguel", "Jefferson", "Dávinson", "Frank", "Mateus", "Daniel", "Carlos", "Rafael", "Jorge", "Alfredo"],
+    last: ["Rodríguez", "Díaz", "Cuadrado", "Falcao", "Ospina", "Mina", "Barrios", "Zapata", "Medina", "Arias", "Borja", "Lerma", "Sánchez", "Fabra", "Uribe", "Muñoz", "Bacca", "Santos", "Morelos", "Sinisterra"],
+  },
+  Uruguai: {
+    first: ["Luis", "Federico", "Edinson", "Rodrigo", "José", "Diego", "Martín", "Ronald", "Darwin", "Facundo", "Fernando", "Matías", "Nahitan", "Sebastián", "Giorgian", "Manuel", "Nicolás", "Agustín", "Maximiliano", "Guillermo"],
+    last: ["Suárez", "Valverde", "Cavani", "Bentancur", "Giménez", "Godín", "Cáceres", "Araújo", "Núñez", "Pellistri", "Muslera", "Viña", "Nández", "Coates", "De Arrascaeta", "Ugarte", "De La Cruz", "Canobbio", "Gómez", "Varela"],
+  },
+  México: {
+    first: ["Guillermo", "Hirving", "Raúl", "Andrés", "Héctor", "Jesús", "Edson", "César", "Orbelín", "Carlos", "Luis", "Alexis", "Jorge", "Gerardo", "Diego", "Roberto", "Rogelio", "Kevin", "Johan", "Santiago"],
+    last: ["Ochoa", "Lozano", "Jiménez", "Guardado", "Herrera", "Corona", "Álvarez", "Montes", "Pineda", "Rodríguez", "Vega", "Gallardo", "Sánchez", "Arteaga", "Lainez", "Alvarado", "Gutiérrez", "Funes Mori", "Ávarez", "Giménez"],
+  },
+  Japão: {
+    first: ["Takumi", "Takehiro", "Daichi", "Junya", "Kaoru", "Ritsu", "Wataru", "Ao", "Hiroki", "Yuto", "Gaku", "Shūichi", "Ko", "Ayase", "Keisuke", "Yūki", "Maya", "Miki", "Daiki", "Hidemasa"],
+    last: ["Minamino", "Tomiyasu", "Kamada", "Ito", "Mitoma", "Doan", "Endo", "Tanaka", "Sakai", "Nagatomo", "Shibasaki", "Gonda", "Itakura", "Ueda", "Honda", "Soma", "Yoshida", "Yamane", "Hatate", "Morita"],
+  },
+  "Coreia do Sul": {
+    first: ["Son", "Kim", "Lee", "Park", "Hwang", "Jung", "Cho", "Kwon", "Na", "Hong", "Jeong", "Song", "Moon", "Paik", "Jang", "In-beom", "Woo-young", "Gue-sung", "Hee-chan", "Min-jae"],
+    last: ["Heung-min", "Min-jae", "Kang-in", "Ji-sung", "Hee-chan", "Woo-young", "Gue-sung", "Chang-hoon", "Sang-ho", "Chul", "Seung-ho", "Jun-ho", "Jin-su", "Young-gwon", "In-beom", "Seung-woo", "Ui-jo", "Jae-sung", "Tae-hwan", "Dong-gyeong"],
+  },
+  Nigéria: {
+    first: ["Victor", "Kelechi", "Samuel", "Wilfred", "Alex", "Ahmed", "William", "Taiwo", "Moses", "Emmanuel", "Kenneth", "Joe", "Oghenekaro", "Calvin", "Ola", "Zaidu", "Frank", "Chidera", "Sadiq", "Cyriel"],
+    last: ["Osimhen", "Iheanacho", "Chukwueze", "Ndidi", "Iwobi", "Musa", "Troost-Ekong", "Awoniyi", "Simon", "Dennis", "Omeruo", "Aribo", "Etebo", "Bassey", "Aina", "Sanusi", "Onyeka", "Ejuke", "Umar", "Dessers"],
+  },
+  Camarões: {
+    first: ["André-Frank", "Vincent", "Eric", "Karl", "Bryan", "Martin", "Nicolas", "Jean-Pierre", "Samuel", "Collins", "Christian", "Olivier", "Pierre", "Moumi", "Jérôme", "James", "Léandre", "Enzo", "Kevin", "Arnaud"],
+    last: ["Zambo Anguissa", "Aboubakar", "Choupo-Moting", "Toko Ekambi", "Mbeumo", "Hongla", "Nkoulou", "Onana", "Eto'o", "Fai", "Bassogog", "Ntcham", "Kunde", "Ngamaleu", "Kossounou", "Lea Siliki", "Teze", "Ebossé", "Siani", "Djoum"],
+  },
+  Gana: {
+    first: ["Thomas", "Mohammed", "Andre", "Jordan", "Daniel", "Inaki", "Kamaldeen", "Mohammed", "Alexander", "Abdul", "Tariq", "Baba", "Jonathan", "Osman", "Jeffrey", "Antoine", "Denis", "Abdul Fatawu", "Ibrahim", "Elisha"],
+    last: ["Partey", "Kudus", "Ayew", "Ayew", "Amartey", "Williams", "Sulemana", "Salisu", "Djiku", "Samed", "Lamptey", "Rahman", "Mensah", "Bukari", "Schlupp", "Semenyo", "Odoi", "Issahaku", "Osman", "Owusu"],
+  },
+  Senegal: {
+    first: ["Sadio", "Kalidou", "Édouard", "Idrissa", "Ismaïla", "Boulaye", "Abdou", "Cheikhou", "Famara", "Pape", "Krepin", "Nampalys", "Bamba", "Moussa", "Iliman", "Fodé", "Youssouf", "Pathé", "Habib", "Lamine"],
+    last: ["Mané", "Koulibaly", "Mendy", "Gueye", "Sarr", "Dia", "Diallo", "Kouyaté", "Diédhiou", "Guèye", "Diatta", "Mendy", "Dieng", "Niakhaté", "Ndiaye", "Ballo-Touré", "Sabaly", "Ciss", "Diallo", "Camara"],
+  },
+  Marrocos: {
+    first: ["Achraf", "Hakim", "Youssef", "Sofyan", "Azzedine", "Nayef", "Noussair", "Romain", "Jawad", "Sofiane", "Munir", "Yassine", "Selim", "Abdelhamid", "Bilal", "Zakaria", "Walid", "Ilias", "Brahim", "Amine"],
+    last: ["Hakimi", "Ziyech", "En-Nesyri", "Amrabat", "Ounahi", "Aguerd", "Mazraoui", "Saïss", "El Yamiq", "Boufal", "El Kajoui", "Bounou", "Amallah", "Sabiri", "El Khannouss", "Aboukhlal", "Regragui", "Chair", "Díaz", "Harit"],
+  },
+  Egito: {
+    first: ["Mohamed", "Omar", "Ahmed", "Mahmoud", "Trezeguet", "Mostafa", "Amr", "Hamdi", "Ibrahim", "Emam", "Ali", "Nasser", "Karim", "Akram", "Tarek", "Ramadan", "Zizo", "Marwan", "Ayman", "Afsha"],
+    last: ["Salah", "Marmoush", "Hegazy", "Hassan", "Fathy", "Mohamed", "El Shenawy", "Trezeguet", "Sobhi", "Ashour", "Gabr", "Maher", "Elneny", "Tawfik", "Hafez", "Sobhy", "Amer", "Hamdy", "Ashraf", "Sayed"],
+  },
+  "Arábia Saudita": {
+    first: ["Salem", "Saleh", "Fahad", "Yasser", "Ali", "Firas", "Saud", "Abdulrahman", "Nawaf", "Hasan", "Mohammed", "Abdullah", "Nasser", "Sultan", "Abdulelah", "Turki", "Khalid", "Salman", "Saad", "Ahmed"],
+    last: ["Al-Dawsari", "Al-Shehri", "Al-Muwallad", "Al-Shahrani", "Al-Bulaihi", "Al-Buraikan", "Abdulhamid", "Al-Malki", "Al-Owais", "Tambakti", "Kanno", "Al-Amri", "Al-Ghannam", "Al-Najei", "Al-Hassan", "Al-Abed", "Al-Faraj", "Al-Qahtani", "Bahebri", "Otayf"],
+  },
+  "África do Sul": {
+    first: ["Percy", "Themba", "Bongani", "Ronwen", "Keagan", "Lyle", "Teboho", "Evidence", "Mothobi", "Siyanda", "Thulani", "Aubrey", "Sipho", "Dean", "Itumeleng", "Gift", "Lebo", "Kamohelo", "Innocent", "Njabulo"],
+    last: ["Tau", "Zwane", "Zungu", "Williams", "Dolly", "Lakay", "Mokoena", "Makgopa", "Mvala", "Xulu", "Hlatshwayo", "Modiba", "Mbule", "Furman", "Khune", "Motupa", "Mothiba", "Mokotjo", "Maela", "Blom"],
+  },
+  Chile: {
+    first: ["Alexis", "Arturo", "Claudio", "Charles", "Gary", "Eduardo", "Ben", "Erick", "Guillermo", "Mauricio", "Eugenio", "Diego", "Paulo", "Fabián", "Felipe", "Jean", "Tomás", "Marcelino", "Pablo", "Darío"],
+    last: ["Sánchez", "Vidal", "Bravo", "Aránguiz", "Medel", "Vargas", "Brereton", "Pulgar", "Maripán", "Isla", "Mena", "Valdés", "Díaz", "Oroz", "Catalán", "Meneses", "Alarcón", "Núñez", "Galdames", "Osorio"],
+  },
+  Peru: {
+    first: ["Paolo", "André", "Gianluca", "Christian", "Renato", "Yoshimar", "Edison", "Pedro", "Alexander", "Luis", "Miguel", "Carlos", "Marcos", "Sergio", "Bryan", "Raziel", "Wilder", "Alex", "Christofer", "Piero"],
+    last: ["Guerrero", "Carrillo", "Lapadula", "Cueva", "Tapia", "Yotún", "Flores", "Aquino", "Callens", "Advíncula", "Trauco", "Zambrano", "López", "Peña", "Reyna", "García", "Cartagena", "Valera", "Gonzáles", "Quispe"],
+  },
+  Paraguai: {
+    first: ["Miguel", "Gustavo", "Ángel", "Antony", "Omar", "Andrés", "Julio", "Robert", "Gastón", "Héctor", "Alberto", "Derlis", "Mathías", "Santiago", "Fabrizio", "Juan", "Rodrigo", "Alejandro", "Carlos", "Oscar"],
+    last: ["Almirón", "Gómez", "Romero", "Silva", "Alderete", "Cubas", "Enciso", "Morales", "Giménez", "Villasboa", "Espínola", "González", "Villalba", "Arzamendia", "Samudio", "Escobar", "Piris Da Motta", "Rojas", "Balbuena", "Cardozo"],
+  },
+  "Estados Unidos": {
+    first: ["Christian", "Tyler", "Weston", "Sergiño", "Tim", "Giovanni", "Josh", "Yunus", "Brenden", "Antonee", "DeAndre", "Jesús", "Luca", "Jordan", "Walker", "Timothy", "Brandon", "Ricardo", "Kellyn", "Folarin"],
+    last: ["Pulisic", "Adams", "McKennie", "Dest", "Weah", "Reyna", "Sargent", "Musah", "Aaronson", "Robinson", "Yedlin", "Ferreira", "De la Torre", "Morris", "Zimmerman", "Ream", "Vazquez", "Pepi", "Acosta", "Balogun"],
+  },
+  Canadá: {
+    first: ["Alphonso", "Jonathan", "Tajon", "Cyle", "Stephen", "Samuel", "Alistair", "Richie", "Atiba", "Mark-Anthony", "Kamal", "Junior", "David", "Derek", "Liam", "Ismaël", "Jacob", "Lucas", "Maxime", "Milan"],
+    last: ["Davies", "David", "Buchanan", "Larin", "Eustáquio", "Piette", "Johnston", "Laryea", "Hutchinson", "Kaye", "Miller", "Hoilett", "Wotherspoon", "Cornelius", "Millar", "Koné", "Shaffelburg", "Cavallini", "Crépeau", "Borjan"],
+  },
+  Austrália: {
+    first: ["Mathew", "Aaron", "Mitchell", "Jackson", "Ajdin", "Bailey", "Craig", "Riley", "Keanu", "Harry", "Jamie", "Thomas", "Aziz", "Awer", "Martin", "Kye", "Fran", "Nathaniel", "Garang", "Joel"],
+    last: ["Ryan", "Mooy", "Duke", "Irvine", "Hrustic", "Wright", "Goodwin", "McGree", "Baccus", "Souttar", "Maclaren", "Deng", "Behich", "Mabil", "Boyle", "Rowles", "Karačić", "Atkinson", "Kuol", "King"],
+  },
+  China: {
+    first: ["Wu", "Zhang", "Li", "Wang", "Liu", "Yan", "Wei", "Ai", "Hao", "Gao", "Jiang", "Lin", "Zhu", "Tan", "Lei", "Jin", "Feng", "Xu", "Yu", "Yang"],
+    last: ["Lei", "Linpeng", "Ke", "Dalei", "Binbin", "Junling", "Shihao", "Hanchao", "Ximing", "Lin", "Zhipeng", "Xiaoting", "Junmin", "Liuyu", "Hanwen", "Jing", "Xiaoting", "Chengdong", "Haibin", "Xin"],
+  },
+  Índia: {
+    first: ["Sunil", "Gurpreet", "Sandesh", "Anirudh", "Brandon", "Ashique", "Sahal", "Lallianzuala", "Udanta", "Manvir", "Liston", "Akash", "Rahul", "Pritam", "Dheeraj", "Ishan", "Bipin", "Narender", "Rahim", "Roshan"],
+    last: ["Chhetri", "Singh Sandhu", "Jhingan", "Thapa", "Fernandes", "Kuruniyan", "Abdul Samad", "Chhangte", "Singh", "Singh", "Colaco", "Mishra", "Bheke", "Kotal", "Singh Moirangthem", "Pandita", "Singh", "Gahlot", "Ali", "Singh Naorem"],
+  },
+  Croácia: {
+    first: ["Luka", "Ivan", "Mateo", "Marcelo", "Joško", "Borna", "Lovro", "Mario", "Nikola", "Dominik", "Andrej", "Josip", "Ante", "Mislav", "Domagoj", "Martin", "Bruno", "Kristijan", "Duje", "Marko"],
+    last: ["Modrić", "Perišić", "Kovačić", "Brozović", "Gvardiol", "Sosa", "Majer", "Pašalić", "Vlašić", "Livaković", "Kramarić", "Juranović", "Stanišić", "Budimir", "Vida", "Erlić", "Petković", "Jakić", "Ćaleta-Car", "Livaja"],
+  },
+  Bélgica: {
+    first: ["Kevin", "Romelu", "Eden", "Thibaut", "Yannick", "Axel", "Leander", "Timothy", "Thorgan", "Hans", "Amadou", "Charles", "Dries", "Michy", "Jérémy", "Thomas", "Dedryck", "Toby", "Nacer", "Jason"],
+    last: ["De Bruyne", "Lukaku", "Hazard", "Courtois", "Carrasco", "Witsel", "Dendoncker", "Castagne", "Hazard", "Vanaken", "Onana", "De Ketelaere", "Mertens", "Batshuayi", "Doku", "Meunier", "Boyata", "Alderweireld", "Chadli", "Denayer"],
+  },
+  Suíça: {
+    first: ["Granit", "Xherdan", "Yann", "Remo", "Manuel", "Breel", "Fabian", "Silvan", "Denis", "Ricardo", "Haris", "Ruben", "Edimilson", "Djibril", "Nico", "Noah", "Ardon", "Dan", "Renato", "Michel"],
+    last: ["Xhaka", "Shaqiri", "Sommer", "Freuler", "Akanji", "Embolo", "Rieder", "Widmer", "Zakaria", "Rodríguez", "Seferović", "Vargas", "Fernandes", "Sow", "Elvedi", "Okafor", "Jashari", "Ndoye", "Steffen", "Aebischer"],
+  },
+  Sérvia: {
+    first: ["Dušan", "Aleksandar", "Sergej", "Filip", "Nikola", "Nemanja", "Luka", "Andrija", "Strahinja", "Predrag", "Stefan", "Saša", "Uroš", "Ivan", "Mijat", "Darko", "Miloš", "Veljko", "Adam", "Marko"],
+    last: ["Vlahović", "Mitrović", "Milinković-Savić", "Kostić", "Milenković", "Gudelj", "Jović", "Živković", "Pavlović", "Rajković", "Lazović", "Lukić", "Spajić", "Ilić", "Gaćinović", "Lazarević", "Veljković", "Birmančević", "Ljajić", "Grujić"],
+  },
+  Turquia: {
+    first: ["Hakan", "Çağlar", "Ferdi", "Cengiz", "Enes", "Ozan", "Yusuf", "Orkun", "Merih", "Zeki", "Kerem", "Kenan", "İrfan", "Umut", "Barış", "Abdülkadir", "Taylan", "Halil", "Serdar", "Burak"],
+    last: ["Çalhanoğlu", "Söyüncü", "Kadıoğlu", "Ünder", "Ünal", "Kabak", "Yazıcı", "Kökçü", "Demiral", "Çelik", "Aktürkoğlu", "Karaman", "Kahveci", "Nayir", "Yılmaz", "Ömür", "Antalyalı", "Dervişoğlu", "Güler", "Yılmaz"],
+  },
+  Polônia: {
+    first: ["Robert", "Wojciech", "Piotr", "Arkadiusz", "Grzegorz", "Kamil", "Krzysztof", "Bartosz", "Jakub", "Karol", "Sebastian", "Nicola", "Mateusz", "Przemysław", "Jan", "Damian", "Tymoteusz", "Szymon", "Kacper", "Michał"],
+    last: ["Lewandowski", "Szczęsny", "Zieliński", "Milik", "Krychowiak", "Glik", "Piątek", "Bereszyński", "Moder", "Świderski", "Szymański", "Zalewski", "Klich", "Frankowski", "Bednarek", "Szymański", "Puchacz", "Żurkowski", "Kozłowski", "Skóraś"],
+  },
+  Ucrânia: {
+    first: ["Andriy", "Oleksandr", "Mykhailo", "Ruslan", "Illia", "Vitaliy", "Serhiy", "Taras", "Roman", "Viktor", "Eduard", "Bohdan", "Artem", "Denys", "Yevhen", "Heorhiy", "Danylo", "Dmytro", "Valeriy", "Vladyslav"],
+    last: ["Yarmolenko", "Zinchenko", "Mudryk", "Malinovskyi", "Zabarnyi", "Mykolenko", "Sydorchuk", "Stepanenko", "Yaremchuk", "Tsygankov", "Matviyenko", "Dovbyk", "Bondar", "Popov", "Konoplia", "Sudakov", "Sikan", "Riznyk", "Vanat", "Kabaiev"],
+  },
+  Rússia: {
+    first: ["Artem", "Aleksei", "Denis", "Fyodor", "Daler", "Mario", "Aleksandr", "Anton", "Igor", "Dmitry", "Andrei", "Roman", "Stanislav", "Magomed", "Zelimkhan", "Rifat", "Daniil", "Ilya", "Alexey", "Sergey"],
+    last: ["Dzyuba", "Miranchuk", "Cheryshev", "Smolov", "Kuzyaev", "Fernandes", "Golovin", "Shunin", "Diveev", "Barinov", "Mostovoy", "Zobnin", "Magkeev", "Ozdoev", "Bakayev", "Zhemaletdinov", "Fomin", "Kutitskiy", "Ionov", "Karavaev"],
+  },
+  Romênia: {
+    first: ["Nicolae", "Dennis", "Radu", "Ianis", "Valentin", "Andrei", "Florin", "Marius", "Alexandru", "Ciprian", "Adrian", "Cristian", "Florinel", "Deian", "Răzvan", "Ionuț", "Nicușor", "George", "Vlad", "Denis"],
+    last: ["Stanciu", "Man", "Drăgușin", "Hagi", "Mihăilă", "Rațiu", "Niță", "Marin", "Cicâldău", "Tătărușanu", "Pușcaș", "Manea", "Coman", "Sorescu", "Marin", "Nedelcearu", "Bancu", "Pușcaș", "Chiricheș", "Alibec"],
+  },
+  Grécia: {
+    first: ["Giorgos", "Kostas", "Dimitris", "Vangelis", "Sotiris", "Anastasios", "Petros", "Manolis", "Panagiotis", "Christos", "Thanasis", "Tasos", "Fotis", "Efthymios", "Konstantinos", "Lazaros", "Marios", "Andreas", "Alexandros", "Ioannis"],
+    last: ["Giakoumakis", "Mavropanos", "Pelkas", "Pavlidis", "Alexandropoulos", "Bakasetas", "Mantalos", "Siopis", "Retsos", "Tzolis", "Vlachodimos", "Tsimikas", "Ioannidis", "Limniatis", "Tzavellas", "Christodoulopoulos", "Vrousai", "Bouchalakis", "Kourbelis", "Galanopoulos"],
+  },
+  "Costa do Marfim": {
+    first: ["Sébastien", "Nicolas", "Franck", "Simon", "Serge", "Max-Alain", "Ibrahim", "Wilfried", "Jeremie", "Eric", "Ghislain", "Odilon", "Christian", "Maxwel", "Jean-Philippe", "Evan", "Karim", "Hamed", "Wonlo", "Cheick"],
+    last: ["Haller", "Pépé", "Kessié", "Adingra", "Aurier", "Gradel", "Sangaré", "Kanon", "Boly", "Bailly", "Konan", "Kossounou", "Bamba", "Cornet", "Gbamin", "Ndicka", "Koné", "Traoré", "Coulibaly", "Doucouré"],
+  },
+  Angola: {
+    first: ["Mabululu", "Gelson", "Heriberto", "Zini", "David", "Djalma", "Show", "Fredy", "Geraldo", "Jacinto", "Mário", "Randy", "Milson", "Clinton", "Pedro", "Estrela", "Zito", "Danilo", "Tell", "Ary"],
+    last: ["Dala", "Dala", "Gomes", "Quemba", "Carmo", "Campos", "da Cruz", "Ribeiro", "Ndjamba", "Dala", "Bruno", "Estrela", "Ceita", "Mata", "Amador", "Quissanga", "Luvumbo", "Afonso", "Bastos", "Papel"],
+  },
+  Moçambique: {
+    first: ["Reinildo", "Geny", "Bruno", "Stanley", "Domingos", "Witi", "Clésio", "Luís", "Nelson", "Alberto", "Mexer", "Edmilson", "Abel", "Lúcio", "Isac", "Telinho", "Nélson", "Faísca", "Francisco", "Danilo"],
+    last: ["Mandava", "Catamo", "Gaspar", "Ratifo", "Lam", "Mucavel", "Bauque", "Miquissone", "Cumbane", "Mondlane", "Siqueira", "Dove", "Xavier", "Correia", "Mussa", "Elísio", "Simango", "Meque", "Zucula", "Miquissone"],
+  },
+  Solara: {
+    first: ["Kael", "Zaren", "Liran", "Tovan", "Esko", "Marek", "Daris", "Jorin", "Felko", "Neval", "Solen", "Arko", "Beran", "Vitas", "Luken", "Roan", "Idris", "Talon", "Caden", "Sorin"],
+    last: ["Valoran", "Solberg", "Estari", "Novik", "Calderon", "Tharion", "Zelan", "Myran", "Koreth", "Sundari", "Belvran", "Aethon", "Drayen", "Falcari", "Orvanto", "Stellar", "Volaris", "Aurin", "Kastell", "Lumaris"],
+  },
+};
+
+const GENERIC: NamePool = {
+  first: ["Lucas", "Pedro", "Gabriel", "Rafael", "Bruno", "Carlos", "Diego", "Felipe", "André", "Marco", "João", "Matheus", "Thiago", "Daniel", "Eduardo", "Gustavo", "Leonardo", "Victor", "Alex", "Fernando"],
+  last: ["Silva", "Santos", "Oliveira", "Souza", "Pereira", "Costa", "Rodrigues", "Almeida", "Nascimento", "Lima", "Araújo", "Fernandes", "Barbosa", "Ribeiro", "Martins", "Carvalho", "Gomes", "Rocha", "Correia", "Mendes"],
+};
+
+function pick<T>(arr: T[]): T {
+  return arr[Math.floor(Math.random() * arr.length)];
+}
+
+export function randomNameForCountry(countryName?: string): string {
+  const pool = (countryName && NAMES_BY_COUNTRY[countryName]) || GENERIC;
+  return `${pick(pool.first)} ${pick(pool.last)}`;
+}
