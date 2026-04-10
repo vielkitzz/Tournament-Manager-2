@@ -131,7 +131,7 @@ export default function ClubSquadPage() {
                     <TableCell className="text-muted-foreground">
                       {player.nationality ? (
                         <span className="flex items-center gap-1.5">
-                          <CountryFlag country={player.nationality} size={18} />
+                          <CountryFlag country={player.nationality} size={28} />
                           {player.nationality}
                         </span>
                       ) : (
