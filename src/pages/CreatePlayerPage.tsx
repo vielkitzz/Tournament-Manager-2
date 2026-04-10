@@ -131,8 +131,8 @@ export default function CreatePlayerPage() {
         await addPlayer(newPlayer);
         toast.success("Jogador criado com sucesso");
       }
-      if (effectiveTeamId) navigate(`/players/team/${effectiveTeamId}`);
-      else navigate("/players");
+      if (effectiveTeamId) navigate(`/squads/team/${effectiveTeamId}`);
+      else navigate("/squads");
     } catch {
       toast.error("Erro ao salvar jogador");
     } finally {
@@ -140,7 +140,7 @@ export default function CreatePlayerPage() {
     }
   };
 
-  const backPath = effectiveTeamId ? `/players/team/${effectiveTeamId}` : "/players";
+  const backPath = effectiveTeamId ? `/squads/team/${effectiveTeamId}` : "/squads";
 
   return (
     <PageTransition>

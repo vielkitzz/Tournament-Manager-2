@@ -70,7 +70,7 @@ export default function ClubSquadPage() {
       <PageTransition>
         <div className="p-6 lg:p-8">
           <p className="text-muted-foreground">Clube não encontrado.</p>
-          <Button variant="ghost" onClick={() => navigate("/players")} className="mt-4 gap-2">
+          <Button variant="ghost" onClick={() => navigate("/squads")} className="mt-4 gap-2">
             <ArrowLeft className="w-4 h-4" /> Voltar
           </Button>
         </div>
@@ -83,7 +83,7 @@ export default function ClubSquadPage() {
       <div className="p-6 lg:p-8 space-y-6">
         <div className="flex items-center justify-between flex-wrap gap-4">
           <div className="flex items-center gap-4">
-            <Button variant="ghost" size="icon" onClick={() => navigate("/players")}>
+            <Button variant="ghost" size="icon" onClick={() => navigate("/squads")}>
               <ArrowLeft className="w-4 h-4" />
             </Button>
             <TeamLogo src={team.logo} alt={team.name} size={40} />
@@ -95,7 +95,7 @@ export default function ClubSquadPage() {
             </div>
           </div>
           {squad.length < MAX_PLAYERS && (
-            <Link to={`/players/team/${teamId}/create`}>
+            <Link to={`/squads/team/${teamId}/create`}>
               <Button className="gap-2">
                 <PlusCircle className="w-4 h-4" />
                 Adicionar Jogador
@@ -143,7 +143,7 @@ export default function ClubSquadPage() {
                     <TableCell className="text-muted-foreground">{player.rating?.toFixed(2) ?? "—"}</TableCell>
                     <TableCell className="text-right">
                       <div className="flex items-center justify-end gap-1">
-                        <Link to={`/players/${player.id}/edit`}>
+                        <Link to={`/squads/${player.id}/edit`}>
                           <Button variant="ghost" size="icon" className="h-8 w-8">
                             <Pencil className="w-3.5 h-3.5" />
                           </Button>

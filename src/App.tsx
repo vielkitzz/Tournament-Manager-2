@@ -58,49 +58,49 @@ const queryClient = new QueryClient({
 const App = () => (
   <ErrorBoundary>
     <ThemeProvider>
-    <QueryClientProvider client={queryClient}>
-      <AuthProvider>
-        <StoreInitializer />
-        <TooltipProvider>
-          <Toaster />
-          <Sonner />
-          <BrowserRouter>
-            <Suspense fallback={<PageFallback />}>
-              <Routes>
-                <Route path="/auth" element={<AuthPage />} />
-                <Route
-                  element={
-                    <ProtectedRoute>
-                      <AppLayout />
-                    </ProtectedRoute>
-                  }
-                >
-                  <Route path="/" element={<DashboardPage />} />
-                  <Route path="/competitions" element={<CompetitionsPage />} />
-                  <Route path="/tournament/create" element={<CreateTournamentPage />} />
-                  <Route path="/tournament/:id/edit" element={<CreateTournamentPage />} />
-                  <Route path="/tournament/:id" element={<TournamentDetailPage />} />
-                  <Route path="/tournament/:id/teams" element={<TournamentTeamsPage />} />
-                  <Route path="/tournament/:id/settings" element={<TournamentSettingsPage />} />
-                  <Route path="/tournament/:id/gallery" element={<TournamentGalleryPage />} />
-                  <Route path="/tournament/:id/preliminary" element={<PreliminaryPhasesPage />} />
-                  <Route path="/teams" element={<TeamsPage />} />
-                  <Route path="/teams/create" element={<CreateTeamPage />} />
-                  <Route path="/publish" element={<PublishPage />} />
-                  <Route path="/friendly" element={<FriendlyMatchPage />} />
-                  <Route path="/players" element={<PlayersPage />} />
-                  <Route path="/players/team/:teamId" element={<ClubSquadPage />} />
-                  <Route path="/players/team/:teamId/create" element={<CreatePlayerPage />} />
-                  <Route path="/players/:id/edit" element={<CreatePlayerPage />} />
-                </Route>
-                <Route path="/shared/:token" element={<SharedTournamentPage />} />
-                <Route path="*" element={<NotFound />} />
-              </Routes>
-            </Suspense>
-          </BrowserRouter>
-        </TooltipProvider>
-      </AuthProvider>
-    </QueryClientProvider>
+      <QueryClientProvider client={queryClient}>
+        <AuthProvider>
+          <StoreInitializer />
+          <TooltipProvider>
+            <Toaster />
+            <Sonner />
+            <BrowserRouter>
+              <Suspense fallback={<PageFallback />}>
+                <Routes>
+                  <Route path="/auth" element={<AuthPage />} />
+                  <Route
+                    element={
+                      <ProtectedRoute>
+                        <AppLayout />
+                      </ProtectedRoute>
+                    }
+                  >
+                    <Route path="/" element={<DashboardPage />} />
+                    <Route path="/competitions" element={<CompetitionsPage />} />
+                    <Route path="/tournament/create" element={<CreateTournamentPage />} />
+                    <Route path="/tournament/:id/edit" element={<CreateTournamentPage />} />
+                    <Route path="/tournament/:id" element={<TournamentDetailPage />} />
+                    <Route path="/tournament/:id/teams" element={<TournamentTeamsPage />} />
+                    <Route path="/tournament/:id/settings" element={<TournamentSettingsPage />} />
+                    <Route path="/tournament/:id/gallery" element={<TournamentGalleryPage />} />
+                    <Route path="/tournament/:id/preliminary" element={<PreliminaryPhasesPage />} />
+                    <Route path="/teams" element={<TeamsPage />} />
+                    <Route path="/teams/create" element={<CreateTeamPage />} />
+                    <Route path="/publish" element={<PublishPage />} />
+                    <Route path="/friendly" element={<FriendlyMatchPage />} />
+                    <Route path="/squads" element={<PlayersPage />} />
+                    <Route path="/squads/team/:teamId" element={<ClubSquadPage />} />
+                    <Route path="/squads/team/:teamId/create" element={<CreatePlayerPage />} />
+                    <Route path="/squads/:id/edit" element={<CreatePlayerPage />} />
+                  </Route>
+                  <Route path="/shared/:token" element={<SharedTournamentPage />} />
+                  <Route path="*" element={<NotFound />} />
+                </Routes>
+              </Suspense>
+            </BrowserRouter>
+          </TooltipProvider>
+        </AuthProvider>
+      </QueryClientProvider>
     </ThemeProvider>
   </ErrorBoundary>
 );

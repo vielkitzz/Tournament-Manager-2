@@ -1,5 +1,18 @@
 import { NavLink, useNavigate, Link } from "react-router-dom";
-import { Trophy, PlusCircle, Shield, LogOut, Download, Upload, Share2, Swords, LayoutDashboard, Moon, Sun, Users } from "lucide-react";
+import {
+  Trophy,
+  PlusCircle,
+  Shield,
+  LogOut,
+  Download,
+  Upload,
+  Share2,
+  Swords,
+  LayoutDashboard,
+  Moon,
+  Sun,
+  Users,
+} from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
 import { useTheme } from "@/hooks/useTheme";
@@ -18,7 +31,7 @@ const navSections = [
     items: [
       { to: "/competitions", icon: Trophy, label: "Competições", end: false },
       { to: "/teams", icon: Shield, label: "Times", end: false },
-      { to: "/players", icon: Users, label: "Jogadores", end: false },
+      { to: "/squads", icon: Users, label: "Jogadores", end: false },
       { to: "/publish", icon: Share2, label: "Publicar", end: false },
       { to: "/friendly", icon: Swords, label: "Amistoso", end: false },
     ],
