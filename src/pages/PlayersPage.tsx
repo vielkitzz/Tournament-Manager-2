@@ -75,7 +75,7 @@ export default function PlayersPage() {
                 // ✅ Mesmo estilo de card do TeamsPage: div com p-3 rounded-xl card-gradient border
                 <div
                   key={team.id}
-                  onClick={() => navigate(`/players/team/${team.id}`)}
+                  onClick={() => navigate(`/squads/team/${team.id}`)}
                   className="min-h-[76px] p-3 rounded-xl card-gradient border border-border hover:border-primary/40 transition-all relative overflow-hidden group cursor-pointer active:scale-[0.98]"
                 >
                   {/* ✅ Mesma barra lateral colorida do TeamsPage */}
