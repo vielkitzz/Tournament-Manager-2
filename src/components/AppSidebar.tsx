@@ -31,7 +31,7 @@ const navSections = [
     items: [
       { to: "/competitions", icon: Trophy, label: "Competições", end: false },
       { to: "/teams", icon: Shield, label: "Times", end: false },
-      { to: "/squads", icon: Users, label: "Jogadores", end: false },
+      { to: "/squads", icon: Users, label: "Elencos", end: false },
       { to: "/publish", icon: Share2, label: "Publicar", end: false },
       { to: "/friendly", icon: Swords, label: "Amistoso", end: false },
     ],
