@@ -9,7 +9,7 @@ import CountryFlag from "@/components/CountryFlag";
 import PageTransition from "@/components/PageTransition";
 import { toast } from "sonner";
 
-const MAX_PLAYERS = 24;
+const MAX_PLAYERS = 30;
 
 const POSITION_WEIGHTS: Record<string, number> = {
   // Goleiro
