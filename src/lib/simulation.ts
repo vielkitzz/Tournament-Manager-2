@@ -423,7 +423,7 @@ export function generateMinuteByMinuteEvents(
       `**${p.name}** finaliza de fora da área, mas a bola sobe demais`,
       `Contra-ataque rápido puxado por **${p.name}** que assusta a defesa do **${opponent.shortName || opponent.name}**`,
       `**${p.name}** faz uma bela jogada individual, driblando dois marcadores`,
-      `Substituição no **${team.shortName || team.name}**: o treinador mexe na equipe para buscar o resultado`,
+      `Substituição no **${team.shortName || team.name}** o treinador mexe na equipe para buscar o resultado`,
       `O árbitro interrompe o jogo para atendimento médico a **${p.name}**`,
       `**${p.name}** ganha de cabeça na área, mas a bola vai para fora`,
       `Pressão do **${team.shortName || team.name}**! A equipe troca passes no campo de ataque buscando espaços`,
