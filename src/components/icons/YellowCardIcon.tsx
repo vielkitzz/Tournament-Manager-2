@@ -10,7 +10,7 @@ export default function YellowCardIcon({ size = 24, className, ...props }: Props
     <svg
       width={size}
       height={size}
-      fill="bg-yellow-400"
+      fill="#FACC15"
       viewBox="0 0 56 56"
       xmlns="http://www.w3.org/2000/svg"
       style={{ transform: "rotate(90deg)" }}

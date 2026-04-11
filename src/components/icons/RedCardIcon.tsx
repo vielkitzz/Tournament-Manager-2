@@ -10,10 +10,10 @@ export default function RedCardIcon({ size = 24, className, ...props }: Props) {
     <svg
       width={size}
       height={size}
-      fill="bg-red-500"
+      fill="#EF4444"
       viewBox="0 0 56 56"
       xmlns="http://www.w3.org/2000/svg"
-      stroke="#FF0000"
+      stroke="#EF4444"
       style={{ transform: "rotate(90deg)" }}
       className={className}
       {...props}
