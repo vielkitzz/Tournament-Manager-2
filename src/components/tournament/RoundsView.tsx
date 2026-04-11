@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import { Match, Team, Tournament } from "@/types/tournament";
+import { Match, Team, Tournament, Player } from "@/types/tournament";
 import { Shield, ChevronLeft, ChevronRight, Trophy, CheckCircle, Play } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { simulateFullMatch } from "@/lib/simulation";
@@ -9,6 +9,7 @@ import ScreenshotButton from "@/components/ScreenshotButton";
 interface RoundsViewProps {
   tournament: Tournament;
   teams: Team[];
+  players?: Player[];
   onUpdateMatch: (match: Match) => void;
   onBatchUpdateMatches?: (matches: Match[]) => void;
   onGenerateRounds?: () => void;
@@ -18,6 +19,7 @@ interface RoundsViewProps {
 export default function RoundsView({
   tournament,
   teams,
+  players,
   onUpdateMatch,
   onBatchUpdateMatches,
   onFinalize,
@@ -201,6 +203,7 @@ export default function RoundsView({
           rateInfluence={tournament.settings.rateInfluence}
           tournament={tournament}
           allTeams={teams}
+          allPlayers={players}
           onPersist={onUpdateMatch}
           onSave={(updated) => {
             onUpdateMatch(updated);

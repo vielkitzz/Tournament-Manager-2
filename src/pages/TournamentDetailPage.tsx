@@ -60,7 +60,7 @@ const formatLabels: Record<string, string> = {
 export default function TournamentDetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const { tournaments, teams, updateTournament, removeTournament, teamHistories } = useTournamentStore();
+  const { tournaments, teams, players, updateTournament, removeTournament, teamHistories } = useTournamentStore();
   const tournament = tournaments.find((t) => t.id === id);
 
   // Track recently opened
@@ -1437,6 +1437,7 @@ export default function TournamentDetailPage() {
             <RoundsView
               tournament={groupTournament}
               teams={resolvedTeams}
+              players={players}
               onUpdateMatch={(updated) => {
                 if (isViewingPastSeason) return;
                 const newMatches = (tournament.matches || []).map((m) => (m.id === updated.id ? updated : m));
@@ -1510,6 +1511,7 @@ export default function TournamentDetailPage() {
                   <BracketView
                     tournament={knockoutTournament}
                     teams={resolvedTeams}
+                    players={players}
                     onUpdateMatch={(updated) => {
                       if (isViewingPastSeason) return;
                       const newMatches = (tournament.matches || []).map((m) => (m.id === updated.id ? updated : m));

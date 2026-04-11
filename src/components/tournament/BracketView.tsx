@@ -1,5 +1,5 @@
 import { useState, useRef } from "react";
-import { Match, Team, Tournament, KnockoutStage, STAGE_TEAM_COUNTS } from "@/types/tournament";
+import { Match, Team, Tournament, KnockoutStage, STAGE_TEAM_COUNTS, Player } from "@/types/tournament";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { Shield, Play, Trophy, Medal, UserPlus, Shuffle, Plus, Trash2, RotateCcw, UserMinus } from "lucide-react";
@@ -19,6 +19,7 @@ import {
 interface BracketViewProps {
   tournament: Tournament;
   teams: Team[];
+  players?: Player[];
   onUpdateMatch: (match: Match) => void;
   onBatchUpdateMatches?: (matches: Match[]) => void;
   onGenerateBracket: () => void;
@@ -79,6 +80,7 @@ function getTieWinner(leg1: Match, leg2: Match, awayGoalsRule: boolean): string 
 export default function BracketView({
   tournament,
   teams,
+  players,
   onUpdateMatch,
   onBatchUpdateMatches,
   onGenerateBracket,
@@ -1155,6 +1157,7 @@ export default function BracketView({
           rateInfluence={tournament.settings.rateInfluence}
           tournament={tournament}
           allTeams={teams}
+          allPlayers={players}
           onPersist={onUpdateMatch}
           onSave={(updated) => {
             onUpdateMatch(updated);

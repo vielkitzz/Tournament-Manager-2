@@ -28,14 +28,30 @@ export interface TournamentSettings {
   promotions: PromotionRule[];
   knockoutLegMode?: KnockoutLegMode;
   // Knockout special settings
-  finalSingleLeg?: boolean;       // Final em jogo único (mesmo com ida e volta nas demais fases)
-  thirdPlaceMatch?: boolean;      // Disputa de 3º lugar
+  finalSingleLeg?: boolean;
+  thirdPlaceMatch?: boolean;
   // Best-of qualifiers for grupos
-  bestOfQualifiers?: number;      // e.g. 2 means best 2 thirds qualify
-  bestOfPosition?: number;        // Which position gets "best of" treatment (e.g. 3 = thirds)
+  bestOfQualifiers?: number;
+  bestOfPosition?: number;
   // Manual qualification (grupos format)
-  qualifiedTeamIds?: string[];    // Teams manually confirmed as qualified for knockout
-  groupAssignments?: Record<string, string[]>; // Group number (as string) -> team IDs
+  qualifiedTeamIds?: string[];
+  groupAssignments?: Record<string, string[]>;
+  // Suspension rules
+  yellowCardsToSuspend?: number;
+  yellowSuspensionDuration?: number;
+  redSuspensionDuration?: number;
+}
+
+export type EventType = 'goal' | 'yellow_card' | 'red_card' | 'injury' | 'highlight';
+
+export interface MatchEvent {
+  id: string;
+  minute: number;
+  type: EventType;
+  teamId: string;
+  playerId?: string;
+  assistId?: string;
+  text: string;
 }
 
 export interface PromotionRule {
@@ -95,6 +111,8 @@ export interface Match {
   // Match statistics
   homeStats?: TeamMatchStats;
   awayStats?: TeamMatchStats;
+  // Minute-by-minute events
+  events?: MatchEvent[];
 }
 
 export interface SeasonRecord {
@@ -205,6 +223,9 @@ export const DEFAULT_SETTINGS: TournamentSettings = {
   thirdPlaceMatch: false,
   bestOfQualifiers: 0,
   bestOfPosition: 3,
+  yellowCardsToSuspend: 3,
+  yellowSuspensionDuration: 1,
+  redSuspensionDuration: 1,
 };
 
 export const KNOCKOUT_STAGES: { value: KnockoutStage; label: string }[] = [
