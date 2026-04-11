@@ -5,7 +5,7 @@
  * and more realistic goal expectations.
  */
 
-import { TeamMatchStats } from "@/types/tournament";
+import { TeamMatchStats, MatchEvent, Match, Player, Team, TournamentSettings } from "@/types/tournament";
 
 function poissonRandom(lambda: number): number {
   const L = Math.exp(-lambda);
