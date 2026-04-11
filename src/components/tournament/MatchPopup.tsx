@@ -1,8 +1,11 @@
-import { useState, useEffect, useCallback } from "react";
-import { Match, Team, Tournament, TeamMatchStats } from "@/types/tournament";
-import { Shield, ChevronUp, ChevronDown, Play } from "lucide-react";
+import { useState, useEffect, useCallback, useRef } from "react";
+import { Match, Team, Tournament, TeamMatchStats, Player, MatchEvent } from "@/types/tournament";
+import { Shield, ChevronUp, ChevronDown, Play, Clock, Zap } from "lucide-react";
 import { calculateStandings, StandingRow } from "@/lib/standings";
-import { simulateHalf, generateMatchStats } from "@/lib/simulation";
+import { simulateHalf, generateMatchStats, generateMinuteByMinuteEvents, getSuspendedPlayerIds } from "@/lib/simulation";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from "@/components/ui/tooltip";
+import TeamLogo from "@/components/TeamLogo";
 
 interface MatchPopupProps {
   match: Match;
@@ -11,6 +14,7 @@ interface MatchPopupProps {
   rateInfluence: boolean;
   tournament?: Tournament;
   allTeams?: Team[];
+  allPlayers?: Player[];
   onSave: (updated: Match) => void;
   onPersist?: (updated: Match) => void;
   onCancel: () => void;
@@ -22,7 +26,7 @@ function simulatePenaltyKick(): boolean {
   return Math.random() < 0.75;
 }
 
-// Stats comparison bar row — Sofascore-style: bars grow from center outward
+// Stats comparison bar row
 function StatRow({ label, homeValue, awayValue, format }: { label: string; homeValue: number; awayValue: number; format?: "decimal" | "percent" | "integer" }) {
   const total = homeValue + awayValue;
   const homePercent = total > 0 ? (homeValue / total) * 100 : 0;
@@ -52,24 +56,17 @@ function StatRow({ label, homeValue, awayValue, format }: { label: string; homeV
       <p className="text-[11px] font-medium text-muted-foreground text-center">{label}</p>
       <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-1.5">
         <div className="h-2 rounded-full bg-muted overflow-hidden flex justify-end">
-          <div
-            className={`h-full rounded-full transition-[width] duration-500 ${homeBarClass}`}
-            style={{ width: `${homePercent}%` }}
-          />
+          <div className={`h-full rounded-full transition-[width] duration-500 ${homeBarClass}`} style={{ width: `${homePercent}%` }} />
         </div>
         <div className="h-3 w-px bg-border" />
         <div className="h-2 rounded-full bg-muted overflow-hidden">
-          <div
-            className={`h-full rounded-full transition-[width] duration-500 ${awayBarClass}`}
-            style={{ width: `${awayPercent}%` }}
-          />
+          <div className={`h-full rounded-full transition-[width] duration-500 ${awayBarClass}`} style={{ width: `${awayPercent}%` }} />
         </div>
       </div>
     </div>
   );
 }
 
-// Card indicators component
 function CardIndicators({ yellowCards, redCards }: { yellowCards: number; redCards: number }) {
   if (yellowCards === 0 && redCards === 0) return null;
   return (
@@ -84,6 +81,26 @@ function CardIndicators({ yellowCards, redCards }: { yellowCards: number; redCar
   );
 }
 
+// Event timeline row
+function EventRow({ event, homeTeamId, players }: { event: MatchEvent; homeTeamId: string; players: Player[] }) {
+  const isHome = event.teamId === homeTeamId;
+  const typeIcon: Record<string, string> = {
+    goal: "⚽",
+    yellow_card: "🟨",
+    red_card: "🟥",
+    injury: "🏥",
+    highlight: "📌",
+  };
+
+  return (
+    <div className={`flex items-start gap-2 py-1.5 ${isHome ? "" : "flex-row-reverse text-right"}`}>
+      <span className="text-[10px] font-mono text-muted-foreground w-8 shrink-0 text-center pt-0.5">{event.minute}'</span>
+      <span className="text-xs shrink-0">{typeIcon[event.type] || "•"}</span>
+      <span className="text-xs text-foreground leading-tight">{event.text}</span>
+    </div>
+  );
+}
+
 export default function MatchPopup({
   match,
   homeTeam,
@@ -91,6 +108,7 @@ export default function MatchPopup({
   rateInfluence,
   tournament,
   allTeams,
+  allPlayers,
   onSave,
   onPersist,
   onCancel,
@@ -106,29 +124,33 @@ export default function MatchPopup({
   const awayGoalsRule = tournament?.settings.awayGoalsRule ?? false;
 
   const [scores, setScores] = useState<Record<HalfKey, [number, number]>>({
-    h1: [0, 0],
-    h2: [0, 0],
-    et1: [0, 0],
-    et2: [0, 0],
+    h1: [0, 0], h2: [0, 0], et1: [0, 0], et2: [0, 0],
   });
 
   const [activeHalf, setActiveHalf] = useState<HalfKey>("h1");
   const [showExtraTime, setShowExtraTime] = useState(false);
   const [showPenalties, setShowPenalties] = useState(false);
-  const [penalties, setPenalties] = useState<{ home: (boolean | null)[]; away: (boolean | null)[] }>({
-    home: [],
-    away: [],
-  });
+  const [penalties, setPenalties] = useState<{ home: (boolean | null)[]; away: (boolean | null)[] }>({ home: [], away: [] });
   const [penaltyIndex, setPenaltyIndex] = useState(0);
   const [penaltyFinished, setPenaltyFinished] = useState(false);
   const [matchStats, setMatchStats] = useState<{ homeStats: TeamMatchStats; awayStats: TeamMatchStats } | null>(null);
-  const [showStats, setShowStats] = useState(false);
+  const [bottomTab, setBottomTab] = useState<"stats" | "events">("stats");
+  const [showBottomPanel, setShowBottomPanel] = useState(false);
+
+  // Live simulation state
+  const [isLiveSimulating, setIsLiveSimulating] = useState(false);
+  const [liveMinute, setLiveMinute] = useState(0);
+  const [liveEvents, setLiveEvents] = useState<MatchEvent[]>([]);
+  const [liveFinished, setLiveFinished] = useState(false);
+  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  // Players for each team
+  const homePlayers = (allPlayers || []).filter((p) => p.teamId === match.homeTeamId);
+  const awayPlayers = (allPlayers || []).filter((p) => p.teamId === match.awayTeamId);
+  const canLiveSimulate = homePlayers.length >= 11 && awayPlayers.length >= 11;
 
   const setHalfScore = (half: HalfKey, side: 0 | 1, value: number) => {
-    setScores((prev) => ({
-      ...prev,
-      [half]: side === 0 ? [value, prev[half][1]] : [prev[half][0], value],
-    }));
+    setScores((prev) => ({ ...prev, [half]: side === 0 ? [value, prev[half][1]] : [prev[half][0], value] }));
   };
 
   const regularHome = scores.h1[0] + scores.h2[0];
@@ -169,10 +191,8 @@ export default function MatchPopup({
 
   const [simulatedHalves, setSimulatedHalves] = useState<Set<HalfKey>>(new Set());
 
-  // Auto-generate stats for legacy matches that don't have them
   useEffect(() => {
     if (match.played) {
-      // Load per-half scores if available, otherwise put all in h1 (legacy)
       const h1Home = match.homeScoreH1 ?? match.homeScore;
       const h1Away = match.awayScoreH1 ?? match.awayScore;
       const h2Home = match.homeScoreH2 ?? 0;
@@ -181,12 +201,7 @@ export default function MatchPopup({
       const et1Away = match.awayScoreET1 ?? (match.awayExtraTime ?? 0);
       const et2Home = match.homeScoreET2 ?? 0;
       const et2Away = match.awayScoreET2 ?? 0;
-      setScores({
-        h1: [h1Home, h1Away],
-        h2: [h2Home, h2Away],
-        et1: [et1Home, et1Away],
-        et2: [et2Home, et2Away],
-      });
+      setScores({ h1: [h1Home, h1Away], h2: [h2Home, h2Away], et1: [et1Home, et1Away], et2: [et2Home, et2Away] });
       if (isKnockout && (match.homeExtraTime !== undefined || match.awayExtraTime !== undefined)) {
         setShowExtraTime(true);
         setActiveHalf("et1");
@@ -200,28 +215,35 @@ export default function MatchPopup({
       }
       setSimulatedHalves(new Set(["h1", "h2"]));
 
-      // Load existing stats or auto-generate for legacy matches
       if (match.homeStats && match.awayStats) {
         setMatchStats({ homeStats: match.homeStats, awayStats: match.awayStats });
       } else {
-        // Auto-generate once for legacy matches and persist without closing the popup
         const homeRate = rateInfluence && homeTeam ? homeTeam.rate : 3;
         const awayRate = rateInfluence && awayTeam ? awayTeam.rate : 3;
         const totalGoalsHome = match.homeScore + (match.homeExtraTime || 0);
         const totalGoalsAway = match.awayScore + (match.awayExtraTime || 0);
         const stats = generateMatchStats(homeRate, awayRate, totalGoalsHome, totalGoalsAway);
         setMatchStats(stats);
-        onPersist?.({
-          ...match,
-          homeStats: stats.homeStats,
-          awayStats: stats.awayStats,
-        });
+        onPersist?.({ ...match, homeStats: stats.homeStats, awayStats: stats.awayStats });
+      }
+
+      // Load saved events
+      if (match.events && match.events.length > 0) {
+        setLiveEvents(match.events);
+        setLiveFinished(true);
       }
     } else {
       setMatchStats(null);
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [match.id]);
+
+  // Cleanup interval on unmount
+  useEffect(() => {
+    return () => {
+      if (intervalRef.current) clearInterval(intervalRef.current);
+    };
+  }, []);
 
   const hasScoreChanges =
     regularHome !== match.homeScore ||
@@ -245,9 +267,7 @@ export default function MatchPopup({
     if (!isKnockout || !showExtraTime) return;
     if (!simulatedHalves.has("et2")) return;
     if (!requiresPenaltiesAfterExtraTime) return;
-    if (!showPenalties) {
-      setShowPenalties(true);
-    }
+    if (!showPenalties) setShowPenalties(true);
   }, [simulatedHalves, isKnockout, showExtraTime, requiresPenaltiesAfterExtraTime, showPenalties]);
 
   useEffect(() => {
@@ -281,7 +301,6 @@ export default function MatchPopup({
     setHalfScore(activeHalf, 0, h);
     setHalfScore(activeHalf, 1, a);
     setSimulatedHalves((prev) => new Set(prev).add(activeHalf));
-
     if (activeHalf === "h1") setActiveHalf("h2");
     else if (activeHalf === "et1") setActiveHalf("et2");
   };
@@ -289,7 +308,7 @@ export default function MatchPopup({
   const allRequiredSimulated = showExtraTime
     ? simulatedHalves.has("h1") && simulatedHalves.has("h2") && simulatedHalves.has("et1") && simulatedHalves.has("et2")
     : simulatedHalves.has("h1") && simulatedHalves.has("h2");
-  const canSimulate = !showPenalties && !simulatedHalves.has(activeHalf) && !allRequiredSimulated;
+  const canSimulate = !showPenalties && !simulatedHalves.has(activeHalf) && !allRequiredSimulated && !isLiveSimulating;
 
   const penaltyScore = (side: "home" | "away") => penalties[side].filter((p) => p === true).length;
 
@@ -327,16 +346,75 @@ export default function MatchPopup({
     });
   };
 
-  // Generate stats when finishing if not yet generated or if the score changed
   const ensureStats = (): { homeStats: TeamMatchStats; awayStats: TeamMatchStats } => {
     if (matchStats && !hasScoreChanges) return matchStats;
     const homeRate = rateInfluence && homeTeam ? homeTeam.rate : 3;
     const awayRate = rateInfluence && awayTeam ? awayTeam.rate : 3;
-    const finalHome = totalHome;
-    const finalAway = totalAway;
-    const stats = generateMatchStats(homeRate, awayRate, finalHome, finalAway);
+    const stats = generateMatchStats(homeRate, awayRate, totalHome, totalAway);
     setMatchStats(stats);
     return stats;
+  };
+
+  // Handle minute-by-minute live simulation
+  const handleLiveSimulate = () => {
+    if (!homeTeam || !awayTeam || !canLiveSimulate) return;
+
+    // Generate score first (same engine)
+    const homeRate = rateInfluence ? homeTeam.rate : 3;
+    const awayRate = rateInfluence ? awayTeam.rate : 3;
+    const [h1h, h1a] = simulateHalf(homeRate, awayRate, false, 0.5);
+    const goalDiff = h1h - h1a;
+    let momentum = 0.5;
+    if (goalDiff > 1) momentum = 0.7;
+    else if (goalDiff < -1) momentum = 0.3;
+    else if (goalDiff > 0) momentum = 0.6;
+    else if (goalDiff < 0) momentum = 0.4;
+    const [h2h, h2a] = simulateHalf(homeRate, awayRate, false, momentum);
+    setScores({ h1: [h1h, h1a], h2: [h2h, h2a], et1: [0, 0], et2: [0, 0] });
+    setSimulatedHalves(new Set(["h1", "h2"]));
+    setActiveHalf("h2");
+
+    const totalH = h1h + h2h;
+    const totalA = h1a + h2a;
+
+    // Generate stats
+    const stats = generateMatchStats(homeRate, awayRate, totalH, totalA);
+    setMatchStats(stats);
+
+    // Filter out suspended players
+    let availableHome = homePlayers;
+    let availableAway = awayPlayers;
+    if (tournament) {
+      const suspendedHome = getSuspendedPlayerIds(tournament.matches, match.round, homeTeam.id, tournament.settings);
+      const suspendedAway = getSuspendedPlayerIds(tournament.matches, match.round, awayTeam.id, tournament.settings);
+      availableHome = homePlayers.filter((p) => !suspendedHome.has(p.id));
+      availableAway = awayPlayers.filter((p) => !suspendedAway.has(p.id));
+      // Ensure minimum 11
+      if (availableHome.length < 11) availableHome = homePlayers.slice(0, 11);
+      if (availableAway.length < 11) availableAway = awayPlayers.slice(0, 11);
+    }
+
+    const events = generateMinuteByMinuteEvents(homeTeam, awayTeam, availableHome, availableAway, stats, totalH, totalA);
+    setLiveEvents(events);
+    setIsLiveSimulating(true);
+    setLiveMinute(0);
+    setLiveFinished(false);
+    setShowBottomPanel(true);
+    setBottomTab("events");
+
+    // Start the clock
+    if (intervalRef.current) clearInterval(intervalRef.current);
+    intervalRef.current = setInterval(() => {
+      setLiveMinute((prev) => {
+        if (prev >= 90) {
+          if (intervalRef.current) clearInterval(intervalRef.current);
+          setLiveFinished(true);
+          setIsLiveSimulating(false);
+          return 90;
+        }
+        return prev + 1;
+      });
+    }, 100); // ~9 seconds total for 90 minutes
   };
 
   const handleFinish = () => {
@@ -374,6 +452,7 @@ export default function MatchPopup({
       awayPenalties: showPenalties ? penaltyScore("away") : undefined,
       homeStats: stats.homeStats,
       awayStats: stats.awayStats,
+      events: liveEvents.length > 0 ? liveEvents : undefined,
       played: true,
     });
   };
@@ -418,8 +497,12 @@ export default function MatchPopup({
     ] : []),
   ];
 
-  // Display stats (from state)
   const displayStats = matchStats;
+  const visibleEvents = isLiveSimulating
+    ? liveEvents.filter((e) => e.minute <= liveMinute)
+    : liveEvents;
+
+  const hasEvents = liveEvents.length > 0 || (match.events && match.events.length > 0);
 
   return (
     <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4" onClick={onCancel}>
@@ -446,7 +529,19 @@ export default function MatchPopup({
                 )}
               </div>
             </div>
-            <span className="text-muted-foreground font-bold text-sm px-4 shrink-0">VS</span>
+
+            {/* Live clock */}
+            {isLiveSimulating && (
+              <div className="flex flex-col items-center px-4">
+                <div className="flex items-center gap-1.5 text-primary">
+                  <Clock className="w-4 h-4 animate-pulse" />
+                  <span className="text-lg font-mono font-bold">{liveMinute}'</span>
+                </div>
+              </div>
+            )}
+
+            <span className={`text-muted-foreground font-bold text-sm px-4 shrink-0 ${isLiveSimulating ? "hidden" : ""}`}>VS</span>
+
             <div className="flex items-center gap-3 flex-1 justify-end text-right">
               <div>
                 <p className="font-display font-bold text-foreground text-sm">{awayTeam?.name || "Time Excluído"}</p>
@@ -471,7 +566,7 @@ export default function MatchPopup({
           {halfTabs.map((tab) => (
             <button
               key={tab.key}
-              onClick={() => !showPenalties && setActiveHalf(tab.key)}
+              onClick={() => !showPenalties && !isLiveSimulating && setActiveHalf(tab.key)}
               className={`px-3 py-1 rounded-md text-xs font-mono font-bold transition-colors ${
                 activeHalf === tab.key
                   ? "border border-primary text-primary"
@@ -489,7 +584,7 @@ export default function MatchPopup({
         </div>
 
         {/* Score Controls */}
-        {!showPenalties && (
+        {!showPenalties && !isLiveSimulating && (
           <>
             <div className="flex items-center justify-center gap-4 py-6 px-6">
               <div className="flex flex-col items-center gap-1">
@@ -516,17 +611,55 @@ export default function MatchPopup({
               </div>
             </div>
 
-            {canSimulate && (
-              <div className="px-6 pb-4">
+            {/* Simulation buttons */}
+            <div className="px-6 pb-4 flex flex-col gap-2 items-center">
+              {canSimulate && (
                 <button
                   onClick={handleSimulate}
-                  className="w-full max-w-xs mx-auto block py-3 rounded-xl bg-primary/20 text-primary font-display font-bold text-lg hover:bg-primary/30 transition-colors"
+                  className="w-full max-w-xs py-3 rounded-xl bg-primary/20 text-primary font-display font-bold text-lg hover:bg-primary/30 transition-colors"
                 >
                   Simular {halfTabs.find((t) => t.key === activeHalf)?.label}
                 </button>
-              </div>
-            )}
+              )}
+
+              {/* Minute-by-minute button */}
+              {!match.played && !liveFinished && !simulatedHalves.has("h1") && (
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <div className="w-full max-w-xs">
+                        <button
+                          onClick={handleLiveSimulate}
+                          disabled={!canLiveSimulate}
+                          className="w-full py-3 rounded-xl bg-accent text-accent-foreground font-display font-bold text-sm hover:bg-accent/80 transition-colors flex items-center justify-center gap-2 disabled:opacity-40 disabled:cursor-not-allowed"
+                        >
+                          <Zap className="w-4 h-4" />
+                          Simular Minuto a Minuto
+                        </button>
+                      </div>
+                    </TooltipTrigger>
+                    {!canLiveSimulate && (
+                      <TooltipContent>
+                        <p>Ambos os times precisam de pelo menos 11 jogadores</p>
+                      </TooltipContent>
+                    )}
+                  </Tooltip>
+                </TooltipProvider>
+              )}
+            </div>
           </>
+        )}
+
+        {/* Live simulation score display */}
+        {isLiveSimulating && (
+          <div className="flex items-center justify-center gap-4 py-6 px-6">
+            <div className="w-28 h-28 rounded-xl bg-secondary border border-border flex items-center justify-center">
+              <span className="text-6xl font-bold text-foreground font-display">{accumulatedHome}</span>
+            </div>
+            <div className="w-28 h-28 rounded-xl bg-secondary border border-border flex items-center justify-center">
+              <span className="text-6xl font-bold text-foreground font-display">{accumulatedAway}</span>
+            </div>
+          </div>
         )}
 
         {/* Penalties */}
@@ -577,21 +710,51 @@ export default function MatchPopup({
           </div>
         )}
 
-        {/* Match Statistics - toggled by button */}
-        {showStats && displayStats && (
-          <div className="px-6 py-4 border-t border-border space-y-3">
-            <p className="text-sm font-display font-bold text-foreground text-center">Estatísticas da Partida</p>
-            <div className="space-y-2.5">
-              <StatRow label="Posse de Bola" homeValue={displayStats.homeStats.possession} awayValue={displayStats.awayStats.possession} format="percent" />
-              <StatRow label="Gols Esperados (xG)" homeValue={displayStats.homeStats.expectedGoals} awayValue={displayStats.awayStats.expectedGoals} format="decimal" />
-              <StatRow label="Finalizações" homeValue={displayStats.homeStats.shots} awayValue={displayStats.awayStats.shots} />
-              <StatRow label="Finalizações ao Gol" homeValue={displayStats.homeStats.shotsOnTarget} awayValue={displayStats.awayStats.shotsOnTarget} />
-              <StatRow label="Escanteios" homeValue={displayStats.homeStats.corners} awayValue={displayStats.awayStats.corners} />
-              <StatRow label="Faltas" homeValue={displayStats.homeStats.fouls} awayValue={displayStats.awayStats.fouls} />
-              <StatRow label="Cartões Amarelos" homeValue={displayStats.homeStats.yellowCards} awayValue={displayStats.awayStats.yellowCards} />
-              <StatRow label="Cartões Vermelhos" homeValue={displayStats.homeStats.redCards} awayValue={displayStats.awayStats.redCards} />
-              <StatRow label="Impedimentos" homeValue={displayStats.homeStats.offsides} awayValue={displayStats.awayStats.offsides} />
-            </div>
+        {/* Bottom Tabs: Estatísticas + Eventos */}
+        {showBottomPanel && (displayStats || hasEvents) && (
+          <div className="border-t border-border">
+            <Tabs value={bottomTab} onValueChange={(v) => setBottomTab(v as "stats" | "events")}>
+              <TabsList className="w-full justify-center rounded-none border-b border-border bg-transparent h-auto p-0">
+                <TabsTrigger value="stats" className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent px-6 py-2.5 text-xs font-display font-bold">
+                  Estatísticas
+                </TabsTrigger>
+                <TabsTrigger value="events" className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent px-6 py-2.5 text-xs font-display font-bold">
+                  Eventos
+                </TabsTrigger>
+              </TabsList>
+
+              <TabsContent value="stats" className="mt-0">
+                {displayStats && (
+                  <div className="px-6 py-4 space-y-2.5">
+                    <StatRow label="Posse de Bola" homeValue={displayStats.homeStats.possession} awayValue={displayStats.awayStats.possession} format="percent" />
+                    <StatRow label="Gols Esperados (xG)" homeValue={displayStats.homeStats.expectedGoals} awayValue={displayStats.awayStats.expectedGoals} format="decimal" />
+                    <StatRow label="Finalizações" homeValue={displayStats.homeStats.shots} awayValue={displayStats.awayStats.shots} />
+                    <StatRow label="Finalizações ao Gol" homeValue={displayStats.homeStats.shotsOnTarget} awayValue={displayStats.awayStats.shotsOnTarget} />
+                    <StatRow label="Escanteios" homeValue={displayStats.homeStats.corners} awayValue={displayStats.awayStats.corners} />
+                    <StatRow label="Faltas" homeValue={displayStats.homeStats.fouls} awayValue={displayStats.awayStats.fouls} />
+                    <StatRow label="Cartões Amarelos" homeValue={displayStats.homeStats.yellowCards} awayValue={displayStats.awayStats.yellowCards} />
+                    <StatRow label="Cartões Vermelhos" homeValue={displayStats.homeStats.redCards} awayValue={displayStats.awayStats.redCards} />
+                    <StatRow label="Impedimentos" homeValue={displayStats.homeStats.offsides} awayValue={displayStats.awayStats.offsides} />
+                  </div>
+                )}
+              </TabsContent>
+
+              <TabsContent value="events" className="mt-0">
+                <div className="px-6 py-4 max-h-64 overflow-y-auto">
+                  {visibleEvents.length > 0 ? (
+                    <div className="space-y-0.5 divide-y divide-border/30">
+                      {visibleEvents.map((evt) => (
+                        <EventRow key={evt.id} event={evt} homeTeamId={match.homeTeamId} players={allPlayers || []} />
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="text-xs text-muted-foreground text-center py-6">
+                      {isLiveSimulating ? "Aguardando eventos..." : "Nenhum evento registrado"}
+                    </p>
+                  )}
+                </div>
+              </TabsContent>
+            </Tabs>
           </div>
         )}
 
@@ -660,14 +823,20 @@ export default function MatchPopup({
             Cancelar
           </button>
           <button
-            onClick={() => setShowStats((prev) => !prev)}
-            className={`font-display font-bold text-sm transition-colors ${showStats ? "text-primary" : "text-foreground hover:text-foreground/80"}`}
+            onClick={() => setShowBottomPanel((prev) => !prev)}
+            className={`font-display font-bold text-sm transition-colors ${showBottomPanel ? "text-primary" : "text-foreground hover:text-foreground/80"}`}
           >
-            Estatísticas
+            {showBottomPanel ? "Ocultar" : "Detalhes"}
           </button>
-          <button onClick={handleFinish} className="text-primary font-display font-bold text-sm hover:text-primary/80 transition-colors">
-            Finalizar
-          </button>
+          {liveFinished && !match.played ? (
+            <button onClick={handleFinish} className="text-primary font-display font-bold text-sm hover:text-primary/80 transition-colors flex items-center gap-1.5">
+              Salvar
+            </button>
+          ) : (
+            <button onClick={handleFinish} className="text-primary font-display font-bold text-sm hover:text-primary/80 transition-colors">
+              Finalizar
+            </button>
+          )}
         </div>
       </div>
     </div>
