@@ -7,7 +7,16 @@ interface Props extends React.SVGProps<SVGSVGElement> {
 
 export default function YellowCardIcon({ size = 24, className, ...props }: Props) {
   return (
-    <svg width={size} height={size} fill="#FFFF00" viewBox="0 0 56 56" xmlns="http://www.w3.org/2000/svg" style={{ transform: "rotate(90deg)" }} className={className} {...props}>
+    <svg
+      width={size}
+      height={size}
+      fill="bg-yellow-400"
+      viewBox="0 0 56 56"
+      xmlns="http://www.w3.org/2000/svg"
+      style={{ transform: "rotate(90deg)" }}
+      className={className}
+      {...props}
+    >
       <g strokeWidth="0"></g>
       <g strokeLinecap="round" strokeLinejoin="round"></g>
       <g>

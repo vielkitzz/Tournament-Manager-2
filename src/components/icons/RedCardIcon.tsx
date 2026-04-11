@@ -7,7 +7,17 @@ interface Props extends React.SVGProps<SVGSVGElement> {
 
 export default function RedCardIcon({ size = 24, className, ...props }: Props) {
   return (
-    <svg width={size} height={size} fill="#FF0000" viewBox="0 0 56 56" xmlns="http://www.w3.org/2000/svg" stroke="#FF0000" style={{ transform: "rotate(90deg)" }} className={className} {...props}>
+    <svg
+      width={size}
+      height={size}
+      fill="bg-red-500"
+      viewBox="0 0 56 56"
+      xmlns="http://www.w3.org/2000/svg"
+      stroke="#FF0000"
+      style={{ transform: "rotate(90deg)" }}
+      className={className}
+      {...props}
+    >
       <g strokeWidth="0"></g>
       <g strokeLinecap="round" strokeLinejoin="round"></g>
       <g>
