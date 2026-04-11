@@ -297,3 +297,191 @@ export function generateMatchStats(
     },
   };
 }
+
+/**
+ * Check if a player is suspended for a given match round.
+ */
+export function getSuspendedPlayerIds(
+  tournamentMatches: Match[],
+  currentRound: number,
+  teamId: string,
+  settings: TournamentSettings,
+): Set<string> {
+  const suspended = new Set<string>();
+  const yellowLimit = settings.yellowCardsToSuspend ?? 3;
+  const yellowDuration = settings.yellowSuspensionDuration ?? 1;
+  const redDuration = settings.redSuspensionDuration ?? 1;
+
+  // Look at all played matches before this round
+  const pastMatches = tournamentMatches.filter(
+    (m) => m.played && m.round < currentRound && m.events && (m.homeTeamId === teamId || m.awayTeamId === teamId)
+  );
+
+  // Track yellow card accumulation per player
+  const yellowCounts: Record<string, { count: number; lastRound: number }> = {};
+  // Track red cards per player
+  const redCards: { playerId: string; round: number }[] = [];
+
+  for (const m of pastMatches) {
+    if (!m.events) continue;
+    for (const evt of m.events) {
+      if (evt.teamId !== teamId || !evt.playerId) continue;
+      if (evt.type === "yellow_card") {
+        if (!yellowCounts[evt.playerId]) yellowCounts[evt.playerId] = { count: 0, lastRound: 0 };
+        yellowCounts[evt.playerId].count++;
+        yellowCounts[evt.playerId].lastRound = m.round;
+        // Check if accumulated enough for suspension
+        if (yellowCounts[evt.playerId].count >= yellowLimit) {
+          const suspendedUntil = m.round + yellowDuration;
+          if (currentRound <= suspendedUntil) {
+            suspended.add(evt.playerId);
+          }
+          yellowCounts[evt.playerId].count = 0; // Reset after suspension
+        }
+      } else if (evt.type === "red_card") {
+        redCards.push({ playerId: evt.playerId, round: m.round });
+      }
+    }
+  }
+
+  // Check red card suspensions
+  for (const rc of redCards) {
+    const suspendedUntil = rc.round + redDuration;
+    if (currentRound <= suspendedUntil) {
+      suspended.add(rc.playerId);
+    }
+  }
+
+  return suspended;
+}
+
+/**
+ * Generate minute-by-minute events for a match.
+ * Distributes goals, cards, and highlights to real players.
+ */
+export function generateMinuteByMinuteEvents(
+  homeTeam: Team,
+  awayTeam: Team,
+  homePlayers: Player[],
+  awayPlayers: Player[],
+  matchStats: { homeStats: TeamMatchStats; awayStats: TeamMatchStats },
+  homeGoals: number,
+  awayGoals: number,
+): MatchEvent[] {
+  const events: MatchEvent[] = [];
+  let eventId = 0;
+  const genId = () => `evt-${++eventId}`;
+
+  // Position weights for goal scoring
+  const positionGoalWeight: Record<string, number> = {
+    "Atacante": 5, "Ponta": 4, "Meia": 3, "Meia-Atacante": 3.5,
+    "Volante": 1.5, "Lateral": 1, "Zagueiro": 0.5, "Goleiro": 0.1,
+  };
+  const positionAssistWeight: Record<string, number> = {
+    "Meia": 5, "Meia-Atacante": 4, "Ponta": 4, "Atacante": 2,
+    "Lateral": 3, "Volante": 2, "Zagueiro": 0.5, "Goleiro": 0.2,
+  };
+
+  function weightedPick(players: Player[], weights: Record<string, number>, exclude?: string): Player | undefined {
+    const available = exclude ? players.filter(p => p.id !== exclude) : players;
+    if (available.length === 0) return undefined;
+    const w = available.map(p => weights[p.position || ""] || 1);
+    const total = w.reduce((s, v) => s + v, 0);
+    let r = Math.random() * total;
+    for (let i = 0; i < available.length; i++) {
+      r -= w[i];
+      if (r <= 0) return available[i];
+    }
+    return available[available.length - 1];
+  }
+
+  function randomMinute(): number {
+    return randInt(1, 90);
+  }
+
+  // Generate goal events
+  const generateGoals = (team: Team, players: Player[], count: number) => {
+    for (let i = 0; i < count; i++) {
+      const scorer = weightedPick(players, positionGoalWeight);
+      if (!scorer) continue;
+      const assister = Math.random() < 0.65 ? weightedPick(players, positionAssistWeight, scorer.id) : undefined;
+      events.push({
+        id: genId(),
+        minute: randomMinute(),
+        type: "goal",
+        teamId: team.id,
+        playerId: scorer.id,
+        assistId: assister?.id,
+        text: assister
+          ? `⚽ Gol de ${scorer.name} (assist. ${assister.name})`
+          : `⚽ Gol de ${scorer.name}`,
+      });
+    }
+  };
+
+  generateGoals(homeTeam, homePlayers, homeGoals);
+  generateGoals(awayTeam, awayPlayers, awayGoals);
+
+  // Generate yellow card events
+  const generateCards = (team: Team, players: Player[], yellows: number, reds: number) => {
+    const cardedIds = new Set<string>();
+    for (let i = 0; i < yellows; i++) {
+      const p = weightedPick(players.filter(p => !cardedIds.has(p.id)), { "Volante": 4, "Zagueiro": 3, "Lateral": 2, "Meia": 1.5, "Atacante": 1, "Ponta": 1 });
+      if (!p) continue;
+      cardedIds.add(p.id);
+      events.push({
+        id: genId(),
+        minute: randomMinute(),
+        type: "yellow_card",
+        teamId: team.id,
+        playerId: p.id,
+        text: `🟨 Cartão amarelo para ${p.name}`,
+      });
+    }
+    for (let i = 0; i < reds; i++) {
+      const p = weightedPick(players.filter(p => !cardedIds.has(p.id)), { "Volante": 4, "Zagueiro": 3, "Lateral": 2, "Meia": 1, "Atacante": 1 });
+      if (!p) continue;
+      cardedIds.add(p.id);
+      events.push({
+        id: genId(),
+        minute: randomMinute(),
+        type: "red_card",
+        teamId: team.id,
+        playerId: p.id,
+        text: `🟥 Cartão vermelho para ${p.name}`,
+      });
+    }
+  };
+
+  generateCards(homeTeam, homePlayers, matchStats.homeStats.yellowCards, matchStats.homeStats.redCards);
+  generateCards(awayTeam, awayPlayers, matchStats.awayStats.yellowCards, matchStats.awayStats.redCards);
+
+  // Add a few highlight events
+  const highlightCount = randInt(2, 5);
+  for (let i = 0; i < highlightCount; i++) {
+    const isHome = Math.random() < 0.5;
+    const team = isHome ? homeTeam : awayTeam;
+    const players = isHome ? homePlayers : awayPlayers;
+    const p = players[randInt(0, players.length - 1)];
+    if (!p) continue;
+    const highlights = [
+      `💨 ${p.name} arranca em velocidade pela ${Math.random() < 0.5 ? "esquerda" : "direita"}`,
+      `🦶 Grande defesa do goleiro após chute de ${p.name}`,
+      `📐 ${p.name} cobra falta perigosa`,
+      `🎯 ${p.name} finaliza de fora da área`,
+      `🏃 Contra-ataque rápido puxado por ${p.name}`,
+    ];
+    events.push({
+      id: genId(),
+      minute: randomMinute(),
+      type: "highlight",
+      teamId: team.id,
+      playerId: p.id,
+      text: highlights[randInt(0, highlights.length - 1)],
+    });
+  }
+
+  // Sort by minute
+  events.sort((a, b) => a.minute - b.minute);
+  return events;
+}
