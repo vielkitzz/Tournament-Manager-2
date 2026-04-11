@@ -332,10 +332,10 @@ export function generateMinuteByMinuteEvents(
       const assister = Math.random() < 0.65 ? weightedPick(players, positionAssistWeight, scorer.id) : undefined;
 
       const goalDescriptions = [
-        `Gol de ${scorer.name}${assister ? ` com assistência de ${assister.name}` : ""}`,
-        `Finalização certeira de ${scorer.name} para balançar as redes${assister ? ` após passe de ${assister.name}` : ""}`,
-        `${scorer.name} aproveita a oportunidade e marca o gol${assister ? ` vindo de um cruzamento de ${assister.name}` : ""}`,
-        `Golaço de ${scorer.name}! A bola vai no ângulo${assister ? ` após jogada individual de ${assister.name}` : ""}`,
+        `Gol de **${scorer.name}**${assister ? ` com assistência de **${assister.name}**` : ""}`,
+        `Finalização certeira de **${scorer.name}** para balançar as redes${assister ? ` após passe de **${assister.name}**` : ""}`,
+        `**${scorer.name}** aproveita a oportunidade e marca o gol${assister ? ` vindo de um cruzamento de **${assister.name}**` : ""}`,
+        `Golaço de **${scorer.name}**! A bola vai no ângulo${assister ? ` após jogada individual de **${assister.name}**` : ""}`,
       ];
 
       events.push({
@@ -364,10 +364,10 @@ export function generateMinuteByMinuteEvents(
       cardedIds.add(p.id);
 
       const yellowDescriptions = [
-        `Cartão amarelo para ${p.name} por falta dura`,
-        `${p.name} recebe o amarelo após reclamação com a arbitragem`,
-        `Cartão amarelo aplicado a ${p.name} para interromper o contra-ataque`,
-        `${p.name} é advertido com cartão amarelo por entrada atrasada`,
+        `Cartão amarelo para **${p.name}** por falta dura`,
+        `**${p.name}** recebe o amarelo após reclamação com a arbitragem`,
+        `Cartão amarelo aplicado a **${p.name}** para interromper o contra-ataque`,
+        `**${p.name}** é advertido com cartão amarelo por entrada atrasada`,
       ];
 
       events.push({
@@ -388,9 +388,9 @@ export function generateMinuteByMinuteEvents(
       cardedIds.add(p.id);
 
       const redDescriptions = [
-        `Cartão vermelho direto para ${p.name} após entrada violenta`,
-        `${p.name} é expulso de campo! Cartão vermelho para o jogador`,
-        `Expulsão! ${p.name} recebe o cartão vermelho e deixa sua equipe com um a menos`,
+        `Cartão vermelho direto para **${p.name}** após entrada violenta`,
+        `**${p.name}** é expulso de campo! Cartão vermelho para o jogador`,
+        `Expulsão! **${p.name}** recebe o cartão vermelho e deixa sua equipe com um a menos`,
       ];
 
       events.push({
@@ -417,21 +417,21 @@ export function generateMinuteByMinuteEvents(
     if (!p) continue;
 
     const highlights = [
-      `${p.name} arranca em velocidade pela ${Math.random() < 0.5 ? "esquerda" : "direita"} e tenta o cruzamento`,
-      `Grande defesa do goleiro após chute potente de ${p.name}`,
-      `${p.name} cobra falta perigosa, a bola passa raspando a trave`,
-      `${p.name} finaliza de fora da área, mas a bola sobe demais`,
-      `Contra-ataque rápido puxado por ${p.name} que assusta a defesa do ${opponent.shortName}`,
-      `${p.name} faz uma bela jogada individual, driblando dois marcadores`,
-      `Substituição no ${team.shortName}: o treinador mexe na equipe para buscar o resultado`,
-      `O árbitro interrompe o jogo para atendimento médico a ${p.name}`,
-      `${p.name} ganha de cabeça na área, mas a bola vai para fora`,
-      `Pressão do ${team.shortName}! A equipe troca passes no campo de ataque buscando espaços`,
-      `Desarme preciso de ${p.name} impedindo o avanço do adversário`,
-      `Cruzamento na área do ${opponent.shortName}, mas a defesa afasta o perigo`,
-      `${p.name} tenta o passe em profundidade, mas a bola corre demais e sai pela linha de fundo`,
+      `**${p.name}** arranca em velocidade pela ${Math.random() < 0.5 ? "esquerda" : "direita"} e tenta o cruzamento`,
+      `Grande defesa do goleiro após chute potente de **${p.name}**`,
+      `**${p.name}** cobra falta perigosa, a bola passa raspando a trave`,
+      `**${p.name}** finaliza de fora da área, mas a bola sobe demais`,
+      `Contra-ataque rápido puxado por **${p.name}** que assusta a defesa do **${opponent.shortName || opponent.name}**`,
+      `**${p.name}** faz uma bela jogada individual, driblando dois marcadores`,
+      `Substituição no **${team.shortName || team.name}**: o treinador mexe na equipe para buscar o resultado`,
+      `O árbitro interrompe o jogo para atendimento médico a **${p.name}**`,
+      `**${p.name}** ganha de cabeça na área, mas a bola vai para fora`,
+      `Pressão do **${team.shortName || team.name}**! A equipe troca passes no campo de ataque buscando espaços`,
+      `Desarme preciso de **${p.name}** impedindo o avanço do adversário`,
+      `Cruzamento na área do **${opponent.shortName || opponent.name}**, mas a defesa afasta o perigo`,
+      `**${p.name}** tenta o passe em profundidade, mas a bola corre demais e sai pela linha de fundo`,
       `Jogo fica truncado no meio de campo com muitas disputas de bola`,
-      `O bandeirinha assinala impedimento de ${p.name} em ataque promissor`,
+      `O bandeirinha assinala impedimento de **${p.name}** em ataque promissor`,
     ];
 
     events.push({

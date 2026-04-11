@@ -2,7 +2,12 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import { Match, Team, Tournament, TeamMatchStats, Player, MatchEvent } from "@/types/tournament";
 import { Shield, ChevronUp, ChevronDown, Play, Clock, Zap } from "lucide-react";
 import { calculateStandings, StandingRow } from "@/lib/standings";
-import { simulateHalf, generateMatchStats, generateMinuteByMinuteEvents, getSuspendedPlayerIds } from "@/lib/simulation";
+import {
+  simulateHalf,
+  generateMatchStats,
+  generateMinuteByMinuteEvents,
+  getSuspendedPlayerIds,
+} from "@/lib/simulation";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from "@/components/ui/tooltip";
 import SoccerBallIcon from "@/components/icons/SoccerBallIcon";
@@ -31,7 +36,17 @@ function simulatePenaltyKick(): boolean {
 }
 
 // Stats comparison bar row
-function StatRow({ label, homeValue, awayValue, format }: { label: string; homeValue: number; awayValue: number; format?: "decimal" | "percent" | "integer" }) {
+function StatRow({
+  label,
+  homeValue,
+  awayValue,
+  format,
+}: {
+  label: string;
+  homeValue: number;
+  awayValue: number;
+  format?: "decimal" | "percent" | "integer";
+}) {
   const total = homeValue + awayValue;
   const homePercent = total > 0 ? (homeValue / total) * 100 : 0;
   const awayPercent = total > 0 ? (awayValue / total) * 100 : 0;
@@ -60,11 +75,17 @@ function StatRow({ label, homeValue, awayValue, format }: { label: string; homeV
       <p className="text-[11px] font-medium text-muted-foreground text-center">{label}</p>
       <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-1.5">
         <div className="h-2 rounded-full bg-muted overflow-hidden flex justify-end">
-          <div className={`h-full rounded-full transition-[width] duration-500 ${homeBarClass}`} style={{ width: `${homePercent}%` }} />
+          <div
+            className={`h-full rounded-full transition-[width] duration-500 ${homeBarClass}`}
+            style={{ width: `${homePercent}%` }}
+          />
         </div>
         <div className="h-3 w-px bg-border" />
         <div className="h-2 rounded-full bg-muted overflow-hidden">
-          <div className={`h-full rounded-full transition-[width] duration-500 ${awayBarClass}`} style={{ width: `${awayPercent}%` }} />
+          <div
+            className={`h-full rounded-full transition-[width] duration-500 ${awayBarClass}`}
+            style={{ width: `${awayPercent}%` }}
+          />
         </div>
       </div>
     </div>
@@ -86,10 +107,18 @@ function CardIndicators({ yellowCards, redCards }: { yellowCards: number; redCar
 }
 
 // Event timeline row
-function EventRow({ event, homeTeamId, players }: { key?: string | number; event: MatchEvent; homeTeamId: string; players: Player[] }) {
+function EventRow({
+  event,
+  homeTeamId,
+  players,
+}: {
+  key?: string | number;
+  event: MatchEvent;
+  homeTeamId: string;
+  players: Player[];
+}) {
   const isHome = event.teamId === homeTeamId;
 
-  // Mapeia o tipo do evento para o componente de ícone correspondente
   const IconComponent = {
     goal: SoccerBallIcon,
     yellow_card: YellowCardIcon,
@@ -98,16 +127,31 @@ function EventRow({ event, homeTeamId, players }: { key?: string | number; event
     highlight: HighlightIcon,
   }[event.type];
 
+  // Função mágica que pinta o texto entre ** de azul
+  const formatEventText = (text: string) => {
+    return text.split(/\*\*(.*?)\*\*/g).map((part, index) => {
+      // O split com regex separa o texto em array. Os índices ímpares são o que estava dentro dos **
+      if (index % 2 === 1) {
+        return (
+          <span key={index} className="text-primary font-bold">
+            {part}
+          </span>
+        );
+      }
+      return part;
+    });
+  };
+
   return (
     <div className={`flex items-start gap-2 py-1.5 ${isHome ? "" : "flex-row-reverse text-right"}`}>
       <span className="text-[10px] font-mono text-muted-foreground w-8 shrink-0 text-center pt-0.5">
         {event.minute}'
       </span>
-      {/* Wrapper para garantir que o ícone fique perfeitamente alinhado com o texto */}
       <span className="shrink-0 flex items-center justify-center w-4 h-4 pt-0.5">
         {IconComponent ? <IconComponent size={14} /> : "•"}
       </span>
-      <span className="text-xs text-foreground leading-tight">{event.text}</span>
+      {/* Aqui nós chamamos a função mágica em vez de imprimir o event.text direto */}
+      <span className="text-xs text-foreground leading-tight">{formatEventText(event.text)}</span>
     </div>
   );
 }
@@ -135,13 +179,19 @@ export default function MatchPopup({
   const awayGoalsRule = tournament?.settings.awayGoalsRule ?? false;
 
   const [scores, setScores] = useState<Record<HalfKey, [number, number]>>({
-    h1: [0, 0], h2: [0, 0], et1: [0, 0], et2: [0, 0],
+    h1: [0, 0],
+    h2: [0, 0],
+    et1: [0, 0],
+    et2: [0, 0],
   });
 
   const [activeHalf, setActiveHalf] = useState<HalfKey>("h1");
   const [showExtraTime, setShowExtraTime] = useState(false);
   const [showPenalties, setShowPenalties] = useState(false);
-  const [penalties, setPenalties] = useState<{ home: (boolean | null)[]; away: (boolean | null)[] }>({ home: [], away: [] });
+  const [penalties, setPenalties] = useState<{ home: (boolean | null)[]; away: (boolean | null)[] }>({
+    home: [],
+    away: [],
+  });
   const [penaltyIndex, setPenaltyIndex] = useState(0);
   const [penaltyFinished, setPenaltyFinished] = useState(false);
   const [matchStats, setMatchStats] = useState<{ homeStats: TeamMatchStats; awayStats: TeamMatchStats } | null>(null);
@@ -208,8 +258,8 @@ export default function MatchPopup({
       const h1Away = match.awayScoreH1 ?? match.awayScore;
       const h2Home = match.homeScoreH2 ?? 0;
       const h2Away = match.awayScoreH2 ?? 0;
-      const et1Home = match.homeScoreET1 ?? (match.homeExtraTime ?? 0);
-      const et1Away = match.awayScoreET1 ?? (match.awayExtraTime ?? 0);
+      const et1Home = match.homeScoreET1 ?? match.homeExtraTime ?? 0;
+      const et1Away = match.awayScoreET1 ?? match.awayExtraTime ?? 0;
       const et2Home = match.homeScoreET2 ?? 0;
       const et2Away = match.awayScoreET2 ?? 0;
       setScores({ h1: [h1Home, h1Away], h2: [h2Home, h2Away], et1: [et1Home, et1Away], et2: [et2Home, et2Away] });
@@ -219,8 +269,14 @@ export default function MatchPopup({
       }
       if (isKnockout && match.homePenalties !== undefined && match.awayPenalties !== undefined) {
         setShowPenalties(true);
-        const homeKicks = Array.from({ length: match.homePenalties + (match.awayPenalties - match.homePenalties > 0 ? 1 : 0) }, (_, i) => i < match.homePenalties);
-        const awayKicks = Array.from({ length: match.awayPenalties + (match.homePenalties - match.awayPenalties > 0 ? 1 : 0) }, (_, i) => i < match.awayPenalties);
+        const homeKicks = Array.from(
+          { length: match.homePenalties + (match.awayPenalties - match.homePenalties > 0 ? 1 : 0) },
+          (_, i) => i < match.homePenalties,
+        );
+        const awayKicks = Array.from(
+          { length: match.awayPenalties + (match.homePenalties - match.awayPenalties > 0 ? 1 : 0) },
+          (_, i) => i < match.awayPenalties,
+        );
         setPenalties({ home: homeKicks, away: awayKicks });
         setPenaltyFinished(true);
       }
@@ -246,7 +302,7 @@ export default function MatchPopup({
     } else {
       setMatchStats(null);
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [match.id]);
 
   // Cleanup interval on unmount
@@ -339,13 +395,22 @@ export default function MatchPopup({
     const homeScore = penaltyScore("home");
     const awayScore = penaltyScore("away");
     if (homeKicks === awayKicks && homeKicks >= 5) {
-      if (homeScore !== awayScore) { setPenaltyFinished(true); return; }
+      if (homeScore !== awayScore) {
+        setPenaltyFinished(true);
+        return;
+      }
     }
     if (homeKicks === awayKicks && homeKicks <= 5 && homeKicks >= 1) {
       const remainingHome = Math.max(5 - homeKicks, 0);
       const remainingAway = Math.max(5 - awayKicks, 0);
-      if (homeScore + remainingHome < awayScore) { setPenaltyFinished(true); return; }
-      if (awayScore + remainingAway < homeScore) { setPenaltyFinished(true); return; }
+      if (homeScore + remainingHome < awayScore) {
+        setPenaltyFinished(true);
+        return;
+      }
+      if (awayScore + remainingAway < homeScore) {
+        setPenaltyFinished(true);
+        return;
+      }
     }
   }, [penalties, showPenalties, penaltyFinished]);
 
@@ -405,7 +470,15 @@ export default function MatchPopup({
       if (availableAway.length < 11) availableAway = awayPlayers.slice(0, 11);
     }
 
-    const events = generateMinuteByMinuteEvents(homeTeam, awayTeam, availableHome, availableAway, stats, totalH, totalA);
+    const events = generateMinuteByMinuteEvents(
+      homeTeam,
+      awayTeam,
+      availableHome,
+      availableAway,
+      stats,
+      totalH,
+      totalA,
+    );
     setLiveEvents(events);
     setIsLiveSimulating(true);
     setLiveMinute(0);
@@ -481,7 +554,7 @@ export default function MatchPopup({
     if (tournament.format === "grupos" && match.group) {
       const groupTeamIds = tournament.teamIds.filter((tid) => {
         const groupMatch = liveMatches.find(
-          (m) => m.stage === "group" && m.group === match.group && (m.homeTeamId === tid || m.awayTeamId === tid)
+          (m) => m.stage === "group" && m.group === match.group && (m.homeTeamId === tid || m.awayTeamId === tid),
         );
         return !!groupMatch;
       });
@@ -495,23 +568,22 @@ export default function MatchPopup({
     return withPos.filter((s) => s.teamId === match.homeTeamId || s.teamId === match.awayTeamId);
   })();
 
-  const standingsTitle = tournament?.format === "grupos" && match.group
-    ? `Grupo ${String.fromCharCode(64 + match.group)}`
-    : "Classificação";
+  const standingsTitle =
+    tournament?.format === "grupos" && match.group ? `Grupo ${String.fromCharCode(64 + match.group)}` : "Classificação";
 
   const halfTabs: { key: HalfKey; label: string }[] = [
     { key: "h1", label: "1ºT" },
     { key: "h2", label: "2ºT" },
-    ...(showExtraTime ? [
-      { key: "et1" as HalfKey, label: "Prorr 1" },
-      { key: "et2" as HalfKey, label: "Prorr 2" },
-    ] : []),
+    ...(showExtraTime
+      ? [
+          { key: "et1" as HalfKey, label: "Prorr 1" },
+          { key: "et2" as HalfKey, label: "Prorr 2" },
+        ]
+      : []),
   ];
 
   const displayStats = matchStats;
-  const visibleEvents = isLiveSimulating
-    ? liveEvents.filter((e) => e.minute <= liveMinute)
-    : liveEvents;
+  const visibleEvents = isLiveSimulating ? liveEvents.filter((e) => e.minute <= liveMinute) : liveEvents;
 
   const hasEvents = liveEvents.length > 0 || (match.events && match.events.length > 0);
 
@@ -536,7 +608,10 @@ export default function MatchPopup({
                 <p className="font-display font-bold text-foreground text-sm">{homeTeam?.name || "Time Excluído"}</p>
                 <p className="text-xs text-primary font-mono">{homeTeam?.rate?.toFixed(2) ?? "—"}</p>
                 {displayStats && (
-                  <CardIndicators yellowCards={displayStats.homeStats.yellowCards} redCards={displayStats.homeStats.redCards} />
+                  <CardIndicators
+                    yellowCards={displayStats.homeStats.yellowCards}
+                    redCards={displayStats.homeStats.redCards}
+                  />
                 )}
               </div>
             </div>
@@ -551,14 +626,21 @@ export default function MatchPopup({
               </div>
             )}
 
-            <span className={`text-muted-foreground font-bold text-sm px-4 shrink-0 ${isLiveSimulating ? "hidden" : ""}`}>VS</span>
+            <span
+              className={`text-muted-foreground font-bold text-sm px-4 shrink-0 ${isLiveSimulating ? "hidden" : ""}`}
+            >
+              VS
+            </span>
 
             <div className="flex items-center gap-3 flex-1 justify-end text-right">
               <div>
                 <p className="font-display font-bold text-foreground text-sm">{awayTeam?.name || "Time Excluído"}</p>
                 <p className="text-xs text-primary font-mono">{awayTeam?.rate?.toFixed(2) ?? "—"}</p>
                 {displayStats && (
-                  <CardIndicators yellowCards={displayStats.awayStats.yellowCards} redCards={displayStats.awayStats.redCards} />
+                  <CardIndicators
+                    yellowCards={displayStats.awayStats.yellowCards}
+                    redCards={displayStats.awayStats.redCards}
+                  />
                 )}
               </div>
               <div className="w-12 h-12 flex items-center justify-center shrink-0">
@@ -599,10 +681,16 @@ export default function MatchPopup({
           <>
             <div className="flex items-center justify-center gap-4 py-6 px-6">
               <div className="flex flex-col items-center gap-1">
-                <button onClick={() => increment(0)} className="p-1 text-primary hover:text-primary/80 transition-colors">
+                <button
+                  onClick={() => increment(0)}
+                  className="p-1 text-primary hover:text-primary/80 transition-colors"
+                >
                   <ChevronUp className="w-8 h-8" strokeWidth={3} />
                 </button>
-                <button onClick={() => decrement(0)} className="p-1 text-destructive hover:text-destructive/80 transition-colors">
+                <button
+                  onClick={() => decrement(0)}
+                  className="p-1 text-destructive hover:text-destructive/80 transition-colors"
+                >
                   <ChevronDown className="w-8 h-8" strokeWidth={3} />
                 </button>
               </div>
@@ -613,10 +701,16 @@ export default function MatchPopup({
                 <span className="text-6xl font-bold text-foreground font-display">{accumulatedAway}</span>
               </div>
               <div className="flex flex-col items-center gap-1">
-                <button onClick={() => increment(1)} className="p-1 text-primary hover:text-primary/80 transition-colors">
+                <button
+                  onClick={() => increment(1)}
+                  className="p-1 text-primary hover:text-primary/80 transition-colors"
+                >
                   <ChevronUp className="w-8 h-8" strokeWidth={3} />
                 </button>
-                <button onClick={() => decrement(1)} className="p-1 text-destructive hover:text-destructive/80 transition-colors">
+                <button
+                  onClick={() => decrement(1)}
+                  className="p-1 text-destructive hover:text-destructive/80 transition-colors"
+                >
                   <ChevronDown className="w-8 h-8" strokeWidth={3} />
                 </button>
               </div>
@@ -679,10 +773,14 @@ export default function MatchPopup({
             <p className="text-sm font-display font-bold text-foreground text-center">Disputa de Pênaltis</p>
             <div className="space-y-3">
               <div className="flex items-center gap-2 justify-center">
-                <span className="text-xs text-muted-foreground w-16 text-right truncate">{homeTeam?.abbreviation || homeTeam?.shortName}</span>
+                <span className="text-xs text-muted-foreground w-16 text-right truncate">
+                  {homeTeam?.abbreviation || homeTeam?.shortName}
+                </span>
                 <div className="flex gap-1.5 min-w-[140px]">
                   {penalties.home.map((p, i) => (
-                    <button key={i} onClick={() => togglePenalty("home", i)}
+                    <button
+                      key={i}
+                      onClick={() => togglePenalty("home", i)}
                       className={`w-7 h-7 rounded-full border-2 transition-all ${p === true ? "bg-primary border-primary" : "bg-destructive border-destructive"}`}
                     />
                   ))}
@@ -690,10 +788,14 @@ export default function MatchPopup({
                 <span className="text-lg font-bold text-foreground w-8 text-center">{penaltyScore("home")}</span>
               </div>
               <div className="flex items-center gap-2 justify-center">
-                <span className="text-xs text-muted-foreground w-16 text-right truncate">{awayTeam?.abbreviation || awayTeam?.shortName}</span>
+                <span className="text-xs text-muted-foreground w-16 text-right truncate">
+                  {awayTeam?.abbreviation || awayTeam?.shortName}
+                </span>
                 <div className="flex gap-1.5 min-w-[140px]">
                   {penalties.away.map((p, i) => (
-                    <button key={i} onClick={() => togglePenalty("away", i)}
+                    <button
+                      key={i}
+                      onClick={() => togglePenalty("away", i)}
                       className={`w-7 h-7 rounded-full border-2 transition-all ${p === true ? "bg-primary border-primary" : "bg-destructive border-destructive"}`}
                     />
                   ))}
@@ -703,11 +805,13 @@ export default function MatchPopup({
             </div>
             {!penaltyFinished && (
               <div className="flex justify-center">
-                <button onClick={handleShootPenalty}
+                <button
+                  onClick={handleShootPenalty}
                   className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-primary text-primary-foreground font-display font-bold text-sm hover:bg-primary/90 transition-colors"
                 >
                   <Play className="w-4 h-4" />
-                  Cobrar ({penaltyIndex % 2 === 0 ? homeTeam?.abbreviation || "Casa" : awayTeam?.abbreviation || "Fora"})
+                  Cobrar ({penaltyIndex % 2 === 0 ? homeTeam?.abbreviation || "Casa" : awayTeam?.abbreviation || "Fora"}
+                  )
                 </button>
               </div>
             )}
@@ -726,10 +830,16 @@ export default function MatchPopup({
           <div className="border-t border-border">
             <Tabs value={bottomTab} onValueChange={(v) => setBottomTab(v as "stats" | "events")}>
               <TabsList className="w-full justify-center rounded-none border-b border-border bg-transparent h-auto p-0">
-                <TabsTrigger value="stats" className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent px-6 py-2.5 text-xs font-display font-bold">
+                <TabsTrigger
+                  value="stats"
+                  className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent px-6 py-2.5 text-xs font-display font-bold"
+                >
                   Estatísticas
                 </TabsTrigger>
-                <TabsTrigger value="events" className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent px-6 py-2.5 text-xs font-display font-bold">
+                <TabsTrigger
+                  value="events"
+                  className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent px-6 py-2.5 text-xs font-display font-bold"
+                >
                   Eventos
                 </TabsTrigger>
               </TabsList>
@@ -737,15 +847,53 @@ export default function MatchPopup({
               <TabsContent value="stats" className="mt-0">
                 {displayStats && (
                   <div className="px-6 py-4 space-y-2.5">
-                    <StatRow label="Posse de Bola" homeValue={displayStats.homeStats.possession} awayValue={displayStats.awayStats.possession} format="percent" />
-                    <StatRow label="Gols Esperados (xG)" homeValue={displayStats.homeStats.expectedGoals} awayValue={displayStats.awayStats.expectedGoals} format="decimal" />
-                    <StatRow label="Finalizações" homeValue={displayStats.homeStats.shots} awayValue={displayStats.awayStats.shots} />
-                    <StatRow label="Finalizações ao Gol" homeValue={displayStats.homeStats.shotsOnTarget} awayValue={displayStats.awayStats.shotsOnTarget} />
-                    <StatRow label="Escanteios" homeValue={displayStats.homeStats.corners} awayValue={displayStats.awayStats.corners} />
-                    <StatRow label="Faltas" homeValue={displayStats.homeStats.fouls} awayValue={displayStats.awayStats.fouls} />
-                    <StatRow label="Cartões Amarelos" homeValue={displayStats.homeStats.yellowCards} awayValue={displayStats.awayStats.yellowCards} />
-                    <StatRow label="Cartões Vermelhos" homeValue={displayStats.homeStats.redCards} awayValue={displayStats.awayStats.redCards} />
-                    <StatRow label="Impedimentos" homeValue={displayStats.homeStats.offsides} awayValue={displayStats.awayStats.offsides} />
+                    <StatRow
+                      label="Posse de Bola"
+                      homeValue={displayStats.homeStats.possession}
+                      awayValue={displayStats.awayStats.possession}
+                      format="percent"
+                    />
+                    <StatRow
+                      label="Gols Esperados (xG)"
+                      homeValue={displayStats.homeStats.expectedGoals}
+                      awayValue={displayStats.awayStats.expectedGoals}
+                      format="decimal"
+                    />
+                    <StatRow
+                      label="Finalizações"
+                      homeValue={displayStats.homeStats.shots}
+                      awayValue={displayStats.awayStats.shots}
+                    />
+                    <StatRow
+                      label="Finalizações ao Gol"
+                      homeValue={displayStats.homeStats.shotsOnTarget}
+                      awayValue={displayStats.awayStats.shotsOnTarget}
+                    />
+                    <StatRow
+                      label="Escanteios"
+                      homeValue={displayStats.homeStats.corners}
+                      awayValue={displayStats.awayStats.corners}
+                    />
+                    <StatRow
+                      label="Faltas"
+                      homeValue={displayStats.homeStats.fouls}
+                      awayValue={displayStats.awayStats.fouls}
+                    />
+                    <StatRow
+                      label="Cartões Amarelos"
+                      homeValue={displayStats.homeStats.yellowCards}
+                      awayValue={displayStats.awayStats.yellowCards}
+                    />
+                    <StatRow
+                      label="Cartões Vermelhos"
+                      homeValue={displayStats.homeStats.redCards}
+                      awayValue={displayStats.awayStats.redCards}
+                    />
+                    <StatRow
+                      label="Impedimentos"
+                      homeValue={displayStats.homeStats.offsides}
+                      awayValue={displayStats.awayStats.offsides}
+                    />
                   </div>
                 )}
               </TabsContent>
@@ -795,8 +943,14 @@ export default function MatchPopup({
                     const isMatchTeam = row.teamId === match.homeTeamId || row.teamId === match.awayTeamId;
                     const promo = tournament?.settings?.promotions?.find((p) => p.position === row.position);
                     return (
-                      <tr key={row.teamId} className={`border-t border-border/50 ${isMatchTeam ? "bg-primary/5 font-semibold" : ""}`}>
-                        <td className="py-1.5 px-2 text-muted-foreground" style={promo ? { borderLeft: `3px solid ${promo.color}` } : undefined}>
+                      <tr
+                        key={row.teamId}
+                        className={`border-t border-border/50 ${isMatchTeam ? "bg-primary/5 font-semibold" : ""}`}
+                      >
+                        <td
+                          className="py-1.5 px-2 text-muted-foreground"
+                          style={promo ? { borderLeft: `3px solid ${promo.color}` } : undefined}
+                        >
                           {row.position}
                         </td>
                         <td className="py-1.5 px-2">
@@ -808,7 +962,9 @@ export default function MatchPopup({
                                 <Shield className="w-3.5 h-3.5 text-muted-foreground" />
                               )}
                             </div>
-                            <span className="text-foreground truncate">{team?.abbreviation || team?.shortName || team?.name}</span>
+                            <span className="text-foreground truncate">
+                              {team?.abbreviation || team?.shortName || team?.name}
+                            </span>
                           </div>
                         </td>
                         <td className="py-1.5 px-2 text-center font-bold text-foreground">{row.points}</td>
@@ -830,7 +986,10 @@ export default function MatchPopup({
 
         {/* Footer Actions */}
         <div className="flex items-center justify-between border-t border-border px-6 py-4">
-          <button onClick={onCancel} className="text-destructive font-display font-bold text-sm hover:text-destructive/80 transition-colors">
+          <button
+            onClick={onCancel}
+            className="text-destructive font-display font-bold text-sm hover:text-destructive/80 transition-colors"
+          >
             Cancelar
           </button>
           <button
@@ -840,11 +999,17 @@ export default function MatchPopup({
             {showBottomPanel ? "Ocultar" : "Detalhes"}
           </button>
           {liveFinished && !match.played ? (
-            <button onClick={handleFinish} className="text-primary font-display font-bold text-sm hover:text-primary/80 transition-colors flex items-center gap-1.5">
+            <button
+              onClick={handleFinish}
+              className="text-primary font-display font-bold text-sm hover:text-primary/80 transition-colors flex items-center gap-1.5"
+            >
               Salvar
             </button>
           ) : (
-            <button onClick={handleFinish} className="text-primary font-display font-bold text-sm hover:text-primary/80 transition-colors">
+            <button
+              onClick={handleFinish}
+              className="text-primary font-display font-bold text-sm hover:text-primary/80 transition-colors"
+            >
               Finalizar
             </button>
           )}
