@@ -9,6 +9,7 @@ import {
   ShieldCheck,
   ArrowUpDown,
   ListOrdered,
+  AlertTriangle,
 } from "lucide-react";
 import { useTournamentStore } from "@/store/tournamentStore";
 import { Label } from "@/components/ui/label";
@@ -300,6 +301,45 @@ export default function TournamentSettingsPage() {
               checked={settings.rateInfluence}
               onChange={(v) => update({ rateInfluence: v })}
             />
+          </div>
+        </SectionCard>
+
+        {/* Suspension Rules */}
+        <SectionCard icon={AlertTriangle} title="Regras de Suspensão Disciplinar">
+          <div className="space-y-3">
+            <div className="space-y-1.5">
+              <span className="text-xs text-muted-foreground">Cartões amarelos para suspensão</span>
+              <Input
+                type="number"
+                value={settings.yellowCardsToSuspend ?? 3}
+                min={1}
+                max={10}
+                onChange={(e) => update({ yellowCardsToSuspend: parseInt(e.target.value) || 3 })}
+                className="bg-secondary border-border"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <span className="text-xs text-muted-foreground">Jogos de suspensão por acúmulo de amarelos</span>
+              <Input
+                type="number"
+                value={settings.yellowSuspensionDuration ?? 1}
+                min={1}
+                max={5}
+                onChange={(e) => update({ yellowSuspensionDuration: parseInt(e.target.value) || 1 })}
+                className="bg-secondary border-border"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <span className="text-xs text-muted-foreground">Jogos de suspensão por cartão vermelho</span>
+              <Input
+                type="number"
+                value={settings.redSuspensionDuration ?? 1}
+                min={1}
+                max={10}
+                onChange={(e) => update({ redSuspensionDuration: parseInt(e.target.value) || 1 })}
+                className="bg-secondary border-border"
+              />
+            </div>
           </div>
         </SectionCard>
 

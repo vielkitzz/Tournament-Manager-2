@@ -223,6 +223,9 @@ export const DEFAULT_SETTINGS: TournamentSettings = {
   thirdPlaceMatch: false,
   bestOfQualifiers: 0,
   bestOfPosition: 3,
+  yellowCardsToSuspend: 3,
+  yellowSuspensionDuration: 1,
+  redSuspensionDuration: 1,
 };
 
 export const KNOCKOUT_STAGES: { value: KnockoutStage; label: string }[] = [
