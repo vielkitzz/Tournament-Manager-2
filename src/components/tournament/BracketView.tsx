@@ -80,6 +80,7 @@ function getTieWinner(leg1: Match, leg2: Match, awayGoalsRule: boolean): string 
 export default function BracketView({
   tournament,
   teams,
+  players,
   onUpdateMatch,
   onBatchUpdateMatches,
   onGenerateBracket,
@@ -1156,6 +1157,7 @@ export default function BracketView({
           rateInfluence={tournament.settings.rateInfluence}
           tournament={tournament}
           allTeams={teams}
+          allPlayers={players}
           onPersist={onUpdateMatch}
           onSave={(updated) => {
             onUpdateMatch(updated);
