@@ -5,7 +5,11 @@ import { calculateStandings, StandingRow } from "@/lib/standings";
 import { simulateHalf, generateMatchStats, generateMinuteByMinuteEvents, getSuspendedPlayerIds } from "@/lib/simulation";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from "@/components/ui/tooltip";
-import TeamLogo from "@/components/TeamLogo";
+import SoccerBallIcon from "@/components/icons/SoccerBallIcon";
+import YellowCardIcon from "@/components/icons/YellowCardIcon";
+import RedCardIcon from "@/components/icons/RedCardIcon";
+import InjuryIcon from "@/components/icons/InjuryIcon";
+import HighlightIcon from "@/components/icons/HighlightIcon";
 
 interface MatchPopupProps {
   match: Match;
@@ -82,20 +86,27 @@ function CardIndicators({ yellowCards, redCards }: { yellowCards: number; redCar
 }
 
 // Event timeline row
-function EventRow({ event, homeTeamId, players }: { event: MatchEvent; homeTeamId: string; players: Player[] }) {
+function EventRow({ event, homeTeamId, players }: { key?: string | number; event: MatchEvent; homeTeamId: string; players: Player[] }) {
   const isHome = event.teamId === homeTeamId;
-  const typeIcon: Record<string, string> = {
-    goal: "⚽",
-    yellow_card: "🟨",
-    red_card: "🟥",
-    injury: "🏥",
-    highlight: "📌",
-  };
+
+  // Mapeia o tipo do evento para o componente de ícone correspondente
+  const IconComponent = {
+    goal: SoccerBallIcon,
+    yellow_card: YellowCardIcon,
+    red_card: RedCardIcon,
+    injury: InjuryIcon,
+    highlight: HighlightIcon,
+  }[event.type];
 
   return (
     <div className={`flex items-start gap-2 py-1.5 ${isHome ? "" : "flex-row-reverse text-right"}`}>
-      <span className="text-[10px] font-mono text-muted-foreground w-8 shrink-0 text-center pt-0.5">{event.minute}'</span>
-      <span className="text-xs shrink-0">{typeIcon[event.type] || "•"}</span>
+      <span className="text-[10px] font-mono text-muted-foreground w-8 shrink-0 text-center pt-0.5">
+        {event.minute}'
+      </span>
+      {/* Wrapper para garantir que o ícone fique perfeitamente alinhado com o texto */}
+      <span className="shrink-0 flex items-center justify-center w-4 h-4 pt-0.5">
+        {IconComponent ? <IconComponent size={14} /> : "•"}
+      </span>
       <span className="text-xs text-foreground leading-tight">{event.text}</span>
     </div>
   );
