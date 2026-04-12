@@ -273,7 +273,10 @@ export default function MatchPopup({
     : 0;
 
   // Current half label during live sim
-  const liveHalfLabel = liveMinute <= 45 ? "1º Tempo" : "2º Tempo";
+  const [addedTime1, setAddedTime1] = useState(0);
+  const [addedTime2, setAddedTime2] = useState(0);
+
+  const liveHalfLabel = liveMinute <= 45 + addedTime1 ? "1º Tempo" : "2º Tempo";
 
   useEffect(() => {
     if (match.played) {
@@ -337,15 +340,16 @@ export default function MatchPopup({
       return;
     }
     if (intervalRef.current) clearInterval(intervalRef.current);
-    const baseInterval = 100; // ~9 seconds at 1x
+    const baseInterval = 200; // ~18 seconds at 1x (reduced by 50%)
     const interval = baseInterval / simSpeed;
     intervalRef.current = setInterval(() => {
       setLiveMinute((prev) => {
-        if (prev >= 90) {
+        const totalMatchTime = 90 + addedTime2;
+        if (prev >= totalMatchTime) {
           if (intervalRef.current) clearInterval(intervalRef.current);
           setLiveFinished(true);
           setIsLiveSimulating(false);
-          return 90;
+          return totalMatchTime;
         }
         return prev + 1;
       });
@@ -538,7 +542,33 @@ export default function MatchPopup({
       totalH,
       totalA,
     );
-    setLiveEvents(events);
+    // Generate added time for each half
+    const at1 = Math.floor(Math.random() * 4) + 1; // 1-4 mins
+    const at2 = Math.floor(Math.random() * 6) + 2; // 2-7 mins
+    setAddedTime1(at1);
+    setAddedTime2(at2);
+
+    // Adjust event minutes for added time
+    const adjustedEvents = events.map(evt => {
+      if (evt.minute > 45 && evt.minute <= 90) {
+        // Events in 2nd half shift by addedTime1
+        return { ...evt, minute: evt.minute + at1 };
+      }
+      return evt;
+    });
+
+    // Add period end/start events
+    const periodEvents: MatchEvent[] = [
+      { id: "p1-end", minute: 45 + at1, type: "highlight", teamId: "", text: "Fim do primeiro tempo!" },
+      { id: "p2-start", minute: 45 + at1 + 1, type: "highlight", teamId: "", text: "Início do segundo tempo!" }
+    ];
+    
+    const finalEvents = [...adjustedEvents, ...periodEvents].sort((a, b) => a.minute - b.minute);
+    // Update the final whistle minute
+    const finalWhistle = finalEvents.find(e => e.text.includes("Fim de jogo"));
+    if (finalWhistle) finalWhistle.minute = 90 + at1 + at2;
+
+    setLiveEvents(finalEvents);
     setIsLiveSimulating(true);
     setLiveMinute(0);
     setLiveFinished(false);
@@ -934,21 +964,39 @@ export default function MatchPopup({
                 )}
               </TabsContent>
 
-              <TabsContent value="events" className="mt-0">
-                <div ref={eventsRef} className="px-6 py-4 max-h-64 overflow-y-auto">
-                  {visibleEvents.length > 0 ? (
-                    <div className="space-y-0.5 divide-y divide-border/30">
-                      {visibleEvents.map((evt) => (
-                        <EventRow key={evt.id} event={evt} homeTeamId={match.homeTeamId} players={allPlayers || []} />
-                      ))}
-                    </div>
-                  ) : (
-                    <p className="text-xs text-muted-foreground text-center py-6">
-                      {isLiveSimulating ? "Aguardando eventos..." : "Nenhum evento registrado"}
-                    </p>
-                  )}
-                </div>
-              </TabsContent>
+	              <TabsContent value="events" className="mt-0">
+	                <div ref={eventsRef} className="px-6 py-4 max-h-64 overflow-y-auto">
+	                  {visibleEvents.length > 0 ? (
+	                    <div className="space-y-4">
+	                      {/* Period: 1st Half */}
+	                      <div className="space-y-1">
+	                        <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider border-b border-border/50 pb-1 mb-2">1º Tempo</p>
+	                        <div className="space-y-0.5 divide-y divide-border/30">
+	                          {visibleEvents.filter(e => e.minute <= 45 + addedTime1).map((evt) => (
+	                            <EventRow key={evt.id} event={evt} homeTeamId={match.homeTeamId} players={allPlayers || []} />
+	                          ))}
+	                        </div>
+	                      </div>
+
+	                      {/* Period: 2nd Half */}
+	                      {visibleEvents.some(e => e.minute > 45 + addedTime1) && (
+	                        <div className="space-y-1">
+	                          <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider border-b border-border/50 pb-1 mb-2 mt-4">2º Tempo</p>
+	                          <div className="space-y-0.5 divide-y divide-border/30">
+	                            {visibleEvents.filter(e => e.minute > 45 + addedTime1).map((evt) => (
+	                              <EventRow key={evt.id} event={evt} homeTeamId={match.homeTeamId} players={allPlayers || []} />
+	                            ))}
+	                          </div>
+	                        </div>
+	                      )}
+	                    </div>
+	                  ) : (
+	                    <p className="text-xs text-muted-foreground text-center py-6">
+	                      {isLiveSimulating ? "Aguardando eventos..." : "Nenhum evento registrado"}
+	                    </p>
+	                  )}
+	                </div>
+	              </TabsContent>
             </Tabs>
           </div>
         )}
