@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import { Match, Team, Tournament, Player } from "@/types/tournament";
 import { Shield, ChevronLeft, ChevronRight, Trophy, CheckCircle, Play } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { simulateFullMatch } from "@/lib/simulation";
+import { simulateFullMatch, generateMatchStats, generateMinuteByMinuteEvents, getSuspendedPlayerIds } from "@/lib/simulation";
 import MatchPopup from "./MatchPopup";
 import ScreenshotButton from "@/components/ScreenshotButton";
 
