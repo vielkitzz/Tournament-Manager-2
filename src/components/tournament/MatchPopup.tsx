@@ -260,12 +260,10 @@ export default function MatchPopup({
 
   // Progressive card counts during live sim
   const liveYellowHome = isLiveSimulating
-    ? liveEvents.filter((e) => e.type === "yellow_card" && e.teamId === match.homeTeamId && e.minute <= liveMinute)
-        .length
+    ? liveEvents.filter((e) => e.type === "yellow_card" && e.teamId === match.homeTeamId && e.minute <= liveMinute).length
     : 0;
   const liveYellowAway = isLiveSimulating
-    ? liveEvents.filter((e) => e.type === "yellow_card" && e.teamId === match.awayTeamId && e.minute <= liveMinute)
-        .length
+    ? liveEvents.filter((e) => e.type === "yellow_card" && e.teamId === match.awayTeamId && e.minute <= liveMinute).length
     : 0;
   const liveRedHome = isLiveSimulating
     ? liveEvents.filter((e) => e.type === "red_card" && e.teamId === match.homeTeamId && e.minute <= liveMinute).length
@@ -551,7 +549,7 @@ export default function MatchPopup({
     setAddedTime2(at2);
 
     // Adjust event minutes for added time
-    const adjustedEvents = events.map((evt) => {
+    const adjustedEvents = events.map(evt => {
       if (evt.minute > 45 && evt.minute <= 90) {
         // Events in 2nd half shift by addedTime1
         return { ...evt, minute: evt.minute + at1 };
@@ -562,12 +560,12 @@ export default function MatchPopup({
     // Add period end/start events
     const periodEvents: MatchEvent[] = [
       { id: "p1-end", minute: 45 + at1, type: "highlight", teamId: "", text: "Fim do primeiro tempo!" },
-      { id: "p2-start", minute: 45 + at1 + 1, type: "highlight", teamId: "", text: "Início do segundo tempo!" },
+      { id: "p2-start", minute: 45 + at1 + 1, type: "highlight", teamId: "", text: "Início do segundo tempo!" }
     ];
-
+    
     const finalEvents = [...adjustedEvents, ...periodEvents].sort((a, b) => a.minute - b.minute);
     // Update the final whistle minute
-    const finalWhistle = finalEvents.find((e) => e.text.includes("Fim de jogo"));
+    const finalWhistle = finalEvents.find(e => e.text.includes("Fim de jogo"));
     if (finalWhistle) finalWhistle.minute = 90 + at1 + at2;
 
     setLiveEvents(finalEvents);
@@ -953,92 +951,52 @@ export default function MatchPopup({
               <TabsContent value="stats" className="mt-0">
                 {displayStats && (
                   <div className="px-6 py-4 space-y-2.5">
-                    <StatRow
-                      label="Posse de Bola"
-                      homeValue={displayStats.homeStats.possession}
-                      awayValue={displayStats.awayStats.possession}
-                      format="percent"
-                    />
-                    <StatRow
-                      label="Gols Esperados (xG)"
-                      homeValue={displayStats.homeStats.expectedGoals}
-                      awayValue={displayStats.awayStats.expectedGoals}
-                      format="decimal"
-                    />
-                    <StatRow
-                      label="Finalizações"
-                      homeValue={displayStats.homeStats.shots}
-                      awayValue={displayStats.awayStats.shots}
-                    />
-                    <StatRow
-                      label="Finalizações ao Gol"
-                      homeValue={displayStats.homeStats.shotsOnTarget}
-                      awayValue={displayStats.awayStats.shotsOnTarget}
-                    />
-                    <StatRow
-                      label="Escanteios"
-                      homeValue={displayStats.homeStats.corners}
-                      awayValue={displayStats.awayStats.corners}
-                    />
-                    <StatRow
-                      label="Faltas"
-                      homeValue={displayStats.homeStats.fouls}
-                      awayValue={displayStats.awayStats.fouls}
-                    />
-                    <StatRow
-                      label="Cartões Amarelos"
-                      homeValue={displayStats.homeStats.yellowCards}
-                      awayValue={displayStats.awayStats.yellowCards}
-                    />
-                    <StatRow
-                      label="Cartões Vermelhos"
-                      homeValue={displayStats.homeStats.redCards}
-                      awayValue={displayStats.awayStats.redCards}
-                    />
-                    <StatRow
-                      label="Impedimentos"
-                      homeValue={displayStats.homeStats.offsides}
-                      awayValue={displayStats.awayStats.offsides}
-                    />
+                    <StatRow label="Posse de Bola" homeValue={displayStats.homeStats.possession} awayValue={displayStats.awayStats.possession} format="percent" />
+                    <StatRow label="Gols Esperados (xG)" homeValue={displayStats.homeStats.expectedGoals} awayValue={displayStats.awayStats.expectedGoals} format="decimal" />
+                    <StatRow label="Finalizações" homeValue={displayStats.homeStats.shots} awayValue={displayStats.awayStats.shots} />
+                    <StatRow label="Finalizações ao Gol" homeValue={displayStats.homeStats.shotsOnTarget} awayValue={displayStats.awayStats.shotsOnTarget} />
+                    <StatRow label="Escanteios" homeValue={displayStats.homeStats.corners} awayValue={displayStats.awayStats.corners} />
+                    <StatRow label="Faltas" homeValue={displayStats.homeStats.fouls} awayValue={displayStats.awayStats.fouls} />
+                    <StatRow label="Cartões Amarelos" homeValue={displayStats.homeStats.yellowCards} awayValue={displayStats.awayStats.yellowCards} />
+                    <StatRow label="Cartões Vermelhos" homeValue={displayStats.homeStats.redCards} awayValue={displayStats.awayStats.redCards} />
+                    <StatRow label="Impedimentos" homeValue={displayStats.homeStats.offsides} awayValue={displayStats.awayStats.offsides} />
                   </div>
                 )}
               </TabsContent>
 
-              <TabsContent value="events" className="mt-0">
-                <div ref={eventsRef} className="px-6 py-4 max-h-64 overflow-y-auto">
-                  {visibleEvents.length > 0 ? (
-                    <div className="space-y-4">
-                      {/* Period: 1st Half */}
-                      <div className="space-y-1">
-                        {/* Adicionada a classe text-center abaixo */}
-                        <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider border-b border-border/50 pb-1 mb-2 text-center">
-                          1º Tempo
-                        </p>
-                        <div className="space-y-0.5 divide-y divide-border/30">
-                          {/* ... mapeamento dos eventos ... */}
-                        </div>
-                      </div>
+	              <TabsContent value="events" className="mt-0">
+	                <div ref={eventsRef} className="px-6 py-4 max-h-64 overflow-y-auto">
+	                  {visibleEvents.length > 0 ? (
+	                    <div className="space-y-4">
+	                      {/* Period: 1st Half */}
+	                      <div className="space-y-1">
+	                        <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider border-b border-border/50 pb-1 mb-2">1º Tempo</p>
+	                        <div className="space-y-0.5 divide-y divide-border/30">
+	                          {visibleEvents.filter(e => e.minute <= 45 + addedTime1).map((evt) => (
+	                            <EventRow key={evt.id} event={evt} homeTeamId={match.homeTeamId} players={allPlayers || []} />
+	                          ))}
+	                        </div>
+	                      </div>
 
-                      {/* Period: 2nd Half */}
-                      {visibleEvents.some((e) => e.minute > 45 + addedTime1) && (
-                        <div className="space-y-1">
-                          {/* Adicionada a classe text-center abaixo */}
-                          <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider border-b border-border/50 pb-1 mb-2 mt-4 text-center">
-                            2º Tempo
-                          </p>
-                          <div className="space-y-0.5 divide-y divide-border/30">
-                            {/* ... mapeamento dos eventos ... */}
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  ) : (
-                    <p className="text-xs text-muted-foreground text-center py-6">
-                      {isLiveSimulating ? "Aguardando eventos..." : "Nenhum evento registrado"}
-                    </p>
-                  )}
-                </div>
-              </TabsContent>
+	                      {/* Period: 2nd Half */}
+	                      {visibleEvents.some(e => e.minute > 45 + addedTime1) && (
+	                        <div className="space-y-1">
+	                          <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider border-b border-border/50 pb-1 mb-2 mt-4">2º Tempo</p>
+	                          <div className="space-y-0.5 divide-y divide-border/30">
+	                            {visibleEvents.filter(e => e.minute > 45 + addedTime1).map((evt) => (
+	                              <EventRow key={evt.id} event={evt} homeTeamId={match.homeTeamId} players={allPlayers || []} />
+	                            ))}
+	                          </div>
+	                        </div>
+	                      )}
+	                    </div>
+	                  ) : (
+	                    <p className="text-xs text-muted-foreground text-center py-6">
+	                      {isLiveSimulating ? "Aguardando eventos..." : "Nenhum evento registrado"}
+	                    </p>
+	                  )}
+	                </div>
+	              </TabsContent>
             </Tabs>
           </div>
         )}
