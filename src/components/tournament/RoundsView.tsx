@@ -51,20 +51,44 @@ export default function RoundsView({
 
   const handleSimulateRound = () => {
     if (unplayedInRound.length === 0) return;
+    const allPlayersList = players || [];
     const updated = unplayedInRound.map((match) => {
       const home = getTeam(match.homeTeamId);
       const away = getTeam(match.awayTeamId);
       const homeRate = tournament.settings.rateInfluence ? (home?.rate ?? 5) : 5;
       const awayRate = tournament.settings.rateInfluence ? (away?.rate ?? 5) : 5;
       const result = simulateFullMatch(homeRate, awayRate);
+      const totalH = result.total[0];
+      const totalA = result.total[1];
+      const stats = generateMatchStats(homeRate, awayRate, totalH, totalA);
+
+      // Generate events if both teams have enough players
+      let events: any[] | undefined;
+      if (home && away) {
+        const homePl = allPlayersList.filter((p) => p.teamId === match.homeTeamId);
+        const awayPl = allPlayersList.filter((p) => p.teamId === match.awayTeamId);
+        if (homePl.length >= 11 && awayPl.length >= 11) {
+          const suspHome = getSuspendedPlayerIds(tournament.matches, match.round, home.id, tournament.settings);
+          const suspAway = getSuspendedPlayerIds(tournament.matches, match.round, away.id, tournament.settings);
+          let availHome = homePl.filter((p) => !suspHome.has(p.id));
+          let availAway = awayPl.filter((p) => !suspAway.has(p.id));
+          if (availHome.length < 11) availHome = homePl.slice(0, 11);
+          if (availAway.length < 11) availAway = awayPl.slice(0, 11);
+          events = generateMinuteByMinuteEvents(home, away, availHome, availAway, stats, totalH, totalA);
+        }
+      }
+
       return {
         ...match,
-        homeScore: result.total[0],
-        awayScore: result.total[1],
+        homeScore: totalH,
+        awayScore: totalA,
         homeScoreH1: result.h1[0],
         awayScoreH1: result.h1[1],
         homeScoreH2: result.h2[0],
         awayScoreH2: result.h2[1],
+        homeStats: stats.homeStats,
+        awayStats: stats.awayStats,
+        events,
         played: true,
       };
     });
