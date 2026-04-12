@@ -1,31 +1,25 @@
-import { useMemo } from "react";
+import { useMemo, useRef } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
 import { useTournamentStore } from "@/store/tournamentStore";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { ArrowLeft, PlusCircle, Pencil, Trash2 } from "lucide-react";
+import { ArrowLeft, PlusCircle, Pencil, Trash2, Download, Upload } from "lucide-react";
 import TeamLogo from "@/components/TeamLogo";
 import CountryFlag from "@/components/CountryFlag";
 import PageTransition from "@/components/PageTransition";
 import { toast } from "sonner";
+import { Player } from "@/types/tournament";
 
 const MAX_PLAYERS = 30;
 
 const POSITION_WEIGHTS: Record<string, number> = {
-  // Goleiro
   Goleiro: 1,
-
-  // Defensores
   Zagueiro: 2,
   "Lateral Direito": 3,
   "Lateral Esquerdo": 4,
-
-  // Meio-campistas
   Volante: 5,
   Meia: 6,
   "Meia Atacante": 7,
-
-  // Atacantes
   "Ponta Direita": 8,
   "Ponta Esquerda": 9,
   Centroavante: 10,
@@ -35,27 +29,19 @@ const POSITION_WEIGHTS: Record<string, number> = {
 export default function ClubSquadPage() {
   const { teamId } = useParams<{ teamId: string }>();
   const navigate = useNavigate();
-  const { teams, players, removePlayer } = useTournamentStore();
+  const { teams, players, removePlayer, addPlayer } = useTournamentStore();
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const team = useMemo(() => teams.find((t) => t.id === teamId), [teams, teamId]);
   const squad = useMemo(() => {
     return players
       .filter((p) => p.teamId === teamId)
       .sort((a, b) => {
-        // Pega a posição exata (ou string vazia se não tiver)
         const posA = a.position || "";
         const posB = b.position || "";
-
-        // Busca o peso correspondente no objeto
         const weightA = POSITION_WEIGHTS[posA] || 99;
         const weightB = POSITION_WEIGHTS[posB] || 99;
-
-        // Ordena pelo setor do campo (Goleiro -> Defesa -> Meio -> Ataque)
-        if (weightA !== weightB) {
-          return weightA - weightB;
-        }
-
-        // Se forem da mesma posição (ex: dois zagueiros), ordena pelo número da camisa
+        if (weightA !== weightB) return weightA - weightB;
         return (a.shirtNumber ?? 99) - (b.shirtNumber ?? 99);
       });
   }, [players, teamId]);
@@ -63,6 +49,83 @@ export default function ClubSquadPage() {
   const handleDelete = async (id: string, name: string) => {
     await removePlayer(id);
     toast.success(`${name} removido do elenco`);
+  };
+
+  const handleExportSquad = () => {
+    if (squad.length === 0) {
+      toast.error("Elenco vazio, nada para exportar");
+      return;
+    }
+    const exportData = {
+      _type: "squad",
+      _version: 1,
+      _exportedAt: new Date().toISOString(),
+      teamName: team?.name || "Unknown",
+      players: squad.map(({ id, ...p }) => ({
+        name: p.name,
+        nationality: p.nationality,
+        position: p.position,
+        age: p.age,
+        shirtNumber: p.shirtNumber,
+        rating: p.rating,
+        photoUrl: p.photoUrl,
+      })),
+    };
+    const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `elenco-${(team?.abbreviation || team?.name || "squad").toLowerCase().replace(/\s+/g, "-")}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+    toast.success("Elenco exportado com sucesso!");
+  };
+
+  const handleImportSquad = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !teamId) return;
+    const reader = new FileReader();
+    reader.onload = async (ev) => {
+      try {
+        const data = JSON.parse(ev.target?.result as string);
+        if (!data.players || !Array.isArray(data.players)) {
+          toast.error("Arquivo inválido: não contém jogadores");
+          return;
+        }
+        const currentCount = squad.length;
+        const available = MAX_PLAYERS - currentCount;
+        if (available <= 0) {
+          toast.error("Elenco já está cheio");
+          return;
+        }
+        const toImport = data.players.slice(0, available);
+        let imported = 0;
+        for (const p of toImport) {
+          const newPlayer: Player = {
+            id: crypto.randomUUID(),
+            name: p.name || "Jogador",
+            teamId,
+            nationality: p.nationality || null,
+            position: p.position || null,
+            age: p.age ?? null,
+            shirtNumber: p.shirtNumber ?? null,
+            rating: p.rating ?? 5,
+            photoUrl: p.photoUrl || null,
+          };
+          await addPlayer(newPlayer);
+          imported++;
+        }
+        toast.success(`${imported} jogador${imported !== 1 ? "es" : ""} importado${imported !== 1 ? "s" : ""}`);
+        if (data.players.length > available) {
+          toast.info(`${data.players.length - available} jogador(es) ignorados (limite de ${MAX_PLAYERS})`);
+        }
+      } catch {
+        toast.error("Erro ao ler o arquivo de importação");
+      }
+    };
+    reader.readAsText(file);
+    // Reset input
+    if (fileInputRef.current) fileInputRef.current.value = "";
   };
 
   if (!team) {
@@ -94,14 +157,31 @@ export default function ClubSquadPage() {
               </p>
             </div>
           </div>
-          {squad.length < MAX_PLAYERS && (
-            <Link to={`/squads/team/${teamId}/create`}>
-              <Button className="gap-2">
-                <PlusCircle className="w-4 h-4" />
-                Adicionar Jogador
-              </Button>
-            </Link>
-          )}
+          <div className="flex items-center gap-2 flex-wrap">
+            <Button variant="outline" size="sm" className="gap-2" onClick={handleExportSquad}>
+              <Download className="w-4 h-4" />
+              Exportar
+            </Button>
+            <Button variant="outline" size="sm" className="gap-2" onClick={() => fileInputRef.current?.click()}>
+              <Upload className="w-4 h-4" />
+              Importar
+            </Button>
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept=".json"
+              className="hidden"
+              onChange={handleImportSquad}
+            />
+            {squad.length < MAX_PLAYERS && (
+              <Link to={`/squads/team/${teamId}/create`}>
+                <Button className="gap-2">
+                  <PlusCircle className="w-4 h-4" />
+                  Adicionar Jogador
+                </Button>
+              </Link>
+            )}
+          </div>
         </div>
 
         {squad.length === 0 ? (
