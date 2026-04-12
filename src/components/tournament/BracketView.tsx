@@ -4,7 +4,7 @@ import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { Shield, Play, Trophy, Medal, UserPlus, Shuffle, Plus, Trash2, RotateCcw, UserMinus } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { simulateFullMatch, simulateHalf } from "@/lib/simulation";
+import { simulateFullMatch, simulateHalf, generateMatchStats, generateMinuteByMinuteEvents, getSuspendedPlayerIds } from "@/lib/simulation";
 import MatchPopup from "./MatchPopup";
 import BracketTeamEditor from "./BracketTeamEditor";
 import ScreenshotButton from "@/components/ScreenshotButton";
@@ -196,6 +196,25 @@ export default function BracketView({
       awayPenalties = homePenalties + (Math.random() > 0.5 ? 1 : -1);
       if (awayPenalties < 0) awayPenalties = homePenalties + 1;
     }
+    const stats = generateMatchStats(homeRate, awayRate, homeScore, awayScore);
+
+    // Generate events if both teams have enough players
+    let events: any[] | undefined;
+    const allPlayersList = players || [];
+    if (home && away) {
+      const homePl = allPlayersList.filter((p) => p.teamId === match.homeTeamId);
+      const awayPl = allPlayersList.filter((p) => p.teamId === match.awayTeamId);
+      if (homePl.length >= 11 && awayPl.length >= 11) {
+        const suspHome = getSuspendedPlayerIds(tournament.matches, match.round, home.id, tournament.settings);
+        const suspAway = getSuspendedPlayerIds(tournament.matches, match.round, away.id, tournament.settings);
+        let availHome = homePl.filter((p) => !suspHome.has(p.id));
+        let availAway = awayPl.filter((p) => !suspAway.has(p.id));
+        if (availHome.length < 11) availHome = homePl.slice(0, 11);
+        if (availAway.length < 11) availAway = awayPl.slice(0, 11);
+        events = generateMinuteByMinuteEvents(home, away, availHome, availAway, stats, homeScore, awayScore);
+      }
+    }
+
     return {
       ...match,
       homeScore,
@@ -204,6 +223,9 @@ export default function BracketView({
       awayScoreH1: result.h1[1],
       homeScoreH2: result.h2[0],
       awayScoreH2: result.h2[1],
+      homeStats: stats.homeStats,
+      awayStats: stats.awayStats,
+      events,
       played: true,
       ...(homePenalties !== undefined && { homePenalties, awayPenalties }),
     };

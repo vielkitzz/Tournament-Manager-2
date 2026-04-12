@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { Match, Team, Tournament, TeamMatchStats, Player, MatchEvent } from "@/types/tournament";
-import { Shield, ChevronUp, ChevronDown, Play, Clock, Zap } from "lucide-react";
+import { Shield, ChevronUp, ChevronDown, Play, Clock, Zap, Pause, FastForward } from "lucide-react";
 import { calculateStandings, StandingRow } from "@/lib/standings";
 import {
   simulateHalf,
@@ -35,7 +35,6 @@ function simulatePenaltyKick(): boolean {
   return Math.random() < 0.75;
 }
 
-// Stats comparison bar row
 function StatRow({
   label,
   homeValue,
@@ -106,7 +105,6 @@ function CardIndicators({ yellowCards, redCards }: { yellowCards: number; redCar
   );
 }
 
-// Event timeline row
 function EventRow({
   event,
   homeTeamId,
@@ -127,10 +125,8 @@ function EventRow({
     highlight: HighlightIcon,
   }[event.type];
 
-  // Função mágica que pinta o texto entre ** de azul
   const formatEventText = (text: string) => {
     return text.split(/\*\*(.*?)\*\*/g).map((part, index) => {
-      // O split com regex separa o texto em array. Os índices ímpares são o que estava dentro dos **
       if (index % 2 === 1) {
         return (
           <span key={index} className="text-primary font-bold">
@@ -150,7 +146,6 @@ function EventRow({
       <span className="shrink-0 flex items-center justify-center w-4 h-4 pt-0.5">
         {IconComponent ? <IconComponent size={14} /> : "•"}
       </span>
-      {/* Aqui nós chamamos a função mágica em vez de imprimir o event.text direto */}
       <span className="text-xs text-foreground leading-tight">{formatEventText(event.text)}</span>
     </div>
   );
@@ -203,7 +198,10 @@ export default function MatchPopup({
   const [liveMinute, setLiveMinute] = useState(0);
   const [liveEvents, setLiveEvents] = useState<MatchEvent[]>([]);
   const [liveFinished, setLiveFinished] = useState(false);
+  const [isPaused, setIsPaused] = useState(false);
+  const [simSpeed, setSimSpeed] = useState(1); // 1x, 2x, 4x
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const eventsRef = useRef<HTMLDivElement>(null);
 
   // Players for each team
   const homePlayers = (allPlayers || []).filter((p) => p.teamId === match.homeTeamId);
@@ -252,6 +250,31 @@ export default function MatchPopup({
 
   const [simulatedHalves, setSimulatedHalves] = useState<Set<HalfKey>>(new Set());
 
+  // Compute progressive live score from visible events
+  const liveGoalsHome = isLiveSimulating
+    ? liveEvents.filter((e) => e.type === "goal" && e.teamId === match.homeTeamId && e.minute <= liveMinute).length
+    : 0;
+  const liveGoalsAway = isLiveSimulating
+    ? liveEvents.filter((e) => e.type === "goal" && e.teamId === match.awayTeamId && e.minute <= liveMinute).length
+    : 0;
+
+  // Progressive card counts during live sim
+  const liveYellowHome = isLiveSimulating
+    ? liveEvents.filter((e) => e.type === "yellow_card" && e.teamId === match.homeTeamId && e.minute <= liveMinute).length
+    : 0;
+  const liveYellowAway = isLiveSimulating
+    ? liveEvents.filter((e) => e.type === "yellow_card" && e.teamId === match.awayTeamId && e.minute <= liveMinute).length
+    : 0;
+  const liveRedHome = isLiveSimulating
+    ? liveEvents.filter((e) => e.type === "red_card" && e.teamId === match.homeTeamId && e.minute <= liveMinute).length
+    : 0;
+  const liveRedAway = isLiveSimulating
+    ? liveEvents.filter((e) => e.type === "red_card" && e.teamId === match.awayTeamId && e.minute <= liveMinute).length
+    : 0;
+
+  // Current half label during live sim
+  const liveHalfLabel = liveMinute <= 45 ? "1º Tempo" : "2º Tempo";
+
   useEffect(() => {
     if (match.played) {
       const h1Home = match.homeScoreH1 ?? match.homeScore;
@@ -294,7 +317,6 @@ export default function MatchPopup({
         onPersist?.({ ...match, homeStats: stats.homeStats, awayStats: stats.awayStats });
       }
 
-      // Load saved events
       if (match.events && match.events.length > 0) {
         setLiveEvents(match.events);
         setLiveFinished(true);
@@ -304,6 +326,41 @@ export default function MatchPopup({
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [match.id]);
+
+  // Live simulation clock with speed support
+  useEffect(() => {
+    if (!isLiveSimulating || isPaused) {
+      if (intervalRef.current) {
+        clearInterval(intervalRef.current);
+        intervalRef.current = null;
+      }
+      return;
+    }
+    if (intervalRef.current) clearInterval(intervalRef.current);
+    const baseInterval = 100; // ~9 seconds at 1x
+    const interval = baseInterval / simSpeed;
+    intervalRef.current = setInterval(() => {
+      setLiveMinute((prev) => {
+        if (prev >= 90) {
+          if (intervalRef.current) clearInterval(intervalRef.current);
+          setLiveFinished(true);
+          setIsLiveSimulating(false);
+          return 90;
+        }
+        return prev + 1;
+      });
+    }, interval);
+    return () => {
+      if (intervalRef.current) clearInterval(intervalRef.current);
+    };
+  }, [isLiveSimulating, isPaused, simSpeed]);
+
+  // Auto-scroll events
+  useEffect(() => {
+    if (eventsRef.current) {
+      eventsRef.current.scrollTop = eventsRef.current.scrollHeight;
+    }
+  }, [liveMinute]);
 
   // Cleanup interval on unmount
   useEffect(() => {
@@ -431,11 +488,25 @@ export default function MatchPopup({
     return stats;
   };
 
+  // Generate available players (filtering suspended)
+  const getAvailablePlayers = () => {
+    let availableHome = homePlayers;
+    let availableAway = awayPlayers;
+    if (tournament) {
+      const suspendedHome = getSuspendedPlayerIds(tournament.matches, match.round, homeTeam!.id, tournament.settings);
+      const suspendedAway = getSuspendedPlayerIds(tournament.matches, match.round, awayTeam!.id, tournament.settings);
+      availableHome = homePlayers.filter((p) => !suspendedHome.has(p.id));
+      availableAway = awayPlayers.filter((p) => !suspendedAway.has(p.id));
+      if (availableHome.length < 11) availableHome = homePlayers.slice(0, 11);
+      if (availableAway.length < 11) availableAway = awayPlayers.slice(0, 11);
+    }
+    return { availableHome, availableAway };
+  };
+
   // Handle minute-by-minute live simulation
   const handleLiveSimulate = () => {
     if (!homeTeam || !awayTeam || !canLiveSimulate) return;
 
-    // Generate score first (same engine)
     const homeRate = rateInfluence ? homeTeam.rate : 3;
     const awayRate = rateInfluence ? awayTeam.rate : 3;
     const [h1h, h1a] = simulateHalf(homeRate, awayRate, false, 0.5);
@@ -453,22 +524,10 @@ export default function MatchPopup({
     const totalH = h1h + h2h;
     const totalA = h1a + h2a;
 
-    // Generate stats
     const stats = generateMatchStats(homeRate, awayRate, totalH, totalA);
     setMatchStats(stats);
 
-    // Filter out suspended players
-    let availableHome = homePlayers;
-    let availableAway = awayPlayers;
-    if (tournament) {
-      const suspendedHome = getSuspendedPlayerIds(tournament.matches, match.round, homeTeam.id, tournament.settings);
-      const suspendedAway = getSuspendedPlayerIds(tournament.matches, match.round, awayTeam.id, tournament.settings);
-      availableHome = homePlayers.filter((p) => !suspendedHome.has(p.id));
-      availableAway = awayPlayers.filter((p) => !suspendedAway.has(p.id));
-      // Ensure minimum 11
-      if (availableHome.length < 11) availableHome = homePlayers.slice(0, 11);
-      if (availableAway.length < 11) availableAway = awayPlayers.slice(0, 11);
-    }
+    const { availableHome, availableAway } = getAvailablePlayers();
 
     const events = generateMinuteByMinuteEvents(
       homeTeam,
@@ -483,22 +542,10 @@ export default function MatchPopup({
     setIsLiveSimulating(true);
     setLiveMinute(0);
     setLiveFinished(false);
+    setIsPaused(false);
+    setSimSpeed(1);
     setShowBottomPanel(true);
     setBottomTab("events");
-
-    // Start the clock
-    if (intervalRef.current) clearInterval(intervalRef.current);
-    intervalRef.current = setInterval(() => {
-      setLiveMinute((prev) => {
-        if (prev >= 90) {
-          if (intervalRef.current) clearInterval(intervalRef.current);
-          setLiveFinished(true);
-          setIsLiveSimulating(false);
-          return 90;
-        }
-        return prev + 1;
-      });
-    }, 100); // ~9 seconds total for 90 minutes
   };
 
   const handleFinish = () => {
@@ -587,6 +634,16 @@ export default function MatchPopup({
 
   const hasEvents = liveEvents.length > 0 || (match.events && match.events.length > 0);
 
+  // Display scores: during live sim show progressive, otherwise accumulated
+  const displayHome = isLiveSimulating ? liveGoalsHome : accumulatedHome;
+  const displayAway = isLiveSimulating ? liveGoalsAway : accumulatedAway;
+
+  // Display cards: during live sim show progressive
+  const displayYellowHome = isLiveSimulating ? liveYellowHome : (displayStats?.homeStats.yellowCards ?? 0);
+  const displayYellowAway = isLiveSimulating ? liveYellowAway : (displayStats?.awayStats.yellowCards ?? 0);
+  const displayRedHome = isLiveSimulating ? liveRedHome : (displayStats?.homeStats.redCards ?? 0);
+  const displayRedAway = isLiveSimulating ? liveRedAway : (displayStats?.awayStats.redCards ?? 0);
+
   return (
     <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4" onClick={onCancel}>
       <div
@@ -607,12 +664,7 @@ export default function MatchPopup({
               <div>
                 <p className="font-display font-bold text-foreground text-sm">{homeTeam?.name || "Time Excluído"}</p>
                 <p className="text-xs text-primary font-mono">{homeTeam?.rate?.toFixed(2) ?? "—"}</p>
-                {displayStats && (
-                  <CardIndicators
-                    yellowCards={displayStats.homeStats.yellowCards}
-                    redCards={displayStats.homeStats.redCards}
-                  />
-                )}
+                <CardIndicators yellowCards={displayYellowHome} redCards={displayRedHome} />
               </div>
             </div>
 
@@ -623,6 +675,7 @@ export default function MatchPopup({
                   <Clock className="w-4 h-4 animate-pulse" />
                   <span className="text-lg font-mono font-bold">{liveMinute}'</span>
                 </div>
+                <span className="text-[10px] text-muted-foreground">{liveHalfLabel}</span>
               </div>
             )}
 
@@ -636,12 +689,7 @@ export default function MatchPopup({
               <div>
                 <p className="font-display font-bold text-foreground text-sm">{awayTeam?.name || "Time Excluído"}</p>
                 <p className="text-xs text-primary font-mono">{awayTeam?.rate?.toFixed(2) ?? "—"}</p>
-                {displayStats && (
-                  <CardIndicators
-                    yellowCards={displayStats.awayStats.yellowCards}
-                    redCards={displayStats.awayStats.redCards}
-                  />
-                )}
+                <CardIndicators yellowCards={displayYellowAway} redCards={displayRedAway} />
               </div>
               <div className="w-12 h-12 flex items-center justify-center shrink-0">
                 {awayTeam?.logo ? (
@@ -727,29 +775,15 @@ export default function MatchPopup({
                 </button>
               )}
 
-              {/* Minute-by-minute button */}
-              {!match.played && !liveFinished && !simulatedHalves.has("h1") && (
-                <TooltipProvider>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <div className="w-full max-w-xs">
-                        <button
-                          onClick={handleLiveSimulate}
-                          disabled={!canLiveSimulate}
-                          className="w-full py-3 rounded-xl bg-accent text-accent-foreground font-display font-bold text-sm hover:bg-accent/80 transition-colors flex items-center justify-center gap-2 disabled:opacity-40 disabled:cursor-not-allowed"
-                        >
-                          <Zap className="w-4 h-4" />
-                          Simular Minuto a Minuto
-                        </button>
-                      </div>
-                    </TooltipTrigger>
-                    {!canLiveSimulate && (
-                      <TooltipContent>
-                        <p>Ambos os times precisam de pelo menos 11 jogadores</p>
-                      </TooltipContent>
-                    )}
-                  </Tooltip>
-                </TooltipProvider>
+              {/* Minute-by-minute button - only show when both teams have enough players */}
+              {!match.played && !liveFinished && !simulatedHalves.has("h1") && canLiveSimulate && (
+                <button
+                  onClick={handleLiveSimulate}
+                  className="w-full max-w-xs py-3 rounded-xl bg-accent text-accent-foreground font-display font-bold text-sm hover:bg-accent/80 transition-colors flex items-center justify-center gap-2"
+                >
+                  <Zap className="w-4 h-4" />
+                  Simular Minuto a Minuto
+                </button>
               )}
             </div>
           </>
@@ -757,6 +791,46 @@ export default function MatchPopup({
 
         {/* Live simulation score display */}
         {isLiveSimulating && (
+          <div className="py-6 px-6 space-y-4">
+            <div className="flex items-center justify-center gap-4">
+              <div className="w-28 h-28 rounded-xl bg-secondary border border-border flex items-center justify-center">
+                <span className="text-6xl font-bold text-foreground font-display">{displayHome}</span>
+              </div>
+              <div className="w-28 h-28 rounded-xl bg-secondary border border-border flex items-center justify-center">
+                <span className="text-6xl font-bold text-foreground font-display">{displayAway}</span>
+              </div>
+            </div>
+            {/* Speed & Pause controls */}
+            <div className="flex items-center justify-center gap-2">
+              <button
+                onClick={() => setIsPaused(!isPaused)}
+                className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-colors flex items-center gap-1.5 ${
+                  isPaused ? "bg-primary text-primary-foreground" : "bg-secondary text-foreground hover:bg-secondary/80"
+                }`}
+              >
+                {isPaused ? <Play className="w-3.5 h-3.5" /> : <Pause className="w-3.5 h-3.5" />}
+                {isPaused ? "Retomar" : "Pausar"}
+              </button>
+              {[1, 2, 4].map((speed) => (
+                <button
+                  key={speed}
+                  onClick={() => setSimSpeed(speed)}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-colors flex items-center gap-1 ${
+                    simSpeed === speed
+                      ? "bg-primary text-primary-foreground"
+                      : "bg-secondary text-foreground hover:bg-secondary/80"
+                  }`}
+                >
+                  <FastForward className="w-3.5 h-3.5" />
+                  {speed}x
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Live finished score display */}
+        {liveFinished && !match.played && !isLiveSimulating && (
           <div className="flex items-center justify-center gap-4 py-6 px-6">
             <div className="w-28 h-28 rounded-xl bg-secondary border border-border flex items-center justify-center">
               <span className="text-6xl font-bold text-foreground font-display">{accumulatedHome}</span>
@@ -847,59 +921,21 @@ export default function MatchPopup({
               <TabsContent value="stats" className="mt-0">
                 {displayStats && (
                   <div className="px-6 py-4 space-y-2.5">
-                    <StatRow
-                      label="Posse de Bola"
-                      homeValue={displayStats.homeStats.possession}
-                      awayValue={displayStats.awayStats.possession}
-                      format="percent"
-                    />
-                    <StatRow
-                      label="Gols Esperados (xG)"
-                      homeValue={displayStats.homeStats.expectedGoals}
-                      awayValue={displayStats.awayStats.expectedGoals}
-                      format="decimal"
-                    />
-                    <StatRow
-                      label="Finalizações"
-                      homeValue={displayStats.homeStats.shots}
-                      awayValue={displayStats.awayStats.shots}
-                    />
-                    <StatRow
-                      label="Finalizações ao Gol"
-                      homeValue={displayStats.homeStats.shotsOnTarget}
-                      awayValue={displayStats.awayStats.shotsOnTarget}
-                    />
-                    <StatRow
-                      label="Escanteios"
-                      homeValue={displayStats.homeStats.corners}
-                      awayValue={displayStats.awayStats.corners}
-                    />
-                    <StatRow
-                      label="Faltas"
-                      homeValue={displayStats.homeStats.fouls}
-                      awayValue={displayStats.awayStats.fouls}
-                    />
-                    <StatRow
-                      label="Cartões Amarelos"
-                      homeValue={displayStats.homeStats.yellowCards}
-                      awayValue={displayStats.awayStats.yellowCards}
-                    />
-                    <StatRow
-                      label="Cartões Vermelhos"
-                      homeValue={displayStats.homeStats.redCards}
-                      awayValue={displayStats.awayStats.redCards}
-                    />
-                    <StatRow
-                      label="Impedimentos"
-                      homeValue={displayStats.homeStats.offsides}
-                      awayValue={displayStats.awayStats.offsides}
-                    />
+                    <StatRow label="Posse de Bola" homeValue={displayStats.homeStats.possession} awayValue={displayStats.awayStats.possession} format="percent" />
+                    <StatRow label="Gols Esperados (xG)" homeValue={displayStats.homeStats.expectedGoals} awayValue={displayStats.awayStats.expectedGoals} format="decimal" />
+                    <StatRow label="Finalizações" homeValue={displayStats.homeStats.shots} awayValue={displayStats.awayStats.shots} />
+                    <StatRow label="Finalizações ao Gol" homeValue={displayStats.homeStats.shotsOnTarget} awayValue={displayStats.awayStats.shotsOnTarget} />
+                    <StatRow label="Escanteios" homeValue={displayStats.homeStats.corners} awayValue={displayStats.awayStats.corners} />
+                    <StatRow label="Faltas" homeValue={displayStats.homeStats.fouls} awayValue={displayStats.awayStats.fouls} />
+                    <StatRow label="Cartões Amarelos" homeValue={displayStats.homeStats.yellowCards} awayValue={displayStats.awayStats.yellowCards} />
+                    <StatRow label="Cartões Vermelhos" homeValue={displayStats.homeStats.redCards} awayValue={displayStats.awayStats.redCards} />
+                    <StatRow label="Impedimentos" homeValue={displayStats.homeStats.offsides} awayValue={displayStats.awayStats.offsides} />
                   </div>
                 )}
               </TabsContent>
 
               <TabsContent value="events" className="mt-0">
-                <div className="px-6 py-4 max-h-64 overflow-y-auto">
+                <div ref={eventsRef} className="px-6 py-4 max-h-64 overflow-y-auto">
                   {visibleEvents.length > 0 ? (
                     <div className="space-y-0.5 divide-y divide-border/30">
                       {visibleEvents.map((evt) => (
