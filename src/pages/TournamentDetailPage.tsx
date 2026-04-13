@@ -1561,7 +1561,7 @@ export default function TournamentDetailPage() {
         )}
 
         <TabsContent value="stats" className="mt-0 outline-none">
-          <StatsView tournament={activeTournament} teams={resolvedTeams} />
+          <StatsView tournament={activeTournament} teams={resolvedTeams} players={players} />
         </TabsContent>
       </Tabs>
 
