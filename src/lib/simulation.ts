@@ -272,7 +272,7 @@ export function getSuspendedPlayerIds(
 }
 
 /**
- * Improved minute-by-minute events generator (no emojis, more variety).
+ * Improved minute-by-minute events generator with stats-consistent events.
  */
 export function generateMinuteByMinuteEvents(
   homeTeam: Team,
@@ -288,24 +288,16 @@ export function generateMinuteByMinuteEvents(
   const genId = () => `evt-${++eventId}`;
 
   const positionGoalWeight: Record<string, number> = {
-    Atacante: 5,
-    Ponta: 4,
-    Meia: 3,
-    "Meia-Atacante": 3.5,
-    Volante: 1.5,
-    Lateral: 1,
-    Zagueiro: 0.5,
-    Goleiro: 0.1,
+    Atacante: 5, Ponta: 4, Meia: 3, "Meia-Atacante": 3.5,
+    Volante: 1.5, Lateral: 1, Zagueiro: 0.5, Goleiro: 0.1,
   };
   const positionAssistWeight: Record<string, number> = {
-    Meia: 5,
-    "Meia-Atacante": 4,
-    Ponta: 4,
-    Atacante: 2,
-    Lateral: 3,
-    Volante: 2,
-    Zagueiro: 0.5,
-    Goleiro: 0.2,
+    Meia: 5, "Meia-Atacante": 4, Ponta: 4, Atacante: 2,
+    Lateral: 3, Volante: 2, Zagueiro: 0.5, Goleiro: 0.2,
+  };
+  const positionFoulWeight: Record<string, number> = {
+    Volante: 4, Zagueiro: 3, Lateral: 2, Meia: 1.5,
+    Atacante: 1, Ponta: 1, "Meia-Atacante": 1, Goleiro: 0.3,
   };
 
   function weightedPick(players: Player[], weights: Record<string, number>, exclude?: string): Player | undefined {
@@ -321,144 +313,226 @@ export function generateMinuteByMinuteEvents(
     return available[available.length - 1];
   }
 
-  function randomMinute(): number {
-    return randInt(1, 90);
-  }
-
+  // 1. Goals
   const generateGoals = (team: Team, players: Player[], count: number) => {
     for (let i = 0; i < count; i++) {
+      const minute = randInt(1, 90);
       const scorer = weightedPick(players, positionGoalWeight);
       if (!scorer) continue;
       const assister = Math.random() < 0.65 ? weightedPick(players, positionAssistWeight, scorer.id) : undefined;
-
-      const goalDescriptions = [
+      const descs = [
         `Gol de **${scorer.name}**${assister ? ` com assistência de **${assister.name}**` : ""}`,
-        `Finalização certeira de **${scorer.name}** para balançar as redes${assister ? ` após passe de **${assister.name}**` : ""}`,
-        `**${scorer.name}** aproveita a oportunidade e marca o gol${assister ? ` vindo de um cruzamento de **${assister.name}**` : ""}`,
-        `Golaço de **${scorer.name}**! A bola vai no ângulo${assister ? ` após jogada individual de **${assister.name}**` : ""}`,
+        `Finalização certeira de **${scorer.name}**${assister ? ` após passe de **${assister.name}**` : ""}`,
+        `**${scorer.name}** aproveita e marca${assister ? ` com cruzamento de **${assister.name}**` : ""}`,
+        `Golaço de **${scorer.name}**!${assister ? ` Jogada de **${assister.name}**` : ""}`,
       ];
-
       events.push({
-        id: genId(),
-        minute: randomMinute(),
-        type: "goal",
-        teamId: team.id,
-        playerId: scorer.id,
-        assistId: assister?.id,
-        text: goalDescriptions[randInt(0, goalDescriptions.length - 1)],
+        id: genId(), minute, type: "goal", teamId: team.id,
+        playerId: scorer.id, assistId: assister?.id,
+        text: descs[randInt(0, descs.length - 1)],
       });
     }
   };
-
   generateGoals(homeTeam, homePlayers, homeGoals);
   generateGoals(awayTeam, awayPlayers, awayGoals);
 
-  const generateCards = (team: Team, players: Player[], yellows: number, reds: number) => {
+  // 2. Fouls & Cards (cards always follow a foul)
+  const generateFoulsAndCards = (
+    team: Team, opponent: Team, players: Player[],
+    foulsCount: number, yellows: number, reds: number,
+  ) => {
     const cardedIds = new Set<string>();
-    for (let i = 0; i < yellows; i++) {
-      const p = weightedPick(
-        players.filter((p) => !cardedIds.has(p.id)),
-        { Volante: 4, Zagueiro: 3, Lateral: 2, Meia: 1.5, Atacante: 1, Ponta: 1 },
-      );
+    const foulEvents: { minute: number; playerId: string }[] = [];
+
+    for (let i = 0; i < foulsCount; i++) {
+      const minute = randInt(2, 89);
+      const p = weightedPick(players, positionFoulWeight);
       if (!p) continue;
-      cardedIds.add(p.id);
-
-      const yellowDescriptions = [
-        `Cartão amarelo para **${p.name}** por falta dura`,
-        `**${p.name}** recebe o amarelo após reclamação com a arbitragem`,
-        `Cartão amarelo aplicado a **${p.name}** para interromper o contra-ataque`,
-        `**${p.name}** é advertido com cartão amarelo por entrada atrasada`,
+      foulEvents.push({ minute, playerId: p.id });
+      const texts = [
+        `Falta de **${p.name}** no meio de campo`,
+        `**${p.name}** comete falta no campo de defesa`,
+        `Falta dura de **${p.name}** interrompendo jogada do **${opponent.shortName || opponent.name}**`,
+        `**${p.name}** faz falta tática para parar o contra-ataque`,
       ];
-
       events.push({
-        id: genId(),
-        minute: randomMinute(),
-        type: "yellow_card",
-        teamId: team.id,
-        playerId: p.id,
-        text: yellowDescriptions[randInt(0, yellowDescriptions.length - 1)],
+        id: genId(), minute, type: "foul", teamId: team.id, playerId: p.id,
+        text: texts[randInt(0, texts.length - 1)],
       });
     }
-    for (let i = 0; i < reds; i++) {
+
+    // Yellow cards (attach to existing foul minutes)
+    const sortedFouls = [...foulEvents].sort((a, b) => a.minute - b.minute);
+    for (let i = 0; i < yellows; i++) {
       const p = weightedPick(
-        players.filter((p) => !cardedIds.has(p.id)),
-        { Volante: 4, Zagueiro: 3, Lateral: 2, Meia: 1, Atacante: 1 },
+        players.filter((pl) => !cardedIds.has(pl.id)),
+        positionFoulWeight,
       );
       if (!p) continue;
       cardedIds.add(p.id);
-
-      const redDescriptions = [
-        `Cartão vermelho direto para **${p.name}** após entrada violenta`,
-        `**${p.name}** é expulso de campo! Cartão vermelho para o jogador`,
-        `Expulsão! **${p.name}** recebe o cartão vermelho e deixa sua equipe com um a menos`,
+      const foulRef = sortedFouls[Math.min(i + Math.floor(sortedFouls.length * 0.3), sortedFouls.length - 1)];
+      const minute = foulRef ? foulRef.minute : randInt(15, 85);
+      const texts = [
+        `Cartão amarelo para **${p.name}** por falta dura`,
+        `**${p.name}** recebe o amarelo após falta`,
+        `Cartão amarelo aplicado a **${p.name}**`,
+        `**${p.name}** é advertido com cartão amarelo`,
       ];
-
       events.push({
-        id: genId(),
-        minute: randomMinute(),
-        type: "red_card",
-        teamId: team.id,
-        playerId: p.id,
-        text: redDescriptions[randInt(0, redDescriptions.length - 1)],
+        id: genId(), minute: minute + 0.1, type: "yellow_card", teamId: team.id, playerId: p.id,
+        text: texts[randInt(0, texts.length - 1)],
+      });
+    }
+
+    // Red cards
+    for (let i = 0; i < reds; i++) {
+      const p = weightedPick(
+        players.filter((pl) => !cardedIds.has(pl.id)),
+        positionFoulWeight,
+      );
+      if (!p) continue;
+      cardedIds.add(p.id);
+      const minute = randInt(30, 88);
+      // Add a foul event right before the red
+      events.push({
+        id: genId(), minute, type: "foul", teamId: team.id, playerId: p.id,
+        text: `Entrada violenta de **${p.name}**`,
+      });
+      const texts = [
+        `Cartão vermelho direto para **${p.name}** após entrada violenta`,
+        `**${p.name}** é expulso de campo! Cartão vermelho!`,
+        `Expulsão! **${p.name}** recebe o cartão vermelho`,
+      ];
+      events.push({
+        id: genId(), minute: minute + 0.1, type: "red_card", teamId: team.id, playerId: p.id,
+        text: texts[randInt(0, texts.length - 1)],
       });
     }
   };
+  generateFoulsAndCards(homeTeam, awayTeam, homePlayers, matchStats.homeStats.fouls, matchStats.homeStats.yellowCards, matchStats.homeStats.redCards);
+  generateFoulsAndCards(awayTeam, homeTeam, awayPlayers, matchStats.awayStats.fouls, matchStats.awayStats.yellowCards, matchStats.awayStats.redCards);
 
-  generateCards(homeTeam, homePlayers, matchStats.homeStats.yellowCards, matchStats.homeStats.redCards);
-  generateCards(awayTeam, awayPlayers, matchStats.awayStats.yellowCards, matchStats.awayStats.redCards);
+  // 3. Offsides (matching stats)
+  const generateOffsides = (team: Team, players: Player[], count: number) => {
+    for (let i = 0; i < count; i++) {
+      const minute = randInt(5, 88);
+      const p = weightedPick(players, positionGoalWeight);
+      if (!p) continue;
+      const texts = [
+        `Impedimento marcado contra **${p.name}**`,
+        `O bandeirinha assinala impedimento de **${p.name}**`,
+        `**${p.name}** é flagrado em posição de impedimento`,
+      ];
+      events.push({
+        id: genId(), minute, type: "offside", teamId: team.id, playerId: p.id,
+        text: texts[randInt(0, texts.length - 1)],
+      });
+    }
+  };
+  generateOffsides(homeTeam, homePlayers, matchStats.homeStats.offsides);
+  generateOffsides(awayTeam, awayPlayers, matchStats.awayStats.offsides);
 
-  const highlightCount = randInt(8, 15);
+  // 4. Shots (non-goal: missed + saved)
+  const generateShots = (
+    team: Team, _opponent: Team, players: Player[], opponentPlayers: Player[],
+    totalShots: number, shotsOnTarget: number, goals: number,
+  ) => {
+    const missedShots = Math.max(0, totalShots - shotsOnTarget);
+    const saves = Math.max(0, shotsOnTarget - goals);
+    const gk = opponentPlayers.find((p) => p.position === "Goleiro") || opponentPlayers[0];
+
+    for (let i = 0; i < missedShots; i++) {
+      const minute = randInt(3, 89);
+      const p = weightedPick(players, positionGoalWeight);
+      if (!p) continue;
+      const texts = [
+        `**${p.name}** finaliza para fora`,
+        `Chute de **${p.name}** sobe demais`,
+        `**${p.name}** arrisca de longe, mas a bola passa ao lado`,
+        `**${p.name}** cobra falta, a bola passa raspando a trave`,
+      ];
+      events.push({
+        id: genId(), minute, type: "shot", teamId: team.id, playerId: p.id,
+        text: texts[randInt(0, texts.length - 1)],
+      });
+    }
+
+    for (let i = 0; i < saves; i++) {
+      const minute = randInt(3, 89);
+      const shooter = weightedPick(players, positionGoalWeight);
+      if (!shooter || !gk) continue;
+      const texts = [
+        `Grande defesa de **${gk.name}** após chute de **${shooter.name}**`,
+        `**${shooter.name}** finaliza no gol, mas **${gk.name}** salva`,
+        `Defesa de **${gk.name}**! **${shooter.name}** exigiu do goleiro`,
+      ];
+      events.push({
+        id: genId(), minute, type: "shot", teamId: team.id, playerId: shooter.id,
+        text: texts[randInt(0, texts.length - 1)],
+      });
+    }
+  };
+  generateShots(homeTeam, awayTeam, homePlayers, awayPlayers, matchStats.homeStats.shots, matchStats.homeStats.shotsOnTarget, homeGoals);
+  generateShots(awayTeam, homeTeam, awayPlayers, homePlayers, matchStats.awayStats.shots, matchStats.awayStats.shotsOnTarget, awayGoals);
+
+  // 5. Substitutions (up to 3 per team, minutes 55-85)
+  const generateSubstitutions = (team: Team, players: Player[]) => {
+    const subCount = Math.min(3, Math.max(0, Math.floor(players.length / 2) - 1));
+    if (subCount === 0) return;
+    const usedIds = new Set<string>();
+    const nonGk = players.filter((p) => p.position !== "Goleiro");
+    for (let i = 0; i < subCount; i++) {
+      const minute = randInt(55, 85);
+      const candidates = nonGk.filter((p) => !usedIds.has(p.id));
+      if (candidates.length < 2) break;
+      const outPlayer = candidates[randInt(0, candidates.length - 1)];
+      usedIds.add(outPlayer.id);
+      const inCandidates = candidates.filter((p) => p.id !== outPlayer.id && !usedIds.has(p.id));
+      if (inCandidates.length === 0) break;
+      const inPlayer = inCandidates[randInt(0, inCandidates.length - 1)];
+      usedIds.add(inPlayer.id);
+      events.push({
+        id: genId(), minute, type: "substitution", teamId: team.id,
+        playerId: inPlayer.id, assistId: outPlayer.id,
+        text: `Substituição no **${team.shortName || team.name}**: sai **${outPlayer.name}**, entra **${inPlayer.name}**`,
+      });
+    }
+  };
+  generateSubstitutions(homeTeam, homePlayers);
+  generateSubstitutions(awayTeam, awayPlayers);
+
+  // 6. A few general highlights
+  const highlightCount = randInt(3, 6);
   for (let i = 0; i < highlightCount; i++) {
     const isHome = Math.random() < 0.5;
     const team = isHome ? homeTeam : awayTeam;
-    const opponent = isHome ? awayTeam : homeTeam;
     const players = isHome ? homePlayers : awayPlayers;
     const p = players[randInt(0, players.length - 1)];
     if (!p) continue;
-
     const highlights = [
-      `**${p.name}** arranca em velocidade pela ${Math.random() < 0.5 ? "esquerda" : "direita"} e tenta o cruzamento`,
-      `Grande defesa do goleiro após chute potente de **${p.name}**`,
-      `**${p.name}** cobra falta perigosa, a bola passa raspando a trave`,
-      `**${p.name}** finaliza de fora da área, mas a bola sobe demais`,
-      `Contra-ataque rápido puxado por **${p.name}** que assusta a defesa do **${opponent.shortName || opponent.name}**`,
+      `Pressão do **${team.shortName || team.name}** buscando espaços`,
       `**${p.name}** faz uma bela jogada individual, driblando dois marcadores`,
-      `Substituição no **${team.shortName || team.name}** o treinador mexe na equipe para buscar o resultado`,
-      `O árbitro interrompe o jogo para atendimento médico a **${p.name}**`,
-      `**${p.name}** ganha de cabeça na área, mas a bola vai para fora`,
-      `Pressão do **${team.shortName || team.name}**! A equipe troca passes no campo de ataque buscando espaços`,
+      `Contra-ataque rápido puxado por **${p.name}**`,
       `Desarme preciso de **${p.name}** impedindo o avanço do adversário`,
-      `Cruzamento na área do **${opponent.shortName || opponent.name}**, mas a defesa afasta o perigo`,
-      `**${p.name}** tenta o passe em profundidade, mas a bola corre demais e sai pela linha de fundo`,
-      `Jogo fica truncado no meio de campo com muitas disputas de bola`,
-      `O bandeirinha assinala impedimento de **${p.name}** em ataque promissor`,
+      `Jogo fica truncado no meio de campo com muitas disputas`,
     ];
-
     events.push({
-      id: genId(),
-      minute: randomMinute(),
-      type: "highlight",
-      teamId: team.id,
-      playerId: p.id,
-      text: highlights[randInt(0, highlights.length - 1)],
+      id: genId(), minute: randInt(1, 90), type: "highlight", teamId: team.id,
+      playerId: p.id, text: highlights[randInt(0, highlights.length - 1)],
     });
   }
 
+  // Sort by minute, keeping fractional order for card-after-foul
   events.sort((a, b) => a.minute - b.minute);
+  // Round fractional minutes for display
+  events.forEach((e) => { e.minute = Math.floor(e.minute); });
 
   events.unshift({
-    id: genId(),
-    minute: 0,
-    type: "highlight",
-    teamId: "",
+    id: genId(), minute: 0, type: "highlight", teamId: "",
     text: "Início de partida! O árbitro autoriza o começo do jogo",
   });
-
   events.push({
-    id: genId(),
-    minute: 90,
-    type: "highlight",
-    teamId: "",
+    id: genId(), minute: 90, type: "highlight", teamId: "",
     text: "Fim de jogo! O árbitro apita o encerramento da partida",
   });
 

@@ -42,7 +42,7 @@ export interface TournamentSettings {
   redSuspensionDuration?: number;
 }
 
-export type EventType = 'goal' | 'yellow_card' | 'red_card' | 'injury' | 'highlight';
+export type EventType = 'goal' | 'yellow_card' | 'red_card' | 'injury' | 'highlight' | 'substitution' | 'offside' | 'foul' | 'shot';
 
 export interface MatchEvent {
   id: string;
