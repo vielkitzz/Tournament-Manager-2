@@ -8,8 +8,6 @@ import {
   Clock,
   Pause,
   FastForward,
-  ArrowLeftRight,
-  Flag,
   Target,
 } from "lucide-react";
 import { calculateStandings, StandingRow } from "@/lib/standings";
@@ -26,6 +24,8 @@ import YellowCardIcon from "@/components/icons/YellowCardIcon";
 import RedCardIcon from "@/components/icons/RedCardIcon";
 import InjuryIcon from "@/components/icons/InjuryIcon";
 import HighlightIcon from "@/components/icons/HighlightIcon";
+import SubstitutionIcon from "@/components/icons/SubstitutionIcon";
+import OffsideIcon from "@/components/icons/OffsideIcon";
 
 interface MatchPopupProps {
   match: Match;
@@ -134,8 +134,8 @@ function EventRow({
     red_card: RedCardIcon,
     injury: InjuryIcon,
     highlight: HighlightIcon,
-    substitution: ArrowLeftRight,
-    offside: Flag,
+    substitution: SubstitutionIcon,
+    offside: OffsideIcon,
     foul: HighlightIcon,
     shot: Target,
   }[event.type];
