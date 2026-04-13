@@ -774,7 +774,7 @@ export default function MatchPopup({
         </div>
 
         {/* Score Controls */}
-        {!showPenalties && !isLiveSimulating && !liveFinished && (
+        {!showPenalties && !isLiveSimulating && !liveFinished && !match.played && (
           <>
             <div className="flex items-center justify-center gap-4 py-6 px-6">
               <div className="flex flex-col items-center gap-1">
