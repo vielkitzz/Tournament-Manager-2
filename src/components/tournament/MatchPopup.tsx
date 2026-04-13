@@ -879,7 +879,7 @@ export default function MatchPopup({
         )}
 
         {/* Live finished score display */}
-        {liveFinished && !match.played && !isLiveSimulating && (
+        {(liveFinished || match.played) && !isLiveSimulating && (
           <div className="flex items-center justify-center gap-4 py-6 px-6">
             <div className="w-28 h-28 rounded-xl bg-secondary border border-border flex items-center justify-center">
               <span className="text-6xl font-bold text-foreground font-display">{accumulatedHome}</span>
