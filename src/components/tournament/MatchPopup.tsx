@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { Match, Team, Tournament, TeamMatchStats, Player, MatchEvent } from "@/types/tournament";
-import { Shield, ChevronUp, ChevronDown, Play, Clock, Zap, Pause, FastForward } from "lucide-react";
+import { Shield, ChevronUp, ChevronDown, Play, Clock, Zap, Pause, FastForward, ArrowLeftRight, Flag, AlertTriangle, Target } from "lucide-react";
 import { calculateStandings, StandingRow } from "@/lib/standings";
 import {
   simulateHalf,
@@ -123,6 +123,10 @@ function EventRow({
     red_card: RedCardIcon,
     injury: InjuryIcon,
     highlight: HighlightIcon,
+    substitution: ArrowLeftRight,
+    offside: Flag,
+    foul: AlertTriangle,
+    shot: Target,
   }[event.type];
 
   const formatEventText = (text: string) => {
@@ -325,6 +329,9 @@ export default function MatchPopup({
       if (match.events && match.events.length > 0) {
         setLiveEvents(match.events);
         setLiveFinished(true);
+        setShowBottomPanel(true);
+      } else if (match.homeStats) {
+        setShowBottomPanel(true);
       }
     } else {
       setMatchStats(null);
@@ -597,6 +604,16 @@ export default function MatchPopup({
 
     const stats = ensureStats();
 
+    // Generate events if none exist and teams have enough players
+    let finalEvents = liveEvents.length > 0 ? liveEvents : undefined;
+    if (!finalEvents && canLiveSimulate && homeTeam && awayTeam) {
+      const { availableHome, availableAway } = getAvailablePlayers();
+      finalEvents = generateMinuteByMinuteEvents(
+        homeTeam, awayTeam, availableHome, availableAway,
+        stats, totalHome, totalAway,
+      );
+    }
+
     onSave({
       ...match,
       homeScore: regularHome,
@@ -615,7 +632,7 @@ export default function MatchPopup({
       awayPenalties: showPenalties ? penaltyScore("away") : undefined,
       homeStats: stats.homeStats,
       awayStats: stats.awayStats,
-      events: liveEvents.length > 0 ? liveEvents : undefined,
+      events: finalEvents,
       played: true,
     });
   };
