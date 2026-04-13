@@ -1,15 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { Match, Team, Tournament, TeamMatchStats, Player, MatchEvent } from "@/types/tournament";
-import {
-  Shield,
-  ChevronUp,
-  ChevronDown,
-  Play,
-  Clock,
-  Pause,
-  FastForward,
-  Target,
-} from "lucide-react";
+import { Shield, ChevronUp, ChevronDown, Play, Clock, Pause, FastForward, Target } from "lucide-react";
 import { calculateStandings, StandingRow } from "@/lib/standings";
 import {
   simulateHalf,
@@ -159,7 +150,15 @@ function EventRow({
         {event.minute}'
       </span>
       <span className="shrink-0 flex items-center justify-center w-4 h-4 pt-0.5">
-        {IconComponent ? <IconComponent size={14} /> : "•"}
+        {IconComponent ? (
+          <IconComponent
+            size={14}
+            // Se o tipo for gol, aplica o azul; caso contrário, mantém a cor padrão
+            className={event.type === "goal" ? "text-primary" : ""}
+          />
+        ) : (
+          "•"
+        )}
       </span>
       <span className="text-xs text-foreground leading-tight">{formatEventText(event.text)}</span>
     </div>
@@ -360,7 +359,7 @@ export default function MatchPopup({
       return;
     }
     if (intervalRef.current) clearInterval(intervalRef.current);
-    const baseInterval = 200; // ~18 seconds at 1x (reduced by 50%)
+    const baseInterval = 600; // ~18 seconds at 1x (reduced by 50%)
     const interval = baseInterval / simSpeed;
     intervalRef.current = setInterval(() => {
       setLiveMinute((prev) => {

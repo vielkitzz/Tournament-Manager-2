@@ -288,16 +288,34 @@ export function generateMinuteByMinuteEvents(
   const genId = () => `evt-${++eventId}`;
 
   const positionGoalWeight: Record<string, number> = {
-    Atacante: 5, Ponta: 4, Meia: 3, "Meia-Atacante": 3.5,
-    Volante: 1.5, Lateral: 1, Zagueiro: 0.5, Goleiro: 0.1,
+    Atacante: 5,
+    Ponta: 4,
+    Meia: 3,
+    "Meia-Atacante": 3.5,
+    Volante: 1.5,
+    Lateral: 1,
+    Zagueiro: 0.5,
+    Goleiro: 0.1,
   };
   const positionAssistWeight: Record<string, number> = {
-    Meia: 5, "Meia-Atacante": 4, Ponta: 4, Atacante: 2,
-    Lateral: 3, Volante: 2, Zagueiro: 0.5, Goleiro: 0.2,
+    Meia: 5,
+    "Meia-Atacante": 4,
+    Ponta: 4,
+    Atacante: 2,
+    Lateral: 3,
+    Volante: 2,
+    Zagueiro: 0.5,
+    Goleiro: 0.2,
   };
   const positionFoulWeight: Record<string, number> = {
-    Volante: 4, Zagueiro: 3, Lateral: 2, Meia: 1.5,
-    Atacante: 1, Ponta: 1, "Meia-Atacante": 1, Goleiro: 0.3,
+    Volante: 4,
+    Zagueiro: 3,
+    Lateral: 2,
+    Meia: 1.5,
+    Atacante: 1,
+    Ponta: 1,
+    "Meia-Atacante": 1,
+    Goleiro: 0.3,
   };
 
   function weightedPick(players: Player[], weights: Record<string, number>, exclude?: string): Player | undefined {
@@ -327,8 +345,12 @@ export function generateMinuteByMinuteEvents(
         `Golaço de **${scorer.name}**!${assister ? ` Jogada de **${assister.name}**` : ""}`,
       ];
       events.push({
-        id: genId(), minute, type: "goal", teamId: team.id,
-        playerId: scorer.id, assistId: assister?.id,
+        id: genId(),
+        minute,
+        type: "goal",
+        teamId: team.id,
+        playerId: scorer.id,
+        assistId: assister?.id,
         text: descs[randInt(0, descs.length - 1)],
       });
     }
@@ -338,8 +360,12 @@ export function generateMinuteByMinuteEvents(
 
   // 2. Fouls & Cards (cards always follow a foul)
   const generateFoulsAndCards = (
-    team: Team, opponent: Team, players: Player[],
-    foulsCount: number, yellows: number, reds: number,
+    team: Team,
+    opponent: Team,
+    players: Player[],
+    foulsCount: number,
+    yellows: number,
+    reds: number,
   ) => {
     const cardedIds = new Set<string>();
     const foulEvents: { minute: number; playerId: string }[] = [];
@@ -356,7 +382,11 @@ export function generateMinuteByMinuteEvents(
         `**${p.name}** faz falta tática para parar o contra-ataque`,
       ];
       events.push({
-        id: genId(), minute, type: "foul", teamId: team.id, playerId: p.id,
+        id: genId(),
+        minute,
+        type: "foul",
+        teamId: team.id,
+        playerId: p.id,
         text: texts[randInt(0, texts.length - 1)],
       });
     }
@@ -379,7 +409,11 @@ export function generateMinuteByMinuteEvents(
         `**${p.name}** é advertido com cartão amarelo`,
       ];
       events.push({
-        id: genId(), minute: minute + 0.1, type: "yellow_card", teamId: team.id, playerId: p.id,
+        id: genId(),
+        minute: minute + 0.1,
+        type: "yellow_card",
+        teamId: team.id,
+        playerId: p.id,
         text: texts[randInt(0, texts.length - 1)],
       });
     }
@@ -395,7 +429,11 @@ export function generateMinuteByMinuteEvents(
       const minute = randInt(30, 88);
       // Add a foul event right before the red
       events.push({
-        id: genId(), minute, type: "foul", teamId: team.id, playerId: p.id,
+        id: genId(),
+        minute,
+        type: "foul",
+        teamId: team.id,
+        playerId: p.id,
         text: `Entrada violenta de **${p.name}**`,
       });
       const texts = [
@@ -404,13 +442,31 @@ export function generateMinuteByMinuteEvents(
         `Expulsão! **${p.name}** recebe o cartão vermelho`,
       ];
       events.push({
-        id: genId(), minute: minute + 0.1, type: "red_card", teamId: team.id, playerId: p.id,
+        id: genId(),
+        minute: minute + 0.1,
+        type: "red_card",
+        teamId: team.id,
+        playerId: p.id,
         text: texts[randInt(0, texts.length - 1)],
       });
     }
   };
-  generateFoulsAndCards(homeTeam, awayTeam, homePlayers, matchStats.homeStats.fouls, matchStats.homeStats.yellowCards, matchStats.homeStats.redCards);
-  generateFoulsAndCards(awayTeam, homeTeam, awayPlayers, matchStats.awayStats.fouls, matchStats.awayStats.yellowCards, matchStats.awayStats.redCards);
+  generateFoulsAndCards(
+    homeTeam,
+    awayTeam,
+    homePlayers,
+    matchStats.homeStats.fouls,
+    matchStats.homeStats.yellowCards,
+    matchStats.homeStats.redCards,
+  );
+  generateFoulsAndCards(
+    awayTeam,
+    homeTeam,
+    awayPlayers,
+    matchStats.awayStats.fouls,
+    matchStats.awayStats.yellowCards,
+    matchStats.awayStats.redCards,
+  );
 
   // 3. Offsides (matching stats)
   const generateOffsides = (team: Team, players: Player[], count: number) => {
@@ -419,12 +475,16 @@ export function generateMinuteByMinuteEvents(
       const p = weightedPick(players, positionGoalWeight);
       if (!p) continue;
       const texts = [
-        `Impedimento marcado contra **${p.name}**`,
+        `Impedimento marcado no **${p.name}**`,
         `O bandeirinha assinala impedimento de **${p.name}**`,
-        `**${p.name}** é flagrado em posição de impedimento`,
+        `**${p.name}** é flagrado em posição irregular`,
       ];
       events.push({
-        id: genId(), minute, type: "offside", teamId: team.id, playerId: p.id,
+        id: genId(),
+        minute,
+        type: "offside",
+        teamId: team.id,
+        playerId: p.id,
         text: texts[randInt(0, texts.length - 1)],
       });
     }
@@ -434,8 +494,13 @@ export function generateMinuteByMinuteEvents(
 
   // 4. Shots (non-goal: missed + saved)
   const generateShots = (
-    team: Team, _opponent: Team, players: Player[], opponentPlayers: Player[],
-    totalShots: number, shotsOnTarget: number, goals: number,
+    team: Team,
+    _opponent: Team,
+    players: Player[],
+    opponentPlayers: Player[],
+    totalShots: number,
+    shotsOnTarget: number,
+    goals: number,
   ) => {
     const missedShots = Math.max(0, totalShots - shotsOnTarget);
     const saves = Math.max(0, shotsOnTarget - goals);
@@ -446,13 +511,17 @@ export function generateMinuteByMinuteEvents(
       const p = weightedPick(players, positionGoalWeight);
       if (!p) continue;
       const texts = [
-        `**${p.name}** finaliza para fora`,
-        `Chute de **${p.name}** sobe demais`,
-        `**${p.name}** arrisca de longe, mas a bola passa ao lado`,
-        `**${p.name}** cobra falta, a bola passa raspando a trave`,
+        `**${p.name}** bateu para fora`,
+        `Chute de longe do **${p.name}**, mas a bola subiu demais`,
+        `**${p.name}** arrisca de longe, mas a bola passa pela linha de fundo`,
+        `**${p.name}** cobra falta e a bola passa raspando a trave`,
       ];
       events.push({
-        id: genId(), minute, type: "shot", teamId: team.id, playerId: p.id,
+        id: genId(),
+        minute,
+        type: "shot",
+        teamId: team.id,
+        playerId: p.id,
         text: texts[randInt(0, texts.length - 1)],
       });
     }
@@ -463,17 +532,37 @@ export function generateMinuteByMinuteEvents(
       if (!shooter || !gk) continue;
       const texts = [
         `Grande defesa de **${gk.name}** após chute de **${shooter.name}**`,
-        `**${shooter.name}** finaliza no gol, mas **${gk.name}** salva`,
-        `Defesa de **${gk.name}**! **${shooter.name}** exigiu do goleiro`,
+        `**${shooter.name}** bateu pro gol, **${gk.name}** cai pra fazer a defesa`,
+        `Defesaça de **${gk.name}**! **${shooter.name}** faz um bela finalização`,
       ];
       events.push({
-        id: genId(), minute, type: "shot", teamId: team.id, playerId: shooter.id,
+        id: genId(),
+        minute,
+        type: "shot",
+        teamId: team.id,
+        playerId: shooter.id,
         text: texts[randInt(0, texts.length - 1)],
       });
     }
   };
-  generateShots(homeTeam, awayTeam, homePlayers, awayPlayers, matchStats.homeStats.shots, matchStats.homeStats.shotsOnTarget, homeGoals);
-  generateShots(awayTeam, homeTeam, awayPlayers, homePlayers, matchStats.awayStats.shots, matchStats.awayStats.shotsOnTarget, awayGoals);
+  generateShots(
+    homeTeam,
+    awayTeam,
+    homePlayers,
+    awayPlayers,
+    matchStats.homeStats.shots,
+    matchStats.homeStats.shotsOnTarget,
+    homeGoals,
+  );
+  generateShots(
+    awayTeam,
+    homeTeam,
+    awayPlayers,
+    homePlayers,
+    matchStats.awayStats.shots,
+    matchStats.awayStats.shotsOnTarget,
+    awayGoals,
+  );
 
   // 5. Substitutions (up to 3 per team, minutes 55-85)
   const generateSubstitutions = (team: Team, players: Player[]) => {
@@ -492,9 +581,13 @@ export function generateMinuteByMinuteEvents(
       const inPlayer = inCandidates[randInt(0, inCandidates.length - 1)];
       usedIds.add(inPlayer.id);
       events.push({
-        id: genId(), minute, type: "substitution", teamId: team.id,
-        playerId: inPlayer.id, assistId: outPlayer.id,
-        text: `Substituição no **${team.shortName || team.name}**: sai **${outPlayer.name}**, entra **${inPlayer.name}**`,
+        id: genId(),
+        minute,
+        type: "substitution",
+        teamId: team.id,
+        playerId: inPlayer.id,
+        assistId: outPlayer.id,
+        text: `Substituição no **${team.shortName || team.name}**. Sai **${outPlayer.name}** para a entrada de **${inPlayer.name}**`,
       });
     }
   };
@@ -510,29 +603,41 @@ export function generateMinuteByMinuteEvents(
     const p = players[randInt(0, players.length - 1)];
     if (!p) continue;
     const highlights = [
-      `Pressão do **${team.shortName || team.name}** buscando espaços`,
+      `Pressão do **${team.shortName || team.name}** no campo de ataque`,
       `**${p.name}** faz uma bela jogada individual, driblando dois marcadores`,
       `Contra-ataque rápido puxado por **${p.name}**`,
-      `Desarme preciso de **${p.name}** impedindo o avanço do adversário`,
-      `Jogo fica truncado no meio de campo com muitas disputas`,
+      `Desarme providencial de **${p.name}** impedindo o avanço do adversário`,
+      `Jogo fica truncado no meio de campo com muitas disputas de bola`,
     ];
     events.push({
-      id: genId(), minute: randInt(1, 90), type: "highlight", teamId: team.id,
-      playerId: p.id, text: highlights[randInt(0, highlights.length - 1)],
+      id: genId(),
+      minute: randInt(1, 90),
+      type: "highlight",
+      teamId: team.id,
+      playerId: p.id,
+      text: highlights[randInt(0, highlights.length - 1)],
     });
   }
 
   // Sort by minute, keeping fractional order for card-after-foul
   events.sort((a, b) => a.minute - b.minute);
   // Round fractional minutes for display
-  events.forEach((e) => { e.minute = Math.floor(e.minute); });
+  events.forEach((e) => {
+    e.minute = Math.floor(e.minute);
+  });
 
   events.unshift({
-    id: genId(), minute: 0, type: "highlight", teamId: "",
+    id: genId(),
+    minute: 0,
+    type: "highlight",
+    teamId: "",
     text: "Início de partida! O árbitro autoriza o começo do jogo",
   });
   events.push({
-    id: genId(), minute: 90, type: "highlight", teamId: "",
+    id: genId(),
+    minute: 90,
+    type: "highlight",
+    teamId: "",
     text: "Fim de jogo! O árbitro apita o encerramento da partida",
   });
 
