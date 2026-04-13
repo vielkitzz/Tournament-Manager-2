@@ -1,6 +1,17 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { Match, Team, Tournament, TeamMatchStats, Player, MatchEvent } from "@/types/tournament";
-import { Shield, ChevronUp, ChevronDown, Play, Clock, Zap, Pause, FastForward, ArrowLeftRight, Flag, AlertTriangle, Target } from "lucide-react";
+import {
+  Shield,
+  ChevronUp,
+  ChevronDown,
+  Play,
+  Clock,
+  Pause,
+  FastForward,
+  ArrowLeftRight,
+  Flag,
+  Target,
+} from "lucide-react";
 import { calculateStandings, StandingRow } from "@/lib/standings";
 import {
   simulateHalf,
@@ -125,7 +136,7 @@ function EventRow({
     highlight: HighlightIcon,
     substitution: ArrowLeftRight,
     offside: Flag,
-    foul: AlertTriangle,
+    foul: HighlightIcon,
     shot: Target,
   }[event.type];
 
@@ -609,8 +620,13 @@ export default function MatchPopup({
     if (!finalEvents && canLiveSimulate && homeTeam && awayTeam) {
       const { availableHome, availableAway } = getAvailablePlayers();
       finalEvents = generateMinuteByMinuteEvents(
-        homeTeam, awayTeam, availableHome, availableAway,
-        stats, totalHome, totalAway,
+        homeTeam,
+        awayTeam,
+        availableHome,
+        availableAway,
+        stats,
+        totalHome,
+        totalAway,
       );
     }
 
@@ -830,7 +846,7 @@ export default function MatchPopup({
                   onClick={handleLiveSimulate}
                   className="w-full max-w-xs py-3 rounded-xl bg-accent text-accent-foreground font-display font-bold text-sm hover:bg-accent/80 transition-colors flex items-center justify-center gap-2"
                 >
-                  <Zap className="w-4 h-4" />
+                  <Play className="w-4 h-4" />
                   Simular Minuto a Minuto
                 </button>
               )}
