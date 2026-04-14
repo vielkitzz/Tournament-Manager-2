@@ -47,12 +47,15 @@ function randomRating() {
 
 export default function CreatePlayerPage() {
   const { id, teamId: routeTeamId } = useParams<{ id?: string; teamId?: string }>();
+  const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const { players, teams, addPlayer, updatePlayer } = useTournamentStore();
 
   const existing = id ? players.find((p) => p.id === id) : undefined;
   const isEdit = !!existing;
   const effectiveTeamId = existing?.teamId || routeTeamId || null;
+  const yearFromQuery = searchParams.get("year");
+  const seasonYear = existing?.seasonYear ?? (yearFromQuery ? parseInt(yearFromQuery) : undefined);
 
   const [name, setName] = useState(existing?.name || "");
   const [nationality, setNationality] = useState(existing?.nationality || "");
