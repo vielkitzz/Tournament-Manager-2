@@ -1,9 +1,10 @@
-import { useMemo, useRef } from "react";
+import { useMemo, useRef, useState } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
 import { useTournamentStore } from "@/store/tournamentStore";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { ArrowLeft, PlusCircle, Pencil, Trash2, Download, Upload } from "lucide-react";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { ArrowLeft, PlusCircle, Pencil, Trash2, Download, Upload, Calendar } from "lucide-react";
 import TeamLogo from "@/components/TeamLogo";
 import CountryFlag from "@/components/CountryFlag";
 import PageTransition from "@/components/PageTransition";
@@ -26,6 +27,8 @@ const POSITION_WEIGHTS: Record<string, number> = {
   Atacante: 11,
 };
 
+const ALL_YEARS_VALUE = "__all__";
+
 export default function ClubSquadPage() {
   const { teamId } = useParams<{ teamId: string }>();
   const navigate = useNavigate();
@@ -33,9 +36,29 @@ export default function ClubSquadPage() {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const team = useMemo(() => teams.find((t) => t.id === teamId), [teams, teamId]);
+
+  // Collect distinct years from this team's players
+  const availableYears = useMemo(() => {
+    const years = new Set<number>();
+    players
+      .filter((p) => p.teamId === teamId)
+      .forEach((p) => {
+        if (p.seasonYear != null) years.add(p.seasonYear);
+      });
+    return Array.from(years).sort((a, b) => b - a);
+  }, [players, teamId]);
+
+  const currentYear = new Date().getFullYear();
+  const [selectedYear, setSelectedYear] = useState<string>(ALL_YEARS_VALUE);
+
   const squad = useMemo(() => {
     return players
-      .filter((p) => p.teamId === teamId)
+      .filter((p) => {
+        if (p.teamId !== teamId) return false;
+        if (selectedYear === ALL_YEARS_VALUE) return true;
+        const yr = parseInt(selectedYear);
+        return p.seasonYear === yr || (p.seasonYear == null && isNaN(yr));
+      })
       .sort((a, b) => {
         const posA = a.position || "";
         const posB = b.position || "";
@@ -44,12 +67,14 @@ export default function ClubSquadPage() {
         if (weightA !== weightB) return weightA - weightB;
         return (a.shirtNumber ?? 99) - (b.shirtNumber ?? 99);
       });
-  }, [players, teamId]);
+  }, [players, teamId, selectedYear]);
 
   const handleDelete = async (id: string, name: string) => {
     await removePlayer(id);
     toast.success(`${name} removido do elenco`);
   };
+
+  const activeSeasonYear = selectedYear !== ALL_YEARS_VALUE ? parseInt(selectedYear) : undefined;
 
   const handleExportSquad = () => {
     if (squad.length === 0) {
@@ -58,9 +83,10 @@ export default function ClubSquadPage() {
     }
     const exportData = {
       _type: "squad",
-      _version: 1,
+      _version: 2,
       _exportedAt: new Date().toISOString(),
       teamName: team?.name || "Unknown",
+      seasonYear: activeSeasonYear ?? null,
       players: squad.map(({ id, ...p }) => ({
         name: p.name,
         nationality: p.nationality,
@@ -69,13 +95,15 @@ export default function ClubSquadPage() {
         shirtNumber: p.shirtNumber,
         rating: p.rating,
         photoUrl: p.photoUrl,
+        seasonYear: p.seasonYear ?? null,
       })),
     };
     const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: "application/json" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = `elenco-${(team?.abbreviation || team?.name || "squad").toLowerCase().replace(/\s+/g, "-")}.json`;
+    const yearSuffix = activeSeasonYear ? `-${activeSeasonYear}` : "";
+    a.download = `elenco-${(team?.abbreviation || team?.name || "squad").toLowerCase().replace(/\s+/g, "-")}${yearSuffix}.json`;
     a.click();
     URL.revokeObjectURL(url);
     toast.success("Elenco exportado com sucesso!");
@@ -92,10 +120,15 @@ export default function ClubSquadPage() {
           toast.error("Arquivo inválido: não contém jogadores");
           return;
         }
-        const currentCount = squad.length;
-        const available = MAX_PLAYERS - currentCount;
+        // Count players for the selected year only
+        const yearPlayers = players.filter((p) => {
+          if (p.teamId !== teamId) return false;
+          if (activeSeasonYear != null) return p.seasonYear === activeSeasonYear;
+          return p.seasonYear == null;
+        });
+        const available = MAX_PLAYERS - yearPlayers.length;
         if (available <= 0) {
-          toast.error("Elenco já está cheio");
+          toast.error("Elenco já está cheio para este ano");
           return;
         }
         const toImport = data.players.slice(0, available);
@@ -105,12 +138,13 @@ export default function ClubSquadPage() {
             id: crypto.randomUUID(),
             name: p.name || "Jogador",
             teamId,
-            nationality: p.nationality || null,
-            position: p.position || null,
-            age: p.age ?? null,
-            shirtNumber: p.shirtNumber ?? null,
+            nationality: p.nationality || undefined,
+            position: p.position || undefined,
+            age: p.age ?? undefined,
+            shirtNumber: p.shirtNumber ?? undefined,
             rating: p.rating ?? 5,
-            photoUrl: p.photoUrl || null,
+            photoUrl: p.photoUrl || undefined,
+            seasonYear: activeSeasonYear ?? p.seasonYear ?? undefined,
           };
           await addPlayer(newPlayer);
           imported++;
@@ -124,9 +158,17 @@ export default function ClubSquadPage() {
       }
     };
     reader.readAsText(file);
-    // Reset input
     if (fileInputRef.current) fileInputRef.current.value = "";
   };
+
+  // Generate year options: available years + current year if not present + a few surrounding years
+  const yearOptions = useMemo(() => {
+    const years = new Set<number>(availableYears);
+    years.add(currentYear);
+    years.add(currentYear - 1);
+    years.add(currentYear + 1);
+    return Array.from(years).sort((a, b) => b - a);
+  }, [availableYears, currentYear]);
 
   if (!team) {
     return (
@@ -158,6 +200,23 @@ export default function ClubSquadPage() {
             </div>
           </div>
           <div className="flex items-center gap-2 flex-wrap">
+            {/* Year selector */}
+            <div className="flex items-center gap-1.5">
+              <Calendar className="w-4 h-4 text-muted-foreground" />
+              <Select value={selectedYear} onValueChange={setSelectedYear}>
+                <SelectTrigger className="w-[130px] h-9">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value={ALL_YEARS_VALUE}>Todos os anos</SelectItem>
+                  {yearOptions.map((y) => (
+                    <SelectItem key={y} value={String(y)}>
+                      {y}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
             <Button variant="outline" size="sm" className="gap-2" onClick={handleExportSquad}>
               <Download className="w-4 h-4" />
               Exportar
@@ -174,7 +233,7 @@ export default function ClubSquadPage() {
               onChange={handleImportSquad}
             />
             {squad.length < MAX_PLAYERS && (
-              <Link to={`/squads/team/${teamId}/create`}>
+              <Link to={`/squads/team/${teamId}/create${activeSeasonYear ? `?year=${activeSeasonYear}` : ""}`}>
                 <Button className="gap-2">
                   <PlusCircle className="w-4 h-4" />
                   Adicionar Jogador
@@ -187,7 +246,11 @@ export default function ClubSquadPage() {
         {squad.length === 0 ? (
           <div className="text-center py-12 text-muted-foreground">
             <p className="font-medium">Elenco vazio</p>
-            <p className="text-sm mt-1">Adicione jogadores a este clube.</p>
+            <p className="text-sm mt-1">
+              {selectedYear !== ALL_YEARS_VALUE
+                ? `Nenhum jogador registrado para ${selectedYear}. Adicione ou importe jogadores.`
+                : "Adicione jogadores a este clube."}
+            </p>
           </div>
         ) : (
           <div className="border rounded-lg overflow-hidden">
@@ -200,6 +263,7 @@ export default function ClubSquadPage() {
                   <TableHead>Posição</TableHead>
                   <TableHead>Idade</TableHead>
                   <TableHead>Rating</TableHead>
+                  {selectedYear === ALL_YEARS_VALUE && <TableHead>Ano</TableHead>}
                   <TableHead className="w-20 text-right">Ações</TableHead>
                 </TableRow>
               </TableHeader>
@@ -221,6 +285,9 @@ export default function ClubSquadPage() {
                     <TableCell className="text-muted-foreground">{player.position || "—"}</TableCell>
                     <TableCell className="text-muted-foreground">{player.age ?? "—"}</TableCell>
                     <TableCell className="text-muted-foreground">{player.rating?.toFixed(2) ?? "—"}</TableCell>
+                    {selectedYear === ALL_YEARS_VALUE && (
+                      <TableCell className="text-muted-foreground">{player.seasonYear ?? "—"}</TableCell>
+                    )}
                     <TableCell className="text-right">
                       <div className="flex items-center justify-end gap-1">
                         <Link to={`/squads/${player.id}/edit`}>
