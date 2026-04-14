@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from "react";
-import { useNavigate, useParams } from "react-router-dom";
+import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { useTournamentStore } from "@/store/tournamentStore";
 import { Player } from "@/types/tournament";
 import { Input } from "@/components/ui/input";
