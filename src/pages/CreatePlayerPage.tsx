@@ -130,6 +130,7 @@ export default function CreatePlayerPage() {
           shirtNumber: shirtNumber ? parseInt(shirtNumber) : undefined,
           rating: ratingVal ?? 0,
           teamId: effectiveTeamId,
+          seasonYear: seasonYear,
         };
         await addPlayer(newPlayer);
         toast.success("Jogador criado com sucesso");
