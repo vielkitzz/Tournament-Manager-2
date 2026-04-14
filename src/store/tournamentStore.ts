@@ -81,6 +81,7 @@ function dbToPlayer(row: any): Player {
     shirtNumber: row.shirt_number != null ? Number(row.shirt_number) : undefined,
     rating: row.rating != null ? Number(row.rating) : undefined,
     photoUrl: row.photo_url || undefined,
+    seasonYear: row.season_year != null ? Number(row.season_year) : undefined,
   };
 }
 
@@ -502,6 +503,7 @@ export const useTournamentStore = create<TournamentState>((set, get) => ({
       shirt_number: player.shirtNumber ?? null,
       rating: player.rating ?? 0,
       photo_url: player.photoUrl || null,
+      season_year: player.seasonYear ?? null,
     }).select().single();
     if (data) set((s) => ({ players: [...s.players, dbToPlayer(data)] }));
   },
@@ -518,6 +520,7 @@ export const useTournamentStore = create<TournamentState>((set, get) => ({
     if (updates.shirtNumber !== undefined) dbUpdates.shirt_number = updates.shirtNumber;
     if (updates.rating !== undefined) dbUpdates.rating = updates.rating;
     if (updates.photoUrl !== undefined) dbUpdates.photo_url = updates.photoUrl || null;
+    if (updates.seasonYear !== undefined) dbUpdates.season_year = updates.seasonYear ?? null;
     set((s) => ({ players: s.players.map((p) => (p.id === id ? { ...p, ...updates } : p)) }));
     await db.from("players").update(dbUpdates).eq("id", id).eq("user_id", userId);
   },
