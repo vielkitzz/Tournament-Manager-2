@@ -1,0 +1,1 @@
+ALTER TABLE public.players ADD COLUMN season_year INTEGER DEFAULT NULL;

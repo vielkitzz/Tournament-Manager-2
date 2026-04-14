@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from "react";
-import { useNavigate, useParams } from "react-router-dom";
+import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { useTournamentStore } from "@/store/tournamentStore";
 import { Player } from "@/types/tournament";
 import { Input } from "@/components/ui/input";
@@ -47,12 +47,15 @@ function randomRating() {
 
 export default function CreatePlayerPage() {
   const { id, teamId: routeTeamId } = useParams<{ id?: string; teamId?: string }>();
+  const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const { players, teams, addPlayer, updatePlayer } = useTournamentStore();
 
   const existing = id ? players.find((p) => p.id === id) : undefined;
   const isEdit = !!existing;
   const effectiveTeamId = existing?.teamId || routeTeamId || null;
+  const yearFromQuery = searchParams.get("year");
+  const seasonYear = existing?.seasonYear ?? (yearFromQuery ? parseInt(yearFromQuery) : undefined);
 
   const [name, setName] = useState(existing?.name || "");
   const [nationality, setNationality] = useState(existing?.nationality || "");
@@ -127,6 +130,7 @@ export default function CreatePlayerPage() {
           shirtNumber: shirtNumber ? parseInt(shirtNumber) : undefined,
           rating: ratingVal ?? 0,
           teamId: effectiveTeamId,
+          seasonYear: seasonYear,
         };
         await addPlayer(newPlayer);
         toast.success("Jogador criado com sucesso");

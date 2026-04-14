@@ -8,6 +8,7 @@ export interface Player {
   shirtNumber?: number;
   rating?: number;
   photoUrl?: string;
+  seasonYear?: number;
 }
 
 export type TournamentFormat = "liga" | "grupos" | "mata-mata" | "suico";
