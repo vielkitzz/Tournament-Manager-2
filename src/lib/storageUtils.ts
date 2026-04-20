@@ -18,7 +18,11 @@ type UploadLogoOptions = {
  * @returns     - Public URL string
  */
 export async function uploadLogo(blob: Blob, path: string, options: UploadLogoOptions = {}): Promise<string> {
-  const { upsert = true, retries = 0 } = options;
+  const { upsert = true, retries = 2 } = options;
+
+  // Always ensure we have a fresh session before attempting the upload
+  // to avoid RLS errors caused by stale auth context.
+  await supabase.auth.getSession();
 
   for (let attempt = 0; attempt <= retries; attempt += 1) {
     const { error } = await supabase.storage
