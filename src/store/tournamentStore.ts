@@ -7,6 +7,22 @@ import { TeamHistory } from "@/lib/teamHistoryUtils";
 // Use any-typed client to avoid strict type errors from generated types
 const db = supabase as any;
 
+async function getAuthenticatedUserId(fallbackUserId?: string | null): Promise<string> {
+  const { data, error } = await supabase.auth.getUser();
+
+  if (error) {
+    throw error;
+  }
+
+  const userId = data.user?.id ?? fallbackUserId ?? null;
+
+  if (!userId) {
+    throw new Error("Usuário não autenticado");
+  }
+
+  return userId;
+}
+
 function parseJsonField<T>(raw: any, fallback: T): T {
   if (raw === null || raw === undefined) return fallback;
   if (typeof raw === "object") return raw as T;
@@ -277,8 +293,7 @@ export const useTournamentStore = create<TournamentState>((set, get) => ({
   },
 
   addTeam: async (team) => {
-    const userId = get()._userId;
-    if (!userId) throw new Error("Usuário não autenticado");
+    const userId = await getAuthenticatedUserId(get()._userId);
     const { data, error } = await db.from("teams").insert({
       id: team.id,
       user_id: userId,
@@ -299,8 +314,7 @@ export const useTournamentStore = create<TournamentState>((set, get) => ({
   },
 
   updateTeam: async (id, updates) => {
-    const userId = get()._userId;
-    if (!userId) return;
+    const userId = await getAuthenticatedUserId(get()._userId);
     const dbUpdates: any = {};
     if (updates.name !== undefined) dbUpdates.name = updates.name;
     if (updates.shortName !== undefined) dbUpdates.short_name = updates.shortName;
