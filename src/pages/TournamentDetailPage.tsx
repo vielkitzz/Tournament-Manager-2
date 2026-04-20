@@ -651,7 +651,7 @@ export default function TournamentDetailPage() {
     const existingSeasons = (tournament.seasons || []).filter((s) => s.year !== tournament.year);
     updateTournament(tournament.id, {
       finalized: true,
-      seasons: [...existingSeasons, seasonRecord],
+      seasons: [...existingSeasons, { ...seasonRecord, preliminaryPhases: tournament.preliminaryPhases ? JSON.parse(JSON.stringify(tournament.preliminaryPhases)) : undefined }],
     });
 
     toast.success(`Temporada ${tournament.year} finalizada! ${championName} é o campeão!`);
