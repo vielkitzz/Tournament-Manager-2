@@ -105,6 +105,7 @@ export async function captureScreenshot(element: HTMLElement, filename: string =
     }
   } catch (err) {
     console.error("Screenshot error:", err);
-    toast.error("Erro ao capturar imagem");
+    const message = err instanceof Error ? err.message : String(err);
+    toast.error(`Erro ao capturar imagem: ${message.slice(0, 120)}`);
   }
 }
