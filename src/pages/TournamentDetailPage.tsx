@@ -880,6 +880,7 @@ export default function TournamentDetailPage() {
       groupsFinalized: false,
       settings: resetSettings,
       seasons: existingSeasons,
+      preliminaryPhases: [],
     });
     setViewingYear(null);
     setNewSeasonYear("");
