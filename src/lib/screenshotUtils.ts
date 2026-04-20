@@ -52,6 +52,14 @@ export async function captureScreenshot(element: HTMLElement, filename: string =
       pixelRatio: 2,
       width: captureWidth + padding * 2,
       height: captureHeight + padding * 2,
+      skipFonts: true,
+      // Skip nodes that commonly break html-to-image (cross-origin images without CORS, etc.)
+      filter: (node) => {
+        if (!(node instanceof HTMLElement)) return true;
+        // Skip the screenshot button itself if present inside the captured area
+        if (node.dataset?.screenshotIgnore === "true") return false;
+        return true;
+      },
       style: {
         overflow: "visible",
         maxHeight: "none",
