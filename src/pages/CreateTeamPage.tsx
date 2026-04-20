@@ -147,9 +147,10 @@ export default function CreateTeamPage() {
         toast.success(`"${teamData.name}" criado!`);
       }
       navigate("/teams");
-    } catch (err) {
-      toast.error("Erro ao salvar o time. Tente novamente.");
-      console.error(err);
+    } catch (err: any) {
+      const msg = err?.message || err?.error_description || "Erro desconhecido";
+      toast.error(`Erro ao salvar o time: ${msg}`);
+      console.error("[CreateTeam] save error:", err);
     } finally {
       setUploading(false);
     }
