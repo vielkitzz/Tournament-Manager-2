@@ -6,25 +6,44 @@ import { supabase } from "@/integrations/supabase/client";
 
 const BUCKET = "logos";
 
+type UploadLogoOptions = {
+  upsert?: boolean;
+  retries?: number;
+};
+
 /**
  * Uploads a WebP Blob to Storage.
  * @param blob  - The processed WebP Blob
  * @param path  - Storage path, e.g. "teams/uuid.webp" or "tournaments/uuid.webp"
  * @returns     - Public URL string
  */
-export async function uploadLogo(blob: Blob, path: string): Promise<string> {
-  const { error } = await supabase.storage
-    .from(BUCKET)
-    .upload(path, blob, {
-      contentType: "image/webp",
-      upsert: true,
-    });
+export async function uploadLogo(blob: Blob, path: string, options: UploadLogoOptions = {}): Promise<string> {
+  const { upsert = true, retries = 0 } = options;
 
-  if (error) throw error;
+  for (let attempt = 0; attempt <= retries; attempt += 1) {
+    const { error } = await supabase.storage
+      .from(BUCKET)
+      .upload(path, blob, {
+        contentType: "image/webp",
+        upsert,
+      });
 
-  const { data } = supabase.storage.from(BUCKET).getPublicUrl(path);
-  // Append cache-buster to force browser to fetch new version after upsert
-  return `${data.publicUrl}?t=${Date.now()}`;
+    if (!error) {
+      const { data } = supabase.storage.from(BUCKET).getPublicUrl(path);
+      // Append cache-buster to force browser to fetch new version after upsert
+      return `${data.publicUrl}?t=${Date.now()}`;
+    }
+
+    const isRetryableRlsError = /row-level security policy/i.test(error.message);
+    if (!isRetryableRlsError || attempt === retries) {
+      throw error;
+    }
+
+    await supabase.auth.getSession();
+    await new Promise((resolve) => setTimeout(resolve, 350 * (attempt + 1)));
+  }
+
+  throw new Error("Erro ao enviar imagem");
 }
 
 /**
