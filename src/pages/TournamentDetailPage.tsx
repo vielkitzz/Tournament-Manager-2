@@ -800,6 +800,7 @@ export default function TournamentDetailPage() {
           finalized: true,
           groupsFinalized: false,
           seasons: updatedSeasons,
+          preliminaryPhases: previousSeason.preliminaryPhases || [],
         });
         setViewingYear(null);
       } else {
@@ -808,6 +809,7 @@ export default function TournamentDetailPage() {
           finalized: false,
           groupsFinalized: false,
           seasons: updatedSeasons,
+          preliminaryPhases: [],
         });
       }
     } else {
