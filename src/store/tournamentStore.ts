@@ -278,8 +278,8 @@ export const useTournamentStore = create<TournamentState>((set, get) => ({
 
   addTeam: async (team) => {
     const userId = get()._userId;
-    if (!userId) return;
-    const { data } = await db.from("teams").insert({
+    if (!userId) throw new Error("Usuário não autenticado");
+    const { data, error } = await db.from("teams").insert({
       id: team.id,
       user_id: userId,
       name: team.name,
@@ -291,6 +291,10 @@ export const useTournamentStore = create<TournamentState>((set, get) => ({
       rate: team.rate,
       folder_id: team.folderId || null,
     }).select().single();
+    if (error) {
+      console.error("[addTeam] insert error:", error);
+      throw error;
+    }
     if (data) set((s) => ({ teams: [...s.teams, dbToTeam(data)] }));
   },
 
