@@ -863,7 +863,7 @@ export default function TournamentDetailPage() {
           })),
           matches: [...(tournament.matches || [])],
         };
-        existingSeasons.push(snapshotRecord);
+        existingSeasons.push({ ...snapshotRecord, preliminaryPhases: tournament.preliminaryPhases ? JSON.parse(JSON.stringify(tournament.preliminaryPhases)) : undefined });
       }
     }
 
