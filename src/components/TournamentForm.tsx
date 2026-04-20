@@ -175,6 +175,11 @@ export default function TournamentForm({ onSuccess, editTournament, initialTempl
 
       if (tournamentReadError) throw tournamentReadError;
       if (persistedTournament?.user_id !== currentUserId) {
+        if (!isEdit) {
+          toast.error("Sua sessão mudou. Reabra a competição após o recarregamento da conta.");
+          onSuccess?.();
+          return;
+        }
         throw new Error("Sessão inválida para enviar a logo desta competição");
       }
 
