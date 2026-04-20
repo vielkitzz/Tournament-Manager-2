@@ -286,7 +286,7 @@ export const useTournamentStore = create<TournamentState>((set, get) => ({
       short_name: team.shortName,
       abbreviation: team.abbreviation,
       logo: team.logo || null,
-      founding_year: team.foundingYear || null,
+      founding_year: team.foundingYear != null ? String(team.foundingYear) : null,
       colors: team.colors?.length ? JSON.stringify(team.colors) : null,
       rate: team.rate,
       folder_id: team.folderId || null,
@@ -302,7 +302,7 @@ export const useTournamentStore = create<TournamentState>((set, get) => ({
     if (updates.shortName !== undefined) dbUpdates.short_name = updates.shortName;
     if (updates.abbreviation !== undefined) dbUpdates.abbreviation = updates.abbreviation;
     if (updates.logo !== undefined) dbUpdates.logo = updates.logo;
-    if (updates.foundingYear !== undefined) dbUpdates.founding_year = updates.foundingYear;
+    if (updates.foundingYear !== undefined) dbUpdates.founding_year = updates.foundingYear != null ? String(updates.foundingYear) : null;
     if (updates.colors !== undefined) dbUpdates.colors = updates.colors?.length ? JSON.stringify(updates.colors) : null;
     if (updates.rate !== undefined) dbUpdates.rate = updates.rate;
     if (updates.folderId !== undefined) dbUpdates.folder_id = updates.folderId;
