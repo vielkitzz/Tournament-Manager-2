@@ -12,6 +12,7 @@ import {
   Moon,
   Sun,
   Users,
+  Settings,
 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
@@ -41,6 +42,12 @@ const navSections = [
     items: [
       { to: "/tournament/create", icon: PlusCircle, label: "Nova Competição", end: false },
       { to: "/teams/create", icon: PlusCircle, label: "Novo Time", end: false },
+    ],
+  },
+  {
+    label: "SISTEMA",
+    items: [
+      { to: "/settings", icon: Settings, label: "Configurações", end: false },
     ],
   },
 ];
