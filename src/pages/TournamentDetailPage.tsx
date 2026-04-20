@@ -779,6 +779,7 @@ export default function TournamentDetailPage() {
       finalized: false,
       groupsFinalized: false,
       settings: resetSettings,
+      preliminaryPhases: [],
     });
     navigate(`/tournament/${tournament.id}/settings`);
     toast.success(`Nova temporada ${tournament.year + 1} criada! Edite as configurações.`);
