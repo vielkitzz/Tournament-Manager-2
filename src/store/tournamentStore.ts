@@ -250,9 +250,12 @@ export const useTournamentStore = create<TournamentState>((set, get) => ({
   },
 
   addTournament: async (tournament) => {
-    const userId = get()._userId;
-    if (!userId) return;
-    const { data } = await db.from("tournaments").insert(tournamentToDb(tournament, userId)).select().single();
+    const userId = await getAuthenticatedUserId(get()._userId);
+    const { data, error } = await db.from("tournaments").insert(tournamentToDb(tournament, userId)).select().single();
+    if (error) {
+      console.error("[addTournament] insert error:", error);
+      throw error;
+    }
     if (data) set((s) => ({ tournaments: [...s.tournaments, dbToTournament(data)] }));
   },
 
@@ -278,11 +281,14 @@ export const useTournamentStore = create<TournamentState>((set, get) => ({
   },
 
   updateTournament: async (id, updates) => {
-    const userId = get()._userId;
-    if (!userId) return;
+    const userId = await getAuthenticatedUserId(get()._userId);
     // Optimistic update
     set((s) => ({ tournaments: s.tournaments.map((t) => (t.id === id ? { ...t, ...updates } : t)) }));
-    await db.from("tournaments").update(updatesToDb(updates)).eq("id", id).eq("user_id", userId);
+    const { error } = await db.from("tournaments").update(updatesToDb(updates)).eq("id", id).eq("user_id", userId);
+    if (error) {
+      console.error("[updateTournament] update error:", error);
+      throw error;
+    }
   },
 
   removeTournament: async (id) => {

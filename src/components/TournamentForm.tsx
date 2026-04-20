@@ -25,6 +25,7 @@ import { useTournamentStore } from "@/store/tournamentStore";
 import { toast } from "sonner";
 import { revokeImagePreview } from "@/lib/imageUtils";
 import { uploadLogo } from "@/lib/storageUtils";
+import { supabase } from "@/integrations/supabase/client";
 import ImageUpload from "@/components/ImageUpload";
 
 interface TournamentFormProps {
@@ -113,63 +114,31 @@ export default function TournamentForm({ onSuccess, editTournament, initialTempl
 
     setUploading(true);
     let finalLogoUrl = logoUrl;
+    const tournamentId = isEdit ? editTournament!.id : crypto.randomUUID();
 
     try {
-      if (pendingBlob) {
-        const tournamentId = isEdit ? editTournament!.id : crypto.randomUUID();
-        const path = `tournaments/${tournamentId}.webp`;
-        finalLogoUrl = await uploadLogo(pendingBlob.blob, path);
-        if (previewUrl?.startsWith("blob:")) revokeImagePreview(previewUrl);
-        setPreviewUrl(finalLogoUrl);
-        setPendingBlob(null);
-      } else if (!previewUrl) {
-        finalLogoUrl = undefined;
-      }
-
       const settings = isEdit
         ? { ...editTournament!.settings, knockoutLegMode }
         : { ...DEFAULT_SETTINGS, ...(tpl?.settings || {}), knockoutLegMode };
 
-      if (isEdit) {
-        const updates: Partial<Tournament> = {
-          name: name.trim(),
-          sport,
-          year: parseInt(year),
-          format: format as TournamentFormat,
-          numberOfTeams: parseInt(numberOfTeams),
-          logo: finalLogoUrl,
-          settings,
-          ...(format === "liga" && { ligaTurnos: parseInt(ligaTurnos) as 1 | 2 }),
-          ...(format === "grupos" && {
-            gruposQuantidade: parseInt(gruposQtd),
-            gruposTurnos: parseInt(gruposTurnos) as 1 | 2 | 3 | 4,
-            gruposMataMataInicio: gruposMataMata,
-          }),
-          ...(format === "mata-mata" && { mataMataInicio }),
-          ...(format === "suico" && {
-            suicoJogosLiga: parseInt(suicoJogosLiga),
-            suicoMataMataInicio,
-            suicoPlayoffVagas: parseInt(suicoPlayoffVagas),
-          }),
-        };
-        await updateTournament(editTournament!.id, updates);
-        toast.success(`"${name.trim()}" atualizado!`);
-        onSuccess?.();
-        return;
-      }
-
-      const tournamentId = crypto.randomUUID();
-      const tournament: Tournament = {
+      const baseTournament: Tournament = {
         id: tournamentId,
         name: name.trim(),
         sport,
         year: parseInt(year),
         format: format as TournamentFormat,
         numberOfTeams: parseInt(numberOfTeams),
-        logo: finalLogoUrl,
-        teamIds: [],
-        matches: [],
+        logo: !pendingBlob && previewUrl ? finalLogoUrl : undefined,
+        teamIds: isEdit ? editTournament!.teamIds : [],
+        matches: isEdit ? editTournament!.matches : [],
         settings,
+        ...(isEdit && {
+          finalized: editTournament!.finalized,
+          groupsFinalized: editTournament!.groupsFinalized,
+          seasons: editTournament!.seasons,
+          folderId: editTournament!.folderId,
+          preliminaryPhases: editTournament!.preliminaryPhases,
+        }),
         ...(format === "liga" && { ligaTurnos: parseInt(ligaTurnos) as 1 | 2 }),
         ...(format === "grupos" && {
           gruposQuantidade: parseInt(gruposQtd),
@@ -184,11 +153,53 @@ export default function TournamentForm({ onSuccess, editTournament, initialTempl
         }),
       };
 
-      await addTournament(tournament);
+      if (isEdit) {
+        await updateTournament(editTournament!.id, baseTournament);
+      } else {
+        await addTournament(baseTournament);
+      }
+
+      const { data: authData, error: authError } = await supabase.auth.getUser();
+      if (authError) throw authError;
+
+      const currentUserId = authData.user?.id;
+      if (!currentUserId) {
+        throw new Error("Usuário não autenticado");
+      }
+
+      const { data: persistedTournament, error: tournamentReadError } = await supabase
+        .from("tournaments")
+        .select("id, user_id")
+        .eq("id", tournamentId)
+        .single();
+
+      if (tournamentReadError) throw tournamentReadError;
+      if (persistedTournament?.user_id !== currentUserId) {
+        throw new Error("Sessão inválida para enviar a logo desta competição");
+      }
+
+      if (pendingBlob) {
+        const path = `tournaments/${tournamentId}.webp`;
+        finalLogoUrl = await uploadLogo(pendingBlob.blob, path);
+        await updateTournament(tournamentId, { logo: finalLogoUrl });
+        if (previewUrl?.startsWith("blob:")) revokeImagePreview(previewUrl);
+        setPreviewUrl(finalLogoUrl);
+        setPendingBlob(null);
+      } else if (!previewUrl && logoUrl) {
+        finalLogoUrl = undefined;
+        await updateTournament(tournamentId, { logo: undefined });
+      }
+
+      if (isEdit) {
+        toast.success(`"${name.trim()}" atualizado!`);
+        onSuccess?.();
+        return;
+      }
+
       // Track as recently opened so it appears in Dashboard
       const { trackTournamentOpen } = await import("@/lib/recentTournaments");
-      trackTournamentOpen(tournament.id);
-      toast.success(`"${tournament.name}" criado com sucesso!`);
+      trackTournamentOpen(tournamentId);
+      toast.success(`"${name.trim()}" criado com sucesso!`);
       onSuccess?.();
     } catch (err) {
       toast.error("Erro ao salvar. Tente novamente.");
