@@ -127,6 +127,7 @@ export interface SeasonRecord {
   groupCount?: number;
   teamIds?: string[];
   settings?: TournamentSettings;
+  preliminaryPhases?: PreliminaryPhase[];
   manual?: boolean; // Manually added champion entry
 }
 

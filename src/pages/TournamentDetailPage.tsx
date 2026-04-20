@@ -651,7 +651,7 @@ export default function TournamentDetailPage() {
     const existingSeasons = (tournament.seasons || []).filter((s) => s.year !== tournament.year);
     updateTournament(tournament.id, {
       finalized: true,
-      seasons: [...existingSeasons, seasonRecord],
+      seasons: [...existingSeasons, { ...seasonRecord, preliminaryPhases: tournament.preliminaryPhases ? JSON.parse(JSON.stringify(tournament.preliminaryPhases)) : undefined }],
     });
 
     toast.success(`Temporada ${tournament.year} finalizada! ${championName} é o campeão!`);
@@ -779,6 +779,7 @@ export default function TournamentDetailPage() {
       finalized: false,
       groupsFinalized: false,
       settings: resetSettings,
+      preliminaryPhases: [],
     });
     navigate(`/tournament/${tournament.id}/settings`);
     toast.success(`Nova temporada ${tournament.year + 1} criada! Edite as configurações.`);
@@ -799,6 +800,7 @@ export default function TournamentDetailPage() {
           finalized: true,
           groupsFinalized: false,
           seasons: updatedSeasons,
+          preliminaryPhases: previousSeason.preliminaryPhases || [],
         });
         setViewingYear(null);
       } else {
@@ -807,6 +809,7 @@ export default function TournamentDetailPage() {
           finalized: false,
           groupsFinalized: false,
           seasons: updatedSeasons,
+          preliminaryPhases: [],
         });
       }
     } else {
@@ -862,7 +865,7 @@ export default function TournamentDetailPage() {
           })),
           matches: [...(tournament.matches || [])],
         };
-        existingSeasons.push(snapshotRecord);
+        existingSeasons.push({ ...snapshotRecord, preliminaryPhases: tournament.preliminaryPhases ? JSON.parse(JSON.stringify(tournament.preliminaryPhases)) : undefined });
       }
     }
 
@@ -879,6 +882,7 @@ export default function TournamentDetailPage() {
       groupsFinalized: false,
       settings: resetSettings,
       seasons: existingSeasons,
+      preliminaryPhases: [],
     });
     setViewingYear(null);
     setNewSeasonYear("");
