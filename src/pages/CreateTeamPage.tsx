@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { motion, Reorder } from "framer-motion";
 import { ArrowLeft, Loader2, Trash2, Plus, GripVertical } from "lucide-react";
 import { useNavigate, useSearchParams } from "react-router-dom";
@@ -94,6 +94,17 @@ export default function CreateTeamPage() {
 
     try {
       const teamId = editId || crypto.randomUUID();
+      const { data: authData, error: authError } = await supabase.auth.getUser();
+
+      if (authError) {
+        throw authError;
+      }
+
+      const currentUserId = authData.user?.id;
+
+      if (!currentUserId) {
+        throw new Error("Usuário não autenticado");
+      }
 
       const teamData = {
         name: name.trim(),
@@ -110,6 +121,20 @@ export default function CreateTeamPage() {
         await addTeam({ id: teamId, ...teamData });
       }
 
+      const { data: insertedTeam, error: teamReadError } = await supabase
+        .from("teams")
+        .select("id, user_id")
+        .eq("id", teamId)
+        .single();
+
+      if (teamReadError) {
+        throw teamReadError;
+      }
+
+      if (insertedTeam?.user_id !== currentUserId) {
+        throw new Error("Sessão inválida para enviar o escudo deste time");
+      }
+
       // Cenário 1: Usuário escolheu uma imagem nova
       if (pendingBlob) {
         const path = `teams/${teamId}_${Date.now()}.webp`;
@@ -122,7 +147,10 @@ export default function CreateTeamPage() {
           }
         }
 
-        finalLogoUrl = await uploadLogo(pendingBlob.blob, path);
+        finalLogoUrl = await uploadLogo(pendingBlob.blob, path, {
+          upsert: false,
+          retries: 2,
+        });
 
         if (previewUrl?.startsWith("blob:")) revokeImagePreview(previewUrl);
         setPreviewUrl(finalLogoUrl);
