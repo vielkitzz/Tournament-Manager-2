@@ -217,7 +217,16 @@ export const useTournamentStore = create<TournamentState>((set, get) => ({
       return;
     }
     if (userId === get()._userId && !get().loading) return;
-    set({ loading: true, _userId: userId });
+    set({
+      tournaments: [],
+      teams: [],
+      players: [],
+      folders: [],
+      tournamentFolders: [],
+      teamHistories: [],
+      loading: true,
+      _userId: userId,
+    });
     const [tRes, teRes, fRes, tfRes, hRes, pRes] = await Promise.all([
       db.from("tournaments").select("*").eq("user_id", userId),
       db.from("teams").select("*").eq("user_id", userId),
