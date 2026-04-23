@@ -738,5 +738,24 @@ export function generateMinuteByMinuteEvents(
     text: "Fim de jogo! O árbitro apita o encerramento da partida",
   });
 
+  // ---------------------------------------------------------------
+  // Reconcile numerical stats with the events that were actually
+  // produced. Without this, dropped events (e.g. when no eligible
+  // player exists for a foul/card/shot) would cause the side panel
+  // to disagree with the textual feed.
+  // ---------------------------------------------------------------
+  matchStats.homeStats.fouls = produced.home.fouls;
+  matchStats.homeStats.yellowCards = produced.home.yellow;
+  matchStats.homeStats.redCards = produced.home.red;
+  matchStats.homeStats.offsides = produced.home.offsides;
+  matchStats.homeStats.shots = produced.home.shots;
+  matchStats.homeStats.shotsOnTarget = produced.home.shotsOnTarget;
+  matchStats.awayStats.fouls = produced.away.fouls;
+  matchStats.awayStats.yellowCards = produced.away.yellow;
+  matchStats.awayStats.redCards = produced.away.red;
+  matchStats.awayStats.offsides = produced.away.offsides;
+  matchStats.awayStats.shots = produced.away.shots;
+  matchStats.awayStats.shotsOnTarget = produced.away.shotsOnTarget;
+
   return events;
 }
