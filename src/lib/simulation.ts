@@ -65,8 +65,11 @@ export function simulateFullMatch(
   h1: [number, number];
   h2: [number, number];
   total: [number, number];
+  xg: [number, number];
 } {
-  const firstHalf = simulateHalf(homeRate, awayRate, false, 0.5);
+  const homeXg1 = getExpectedGoals(homeRate, awayRate, false, 0.5, true);
+  const awayXg1 = getExpectedGoals(awayRate, homeRate, false, 0.5, false);
+  const firstHalf: [number, number] = [poissonRandom(homeXg1), poissonRandom(awayXg1)];
   const goalDiff = firstHalf[0] - firstHalf[1];
   let momentum = 0.5;
   if (goalDiff > 1) momentum = 0.7;
@@ -74,12 +77,15 @@ export function simulateFullMatch(
   else if (goalDiff > 0) momentum = 0.6;
   else if (goalDiff < 0) momentum = 0.4;
 
-  const secondHalf = simulateHalf(homeRate, awayRate, false, momentum);
+  const homeXg2 = getExpectedGoals(homeRate, awayRate, false, momentum, true);
+  const awayXg2 = getExpectedGoals(awayRate, homeRate, false, momentum, false);
+  const secondHalf: [number, number] = [poissonRandom(homeXg2), poissonRandom(awayXg2)];
 
   return {
     h1: firstHalf,
     h2: secondHalf,
     total: [firstHalf[0] + secondHalf[0], firstHalf[1] + secondHalf[1]],
+    xg: [roundTo2(homeXg1 + homeXg2), roundTo2(awayXg1 + awayXg2)],
   };
 }
 
