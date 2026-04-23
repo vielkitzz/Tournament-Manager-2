@@ -20,10 +20,10 @@ export function randomSkill(): number {
   return Math.floor(Math.random() * (SKILL_MAX - SKILL_MIN + 1)) + SKILL_MIN;
 }
 
-/** Exigência do clube = (rate * 9) + 27. Rate 5.00 → 72. */
+/** Exigência do clube = (rate * 7) + 42. Rate 5.00 → 72. */
 export function clubExigencia(teamRate: number | undefined | null): number {
   const r = typeof teamRate === "number" && Number.isFinite(teamRate) ? teamRate : 5;
-  return Math.round(r * 9 + 27);
+  return Math.round(r * 7 + 42);
 }
 
 /**
@@ -132,7 +132,7 @@ export function effectiveMatchRate(baseRate: number, squad: Player[] | undefined
   const avg = starters.reduce((s, p) => s + (p.skill ?? SKILL_DEFAULT), 0) / starters.length;
   const exig = clubExigencia(baseRate);
   const balance = avg - exig;
-  const modifier = (balance / 3) * 0.10;
+  const modifier = (balance / 3) * 0.1;
   const eff = baseRate + modifier;
   // keep within plausible bounds
   return Math.max(0.5, Math.min(10, eff));
