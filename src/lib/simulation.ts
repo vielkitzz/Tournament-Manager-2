@@ -605,7 +605,7 @@ export function generateMinuteByMinuteEvents(
 
     for (let i = 0; i < missedShots; i++) {
       const minute = randInt(3, 89);
-      const p = weightedPick(players, positionGoalWeight);
+      const p = pickAtMinute(players, positionGoalWeight, minute);
       if (!p) continue;
       const texts = [
         `**${p.name}** bateu para fora`,
@@ -625,7 +625,7 @@ export function generateMinuteByMinuteEvents(
 
     for (let i = 0; i < saves; i++) {
       const minute = randInt(3, 89);
-      const shooter = weightedPick(players, positionGoalWeight);
+      const shooter = pickAtMinute(players, positionGoalWeight, minute);
       if (!shooter || !gk) continue;
       const texts = [
         `Grande defesa de **${gk.name}** após chute de **${shooter.name}**`,
@@ -661,44 +661,16 @@ export function generateMinuteByMinuteEvents(
     awayGoals,
   );
 
-  // 5. Substitutions (up to 3 per team, minutes 55-85)
-  const generateSubstitutions = (team: Team, players: Player[]) => {
-    const subCount = Math.min(3, Math.max(0, Math.floor(players.length / 2) - 1));
-    if (subCount === 0) return;
-    const usedIds = new Set<string>();
-    const nonGk = players.filter((p) => p.position !== "Goleiro");
-    for (let i = 0; i < subCount; i++) {
-      const minute = randInt(55, 85);
-      const candidates = nonGk.filter((p) => !usedIds.has(p.id));
-      if (candidates.length < 2) break;
-      const outPlayer = candidates[randInt(0, candidates.length - 1)];
-      usedIds.add(outPlayer.id);
-      const inCandidates = candidates.filter((p) => p.id !== outPlayer.id && !usedIds.has(p.id));
-      if (inCandidates.length === 0) break;
-      const inPlayer = inCandidates[randInt(0, inCandidates.length - 1)];
-      usedIds.add(inPlayer.id);
-      events.push({
-        id: genId(),
-        minute,
-        type: "substitution",
-        teamId: team.id,
-        playerId: inPlayer.id,
-        assistId: outPlayer.id,
-        text: `Substituição no **${team.shortName || team.name}**. Sai **${outPlayer.name}** para a entrada de **${inPlayer.name}**`,
-      });
-    }
-  };
-  generateSubstitutions(homeTeam, homePlayers);
-  generateSubstitutions(awayTeam, awayPlayers);
-
-  // 6. A few general highlights
+  // 5. A few general highlights (substitutions já foram pré-geradas no início)
   const highlightCount = randInt(3, 6);
   for (let i = 0; i < highlightCount; i++) {
     const isHome = Math.random() < 0.5;
     const team = isHome ? homeTeam : awayTeam;
     const players = isHome ? homePlayers : awayPlayers;
-    const p = players[randInt(0, players.length - 1)];
-    if (!p) continue;
+    const minute = randInt(1, 90);
+    const eligible = players.filter((pl) => isOnPitch(pl.id, minute));
+    if (eligible.length === 0) continue;
+    const p = eligible[randInt(0, eligible.length - 1)];
     const highlights = [
       `Pressão do **${team.shortName || team.name}** no campo de ataque`,
       `**${p.name}** faz uma bela jogada individual, driblando dois marcadores`,
@@ -708,7 +680,7 @@ export function generateMinuteByMinuteEvents(
     ];
     events.push({
       id: genId(),
-      minute: randInt(1, 90),
+      minute,
       type: "highlight",
       teamId: team.id,
       playerId: p.id,
