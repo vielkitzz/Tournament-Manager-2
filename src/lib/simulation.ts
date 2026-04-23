@@ -472,6 +472,8 @@ export function generateMinuteByMinuteEvents(
     yellows: number,
     reds: number,
   ) => {
+    const isHome = team.id === homeTeam.id;
+    const bucket = isHome ? produced.home : produced.away;
     const cardedIds = new Set<string>();
     const foulEvents: { minute: number; playerId: string }[] = [];
 
@@ -494,6 +496,7 @@ export function generateMinuteByMinuteEvents(
         playerId: p.id,
         text: texts[randInt(0, texts.length - 1)],
       });
+      bucket.fouls++;
     }
 
     // Yellow cards (attach to existing foul minutes)
@@ -522,6 +525,7 @@ export function generateMinuteByMinuteEvents(
         playerId: p.id,
         text: texts[randInt(0, texts.length - 1)],
       });
+      bucket.yellow++;
     }
 
     // Red cards — ancorados a faltas EXISTENTES (não criamos faltas extras),
@@ -553,6 +557,7 @@ export function generateMinuteByMinuteEvents(
         playerId: p.id,
         text: texts[randInt(0, texts.length - 1)],
       });
+      bucket.red++;
       // From this minute on, the red-carded player is off the pitch.
       const existingOut = subOutAt.get(p.id);
       if (existingOut === undefined || existingOut > minute) {
