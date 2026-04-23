@@ -428,6 +428,8 @@ export function generateMinuteByMinuteEvents(
   // 1. Goals — sorteamos os minutos respeitando o tempo (1º x 2º half)
   //    quando halfGoals é fornecido pelo simulador.
   const generateGoals = (team: Team, players: Player[], count: number, minuteRange: [number, number]) => {
+    const isHome = team.id === homeTeam.id;
+    const bucket = isHome ? produced.home : produced.away;
     for (let i = 0; i < count; i++) {
       const minute = randInt(minuteRange[0], minuteRange[1]);
       const scorer = pickAtMinute(players, positionGoalWeight, minute);
@@ -448,6 +450,7 @@ export function generateMinuteByMinuteEvents(
         assistId: assister?.id,
         text: descs[randInt(0, descs.length - 1)],
       });
+      bucket.goals++;
     }
   };
   if (halfGoals) {
