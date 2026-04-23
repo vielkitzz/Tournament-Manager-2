@@ -12,6 +12,8 @@ import CountryFlag from "@/components/CountryFlag";
 import PageTransition from "@/components/PageTransition";
 import { toast } from "sonner";
 import { Player } from "@/types/tournament";
+import PlayerStars from "@/components/PlayerStars";
+import { SKILL_DEFAULT, clampSkill } from "@/lib/playerSkill";
 
 const MAX_PLAYERS = 30;
 
@@ -107,7 +109,7 @@ export default function ClubSquadPage() {
         position: p.position,
         age: p.age,
         shirtNumber: p.shirtNumber,
-        rating: p.rating,
+        skill: p.skill,
         photoUrl: p.photoUrl,
         seasonYear: p.seasonYear ?? null,
       })),
@@ -155,7 +157,7 @@ export default function ClubSquadPage() {
             position: p.position || undefined,
             age: p.age ?? undefined,
             shirtNumber: p.shirtNumber ?? undefined,
-            rating: p.rating ?? 5,
+            skill: clampSkill(p.skill ?? p.rating ?? SKILL_DEFAULT),
             photoUrl: p.photoUrl || undefined,
             seasonYear: activeSeasonYear ?? p.seasonYear ?? undefined,
           };
@@ -365,7 +367,7 @@ export default function ClubSquadPage() {
                   <TableHead>Nacionalidade</TableHead>
                   <TableHead>Posição</TableHead>
                   <TableHead>Idade</TableHead>
-                  <TableHead>Rating</TableHead>
+                  <TableHead>Qualidade</TableHead>
                   {selectedYear === ALL_YEARS_VALUE && <TableHead>Ano</TableHead>}
                   <TableHead className="w-20 text-right">Ações</TableHead>
                 </TableRow>
@@ -387,7 +389,9 @@ export default function ClubSquadPage() {
                     </TableCell>
                     <TableCell className="text-muted-foreground">{player.position || "—"}</TableCell>
                     <TableCell className="text-muted-foreground">{player.age ?? "—"}</TableCell>
-                    <TableCell className="text-muted-foreground">{player.rating?.toFixed(2) ?? "—"}</TableCell>
+                    <TableCell>
+                      <PlayerStars skill={player.skill} teamRate={team.rate} />
+                    </TableCell>
                     {selectedYear === ALL_YEARS_VALUE && (
                       <TableCell className="text-muted-foreground">{player.seasonYear ?? "—"}</TableCell>
                     )}
