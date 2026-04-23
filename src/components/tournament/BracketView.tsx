@@ -245,8 +245,15 @@ export default function BracketView({
   const simulateLeg2 = (leg2: Match, leg1: Match): Match => {
     const home = getTeam(leg2.homeTeamId);
     const away = getTeam(leg2.awayTeamId);
-    const homeRate = tournament.settings.rateInfluence ? (home?.rate ?? 5) : 5;
-    const awayRate = tournament.settings.rateInfluence ? (away?.rate ?? 5) : 5;
+    const allPlayersList = players || [];
+    const homeBase = tournament.settings.rateInfluence ? (home?.rate ?? 5) : 5;
+    const awayBase = tournament.settings.rateInfluence ? (away?.rate ?? 5) : 5;
+    const homeRate = tournament.settings.rateInfluence
+      ? effectiveMatchRate(homeBase, allPlayersList.filter((p) => p.teamId === leg2.homeTeamId))
+      : homeBase;
+    const awayRate = tournament.settings.rateInfluence
+      ? effectiveMatchRate(awayBase, allPlayersList.filter((p) => p.teamId === leg2.awayTeamId))
+      : awayBase;
     const result = simulateFullMatch(homeRate, awayRate);
     let homeScore = result.total[0];
     let awayScore = result.total[1];
