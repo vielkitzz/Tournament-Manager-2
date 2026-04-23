@@ -23,9 +23,9 @@ export type Database = {
           nationality: string | null
           photo_url: string | null
           position: string | null
-          rating: number | null
           season_year: number | null
           shirt_number: number | null
+          skill: number
           team_id: string | null
           user_id: string
         }
@@ -37,9 +37,9 @@ export type Database = {
           nationality?: string | null
           photo_url?: string | null
           position?: string | null
-          rating?: number | null
           season_year?: number | null
           shirt_number?: number | null
+          skill?: number
           team_id?: string | null
           user_id: string
         }
@@ -51,9 +51,9 @@ export type Database = {
           nationality?: string | null
           photo_url?: string | null
           position?: string | null
-          rating?: number | null
           season_year?: number | null
           shirt_number?: number | null
+          skill?: number
           team_id?: string | null
           user_id?: string
         }
