@@ -312,6 +312,7 @@ export function generateMinuteByMinuteEvents(
   matchStats: { homeStats: TeamMatchStats; awayStats: TeamMatchStats },
   homeGoals: number,
   awayGoals: number,
+  halfGoals?: { h1: [number, number]; h2: [number, number] },
 ): MatchEvent[] {
   const events: MatchEvent[] = [];
   let eventId = 0;
@@ -361,13 +362,68 @@ export function generateMinuteByMinuteEvents(
     return available[available.length - 1];
   }
 
-  // 1. Goals
-  const generateGoals = (team: Team, players: Player[], count: number) => {
+  // ---------------------------------------------------------------
+  // Pre-generate substitutions so every later event can respect the
+  // "ghosting" rule: a substituted player cannot author events after
+  // the minute they left the pitch.
+  // ---------------------------------------------------------------
+  const subOutAt: Map<string, number> = new Map(); // playerId -> minute they left
+  const subInAt: Map<string, number> = new Map(); // playerId -> minute they entered
+
+  const generateSubstitutions = (team: Team, players: Player[]) => {
+    const subCount = Math.min(3, Math.max(0, Math.floor(players.length / 2) - 1));
+    if (subCount === 0) return;
+    const usedIds = new Set<string>();
+    const nonGk = players.filter((p) => p.position !== "Goleiro");
+    for (let i = 0; i < subCount; i++) {
+      const minute = randInt(55, 85);
+      const candidates = nonGk.filter((p) => !usedIds.has(p.id));
+      if (candidates.length < 2) break;
+      const outPlayer = candidates[randInt(0, candidates.length - 1)];
+      usedIds.add(outPlayer.id);
+      const inCandidates = candidates.filter((p) => p.id !== outPlayer.id && !usedIds.has(p.id));
+      if (inCandidates.length === 0) break;
+      const inPlayer = inCandidates[randInt(0, inCandidates.length - 1)];
+      usedIds.add(inPlayer.id);
+      subOutAt.set(outPlayer.id, minute);
+      subInAt.set(inPlayer.id, minute);
+      events.push({
+        id: genId(),
+        minute,
+        type: "substitution",
+        teamId: team.id,
+        playerId: inPlayer.id,
+        assistId: outPlayer.id,
+        text: `Substituição no **${team.shortName || team.name}**. Sai **${outPlayer.name}** para a entrada de **${inPlayer.name}**`,
+      });
+    }
+  };
+  generateSubstitutions(homeTeam, homePlayers);
+  generateSubstitutions(awayTeam, awayPlayers);
+
+  /** True if the player is on the pitch at the given minute. */
+  const isOnPitch = (playerId: string, minute: number): boolean => {
+    const out = subOutAt.get(playerId);
+    if (out !== undefined && minute >= out) return false;
+    const inAt = subInAt.get(playerId);
+    if (inAt !== undefined && minute < inAt) return false;
+    return true;
+  };
+
+  /** Same as weightedPick but filters out players not on the pitch at minute. */
+  function pickAtMinute(players: Player[], weights: Record<string, number>, minute: number, exclude?: string): Player | undefined {
+    const eligible = players.filter((p) => p.id !== exclude && isOnPitch(p.id, minute));
+    return weightedPick(eligible, weights);
+  }
+
+  // 1. Goals — sorteamos os minutos respeitando o tempo (1º x 2º half)
+  //    quando halfGoals é fornecido pelo simulador.
+  const generateGoals = (team: Team, players: Player[], count: number, minuteRange: [number, number]) => {
     for (let i = 0; i < count; i++) {
-      const minute = randInt(1, 90);
-      const scorer = weightedPick(players, positionGoalWeight);
+      const minute = randInt(minuteRange[0], minuteRange[1]);
+      const scorer = pickAtMinute(players, positionGoalWeight, minute);
       if (!scorer) continue;
-      const assister = Math.random() < 0.65 ? weightedPick(players, positionAssistWeight, scorer.id) : undefined;
+      const assister = Math.random() < 0.65 ? pickAtMinute(players, positionAssistWeight, minute, scorer.id) : undefined;
       const descs = [
         `Gol de **${scorer.name}**${assister ? ` com assistência de **${assister.name}**` : ""}`,
         `Finalização certeira de **${scorer.name}**${assister ? ` após passe de **${assister.name}**` : ""}`,
@@ -385,8 +441,15 @@ export function generateMinuteByMinuteEvents(
       });
     }
   };
-  generateGoals(homeTeam, homePlayers, homeGoals);
-  generateGoals(awayTeam, awayPlayers, awayGoals);
+  if (halfGoals) {
+    generateGoals(homeTeam, homePlayers, halfGoals.h1[0], [1, 45]);
+    generateGoals(awayTeam, awayPlayers, halfGoals.h1[1], [1, 45]);
+    generateGoals(homeTeam, homePlayers, halfGoals.h2[0], [46, 90]);
+    generateGoals(awayTeam, awayPlayers, halfGoals.h2[1], [46, 90]);
+  } else {
+    generateGoals(homeTeam, homePlayers, homeGoals, [1, 90]);
+    generateGoals(awayTeam, awayPlayers, awayGoals, [1, 90]);
+  }
 
   // 2. Fouls & Cards (cards always follow a foul)
   const generateFoulsAndCards = (
