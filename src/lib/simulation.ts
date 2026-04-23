@@ -318,6 +318,15 @@ export function generateMinuteByMinuteEvents(
   let eventId = 0;
   const genId = () => `evt-${++eventId}`;
 
+  // Counters of events we actually produced. Used at the end to
+  // reconcile `matchStats` so the numerical panel matches the textual
+  // feed exactly (no "ghost" fouls/cards/shots reported in stats but
+  // missing from the event list).
+  const produced = {
+    home: { goals: 0, fouls: 0, yellow: 0, red: 0, offsides: 0, shots: 0, shotsOnTarget: 0 },
+    away: { goals: 0, fouls: 0, yellow: 0, red: 0, offsides: 0, shots: 0, shotsOnTarget: 0 },
+  };
+
   const positionGoalWeight: Record<string, number> = {
     Atacante: 5,
     Ponta: 4,
