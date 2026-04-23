@@ -1,3 +1,5 @@
+import solaraFlag from "@/assets/flags/solara.png";
+
 export interface Country {
   name: string;
   code: string;
@@ -174,7 +176,7 @@ export const COUNTRIES_DATA: Country[] = [
   { name: "Singapura", code: "sg" },
   { name: "Síria", code: "sy" },
   { name: "Somália", code: "so" },
-  { name: "Solara", code: "solara", customFlag: "/solara.webp" },
+  { name: "Solara", code: "solara", customFlag: solaraFlag },
   { name: "Sri Lanka", code: "lk" },
   { name: "Sudão", code: "sd" },
   { name: "Sudão do Sul", code: "ss" },
