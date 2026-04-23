@@ -1,4 +1,4 @@
-import solaraFlag from "@/assets/flags/solara.png";
+import solaraFlag from "@/assets/flags/solara.webp";
 
 export interface Country {
   name: string;
