@@ -584,6 +584,8 @@ export function generateMinuteByMinuteEvents(
 
   // 3. Offsides (matching stats)
   const generateOffsides = (team: Team, players: Player[], count: number) => {
+    const isHome = team.id === homeTeam.id;
+    const bucket = isHome ? produced.home : produced.away;
     for (let i = 0; i < count; i++) {
       const minute = randInt(5, 88);
       const p = pickAtMinute(players, positionGoalWeight, minute);
@@ -601,6 +603,7 @@ export function generateMinuteByMinuteEvents(
         playerId: p.id,
         text: texts[randInt(0, texts.length - 1)],
       });
+      bucket.offsides++;
     }
   };
   generateOffsides(homeTeam, homePlayers, matchStats.homeStats.offsides);
@@ -616,6 +619,11 @@ export function generateMinuteByMinuteEvents(
     shotsOnTarget: number,
     goals: number,
   ) => {
+    const isHome = team.id === homeTeam.id;
+    const bucket = isHome ? produced.home : produced.away;
+    // Goals already produced by generateGoals count as shots-on-target
+    bucket.shots += bucket.goals;
+    bucket.shotsOnTarget += bucket.goals;
     const missedShots = Math.max(0, totalShots - shotsOnTarget);
     const saves = Math.max(0, shotsOnTarget - goals);
     const gk = opponentPlayers.find((p) => p.position === "Goleiro") || opponentPlayers[0];
@@ -638,6 +646,7 @@ export function generateMinuteByMinuteEvents(
         playerId: p.id,
         text: texts[randInt(0, texts.length - 1)],
       });
+      bucket.shots++;
     }
 
     for (let i = 0; i < saves; i++) {
@@ -657,6 +666,8 @@ export function generateMinuteByMinuteEvents(
         playerId: shooter.id,
         text: texts[randInt(0, texts.length - 1)],
       });
+      bucket.shots++;
+      bucket.shotsOnTarget++;
     }
   };
   generateShots(
