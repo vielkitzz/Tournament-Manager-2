@@ -318,6 +318,15 @@ export function generateMinuteByMinuteEvents(
   let eventId = 0;
   const genId = () => `evt-${++eventId}`;
 
+  // Counters of events we actually produced. Used at the end to
+  // reconcile `matchStats` so the numerical panel matches the textual
+  // feed exactly (no "ghost" fouls/cards/shots reported in stats but
+  // missing from the event list).
+  const produced = {
+    home: { goals: 0, fouls: 0, yellow: 0, red: 0, offsides: 0, shots: 0, shotsOnTarget: 0 },
+    away: { goals: 0, fouls: 0, yellow: 0, red: 0, offsides: 0, shots: 0, shotsOnTarget: 0 },
+  };
+
   const positionGoalWeight: Record<string, number> = {
     Atacante: 5,
     Ponta: 4,
@@ -419,6 +428,8 @@ export function generateMinuteByMinuteEvents(
   // 1. Goals — sorteamos os minutos respeitando o tempo (1º x 2º half)
   //    quando halfGoals é fornecido pelo simulador.
   const generateGoals = (team: Team, players: Player[], count: number, minuteRange: [number, number]) => {
+    const isHome = team.id === homeTeam.id;
+    const bucket = isHome ? produced.home : produced.away;
     for (let i = 0; i < count; i++) {
       const minute = randInt(minuteRange[0], minuteRange[1]);
       const scorer = pickAtMinute(players, positionGoalWeight, minute);
@@ -439,6 +450,7 @@ export function generateMinuteByMinuteEvents(
         assistId: assister?.id,
         text: descs[randInt(0, descs.length - 1)],
       });
+      bucket.goals++;
     }
   };
   if (halfGoals) {
@@ -460,6 +472,8 @@ export function generateMinuteByMinuteEvents(
     yellows: number,
     reds: number,
   ) => {
+    const isHome = team.id === homeTeam.id;
+    const bucket = isHome ? produced.home : produced.away;
     const cardedIds = new Set<string>();
     const foulEvents: { minute: number; playerId: string }[] = [];
 
@@ -482,6 +496,7 @@ export function generateMinuteByMinuteEvents(
         playerId: p.id,
         text: texts[randInt(0, texts.length - 1)],
       });
+      bucket.fouls++;
     }
 
     // Yellow cards (attach to existing foul minutes)
@@ -510,6 +525,7 @@ export function generateMinuteByMinuteEvents(
         playerId: p.id,
         text: texts[randInt(0, texts.length - 1)],
       });
+      bucket.yellow++;
     }
 
     // Red cards — ancorados a faltas EXISTENTES (não criamos faltas extras),
@@ -541,6 +557,7 @@ export function generateMinuteByMinuteEvents(
         playerId: p.id,
         text: texts[randInt(0, texts.length - 1)],
       });
+      bucket.red++;
       // From this minute on, the red-carded player is off the pitch.
       const existingOut = subOutAt.get(p.id);
       if (existingOut === undefined || existingOut > minute) {
@@ -567,6 +584,8 @@ export function generateMinuteByMinuteEvents(
 
   // 3. Offsides (matching stats)
   const generateOffsides = (team: Team, players: Player[], count: number) => {
+    const isHome = team.id === homeTeam.id;
+    const bucket = isHome ? produced.home : produced.away;
     for (let i = 0; i < count; i++) {
       const minute = randInt(5, 88);
       const p = pickAtMinute(players, positionGoalWeight, minute);
@@ -584,6 +603,7 @@ export function generateMinuteByMinuteEvents(
         playerId: p.id,
         text: texts[randInt(0, texts.length - 1)],
       });
+      bucket.offsides++;
     }
   };
   generateOffsides(homeTeam, homePlayers, matchStats.homeStats.offsides);
@@ -599,6 +619,11 @@ export function generateMinuteByMinuteEvents(
     shotsOnTarget: number,
     goals: number,
   ) => {
+    const isHome = team.id === homeTeam.id;
+    const bucket = isHome ? produced.home : produced.away;
+    // Goals already produced by generateGoals count as shots-on-target
+    bucket.shots += bucket.goals;
+    bucket.shotsOnTarget += bucket.goals;
     const missedShots = Math.max(0, totalShots - shotsOnTarget);
     const saves = Math.max(0, shotsOnTarget - goals);
     const gk = opponentPlayers.find((p) => p.position === "Goleiro") || opponentPlayers[0];
@@ -621,6 +646,7 @@ export function generateMinuteByMinuteEvents(
         playerId: p.id,
         text: texts[randInt(0, texts.length - 1)],
       });
+      bucket.shots++;
     }
 
     for (let i = 0; i < saves; i++) {
@@ -640,6 +666,8 @@ export function generateMinuteByMinuteEvents(
         playerId: shooter.id,
         text: texts[randInt(0, texts.length - 1)],
       });
+      bucket.shots++;
+      bucket.shotsOnTarget++;
     }
   };
   generateShots(
@@ -709,6 +737,25 @@ export function generateMinuteByMinuteEvents(
     teamId: "",
     text: "Fim de jogo! O árbitro apita o encerramento da partida",
   });
+
+  // ---------------------------------------------------------------
+  // Reconcile numerical stats with the events that were actually
+  // produced. Without this, dropped events (e.g. when no eligible
+  // player exists for a foul/card/shot) would cause the side panel
+  // to disagree with the textual feed.
+  // ---------------------------------------------------------------
+  matchStats.homeStats.fouls = produced.home.fouls;
+  matchStats.homeStats.yellowCards = produced.home.yellow;
+  matchStats.homeStats.redCards = produced.home.red;
+  matchStats.homeStats.offsides = produced.home.offsides;
+  matchStats.homeStats.shots = produced.home.shots;
+  matchStats.homeStats.shotsOnTarget = produced.home.shotsOnTarget;
+  matchStats.awayStats.fouls = produced.away.fouls;
+  matchStats.awayStats.yellowCards = produced.away.yellow;
+  matchStats.awayStats.redCards = produced.away.red;
+  matchStats.awayStats.offsides = produced.away.offsides;
+  matchStats.awayStats.shots = produced.away.shots;
+  matchStats.awayStats.shotsOnTarget = produced.away.shotsOnTarget;
 
   return events;
 }
