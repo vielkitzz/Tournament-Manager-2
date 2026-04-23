@@ -113,6 +113,7 @@ function generateShotsArray(
   totalShots: number,
   shotsOnTarget: number,
   goalsScored: number,
+  targetXg?: number,
 ): { xG_value: number; onTarget: boolean }[] {
   const shots: { xG_value: number; onTarget: boolean }[] = [];
   for (let i = 0; i < shotsOnTarget; i++) shots.push(generateShot(true));
@@ -127,6 +128,19 @@ function generateShotsArray(
     for (let i = shots.length - 1; i > 0; i--) {
       const j = Math.floor(Math.random() * (i + 1));
       [shots[i], shots[j]] = [shots[j], shots[i]];
+    }
+  }
+
+  // Rescale shot xG values so the total matches the requested team xG
+  // (computed externally by getExpectedGoals). We preserve the relative
+  // weight of each shot — high-quality chances stay high-quality.
+  if (targetXg !== undefined && shots.length > 0) {
+    const currentTotal = shots.reduce((s, x) => s + x.xG_value, 0);
+    if (currentTotal > 0) {
+      const factor = targetXg / currentTotal;
+      for (const s of shots) {
+        s.xG_value = roundTo2(Math.max(0.01, Math.min(0.99, s.xG_value * factor)));
+      }
     }
   }
   return shots;
@@ -147,6 +161,7 @@ export function generateMatchStats(
   awayRate: number,
   homeGoals: number,
   awayGoals: number,
+  xgInputs?: { home: number; away: number },
 ): { homeStats: TeamMatchStats; awayStats: TeamMatchStats } {
   const isUpset = (homeRate > awayRate && homeGoals < awayGoals) || (awayRate > homeRate && awayGoals < homeGoals);
   let upsetAdjustment = 1.0;
@@ -184,11 +199,20 @@ export function generateMatchStats(
   const awaySotMax = Math.max(awaySotMin, Math.floor(awayShots * 0.45));
   const awayShotsOnTarget = randInt(awaySotMin, awaySotMax);
 
-  const homeShotsArray = generateShotsArray(homeShots, homeShotsOnTarget, homeGoals);
-  const awayShotsArray = generateShotsArray(awayShots, awayShotsOnTarget, awayGoals);
+  // If the caller passed xG values from getExpectedGoals (the same source
+  // used to draw goals), rescale the per-shot xG so the totals match.
+  // Otherwise, fall back to the legacy summation behaviour.
+  const homeShotsArray = generateShotsArray(homeShots, homeShotsOnTarget, homeGoals, xgInputs?.home);
+  const awayShotsArray = generateShotsArray(awayShots, awayShotsOnTarget, awayGoals, xgInputs?.away);
 
-  const homeXg = roundTo2(homeShotsArray.reduce((sum, s) => sum + s.xG_value, 0));
-  const awayXg = roundTo2(awayShotsArray.reduce((sum, s) => sum + s.xG_value, 0));
+  const homeXg =
+    xgInputs?.home !== undefined
+      ? roundTo2(xgInputs.home)
+      : roundTo2(homeShotsArray.reduce((sum, s) => sum + s.xG_value, 0));
+  const awayXg =
+    xgInputs?.away !== undefined
+      ? roundTo2(xgInputs.away)
+      : roundTo2(awayShotsArray.reduce((sum, s) => sum + s.xG_value, 0));
 
   let homeFouls = randInt(6, 14) + Math.round((awayPossession - 50) / 12);
   let awayFouls = randInt(6, 14) + Math.round((homePossession - 50) / 12);
