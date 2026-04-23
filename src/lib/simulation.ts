@@ -465,7 +465,7 @@ export function generateMinuteByMinuteEvents(
 
     for (let i = 0; i < foulsCount; i++) {
       const minute = randInt(2, 89);
-      const p = weightedPick(players, positionFoulWeight);
+      const p = pickAtMinute(players, positionFoulWeight, minute);
       if (!p) continue;
       foulEvents.push({ minute, playerId: p.id });
       const texts = [
@@ -487,14 +487,15 @@ export function generateMinuteByMinuteEvents(
     // Yellow cards (attach to existing foul minutes)
     const sortedFouls = [...foulEvents].sort((a, b) => a.minute - b.minute);
     for (let i = 0; i < yellows; i++) {
-      const p = weightedPick(
+      const foulRef = sortedFouls[Math.min(i + Math.floor(sortedFouls.length * 0.3), sortedFouls.length - 1)];
+      const minute = foulRef ? foulRef.minute : randInt(15, 85);
+      const p = pickAtMinute(
         players.filter((pl) => !cardedIds.has(pl.id)),
         positionFoulWeight,
+        minute,
       );
       if (!p) continue;
       cardedIds.add(p.id);
-      const foulRef = sortedFouls[Math.min(i + Math.floor(sortedFouls.length * 0.3), sortedFouls.length - 1)];
-      const minute = foulRef ? foulRef.minute : randInt(15, 85);
       const texts = [
         `Cartão amarelo para **${p.name}** por falta dura`,
         `**${p.name}** recebe o amarelo após falta`,
@@ -511,24 +512,22 @@ export function generateMinuteByMinuteEvents(
       });
     }
 
-    // Red cards
+    // Red cards — ancorados a faltas EXISTENTES (não criamos faltas extras),
+    // garantindo que a contagem textual de faltas == matchStats.fouls.
     for (let i = 0; i < reds; i++) {
-      const p = weightedPick(
-        players.filter((pl) => !cardedIds.has(pl.id)),
-        positionFoulWeight,
-      );
-      if (!p) continue;
+      // Pick an existing foul (preferably late-game) to upgrade to a red card.
+      const candidateFouls = sortedFouls
+        .filter((f) => f.minute >= 25)
+        .filter((f) => !cardedIds.has(f.playerId));
+      const foulRef =
+        candidateFouls[candidateFouls.length - 1 - i] ??
+        sortedFouls[sortedFouls.length - 1] ??
+        null;
+      if (!foulRef) continue;
+      const minute = foulRef.minute;
+      const p = players.find((pl) => pl.id === foulRef.playerId);
+      if (!p || !isOnPitch(p.id, minute)) continue;
       cardedIds.add(p.id);
-      const minute = randInt(30, 88);
-      // Add a foul event right before the red
-      events.push({
-        id: genId(),
-        minute,
-        type: "foul",
-        teamId: team.id,
-        playerId: p.id,
-        text: `Entrada violenta de **${p.name}**`,
-      });
       const texts = [
         `Cartão vermelho direto para **${p.name}** após entrada violenta`,
         `**${p.name}** é expulso de campo! Cartão vermelho!`,
@@ -542,6 +541,11 @@ export function generateMinuteByMinuteEvents(
         playerId: p.id,
         text: texts[randInt(0, texts.length - 1)],
       });
+      // From this minute on, the red-carded player is off the pitch.
+      const existingOut = subOutAt.get(p.id);
+      if (existingOut === undefined || existingOut > minute) {
+        subOutAt.set(p.id, minute);
+      }
     }
   };
   generateFoulsAndCards(
@@ -565,7 +569,7 @@ export function generateMinuteByMinuteEvents(
   const generateOffsides = (team: Team, players: Player[], count: number) => {
     for (let i = 0; i < count; i++) {
       const minute = randInt(5, 88);
-      const p = weightedPick(players, positionGoalWeight);
+      const p = pickAtMinute(players, positionGoalWeight, minute);
       if (!p) continue;
       const texts = [
         `Impedimento marcado no **${p.name}**`,
