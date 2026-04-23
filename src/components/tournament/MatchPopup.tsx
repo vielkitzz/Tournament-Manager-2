@@ -7,7 +7,9 @@ import {
   generateMatchStats,
   generateMinuteByMinuteEvents,
   getSuspendedPlayerIds,
+  getExpectedGoals,
 } from "@/lib/simulation";
+import { effectiveMatchRate } from "@/lib/playerSkill";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from "@/components/ui/tooltip";
 import SoccerBallIcon from "@/components/icons/SoccerBallIcon";
