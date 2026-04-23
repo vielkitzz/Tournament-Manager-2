@@ -6,7 +6,7 @@ export interface Player {
   position?: string;
   age?: number;
   shirtNumber?: number;
-  rating?: number;
+  skill: number; // 45-99, replaces legacy rating
   photoUrl?: string;
   seasonYear?: number;
 }
