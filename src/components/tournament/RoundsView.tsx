@@ -3,6 +3,7 @@ import { Match, Team, Tournament, Player } from "@/types/tournament";
 import { Shield, ChevronLeft, ChevronRight, Trophy, CheckCircle, Play } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { simulateFullMatch, generateMatchStats, generateMinuteByMinuteEvents, getSuspendedPlayerIds } from "@/lib/simulation";
+import { effectiveMatchRate } from "@/lib/playerSkill";
 import MatchPopup from "./MatchPopup";
 import ScreenshotButton from "@/components/ScreenshotButton";
 
@@ -55,18 +56,29 @@ export default function RoundsView({
     const updated = unplayedInRound.map((match) => {
       const home = getTeam(match.homeTeamId);
       const away = getTeam(match.awayTeamId);
-      const homeRate = tournament.settings.rateInfluence ? (home?.rate ?? 5) : 5;
-      const awayRate = tournament.settings.rateInfluence ? (away?.rate ?? 5) : 5;
+      const homeBase = tournament.settings.rateInfluence ? (home?.rate ?? 5) : 5;
+      const awayBase = tournament.settings.rateInfluence ? (away?.rate ?? 5) : 5;
+      const homeSquad = allPlayersList.filter((p) => p.teamId === match.homeTeamId);
+      const awaySquad = allPlayersList.filter((p) => p.teamId === match.awayTeamId);
+      const homeRate = tournament.settings.rateInfluence
+        ? effectiveMatchRate(homeBase, homeSquad)
+        : homeBase;
+      const awayRate = tournament.settings.rateInfluence
+        ? effectiveMatchRate(awayBase, awaySquad)
+        : awayBase;
       const result = simulateFullMatch(homeRate, awayRate);
       const totalH = result.total[0];
       const totalA = result.total[1];
-      const stats = generateMatchStats(homeRate, awayRate, totalH, totalA);
+      const stats = generateMatchStats(homeRate, awayRate, totalH, totalA, {
+        home: result.xg[0],
+        away: result.xg[1],
+      });
 
       // Generate events if both teams have enough players
       let events: any[] | undefined;
       if (home && away) {
-        const homePl = allPlayersList.filter((p) => p.teamId === match.homeTeamId);
-        const awayPl = allPlayersList.filter((p) => p.teamId === match.awayTeamId);
+        const homePl = homeSquad;
+        const awayPl = awaySquad;
         if (homePl.length >= 11 && awayPl.length >= 11) {
           const suspHome = getSuspendedPlayerIds(tournament.matches, match.round, home.id, tournament.settings);
           const suspAway = getSuspendedPlayerIds(tournament.matches, match.round, away.id, tournament.settings);
@@ -74,7 +86,10 @@ export default function RoundsView({
           let availAway = awayPl.filter((p) => !suspAway.has(p.id));
           if (availHome.length < 11) availHome = homePl.slice(0, 11);
           if (availAway.length < 11) availAway = awayPl.slice(0, 11);
-          events = generateMinuteByMinuteEvents(home, away, availHome, availAway, stats, totalH, totalA);
+          events = generateMinuteByMinuteEvents(home, away, availHome, availAway, stats, totalH, totalA, {
+            h1: result.h1,
+            h2: result.h2,
+          });
         }
       }
 

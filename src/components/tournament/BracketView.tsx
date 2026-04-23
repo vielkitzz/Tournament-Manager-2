@@ -5,6 +5,7 @@ import { cn } from "@/lib/utils";
 import { Shield, Play, Trophy, Medal, UserPlus, Shuffle, Plus, Trash2, RotateCcw, UserMinus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { simulateFullMatch, simulateHalf, generateMatchStats, generateMinuteByMinuteEvents, getSuspendedPlayerIds } from "@/lib/simulation";
+import { effectiveMatchRate } from "@/lib/playerSkill";
 import MatchPopup from "./MatchPopup";
 import BracketTeamEditor from "./BracketTeamEditor";
 import ScreenshotButton from "@/components/ScreenshotButton";
@@ -184,8 +185,13 @@ export default function BracketView({
   const simulateMatch = (match: Match, isLeg1OfPair = false): Match => {
     const home = getTeam(match.homeTeamId);
     const away = getTeam(match.awayTeamId);
-    const homeRate = tournament.settings.rateInfluence ? (home?.rate ?? 5) : 5;
-    const awayRate = tournament.settings.rateInfluence ? (away?.rate ?? 5) : 5;
+    const allPlayersList = players || [];
+    const homeSquad = allPlayersList.filter((p) => p.teamId === match.homeTeamId);
+    const awaySquad = allPlayersList.filter((p) => p.teamId === match.awayTeamId);
+    const homeBase = tournament.settings.rateInfluence ? (home?.rate ?? 5) : 5;
+    const awayBase = tournament.settings.rateInfluence ? (away?.rate ?? 5) : 5;
+    const homeRate = tournament.settings.rateInfluence ? effectiveMatchRate(homeBase, homeSquad) : homeBase;
+    const awayRate = tournament.settings.rateInfluence ? effectiveMatchRate(awayBase, awaySquad) : awayBase;
     const result = simulateFullMatch(homeRate, awayRate);
     let homeScore = result.total[0];
     let awayScore = result.total[1];
@@ -196,14 +202,16 @@ export default function BracketView({
       awayPenalties = homePenalties + (Math.random() > 0.5 ? 1 : -1);
       if (awayPenalties < 0) awayPenalties = homePenalties + 1;
     }
-    const stats = generateMatchStats(homeRate, awayRate, homeScore, awayScore);
+    const stats = generateMatchStats(homeRate, awayRate, homeScore, awayScore, {
+      home: result.xg[0],
+      away: result.xg[1],
+    });
 
     // Generate events if both teams have enough players
     let events: any[] | undefined;
-    const allPlayersList = players || [];
     if (home && away) {
-      const homePl = allPlayersList.filter((p) => p.teamId === match.homeTeamId);
-      const awayPl = allPlayersList.filter((p) => p.teamId === match.awayTeamId);
+      const homePl = homeSquad;
+      const awayPl = awaySquad;
       if (homePl.length >= 11 && awayPl.length >= 11) {
         const suspHome = getSuspendedPlayerIds(tournament.matches, match.round, home.id, tournament.settings);
         const suspAway = getSuspendedPlayerIds(tournament.matches, match.round, away.id, tournament.settings);
@@ -211,7 +219,10 @@ export default function BracketView({
         let availAway = awayPl.filter((p) => !suspAway.has(p.id));
         if (availHome.length < 11) availHome = homePl.slice(0, 11);
         if (availAway.length < 11) availAway = awayPl.slice(0, 11);
-        events = generateMinuteByMinuteEvents(home, away, availHome, availAway, stats, homeScore, awayScore);
+        events = generateMinuteByMinuteEvents(home, away, availHome, availAway, stats, homeScore, awayScore, {
+          h1: result.h1,
+          h2: result.h2,
+        });
       }
     }
 
@@ -234,8 +245,15 @@ export default function BracketView({
   const simulateLeg2 = (leg2: Match, leg1: Match): Match => {
     const home = getTeam(leg2.homeTeamId);
     const away = getTeam(leg2.awayTeamId);
-    const homeRate = tournament.settings.rateInfluence ? (home?.rate ?? 5) : 5;
-    const awayRate = tournament.settings.rateInfluence ? (away?.rate ?? 5) : 5;
+    const allPlayersList = players || [];
+    const homeBase = tournament.settings.rateInfluence ? (home?.rate ?? 5) : 5;
+    const awayBase = tournament.settings.rateInfluence ? (away?.rate ?? 5) : 5;
+    const homeRate = tournament.settings.rateInfluence
+      ? effectiveMatchRate(homeBase, allPlayersList.filter((p) => p.teamId === leg2.homeTeamId))
+      : homeBase;
+    const awayRate = tournament.settings.rateInfluence
+      ? effectiveMatchRate(awayBase, allPlayersList.filter((p) => p.teamId === leg2.awayTeamId))
+      : awayBase;
     const result = simulateFullMatch(homeRate, awayRate);
     let homeScore = result.total[0];
     let awayScore = result.total[1];

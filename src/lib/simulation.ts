@@ -30,7 +30,7 @@ function getTeamFormFactor(teamRate: number, opponentRate: number, matchMomentum
   return randomFactor * momentumFactor;
 }
 
-function getExpectedGoals(
+export function getExpectedGoals(
   teamRate: number,
   opponentRate: number,
   isExtraTime = false,
@@ -65,8 +65,11 @@ export function simulateFullMatch(
   h1: [number, number];
   h2: [number, number];
   total: [number, number];
+  xg: [number, number];
 } {
-  const firstHalf = simulateHalf(homeRate, awayRate, false, 0.5);
+  const homeXg1 = getExpectedGoals(homeRate, awayRate, false, 0.5, true);
+  const awayXg1 = getExpectedGoals(awayRate, homeRate, false, 0.5, false);
+  const firstHalf: [number, number] = [poissonRandom(homeXg1), poissonRandom(awayXg1)];
   const goalDiff = firstHalf[0] - firstHalf[1];
   let momentum = 0.5;
   if (goalDiff > 1) momentum = 0.7;
@@ -74,12 +77,15 @@ export function simulateFullMatch(
   else if (goalDiff > 0) momentum = 0.6;
   else if (goalDiff < 0) momentum = 0.4;
 
-  const secondHalf = simulateHalf(homeRate, awayRate, false, momentum);
+  const homeXg2 = getExpectedGoals(homeRate, awayRate, false, momentum, true);
+  const awayXg2 = getExpectedGoals(awayRate, homeRate, false, momentum, false);
+  const secondHalf: [number, number] = [poissonRandom(homeXg2), poissonRandom(awayXg2)];
 
   return {
     h1: firstHalf,
     h2: secondHalf,
     total: [firstHalf[0] + secondHalf[0], firstHalf[1] + secondHalf[1]],
+    xg: [roundTo2(homeXg1 + homeXg2), roundTo2(awayXg1 + awayXg2)],
   };
 }
 
@@ -107,6 +113,7 @@ function generateShotsArray(
   totalShots: number,
   shotsOnTarget: number,
   goalsScored: number,
+  targetXg?: number,
 ): { xG_value: number; onTarget: boolean }[] {
   const shots: { xG_value: number; onTarget: boolean }[] = [];
   for (let i = 0; i < shotsOnTarget; i++) shots.push(generateShot(true));
@@ -121,6 +128,19 @@ function generateShotsArray(
     for (let i = shots.length - 1; i > 0; i--) {
       const j = Math.floor(Math.random() * (i + 1));
       [shots[i], shots[j]] = [shots[j], shots[i]];
+    }
+  }
+
+  // Rescale shot xG values so the total matches the requested team xG
+  // (computed externally by getExpectedGoals). We preserve the relative
+  // weight of each shot — high-quality chances stay high-quality.
+  if (targetXg !== undefined && shots.length > 0) {
+    const currentTotal = shots.reduce((s, x) => s + x.xG_value, 0);
+    if (currentTotal > 0) {
+      const factor = targetXg / currentTotal;
+      for (const s of shots) {
+        s.xG_value = roundTo2(Math.max(0.01, Math.min(0.99, s.xG_value * factor)));
+      }
     }
   }
   return shots;
@@ -141,6 +161,7 @@ export function generateMatchStats(
   awayRate: number,
   homeGoals: number,
   awayGoals: number,
+  xgInputs?: { home: number; away: number },
 ): { homeStats: TeamMatchStats; awayStats: TeamMatchStats } {
   const isUpset = (homeRate > awayRate && homeGoals < awayGoals) || (awayRate > homeRate && awayGoals < homeGoals);
   let upsetAdjustment = 1.0;
@@ -178,11 +199,20 @@ export function generateMatchStats(
   const awaySotMax = Math.max(awaySotMin, Math.floor(awayShots * 0.45));
   const awayShotsOnTarget = randInt(awaySotMin, awaySotMax);
 
-  const homeShotsArray = generateShotsArray(homeShots, homeShotsOnTarget, homeGoals);
-  const awayShotsArray = generateShotsArray(awayShots, awayShotsOnTarget, awayGoals);
+  // If the caller passed xG values from getExpectedGoals (the same source
+  // used to draw goals), rescale the per-shot xG so the totals match.
+  // Otherwise, fall back to the legacy summation behaviour.
+  const homeShotsArray = generateShotsArray(homeShots, homeShotsOnTarget, homeGoals, xgInputs?.home);
+  const awayShotsArray = generateShotsArray(awayShots, awayShotsOnTarget, awayGoals, xgInputs?.away);
 
-  const homeXg = roundTo2(homeShotsArray.reduce((sum, s) => sum + s.xG_value, 0));
-  const awayXg = roundTo2(awayShotsArray.reduce((sum, s) => sum + s.xG_value, 0));
+  const homeXg =
+    xgInputs?.home !== undefined
+      ? roundTo2(xgInputs.home)
+      : roundTo2(homeShotsArray.reduce((sum, s) => sum + s.xG_value, 0));
+  const awayXg =
+    xgInputs?.away !== undefined
+      ? roundTo2(xgInputs.away)
+      : roundTo2(awayShotsArray.reduce((sum, s) => sum + s.xG_value, 0));
 
   let homeFouls = randInt(6, 14) + Math.round((awayPossession - 50) / 12);
   let awayFouls = randInt(6, 14) + Math.round((homePossession - 50) / 12);
@@ -282,6 +312,7 @@ export function generateMinuteByMinuteEvents(
   matchStats: { homeStats: TeamMatchStats; awayStats: TeamMatchStats },
   homeGoals: number,
   awayGoals: number,
+  halfGoals?: { h1: [number, number]; h2: [number, number] },
 ): MatchEvent[] {
   const events: MatchEvent[] = [];
   let eventId = 0;
@@ -331,13 +362,68 @@ export function generateMinuteByMinuteEvents(
     return available[available.length - 1];
   }
 
-  // 1. Goals
-  const generateGoals = (team: Team, players: Player[], count: number) => {
+  // ---------------------------------------------------------------
+  // Pre-generate substitutions so every later event can respect the
+  // "ghosting" rule: a substituted player cannot author events after
+  // the minute they left the pitch.
+  // ---------------------------------------------------------------
+  const subOutAt: Map<string, number> = new Map(); // playerId -> minute they left
+  const subInAt: Map<string, number> = new Map(); // playerId -> minute they entered
+
+  const generateSubstitutions = (team: Team, players: Player[]) => {
+    const subCount = Math.min(3, Math.max(0, Math.floor(players.length / 2) - 1));
+    if (subCount === 0) return;
+    const usedIds = new Set<string>();
+    const nonGk = players.filter((p) => p.position !== "Goleiro");
+    for (let i = 0; i < subCount; i++) {
+      const minute = randInt(55, 85);
+      const candidates = nonGk.filter((p) => !usedIds.has(p.id));
+      if (candidates.length < 2) break;
+      const outPlayer = candidates[randInt(0, candidates.length - 1)];
+      usedIds.add(outPlayer.id);
+      const inCandidates = candidates.filter((p) => p.id !== outPlayer.id && !usedIds.has(p.id));
+      if (inCandidates.length === 0) break;
+      const inPlayer = inCandidates[randInt(0, inCandidates.length - 1)];
+      usedIds.add(inPlayer.id);
+      subOutAt.set(outPlayer.id, minute);
+      subInAt.set(inPlayer.id, minute);
+      events.push({
+        id: genId(),
+        minute,
+        type: "substitution",
+        teamId: team.id,
+        playerId: inPlayer.id,
+        assistId: outPlayer.id,
+        text: `Substituição no **${team.shortName || team.name}**. Sai **${outPlayer.name}** para a entrada de **${inPlayer.name}**`,
+      });
+    }
+  };
+  generateSubstitutions(homeTeam, homePlayers);
+  generateSubstitutions(awayTeam, awayPlayers);
+
+  /** True if the player is on the pitch at the given minute. */
+  const isOnPitch = (playerId: string, minute: number): boolean => {
+    const out = subOutAt.get(playerId);
+    if (out !== undefined && minute >= out) return false;
+    const inAt = subInAt.get(playerId);
+    if (inAt !== undefined && minute < inAt) return false;
+    return true;
+  };
+
+  /** Same as weightedPick but filters out players not on the pitch at minute. */
+  function pickAtMinute(players: Player[], weights: Record<string, number>, minute: number, exclude?: string): Player | undefined {
+    const eligible = players.filter((p) => p.id !== exclude && isOnPitch(p.id, minute));
+    return weightedPick(eligible, weights);
+  }
+
+  // 1. Goals — sorteamos os minutos respeitando o tempo (1º x 2º half)
+  //    quando halfGoals é fornecido pelo simulador.
+  const generateGoals = (team: Team, players: Player[], count: number, minuteRange: [number, number]) => {
     for (let i = 0; i < count; i++) {
-      const minute = randInt(1, 90);
-      const scorer = weightedPick(players, positionGoalWeight);
+      const minute = randInt(minuteRange[0], minuteRange[1]);
+      const scorer = pickAtMinute(players, positionGoalWeight, minute);
       if (!scorer) continue;
-      const assister = Math.random() < 0.65 ? weightedPick(players, positionAssistWeight, scorer.id) : undefined;
+      const assister = Math.random() < 0.65 ? pickAtMinute(players, positionAssistWeight, minute, scorer.id) : undefined;
       const descs = [
         `Gol de **${scorer.name}**${assister ? ` com assistência de **${assister.name}**` : ""}`,
         `Finalização certeira de **${scorer.name}**${assister ? ` após passe de **${assister.name}**` : ""}`,
@@ -355,8 +441,15 @@ export function generateMinuteByMinuteEvents(
       });
     }
   };
-  generateGoals(homeTeam, homePlayers, homeGoals);
-  generateGoals(awayTeam, awayPlayers, awayGoals);
+  if (halfGoals) {
+    generateGoals(homeTeam, homePlayers, halfGoals.h1[0], [1, 45]);
+    generateGoals(awayTeam, awayPlayers, halfGoals.h1[1], [1, 45]);
+    generateGoals(homeTeam, homePlayers, halfGoals.h2[0], [46, 90]);
+    generateGoals(awayTeam, awayPlayers, halfGoals.h2[1], [46, 90]);
+  } else {
+    generateGoals(homeTeam, homePlayers, homeGoals, [1, 90]);
+    generateGoals(awayTeam, awayPlayers, awayGoals, [1, 90]);
+  }
 
   // 2. Fouls & Cards (cards always follow a foul)
   const generateFoulsAndCards = (
@@ -372,7 +465,7 @@ export function generateMinuteByMinuteEvents(
 
     for (let i = 0; i < foulsCount; i++) {
       const minute = randInt(2, 89);
-      const p = weightedPick(players, positionFoulWeight);
+      const p = pickAtMinute(players, positionFoulWeight, minute);
       if (!p) continue;
       foulEvents.push({ minute, playerId: p.id });
       const texts = [
@@ -394,14 +487,15 @@ export function generateMinuteByMinuteEvents(
     // Yellow cards (attach to existing foul minutes)
     const sortedFouls = [...foulEvents].sort((a, b) => a.minute - b.minute);
     for (let i = 0; i < yellows; i++) {
-      const p = weightedPick(
+      const foulRef = sortedFouls[Math.min(i + Math.floor(sortedFouls.length * 0.3), sortedFouls.length - 1)];
+      const minute = foulRef ? foulRef.minute : randInt(15, 85);
+      const p = pickAtMinute(
         players.filter((pl) => !cardedIds.has(pl.id)),
         positionFoulWeight,
+        minute,
       );
       if (!p) continue;
       cardedIds.add(p.id);
-      const foulRef = sortedFouls[Math.min(i + Math.floor(sortedFouls.length * 0.3), sortedFouls.length - 1)];
-      const minute = foulRef ? foulRef.minute : randInt(15, 85);
       const texts = [
         `Cartão amarelo para **${p.name}** por falta dura`,
         `**${p.name}** recebe o amarelo após falta`,
@@ -418,24 +512,22 @@ export function generateMinuteByMinuteEvents(
       });
     }
 
-    // Red cards
+    // Red cards — ancorados a faltas EXISTENTES (não criamos faltas extras),
+    // garantindo que a contagem textual de faltas == matchStats.fouls.
     for (let i = 0; i < reds; i++) {
-      const p = weightedPick(
-        players.filter((pl) => !cardedIds.has(pl.id)),
-        positionFoulWeight,
-      );
-      if (!p) continue;
+      // Pick an existing foul (preferably late-game) to upgrade to a red card.
+      const candidateFouls = sortedFouls
+        .filter((f) => f.minute >= 25)
+        .filter((f) => !cardedIds.has(f.playerId));
+      const foulRef =
+        candidateFouls[candidateFouls.length - 1 - i] ??
+        sortedFouls[sortedFouls.length - 1] ??
+        null;
+      if (!foulRef) continue;
+      const minute = foulRef.minute;
+      const p = players.find((pl) => pl.id === foulRef.playerId);
+      if (!p || !isOnPitch(p.id, minute)) continue;
       cardedIds.add(p.id);
-      const minute = randInt(30, 88);
-      // Add a foul event right before the red
-      events.push({
-        id: genId(),
-        minute,
-        type: "foul",
-        teamId: team.id,
-        playerId: p.id,
-        text: `Entrada violenta de **${p.name}**`,
-      });
       const texts = [
         `Cartão vermelho direto para **${p.name}** após entrada violenta`,
         `**${p.name}** é expulso de campo! Cartão vermelho!`,
@@ -449,6 +541,11 @@ export function generateMinuteByMinuteEvents(
         playerId: p.id,
         text: texts[randInt(0, texts.length - 1)],
       });
+      // From this minute on, the red-carded player is off the pitch.
+      const existingOut = subOutAt.get(p.id);
+      if (existingOut === undefined || existingOut > minute) {
+        subOutAt.set(p.id, minute);
+      }
     }
   };
   generateFoulsAndCards(
@@ -472,7 +569,7 @@ export function generateMinuteByMinuteEvents(
   const generateOffsides = (team: Team, players: Player[], count: number) => {
     for (let i = 0; i < count; i++) {
       const minute = randInt(5, 88);
-      const p = weightedPick(players, positionGoalWeight);
+      const p = pickAtMinute(players, positionGoalWeight, minute);
       if (!p) continue;
       const texts = [
         `Impedimento marcado no **${p.name}**`,
@@ -508,7 +605,7 @@ export function generateMinuteByMinuteEvents(
 
     for (let i = 0; i < missedShots; i++) {
       const minute = randInt(3, 89);
-      const p = weightedPick(players, positionGoalWeight);
+      const p = pickAtMinute(players, positionGoalWeight, minute);
       if (!p) continue;
       const texts = [
         `**${p.name}** bateu para fora`,
@@ -528,7 +625,7 @@ export function generateMinuteByMinuteEvents(
 
     for (let i = 0; i < saves; i++) {
       const minute = randInt(3, 89);
-      const shooter = weightedPick(players, positionGoalWeight);
+      const shooter = pickAtMinute(players, positionGoalWeight, minute);
       if (!shooter || !gk) continue;
       const texts = [
         `Grande defesa de **${gk.name}** após chute de **${shooter.name}**`,
@@ -564,44 +661,16 @@ export function generateMinuteByMinuteEvents(
     awayGoals,
   );
 
-  // 5. Substitutions (up to 3 per team, minutes 55-85)
-  const generateSubstitutions = (team: Team, players: Player[]) => {
-    const subCount = Math.min(3, Math.max(0, Math.floor(players.length / 2) - 1));
-    if (subCount === 0) return;
-    const usedIds = new Set<string>();
-    const nonGk = players.filter((p) => p.position !== "Goleiro");
-    for (let i = 0; i < subCount; i++) {
-      const minute = randInt(55, 85);
-      const candidates = nonGk.filter((p) => !usedIds.has(p.id));
-      if (candidates.length < 2) break;
-      const outPlayer = candidates[randInt(0, candidates.length - 1)];
-      usedIds.add(outPlayer.id);
-      const inCandidates = candidates.filter((p) => p.id !== outPlayer.id && !usedIds.has(p.id));
-      if (inCandidates.length === 0) break;
-      const inPlayer = inCandidates[randInt(0, inCandidates.length - 1)];
-      usedIds.add(inPlayer.id);
-      events.push({
-        id: genId(),
-        minute,
-        type: "substitution",
-        teamId: team.id,
-        playerId: inPlayer.id,
-        assistId: outPlayer.id,
-        text: `Substituição no **${team.shortName || team.name}**. Sai **${outPlayer.name}** para a entrada de **${inPlayer.name}**`,
-      });
-    }
-  };
-  generateSubstitutions(homeTeam, homePlayers);
-  generateSubstitutions(awayTeam, awayPlayers);
-
-  // 6. A few general highlights
+  // 5. A few general highlights (substitutions já foram pré-geradas no início)
   const highlightCount = randInt(3, 6);
   for (let i = 0; i < highlightCount; i++) {
     const isHome = Math.random() < 0.5;
     const team = isHome ? homeTeam : awayTeam;
     const players = isHome ? homePlayers : awayPlayers;
-    const p = players[randInt(0, players.length - 1)];
-    if (!p) continue;
+    const minute = randInt(1, 90);
+    const eligible = players.filter((pl) => isOnPitch(pl.id, minute));
+    if (eligible.length === 0) continue;
+    const p = eligible[randInt(0, eligible.length - 1)];
     const highlights = [
       `Pressão do **${team.shortName || team.name}** no campo de ataque`,
       `**${p.name}** faz uma bela jogada individual, driblando dois marcadores`,
@@ -611,7 +680,7 @@ export function generateMinuteByMinuteEvents(
     ];
     events.push({
       id: genId(),
-      minute: randInt(1, 90),
+      minute,
       type: "highlight",
       teamId: team.id,
       playerId: p.id,

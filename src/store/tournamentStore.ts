@@ -95,7 +95,7 @@ function dbToPlayer(row: any): Player {
     position: row.position || undefined,
     age: row.age != null ? Number(row.age) : undefined,
     shirtNumber: row.shirt_number != null ? Number(row.shirt_number) : undefined,
-    rating: row.rating != null ? Number(row.rating) : undefined,
+    skill: row.skill != null ? Number(row.skill) : 70,
     photoUrl: row.photo_url || undefined,
     seasonYear: row.season_year != null ? Number(row.season_year) : undefined,
   };
@@ -534,7 +534,7 @@ export const useTournamentStore = create<TournamentState>((set, get) => ({
       position: player.position || null,
       age: player.age ?? null,
       shirt_number: player.shirtNumber ?? null,
-      rating: player.rating ?? 0,
+      skill: player.skill ?? 70,
       photo_url: player.photoUrl || null,
       season_year: player.seasonYear ?? null,
     }).select().single();
@@ -551,7 +551,7 @@ export const useTournamentStore = create<TournamentState>((set, get) => ({
     if (updates.position !== undefined) dbUpdates.position = updates.position || null;
     if (updates.age !== undefined) dbUpdates.age = updates.age;
     if (updates.shirtNumber !== undefined) dbUpdates.shirt_number = updates.shirtNumber;
-    if (updates.rating !== undefined) dbUpdates.rating = updates.rating;
+    if (updates.skill !== undefined) dbUpdates.skill = updates.skill;
     if (updates.photoUrl !== undefined) dbUpdates.photo_url = updates.photoUrl || null;
     if (updates.seasonYear !== undefined) dbUpdates.season_year = updates.seasonYear ?? null;
     set((s) => ({ players: s.players.map((p) => (p.id === id ? { ...p, ...updates } : p)) }));

@@ -13,6 +13,7 @@ import CountryFlag from "@/components/CountryFlag";
 import { toast } from "sonner";
 import { COUNTRIES_DATA } from "@/data/countries";
 import { randomNameForCountry } from "@/data/playerNames";
+import { SKILL_DEFAULT, SKILL_MAX, SKILL_MIN, randomSkill } from "@/lib/playerSkill";
 
 const POSITIONS = [
   "Goleiro",
@@ -41,9 +42,6 @@ function randomShirt(usedNumbers: number[]) {
   const available = Array.from({ length: 99 }, (_, i) => i + 1).filter((n) => !usedNumbers.includes(n));
   return available.length > 0 ? available[Math.floor(Math.random() * available.length)] : 1;
 }
-function randomRating() {
-  return parseFloat((Math.random() * 9.98 + 0.01).toFixed(2));
-}
 
 export default function CreatePlayerPage() {
   const { id, teamId: routeTeamId } = useParams<{ id?: string; teamId?: string }>();
@@ -62,7 +60,7 @@ export default function CreatePlayerPage() {
   const [position, setPosition] = useState(existing?.position || "");
   const [age, setAge] = useState<string>(existing?.age?.toString() || "");
   const [shirtNumber, setShirtNumber] = useState<string>(existing?.shirtNumber?.toString() || "");
-  const [rating, setRating] = useState<string>(existing?.rating?.toString() || "");
+  const [skill, setSkill] = useState<string>(existing?.skill?.toString() || String(SKILL_DEFAULT));
   const [saving, setSaving] = useState(false);
 
   const usedShirtNumbers = useMemo(
@@ -86,7 +84,7 @@ export default function CreatePlayerPage() {
       setPosition(existing.position || "");
       setAge(existing.age?.toString() || "");
       setShirtNumber(existing.shirtNumber?.toString() || "");
-      setRating(existing.rating?.toString() || "");
+      setSkill(existing.skill?.toString() || String(SKILL_DEFAULT));
     }
   }, [existing]);
 
@@ -98,9 +96,9 @@ export default function CreatePlayerPage() {
       toast.error("O nome do jogador é obrigatório");
       return;
     }
-    const ratingVal = rating ? parseFloat(rating) : undefined;
-    if (ratingVal !== undefined && (ratingVal < 0.01 || ratingVal > 9.99)) {
-      toast.error("Rating deve estar entre 0,01 e 9,99");
+    const skillVal = skill ? parseInt(skill) : SKILL_DEFAULT;
+    if (Number.isNaN(skillVal) || skillVal < SKILL_MIN || skillVal > SKILL_MAX) {
+      toast.error(`Habilidade deve estar entre ${SKILL_MIN} e ${SKILL_MAX}`);
       return;
     }
     if (!isEdit && teamPlayerCount >= 30) {
@@ -117,7 +115,7 @@ export default function CreatePlayerPage() {
           position: position || undefined,
           age: age ? parseInt(age) : undefined,
           shirtNumber: shirtNumber ? parseInt(shirtNumber) : undefined,
-          rating: ratingVal,
+          skill: skillVal,
         });
         toast.success("Jogador atualizado com sucesso");
       } else {
@@ -128,7 +126,7 @@ export default function CreatePlayerPage() {
           position: position || undefined,
           age: age ? parseInt(age) : undefined,
           shirtNumber: shirtNumber ? parseInt(shirtNumber) : undefined,
-          rating: ratingVal ?? 0,
+          skill: skillVal,
           teamId: effectiveTeamId,
           seasonYear: seasonYear,
         };
@@ -312,26 +310,26 @@ export default function CreatePlayerPage() {
                 {/* Rating */}
                 <div className="space-y-2">
                   <div className="flex items-center justify-between">
-                    <Label htmlFor="rating">Rating (0,01 – 9,99)</Label>
+                    <Label htmlFor="skill">Habilidade ({SKILL_MIN} – {SKILL_MAX})</Label>
                     <Button
                       type="button"
                       variant="ghost"
                       size="sm"
                       className="h-7 gap-1 text-xs"
-                      onClick={() => setRating(String(randomRating()))}
+                      onClick={() => setSkill(String(randomSkill()))}
                     >
                       <Shuffle className="w-3 h-3" /> Aleatório
                     </Button>
                   </div>
                   <Input
-                    id="rating"
+                    id="skill"
                     type="number"
-                    min={0.01}
-                    max={9.99}
-                    step={0.01}
-                    value={rating}
-                    onChange={(e) => setRating(e.target.value)}
-                    placeholder="Ex: 7.50"
+                    min={SKILL_MIN}
+                    max={SKILL_MAX}
+                    step={1}
+                    value={skill}
+                    onChange={(e) => setSkill(e.target.value)}
+                    placeholder="Ex: 75"
                   />
                 </div>
               </div>

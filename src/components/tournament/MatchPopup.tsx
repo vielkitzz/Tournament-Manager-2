@@ -7,7 +7,9 @@ import {
   generateMatchStats,
   generateMinuteByMinuteEvents,
   getSuspendedPlayerIds,
+  getExpectedGoals,
 } from "@/lib/simulation";
+import { effectiveMatchRate } from "@/lib/playerSkill";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from "@/components/ui/tooltip";
 import SoccerBallIcon from "@/components/icons/SoccerBallIcon";
@@ -504,9 +506,16 @@ export default function MatchPopup({
 
   const ensureStats = (): { homeStats: TeamMatchStats; awayStats: TeamMatchStats } => {
     if (matchStats && !hasScoreChanges) return matchStats;
-    const homeRate = rateInfluence && homeTeam ? homeTeam.rate : 3;
-    const awayRate = rateInfluence && awayTeam ? awayTeam.rate : 3;
-    const stats = generateMatchStats(homeRate, awayRate, totalHome, totalAway);
+    const homeBase = rateInfluence && homeTeam ? homeTeam.rate : 3;
+    const awayBase = rateInfluence && awayTeam ? awayTeam.rate : 3;
+    const homeRate = rateInfluence ? effectiveMatchRate(homeBase, homePlayers) : homeBase;
+    const awayRate = rateInfluence ? effectiveMatchRate(awayBase, awayPlayers) : awayBase;
+    const stats = generateMatchStats(homeRate, awayRate, totalHome, totalAway, {
+      home: getExpectedGoals(homeRate, awayRate, false, 0.5, true) +
+        getExpectedGoals(homeRate, awayRate, false, 0.5, true),
+      away: getExpectedGoals(awayRate, homeRate, false, 0.5, false) +
+        getExpectedGoals(awayRate, homeRate, false, 0.5, false),
+    });
     setMatchStats(stats);
     return stats;
   };
@@ -530,8 +539,10 @@ export default function MatchPopup({
   const handleLiveSimulate = () => {
     if (!homeTeam || !awayTeam || !canLiveSimulate) return;
 
-    const homeRate = rateInfluence ? homeTeam.rate : 3;
-    const awayRate = rateInfluence ? awayTeam.rate : 3;
+    const homeBase = rateInfluence ? homeTeam.rate : 3;
+    const awayBase = rateInfluence ? awayTeam.rate : 3;
+    const homeRate = rateInfluence ? effectiveMatchRate(homeBase, homePlayers) : homeBase;
+    const awayRate = rateInfluence ? effectiveMatchRate(awayBase, awayPlayers) : awayBase;
     const [h1h, h1a] = simulateHalf(homeRate, awayRate, false, 0.5);
     const goalDiff = h1h - h1a;
     let momentum = 0.5;
@@ -547,7 +558,11 @@ export default function MatchPopup({
     const totalH = h1h + h2h;
     const totalA = h1a + h2a;
 
-    const stats = generateMatchStats(homeRate, awayRate, totalH, totalA);
+    const homeXg = getExpectedGoals(homeRate, awayRate, false, 0.5, true) +
+      getExpectedGoals(homeRate, awayRate, false, momentum, true);
+    const awayXg = getExpectedGoals(awayRate, homeRate, false, 0.5, false) +
+      getExpectedGoals(awayRate, homeRate, false, momentum, false);
+    const stats = generateMatchStats(homeRate, awayRate, totalH, totalA, { home: homeXg, away: awayXg });
     setMatchStats(stats);
 
     const { availableHome, availableAway } = getAvailablePlayers();
@@ -560,6 +575,7 @@ export default function MatchPopup({
       stats,
       totalH,
       totalA,
+      { h1: [h1h, h1a], h2: [h2h, h2a] },
     );
     // Generate added time for each half
     const at1 = Math.floor(Math.random() * 4) + 1; // 1-4 mins
@@ -626,6 +642,7 @@ export default function MatchPopup({
         stats,
         totalHome,
         totalAway,
+        { h1: [scores.h1[0], scores.h1[1]], h2: [scores.h2[0], scores.h2[1]] },
       );
     }
 
