@@ -30,7 +30,7 @@ function getTeamFormFactor(teamRate: number, opponentRate: number, matchMomentum
   return randomFactor * momentumFactor;
 }
 
-function getExpectedGoals(
+export function getExpectedGoals(
   teamRate: number,
   opponentRate: number,
   isExtraTime = false,
