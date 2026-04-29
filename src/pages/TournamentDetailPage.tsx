@@ -1256,6 +1256,27 @@ export default function TournamentDetailPage() {
                   Finalizar Temporada
                 </Button>
               )}
+            {((isViewingPastSeason && seasonData) || (!isViewingPastSeason && tournament.finalized)) && (
+              <Button
+                onClick={() =>
+                  downloadTournamentResults({
+                    tournament: activeTournament,
+                    teams: resolvedTeams,
+                    standings: isViewingPastSeason ? seasonStandings : standings,
+                    standingsByGroup: isViewingPastSeason ? seasonStandingsByGroup : standingsByGroup,
+                    knockoutMatches,
+                    knockoutStartStage: activeKnockoutStart || defaultKnockoutStart,
+                    season: activeYear,
+                  })
+                }
+                size="sm"
+                variant="outline"
+                className="gap-1.5"
+              >
+                <Download className="w-4 h-4" />
+                Exportar resultados
+              </Button>
+            )}
           </div>
         </div>
 
