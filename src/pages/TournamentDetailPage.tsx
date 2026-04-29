@@ -49,6 +49,7 @@ import { Match, SeasonRecord, STAGE_TEAM_COUNTS, KnockoutStage, PromotionRule } 
 import { trackTournamentOpen } from "@/lib/recentTournaments";
 import ScreenshotButton from "@/components/ScreenshotButton";
 import { generateSwissLeagueMatches } from "@/lib/swissRounds";
+import { downloadTournamentResults } from "@/lib/exportResults";
 
 const formatLabels: Record<string, string> = {
   liga: "Pontos Corridos",
