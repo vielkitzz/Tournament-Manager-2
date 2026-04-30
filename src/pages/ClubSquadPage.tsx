@@ -94,16 +94,15 @@ function SolaraSyncButton({ tm2TeamId }: SolaraSyncButtonProps) {
   const [showUnlinkConfirm, setShowUnlinkConfirm] = useState(false);
 
   async function handleLink() {
-    // Melhoria: Extrai apenas o UUID caso o usuário cole a URL completa
     let finalId = solaraClubId.trim();
-    if (finalId.includes("/")) {
-      finalId = finalId.split("/").pop() || finalId;
+    if (finalId.includes('/')) {
+      finalId = finalId.split('/').pop() || finalId;
     }
 
     if (!finalId) return;
     setLinking(true);
 
-    // Usando (supabase as any) para contornar a tipagem estrita
+    // 1. Salva o vínculo no banco
     const { error } = await (supabase as any).from("club_sync_links").upsert(
       {
         tm2_team_id: tm2TeamId,
@@ -114,6 +113,42 @@ function SolaraSyncButton({ tm2TeamId }: SolaraSyncButtonProps) {
       },
       { onConflict: "tm2_team_id" },
     );
+
+    if (error) {
+      toast.error("Erro ao vincular: " + error.message);
+      setLinking(false);
+      return;
+    }
+
+    toast.info("Vínculo criado! Puxando elenco do SolaraHub...");
+
+    // 2. Chama a nova Edge Function para puxar os jogadores
+    const { data: importData, error: importError } = await supabase.functions.invoke("import-solarahub-squad", {
+      body: {
+        tm2_team_id: tm2TeamId,
+        solarahub_club_id: finalId
+      }
+    });
+
+    setLinking(false);
+
+    if (importError || (importData && importData.error)) {
+      toast.error("Vínculo ativo, mas falha ao importar elenco inicial. Verifique os logs da Edge Function.");
+      console.error(importError || importData?.error);
+    } else {
+      toast.success(`${importData?.imported || 0} jogadores importados com sucesso!`);
+    }
+
+    setCurrentLink({
+      solarahub_club_id: finalId,
+      solarahub_club_name: solaraClubName.trim() || finalId,
+      sync_enabled: true,
+    });
+    setOpen(false);
+    
+    // Recarrega a página em 2 segundos para os jogadores aparecerem na tela
+    setTimeout(() => window.location.reload(), 2000);
+  }
 
     setLinking(false);
     if (error) {
