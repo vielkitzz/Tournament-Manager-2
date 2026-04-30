@@ -95,8 +95,8 @@ function SolaraSyncButton({ tm2TeamId }: SolaraSyncButtonProps) {
 
   async function handleLink() {
     let finalId = solaraClubId.trim();
-    if (finalId.includes('/')) {
-      finalId = finalId.split('/').pop() || finalId;
+    if (finalId.includes("/")) {
+      finalId = finalId.split("/").pop() || finalId;
     }
 
     if (!finalId) return;
@@ -123,12 +123,15 @@ function SolaraSyncButton({ tm2TeamId }: SolaraSyncButtonProps) {
     toast.info("Vínculo criado! Puxando elenco do SolaraHub...");
 
     // 2. Chama a nova Edge Function para puxar os jogadores
-    const { data: importData, error: importError } = await supabase.functions.invoke("import-solarahub-squad", {
-      body: {
-        tm2_team_id: tm2TeamId,
-        solarahub_club_id: finalId
-      }
-    });
+    const { data: importData, error: importError } = await (supabase as any).functions.invoke(
+      "import-solarahub-squad",
+      {
+        body: {
+          tm2_team_id: tm2TeamId,
+          solarahub_club_id: finalId,
+        },
+      },
+    );
 
     setLinking(false);
 
@@ -145,31 +148,14 @@ function SolaraSyncButton({ tm2TeamId }: SolaraSyncButtonProps) {
       sync_enabled: true,
     });
     setOpen(false);
-    
+
     // Recarrega a página em 2 segundos para os jogadores aparecerem na tela
     setTimeout(() => window.location.reload(), 2000);
-  }
-
-    setLinking(false);
-    if (error) {
-      toast.error("Erro ao vincular: " + error.message);
-      return;
-    }
-    setCurrentLink({
-      solarahub_club_id: finalId,
-      solarahub_club_name: solaraClubName.trim() || finalId,
-      sync_enabled: true,
-    });
-    setOpen(false);
-    setSolaraClubId("");
-    setSolaraClubName("");
-    toast.success("Clube vinculado ao SolaraHub com sucesso!");
   }
 
   async function handleUnlink() {
     setUnlinking(true);
 
-    // Usando (supabase as any) para contornar a tipagem estrita
     const { error } = await (supabase as any).from("club_sync_links").delete().eq("tm2_team_id", tm2TeamId);
 
     setUnlinking(false);
@@ -199,7 +185,6 @@ function SolaraSyncButton({ tm2TeamId }: SolaraSyncButtonProps) {
           </button>
         </div>
 
-        {/* Unlink confirmation dialog */}
         <Dialog open={showUnlinkConfirm} onOpenChange={setShowUnlinkConfirm}>
           <DialogContent className="sm:max-w-sm">
             <DialogHeader>
@@ -286,6 +271,7 @@ function SolaraSyncButton({ tm2TeamId }: SolaraSyncButtonProps) {
 // ---------------------------------------------------------------------------
 // Main Page
 // ---------------------------------------------------------------------------
+
 export default function ClubSquadPage() {
   const { teamId } = useParams<{ teamId: string }>();
   const navigate = useNavigate();
