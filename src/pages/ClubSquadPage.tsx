@@ -31,18 +31,18 @@ import { supabase } from "@/integrations/supabase/client";
 
 const MAX_PLAYERS = 30;
 
-const POSITION_WEIGHTS: Record<string, number> = {
-  Goleiro: 1,
-  Zagueiro: 2,
-  "Lateral Direito": 3,
-  "Lateral Esquerdo": 4,
-  Volante: 5,
-  Meia: 6,
-  "Meia Atacante": 7,
-  "Ponta Direita": 8,
-  "Ponta Esquerda": 9,
-  Centroavante: 10,
-  Atacante: 11,
+const POSITION_DISPLAY: Record<string, string> = {
+  "GOL": "Goleiro",
+  "LD": "Lateral Direito",
+  "ZAG": "Zagueiro",
+  "LE": "Lateral Esquerdo",
+  "VOL": "Volante",
+  "MC": "Meio-Campo",
+  "MEI": "Meia Atacante",
+  "PD": "Ponta Direita",
+  "PE": "Ponta Esquerda",
+  "SA": "Segundo Atacante",
+  "ATA": "Centroavante"
 };
 
 const ALL_YEARS_VALUE = "__all__";
@@ -659,9 +659,9 @@ export default function ClubSquadPage() {
                         "—"
                       )}
                     </TableCell>
-                    <TableCell className="text-muted-foreground">{player.position || "—"}</TableCell>
-                    <TableCell className="text-muted-foreground">{player.age ?? "—"}</TableCell>
-                    <TableCell>
+                    <TableCell className="text-muted-foreground">
+                      {POSITION_DISPLAY[player.position || ""] || player.position || "—"}
+                    </TableCell>
                       <PlayerStars skill={player.skill} teamRate={team.rate} />
                     </TableCell>
                     {selectedYear === ALL_YEARS_VALUE && (
