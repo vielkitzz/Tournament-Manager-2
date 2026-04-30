@@ -94,15 +94,21 @@ function SolaraSyncButton({ tm2TeamId }: SolaraSyncButtonProps) {
   const [showUnlinkConfirm, setShowUnlinkConfirm] = useState(false);
 
   async function handleLink() {
-    if (!solaraClubId.trim()) return;
+    // Melhoria: Extrai apenas o UUID caso o usuário cole a URL completa
+    let finalId = solaraClubId.trim();
+    if (finalId.includes("/")) {
+      finalId = finalId.split("/").pop() || finalId;
+    }
+
+    if (!finalId) return;
     setLinking(true);
 
     // Usando (supabase as any) para contornar a tipagem estrita
     const { error } = await (supabase as any).from("club_sync_links").upsert(
       {
         tm2_team_id: tm2TeamId,
-        solarahub_club_id: solaraClubId.trim(),
-        solarahub_club_name: solaraClubName.trim() || solaraClubId.trim(),
+        solarahub_club_id: finalId,
+        solarahub_club_name: solaraClubName.trim() || finalId,
         sync_enabled: true,
         last_synced_at: new Date().toISOString(),
       },
@@ -115,8 +121,8 @@ function SolaraSyncButton({ tm2TeamId }: SolaraSyncButtonProps) {
       return;
     }
     setCurrentLink({
-      solarahub_club_id: solaraClubId.trim(),
-      solarahub_club_name: solaraClubName.trim() || solaraClubId.trim(),
+      solarahub_club_id: finalId,
+      solarahub_club_name: solaraClubName.trim() || finalId,
       sync_enabled: true,
     });
     setOpen(false);
@@ -248,10 +254,45 @@ function SolaraSyncButton({ tm2TeamId }: SolaraSyncButtonProps) {
 export default function ClubSquadPage() {
   const { teamId } = useParams<{ teamId: string }>();
   const navigate = useNavigate();
+  // Se o seu store tiver uma função como fetchPlayers() ou refresh(), você pode adicioná-la aqui
   const { teams, players, removePlayer, addPlayer, updatePlayer } = useTournamentStore();
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const team = useMemo(() => teams.find((t) => t.id === teamId), [teams, teamId]);
+
+  // Melhoria: Escutar mudanças no banco em tempo real
+  useEffect(() => {
+    if (!teamId) return;
+
+    const channel = supabase
+      .channel("realtime-squad-updates")
+      .on(
+        "postgres_changes",
+        {
+          event: "*", // Escuta INSERT, UPDATE e DELETE
+          schema: "public",
+          table: "players",
+          filter: `team_id=eq.${teamId}`,
+        },
+        (payload) => {
+          console.log("Sincronização do SolaraHub detectada:", payload);
+          // Avisa o usuário que os dados foram sincronizados
+          toast.info("Elenco atualizado via SolaraHub!", {
+            description: "Recarregue a página para ver as mudanças mais recentes.",
+            action: {
+              label: "Recarregar",
+              onClick: () => window.location.reload(), // Recarrega os dados forçando um refresh
+            },
+            duration: 10000,
+          });
+        },
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [teamId]);
 
   // Collect distinct years from this team's players
   const availableYears = useMemo(() => {
