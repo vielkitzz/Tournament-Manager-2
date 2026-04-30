@@ -634,6 +634,103 @@ export default function ClubSquadPage() {
           </div>
         </div>
 
+        return (
+    <PageTransition>
+      <div className="p-6 lg:p-8 space-y-6">
+        <div className="flex items-center justify-between flex-wrap gap-4">
+          <div className="flex items-center gap-4">
+            <Button variant="ghost" size="icon" onClick={() => navigate("/squads")}>
+              <ArrowLeft className="w-4 h-4" />
+            </Button>
+            <TeamLogo src={team.logo} alt={team.name} size={40} />
+            <div>
+              <h1 className="text-xl font-bold text-foreground">{team.name}</h1>
+              <p className="text-sm text-muted-foreground">
+                {squad.length}
+                {isSpecificYear ? ` / ${MAX_PLAYERS}` : ""} jogadores
+                {isSpecificYear ? " (mín. 11)" : ""}
+              </p>
+            </div>
+          </div>
+          <div className="flex items-center gap-2 flex-wrap">
+            {teamId && <SolaraSyncButton tm2TeamId={teamId} />}
+
+            <div className="flex items-center gap-1">
+              <Calendar className="w-4 h-4 text-muted-foreground" />
+              <Select value={selectedYear} onValueChange={setSelectedYear}>
+                <SelectTrigger className="w-[140px] h-9">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value={ALL_YEARS_VALUE}>Todos os anos</SelectItem>
+                  {hasPlayersWithoutYear && <SelectItem value={NO_YEAR_VALUE}>Sem ano</SelectItem>}
+                  {availableYears.map((y) => (
+                    <SelectItem key={y} value={String(y)}>
+                      {y}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <Button
+                variant="outline"
+                size="icon"
+                className="h-9 w-9"
+                title="Criar elenco de um novo ano"
+                onClick={() => {
+                  setNewYearValue(String(new Date().getFullYear()));
+                  setShowCreateYearDialog(true);
+                }}
+              >
+                <Plus className="w-4 h-4" />
+              </Button>
+            </div>
+
+            {isSpecificYear && (
+              <>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="gap-1.5 h-9"
+                  onClick={() => {
+                    setRenameYearValue(selectedYear);
+                    setShowRenameYearDialog(true);
+                  }}
+                >
+                  <Pencil className="w-3.5 h-3.5" />
+                  Editar Ano
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="gap-1.5 h-9 text-destructive hover:text-destructive"
+                  onClick={() => setShowDeleteYearConfirm(true)}
+                >
+                  <Trash2 className="w-3.5 h-3.5" />
+                  Excluir Ano
+                </Button>
+              </>
+            )}
+
+            <Button variant="outline" size="sm" className="gap-2" onClick={handleExportSquad}>
+              <Download className="w-4 h-4" />
+              Exportar
+            </Button>
+            <Button variant="outline" size="sm" className="gap-2" onClick={() => fileInputRef.current?.click()}>
+              <Upload className="w-4 h-4" />
+              Importar
+            </Button>
+            <input ref={fileInputRef} type="file" accept=".json" className="hidden" onChange={handleImportSquad} />
+            {isSpecificYear && squad.length < MAX_PLAYERS && (
+              <Link to={`/squads/team/${teamId}/create?year=${activeSeasonYear}`}>
+                <Button className="gap-2">
+                  <PlusCircle className="w-4 h-4" />
+                  Adicionar Jogador
+                </Button>
+              </Link>
+            )}
+          </div>
+        </div>
+
         {squad.length === 0 ? (
           <div className="text-center py-12 text-muted-foreground">
             <p className="font-medium">Elenco vazio</p>
@@ -706,6 +803,81 @@ export default function ClubSquadPage() {
             </Table>
           </div>
         )}
+      </div>
+
+      <Dialog open={showCreateYearDialog} onOpenChange={setShowCreateYearDialog}>
+        <DialogContent className="sm:max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Criar elenco para um novo ano</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3 py-2">
+            <Input
+              type="number"
+              min={1800}
+              max={2200}
+              value={newYearValue}
+              onChange={(e) => setNewYearValue(e.target.value)}
+              placeholder="Ex: 2025"
+            />
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowCreateYearDialog(false)}>
+              Cancelar
+            </Button>
+            <Button onClick={handleCreateYear}>Criar</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={showRenameYearDialog} onOpenChange={setShowRenameYearDialog}>
+        <DialogContent className="sm:max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Alterar ano do elenco</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3 py-2">
+            <p className="text-sm text-muted-foreground">
+              Todos os jogadores do elenco de {activeSeasonYear} serão movidos para o novo ano.
+            </p>
+            <Input
+              type="number"
+              min={1800}
+              max={2200}
+              value={renameYearValue}
+              onChange={(e) => setRenameYearValue(e.target.value)}
+              placeholder="Novo ano"
+            />
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowRenameYearDialog(false)}>
+              Cancelar
+            </Button>
+            <Button onClick={handleRenameYear}>Salvar</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={showDeleteYearConfirm} onOpenChange={setShowDeleteYearConfirm}>
+        <DialogContent className="sm:max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Excluir elenco de {activeSeasonYear}?</DialogTitle>
+          </DialogHeader>
+          <p className="text-sm text-muted-foreground py-2">
+            Todos os {squad.length} jogadores deste elenco serão removidos permanentemente. Esta ação não pode ser
+            desfeita.
+          </p>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowDeleteYearConfirm(false)}>
+              Cancelar
+            </Button>
+            <Button variant="destructive" onClick={handleDeleteYear}>
+              Excluir
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </PageTransition>
+  );
+}
 
       {/* Create year dialog */}
       <Dialog open={showCreateYearDialog} onOpenChange={setShowCreateYearDialog}>
