@@ -15,7 +15,6 @@ import {
   Upload,
   Calendar,
   Plus,
-  X,
   Link2,
   LinkIcon,
   Unlink,
@@ -31,32 +30,34 @@ import { supabase } from "@/integrations/supabase/client";
 
 const MAX_PLAYERS = 30;
 
+// Pesos baseados nas siglas do SolaraHub para ordenação tática
 const POSITION_WEIGHTS: Record<string, number> = {
-  "GOL": 1,
-  "LD": 2,
-  "ZAG": 3,
-  "LE": 4,
-  "VOL": 5,
-  "MC": 6,
-  "MEI": 7,
-  "PD": 8,
-  "PE": 9,
-  "SA": 10,
-  "ATA": 11
+  GOL: 1,
+  LD: 2,
+  ZAG: 3,
+  LE: 4,
+  VOL: 5,
+  MC: 6,
+  MEI: 7,
+  PD: 8,
+  PE: 9,
+  SA: 10,
+  ATA: 11,
 };
 
+// Tradutor para exibir nomes amigáveis na tabela
 const POSITION_DISPLAY: Record<string, string> = {
-  "GOL": "Goleiro",
-  "LD": "Lateral Direito",
-  "ZAG": "Zagueiro",
-  "LE": "Lateral Esquerdo",
-  "VOL": "Volante",
-  "MC": "Meio-Campo",
-  "MEI": "Meia Atacante",
-  "PD": "Ponta Direita",
-  "PE": "Ponta Esquerda",
-  "SA": "Segundo Atacante",
-  "ATA": "Centroavante"
+  GOL: "Goleiro",
+  LD: "Lateral Direito",
+  ZAG: "Zagueiro",
+  LE: "Lateral Esquerdo",
+  VOL: "Volante",
+  MC: "Meio-Campo",
+  MEI: "Meia Atacante",
+  PD: "Ponta Direita",
+  PE: "Ponta Esquerda",
+  SA: "Segundo Atacante",
+  ATA: "Centroavante",
 };
 
 const ALL_YEARS_VALUE = "__all__";
@@ -76,7 +77,6 @@ function useSolaraSync(tm2TeamId: string | undefined) {
   useEffect(() => {
     if (!tm2TeamId) return;
 
-    // Usando (supabase as any) para contornar a falta da tabela nos tipos gerados
     (supabase as any)
       .from("club_sync_links")
       .select("solarahub_club_id, solarahub_club_name, sync_enabled")
@@ -116,7 +116,6 @@ function SolaraSyncButton({ tm2TeamId }: SolaraSyncButtonProps) {
     if (!finalId) return;
     setLinking(true);
 
-    // 1. Salva o vínculo no banco
     const { error } = await (supabase as any).from("club_sync_links").upsert(
       {
         tm2_team_id: tm2TeamId,
@@ -136,7 +135,6 @@ function SolaraSyncButton({ tm2TeamId }: SolaraSyncButtonProps) {
 
     toast.info("Vínculo criado! Puxando elenco do SolaraHub...");
 
-    // 2. Chama a nova Edge Function para puxar os jogadores
     const { data: importData, error: importError } = await (supabase as any).functions.invoke(
       "import-solarahub-squad",
       {
@@ -150,7 +148,7 @@ function SolaraSyncButton({ tm2TeamId }: SolaraSyncButtonProps) {
     setLinking(false);
 
     if (importError || (importData && importData.error)) {
-      toast.error("Vínculo ativo, mas falha ao importar elenco inicial. Verifique os logs da Edge Function.");
+      toast.error("Vínculo ativo, mas falha ao importar elenco inicial.");
       console.error(importError || importData?.error);
     } else {
       toast.success(`${importData?.imported || 0} jogadores importados com sucesso!`);
@@ -163,15 +161,12 @@ function SolaraSyncButton({ tm2TeamId }: SolaraSyncButtonProps) {
     });
     setOpen(false);
 
-    // Recarrega a página em 2 segundos para os jogadores aparecerem na tela
     setTimeout(() => window.location.reload(), 2000);
   }
 
   async function handleUnlink() {
     setUnlinking(true);
-
     const { error } = await (supabase as any).from("club_sync_links").delete().eq("tm2_team_id", tm2TeamId);
-
     setUnlinking(false);
     if (error) {
       toast.error("Erro ao desvincular: " + error.message);
@@ -205,8 +200,7 @@ function SolaraSyncButton({ tm2TeamId }: SolaraSyncButtonProps) {
               <DialogTitle>Desvincular do SolaraHub?</DialogTitle>
             </DialogHeader>
             <p className="text-sm text-muted-foreground py-2">
-              O elenco deixará de ser sincronizado automaticamente com{" "}
-              <strong>{currentLink.solarahub_club_name}</strong>. Os jogadores já importados não serão removidos.
+              O elenco deixará de ser sincronizado automaticamente. Os jogadores já importados não serão removidos.
             </p>
             <DialogFooter>
               <Button variant="outline" onClick={() => setShowUnlinkConfirm(false)}>
@@ -243,10 +237,6 @@ function SolaraSyncButton({ tm2TeamId }: SolaraSyncButtonProps) {
             </DialogTitle>
           </DialogHeader>
           <div className="space-y-4 py-2">
-            <p className="text-sm text-muted-foreground">
-              Após vincular, qualquer alteração no elenco do clube no SolaraHub (transferências, evoluções, remoções,
-              idade) será refletida automaticamente neste elenco.
-            </p>
             <div className="space-y-1.5">
               <label className="text-xs font-medium text-muted-foreground">ID do clube no SolaraHub</label>
               <Input
@@ -255,7 +245,6 @@ function SolaraSyncButton({ tm2TeamId }: SolaraSyncButtonProps) {
                 value={solaraClubId}
                 onChange={(e) => setSolaraClubId(e.target.value)}
               />
-              <p className="text-xs text-muted-foreground">Encontre o ID na URL do clube no SolaraHub.</p>
             </div>
             <div className="space-y-1.5">
               <label className="text-xs font-medium text-muted-foreground">Nome do clube (para exibição)</label>
@@ -289,47 +278,32 @@ function SolaraSyncButton({ tm2TeamId }: SolaraSyncButtonProps) {
 export default function ClubSquadPage() {
   const { teamId } = useParams<{ teamId: string }>();
   const navigate = useNavigate();
-  // Se o seu store tiver uma função como fetchPlayers() ou refresh(), você pode adicioná-la aqui
   const { teams, players, removePlayer, addPlayer, updatePlayer } = useTournamentStore();
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const team = useMemo(() => teams.find((t) => t.id === teamId), [teams, teamId]);
 
-  // Melhoria: Escutar mudanças no banco em tempo real
   useEffect(() => {
     if (!teamId) return;
-
     const channel = supabase
       .channel("realtime-squad-updates")
       .on(
         "postgres_changes",
-        {
-          event: "*", // Escuta INSERT, UPDATE e DELETE
-          schema: "public",
-          table: "players",
-          filter: `team_id=eq.${teamId}`,
-        },
-        (payload) => {
-          console.log("Sincronização do SolaraHub detectada:", payload);
-          // Avisa o usuário que os dados foram sincronizados
+        { event: "*", schema: "public", table: "players", filter: `team_id=eq.${teamId}` },
+        () => {
           toast.info("Elenco atualizado via SolaraHub!", {
             description: "Recarregue a página para ver as mudanças mais recentes.",
-            action: {
-              label: "Recarregar",
-              onClick: () => window.location.reload(), // Recarrega os dados forçando um refresh
-            },
+            action: { label: "Recarregar", onClick: () => window.location.reload() },
             duration: 10000,
           });
         },
       )
       .subscribe();
-
     return () => {
       supabase.removeChannel(channel);
     };
   }, [teamId]);
 
-  // Collect distinct years from this team's players
   const availableYears = useMemo(() => {
     const years = new Set<number>();
     players
@@ -357,20 +331,13 @@ export default function ClubSquadPage() {
         if (p.teamId !== teamId) return false;
         if (selectedYear === ALL_YEARS_VALUE) return true;
         if (selectedYear === NO_YEAR_VALUE) return p.seasonYear == null;
-        const yr = parseInt(selectedYear);
-        return p.seasonYear === yr;
+        return p.seasonYear === parseInt(selectedYear);
       })
       .sort((a, b) => {
-        const posA = a.position || "";
-        const posB = b.position || "";
-        const weightA = POSITION_WEIGHTS[posA] || 99;
-        const weightB = POSITION_WEIGHTS[posB] || 99;
-
-        // Se a posição for diferente, ordena pelo peso da posição
+        const weightA = POSITION_WEIGHTS[a.position || ""] || 99;
+        const weightB = POSITION_WEIGHTS[b.position || ""] || 99;
         if (weightA !== weightB) return weightA - weightB;
-
-        // Se for a mesma posição, coloca o de maior Skill (Qualidade) primeiro
-        return (b.skill || 0) - (a.skill || 0);
+        return (b.skill || 0) - (a.skill || 0); // Desempate por qualidade
       });
   }, [players, teamId, selectedYear]);
 
@@ -379,40 +346,23 @@ export default function ClubSquadPage() {
     toast.success(`${name} removido do elenco`);
   };
 
-  const activeSeasonYear =
-    selectedYear !== ALL_YEARS_VALUE && selectedYear !== NO_YEAR_VALUE ? parseInt(selectedYear) : undefined;
+  const activeSeasonYear = isNaN(parseInt(selectedYear)) ? undefined : parseInt(selectedYear);
 
   const handleExportSquad = () => {
-    if (squad.length === 0) {
-      toast.error("Elenco vazio, nada para exportar");
-      return;
-    }
+    if (squad.length === 0) return toast.error("Elenco vazio");
     const exportData = {
       _type: "squad",
-      _version: 2,
-      _exportedAt: new Date().toISOString(),
-      teamName: team?.name || "Unknown",
-      seasonYear: activeSeasonYear ?? null,
-      players: squad.map(({ id, ...p }) => ({
-        name: p.name,
-        nationality: p.nationality,
-        position: p.position,
-        age: p.age,
-        shirtNumber: p.shirtNumber,
-        skill: p.skill,
-        photoUrl: p.photoUrl,
-        seasonYear: p.seasonYear ?? null,
-      })),
+      teamName: team?.name,
+      seasonYear: activeSeasonYear,
+      players: squad.map(({ id, ...p }) => ({ ...p })),
     };
     const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: "application/json" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    const yearSuffix = activeSeasonYear ? `-${activeSeasonYear}` : "";
-    a.download = `elenco-${(team?.abbreviation || team?.name || "squad").toLowerCase().replace(/\s+/g, "-")}${yearSuffix}.json`;
+    a.download = `elenco-${team?.name.toLowerCase()}.json`;
     a.click();
-    URL.revokeObjectURL(url);
-    toast.success("Elenco exportado com sucesso!");
+    toast.success("Exportado!");
   };
 
   const handleImportSquad = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -422,115 +372,53 @@ export default function ClubSquadPage() {
     reader.onload = async (ev) => {
       try {
         const data = JSON.parse(ev.target?.result as string);
-        if (!data.players || !Array.isArray(data.players)) {
-          toast.error("Arquivo inválido: não contém jogadores");
-          return;
-        }
-        const yearPlayers = players.filter((p) => {
-          if (p.teamId !== teamId) return false;
-          if (activeSeasonYear != null) return p.seasonYear === activeSeasonYear;
-          return p.seasonYear == null;
-        });
-        const available = MAX_PLAYERS - yearPlayers.length;
-        if (available <= 0) {
-          toast.error("Elenco já está cheio para este ano");
-          return;
-        }
-        const toImport = data.players.slice(0, available);
-        let imported = 0;
+        const toImport = data.players.slice(0, MAX_PLAYERS);
         for (const p of toImport) {
-          const newPlayer: Player = {
+          await addPlayer({
             id: crypto.randomUUID(),
-            name: p.name || "Jogador",
             teamId,
-            nationality: p.nationality || undefined,
-            position: p.position || undefined,
-            age: p.age ?? undefined,
-            shirtNumber: p.shirtNumber ?? undefined,
-            skill: clampSkill(p.skill ?? p.rating ?? SKILL_DEFAULT),
-            photoUrl: p.photoUrl || undefined,
-            seasonYear: activeSeasonYear ?? p.seasonYear ?? undefined,
-          };
-          await addPlayer(newPlayer);
-          imported++;
+            name: p.name,
+            position: p.position,
+            skill: clampSkill(p.skill || SKILL_DEFAULT),
+            seasonYear: activeSeasonYear || p.seasonYear,
+          });
         }
-        toast.success(`${imported} jogador${imported !== 1 ? "es" : ""} importado${imported !== 1 ? "s" : ""}`);
-        if (data.players.length > available) {
-          toast.info(`${data.players.length - available} jogador(es) ignorados (limite de ${MAX_PLAYERS})`);
-        }
+        toast.success("Importado com sucesso");
       } catch {
-        toast.error("Erro ao ler o arquivo de importação");
+        toast.error("Erro na importação");
       }
     };
     reader.readAsText(file);
-    if (fileInputRef.current) fileInputRef.current.value = "";
   };
 
-  // Create a new year roster
   const handleCreateYear = () => {
     const yr = parseInt(newYearValue);
-    if (isNaN(yr) || yr < 1800 || yr > 2200) {
-      toast.error("Ano inválido");
-      return;
-    }
-    if (availableYears.includes(yr)) {
-      toast.error(`O elenco de ${yr} já existe`);
-      return;
-    }
+    if (availableYears.includes(yr)) return toast.error("Ano já existe");
     setShowCreateYearDialog(false);
     setSelectedYear(String(yr));
-    toast.success(`Elenco de ${yr} criado. Adicione jogadores!`);
   };
 
-  // Delete all players for the selected year
   const handleDeleteYear = async () => {
-    if (!activeSeasonYear) return;
-    const yearPlayers = players.filter((p) => p.teamId === teamId && p.seasonYear === activeSeasonYear);
-    for (const p of yearPlayers) {
-      await removePlayer(p.id);
-    }
+    const toRemove = players.filter((p) => p.teamId === teamId && p.seasonYear === activeSeasonYear);
+    for (const p of toRemove) await removePlayer(p.id);
     setShowDeleteYearConfirm(false);
     setSelectedYear(ALL_YEARS_VALUE);
-    toast.success(`Elenco de ${activeSeasonYear} excluído (${yearPlayers.length} jogadores removidos)`);
   };
 
-  // Rename year (move all players from old year to new year)
   const handleRenameYear = async () => {
     const newYr = parseInt(renameYearValue);
-    if (isNaN(newYr) || newYr < 1800 || newYr > 2200) {
-      toast.error("Ano inválido");
-      return;
-    }
-    if (!activeSeasonYear) return;
-    if (newYr === activeSeasonYear) {
-      setShowRenameYearDialog(false);
-      return;
-    }
-    if (availableYears.includes(newYr)) {
-      toast.error(`O elenco de ${newYr} já existe`);
-      return;
-    }
-    const yearPlayers = players.filter((p) => p.teamId === teamId && p.seasonYear === activeSeasonYear);
-    for (const p of yearPlayers) {
-      await updatePlayer(p.id, { seasonYear: newYr });
-    }
+    const toUpdate = players.filter((p) => p.teamId === teamId && p.seasonYear === activeSeasonYear);
+    for (const p of toUpdate) await updatePlayer(p.id, { seasonYear: newYr });
     setShowRenameYearDialog(false);
     setSelectedYear(String(newYr));
-    toast.success(`Elenco renomeado de ${activeSeasonYear} para ${newYr}`);
   };
 
-  if (!team) {
+  if (!team)
     return (
       <PageTransition>
-        <div className="p-6 lg:p-8">
-          <p className="text-muted-foreground">Clube não encontrado.</p>
-          <Button variant="ghost" onClick={() => navigate("/squads")} className="mt-4 gap-2">
-            <ArrowLeft className="w-4 h-4" /> Voltar
-          </Button>
-        </div>
+        <div className="p-8">Clube não encontrado.</div>
       </PageTransition>
     );
-  }
 
   const isSpecificYear = selectedYear !== ALL_YEARS_VALUE && selectedYear !== NO_YEAR_VALUE;
 
@@ -544,19 +432,12 @@ export default function ClubSquadPage() {
             </Button>
             <TeamLogo src={team.logo} alt={team.name} size={40} />
             <div>
-              <h1 className="text-xl font-bold text-foreground">{team.name}</h1>
-              <p className="text-sm text-muted-foreground">
-                {squad.length}
-                {isSpecificYear ? ` / ${MAX_PLAYERS}` : ""} jogadores
-                {isSpecificYear ? " (mín. 11)" : ""}
-              </p>
+              <h1 className="text-xl font-bold">{team.name}</h1>
+              <p className="text-sm text-muted-foreground">{squad.length} jogadores</p>
             </div>
           </div>
           <div className="flex items-center gap-2 flex-wrap">
-            {/* SolaraHub sync button — always visible */}
             {teamId && <SolaraSyncButton tm2TeamId={teamId} />}
-
-            {/* Year selector */}
             <div className="flex items-center gap-1">
               <Calendar className="w-4 h-4 text-muted-foreground" />
               <Select value={selectedYear} onValueChange={setSelectedYear}>
@@ -573,158 +454,48 @@ export default function ClubSquadPage() {
                   ))}
                 </SelectContent>
               </Select>
-              <Button
-                variant="outline"
-                size="icon"
-                className="h-9 w-9"
-                title="Criar elenco de um novo ano"
-                onClick={() => {
-                  setNewYearValue(String(new Date().getFullYear()));
-                  setShowCreateYearDialog(true);
-                }}
-              >
+              <Button variant="outline" size="icon" className="h-9 w-9" onClick={() => setShowCreateYearDialog(true)}>
                 <Plus className="w-4 h-4" />
               </Button>
             </div>
-
-            {/* Year management buttons */}
             {isSpecificYear && (
               <>
                 <Button
                   variant="outline"
                   size="sm"
-                  className="gap-1.5 h-9"
                   onClick={() => {
                     setRenameYearValue(selectedYear);
                     setShowRenameYearDialog(true);
                   }}
                 >
-                  <Pencil className="w-3.5 h-3.5" />
+                  <Pencil className="w-3.5 h-3.5 mr-1" />
                   Editar Ano
                 </Button>
                 <Button
                   variant="outline"
                   size="sm"
-                  className="gap-1.5 h-9 text-destructive hover:text-destructive"
+                  className="text-destructive"
                   onClick={() => setShowDeleteYearConfirm(true)}
                 >
-                  <Trash2 className="w-3.5 h-3.5" />
+                  <Trash2 className="w-3.5 h-3.5 mr-1" />
                   Excluir Ano
                 </Button>
               </>
             )}
-
-            <Button variant="outline" size="sm" className="gap-2" onClick={handleExportSquad}>
-              <Download className="w-4 h-4" />
+            <Button variant="outline" size="sm" onClick={handleExportSquad}>
+              <Download className="w-4 h-4 mr-1" />
               Exportar
             </Button>
-            <Button variant="outline" size="sm" className="gap-2" onClick={() => fileInputRef.current?.click()}>
-              <Upload className="w-4 h-4" />
+            <Button variant="outline" size="sm" onClick={() => fileInputRef.current?.click()}>
+              <Upload className="w-4 h-4 mr-1" />
               Importar
             </Button>
             <input ref={fileInputRef} type="file" accept=".json" className="hidden" onChange={handleImportSquad} />
             {isSpecificYear && squad.length < MAX_PLAYERS && (
               <Link to={`/squads/team/${teamId}/create?year=${activeSeasonYear}`}>
-                <Button className="gap-2">
-                  <PlusCircle className="w-4 h-4" />
-                  Adicionar Jogador
-                </Button>
-              </Link>
-            )}
-          </div>
-        </div>
-
-        return (
-    <PageTransition>
-      <div className="p-6 lg:p-8 space-y-6">
-        <div className="flex items-center justify-between flex-wrap gap-4">
-          <div className="flex items-center gap-4">
-            <Button variant="ghost" size="icon" onClick={() => navigate("/squads")}>
-              <ArrowLeft className="w-4 h-4" />
-            </Button>
-            <TeamLogo src={team.logo} alt={team.name} size={40} />
-            <div>
-              <h1 className="text-xl font-bold text-foreground">{team.name}</h1>
-              <p className="text-sm text-muted-foreground">
-                {squad.length}
-                {isSpecificYear ? ` / ${MAX_PLAYERS}` : ""} jogadores
-                {isSpecificYear ? " (mín. 11)" : ""}
-              </p>
-            </div>
-          </div>
-          <div className="flex items-center gap-2 flex-wrap">
-            {teamId && <SolaraSyncButton tm2TeamId={teamId} />}
-
-            <div className="flex items-center gap-1">
-              <Calendar className="w-4 h-4 text-muted-foreground" />
-              <Select value={selectedYear} onValueChange={setSelectedYear}>
-                <SelectTrigger className="w-[140px] h-9">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value={ALL_YEARS_VALUE}>Todos os anos</SelectItem>
-                  {hasPlayersWithoutYear && <SelectItem value={NO_YEAR_VALUE}>Sem ano</SelectItem>}
-                  {availableYears.map((y) => (
-                    <SelectItem key={y} value={String(y)}>
-                      {y}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              <Button
-                variant="outline"
-                size="icon"
-                className="h-9 w-9"
-                title="Criar elenco de um novo ano"
-                onClick={() => {
-                  setNewYearValue(String(new Date().getFullYear()));
-                  setShowCreateYearDialog(true);
-                }}
-              >
-                <Plus className="w-4 h-4" />
-              </Button>
-            </div>
-
-            {isSpecificYear && (
-              <>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="gap-1.5 h-9"
-                  onClick={() => {
-                    setRenameYearValue(selectedYear);
-                    setShowRenameYearDialog(true);
-                  }}
-                >
-                  <Pencil className="w-3.5 h-3.5" />
-                  Editar Ano
-                </Button>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="gap-1.5 h-9 text-destructive hover:text-destructive"
-                  onClick={() => setShowDeleteYearConfirm(true)}
-                >
-                  <Trash2 className="w-3.5 h-3.5" />
-                  Excluir Ano
-                </Button>
-              </>
-            )}
-
-            <Button variant="outline" size="sm" className="gap-2" onClick={handleExportSquad}>
-              <Download className="w-4 h-4" />
-              Exportar
-            </Button>
-            <Button variant="outline" size="sm" className="gap-2" onClick={() => fileInputRef.current?.click()}>
-              <Upload className="w-4 h-4" />
-              Importar
-            </Button>
-            <input ref={fileInputRef} type="file" accept=".json" className="hidden" onChange={handleImportSquad} />
-            {isSpecificYear && squad.length < MAX_PLAYERS && (
-              <Link to={`/squads/team/${teamId}/create?year=${activeSeasonYear}`}>
-                <Button className="gap-2">
-                  <PlusCircle className="w-4 h-4" />
-                  Adicionar Jogador
+                <Button>
+                  <PlusCircle className="w-4 h-4 mr-1" />
+                  Adicionar
                 </Button>
               </Link>
             )}
@@ -732,14 +503,7 @@ export default function ClubSquadPage() {
         </div>
 
         {squad.length === 0 ? (
-          <div className="text-center py-12 text-muted-foreground">
-            <p className="font-medium">Elenco vazio</p>
-            <p className="text-sm mt-1">
-              {isSpecificYear
-                ? `Nenhum jogador registrado para ${selectedYear}. Adicione ou importe jogadores.`
-                : "Adicione jogadores a este clube."}
-            </p>
-          </div>
+          <div className="text-center py-12 text-muted-foreground">Elenco vazio</div>
         ) : (
           <div className="border rounded-lg overflow-hidden">
             <Table>
@@ -751,7 +515,6 @@ export default function ClubSquadPage() {
                   <TableHead>Posição</TableHead>
                   <TableHead>Idade</TableHead>
                   <TableHead>Qualidade</TableHead>
-                  {selectedYear === ALL_YEARS_VALUE && <TableHead>Ano</TableHead>}
                   <TableHead className="w-20 text-right">Ações</TableHead>
                 </TableRow>
               </TableHeader>
@@ -760,7 +523,7 @@ export default function ClubSquadPage() {
                   <TableRow key={player.id}>
                     <TableCell className="font-medium">{player.shirtNumber ?? "—"}</TableCell>
                     <TableCell className="font-medium">{player.name}</TableCell>
-                    <TableCell className="text-muted-foreground">
+                    <TableCell>
                       {player.nationality ? (
                         <span className="flex items-center gap-1.5">
                           <CountryFlag country={player.nationality} size={24} />
@@ -773,13 +536,10 @@ export default function ClubSquadPage() {
                     <TableCell className="text-muted-foreground">
                       {POSITION_DISPLAY[player.position || ""] || player.position || "—"}
                     </TableCell>
-                    <TableCell className="text-muted-foreground">{player.age ?? "—"}</TableCell>
+                    <TableCell>{player.age ?? "—"}</TableCell>
                     <TableCell>
                       <PlayerStars skill={player.skill} teamRate={team.rate} />
                     </TableCell>
-                    {selectedYear === ALL_YEARS_VALUE && (
-                      <TableCell className="text-muted-foreground">{player.seasonYear ?? "—"}</TableCell>
-                    )}
                     <TableCell className="text-right">
                       <div className="flex items-center justify-end gap-1">
                         <Link to={`/squads/${player.id}/edit`}>
@@ -790,7 +550,7 @@ export default function ClubSquadPage() {
                         <Button
                           variant="ghost"
                           size="icon"
-                          className="h-8 w-8 text-destructive hover:text-destructive"
+                          className="h-8 w-8 text-destructive"
                           onClick={() => handleDelete(player.id, player.name)}
                         >
                           <Trash2 className="w-3.5 h-3.5" />
@@ -808,22 +568,10 @@ export default function ClubSquadPage() {
       <Dialog open={showCreateYearDialog} onOpenChange={setShowCreateYearDialog}>
         <DialogContent className="sm:max-w-sm">
           <DialogHeader>
-            <DialogTitle>Criar elenco para um novo ano</DialogTitle>
+            <DialogTitle>Novo Ano</DialogTitle>
           </DialogHeader>
-          <div className="space-y-3 py-2">
-            <Input
-              type="number"
-              min={1800}
-              max={2200}
-              value={newYearValue}
-              onChange={(e) => setNewYearValue(e.target.value)}
-              placeholder="Ex: 2025"
-            />
-          </div>
+          <Input type="number" value={newYearValue} onChange={(e) => setNewYearValue(e.target.value)} />
           <DialogFooter>
-            <Button variant="outline" onClick={() => setShowCreateYearDialog(false)}>
-              Cancelar
-            </Button>
             <Button onClick={handleCreateYear}>Criar</Button>
           </DialogFooter>
         </DialogContent>
@@ -832,25 +580,10 @@ export default function ClubSquadPage() {
       <Dialog open={showRenameYearDialog} onOpenChange={setShowRenameYearDialog}>
         <DialogContent className="sm:max-w-sm">
           <DialogHeader>
-            <DialogTitle>Alterar ano do elenco</DialogTitle>
+            <DialogTitle>Editar Ano</DialogTitle>
           </DialogHeader>
-          <div className="space-y-3 py-2">
-            <p className="text-sm text-muted-foreground">
-              Todos os jogadores do elenco de {activeSeasonYear} serão movidos para o novo ano.
-            </p>
-            <Input
-              type="number"
-              min={1800}
-              max={2200}
-              value={renameYearValue}
-              onChange={(e) => setRenameYearValue(e.target.value)}
-              placeholder="Novo ano"
-            />
-          </div>
+          <Input type="number" value={renameYearValue} onChange={(e) => setRenameYearValue(e.target.value)} />
           <DialogFooter>
-            <Button variant="outline" onClick={() => setShowRenameYearDialog(false)}>
-              Cancelar
-            </Button>
             <Button onClick={handleRenameYear}>Salvar</Button>
           </DialogFooter>
         </DialogContent>
@@ -859,89 +592,9 @@ export default function ClubSquadPage() {
       <Dialog open={showDeleteYearConfirm} onOpenChange={setShowDeleteYearConfirm}>
         <DialogContent className="sm:max-w-sm">
           <DialogHeader>
-            <DialogTitle>Excluir elenco de {activeSeasonYear}?</DialogTitle>
+            <DialogTitle>Excluir Ano?</DialogTitle>
           </DialogHeader>
-          <p className="text-sm text-muted-foreground py-2">
-            Todos os {squad.length} jogadores deste elenco serão removidos permanentemente. Esta ação não pode ser
-            desfeita.
-          </p>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setShowDeleteYearConfirm(false)}>
-              Cancelar
-            </Button>
-            <Button variant="destructive" onClick={handleDeleteYear}>
-              Excluir
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-    </PageTransition>
-  );
-}
-
-      {/* Create year dialog */}
-      <Dialog open={showCreateYearDialog} onOpenChange={setShowCreateYearDialog}>
-        <DialogContent className="sm:max-w-sm">
-          <DialogHeader>
-            <DialogTitle>Criar elenco para um novo ano</DialogTitle>
-          </DialogHeader>
-          <div className="space-y-3 py-2">
-            <Input
-              type="number"
-              min={1800}
-              max={2200}
-              value={newYearValue}
-              onChange={(e) => setNewYearValue(e.target.value)}
-              placeholder="Ex: 2025"
-            />
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setShowCreateYearDialog(false)}>
-              Cancelar
-            </Button>
-            <Button onClick={handleCreateYear}>Criar</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      {/* Rename year dialog */}
-      <Dialog open={showRenameYearDialog} onOpenChange={setShowRenameYearDialog}>
-        <DialogContent className="sm:max-w-sm">
-          <DialogHeader>
-            <DialogTitle>Alterar ano do elenco</DialogTitle>
-          </DialogHeader>
-          <div className="space-y-3 py-2">
-            <p className="text-sm text-muted-foreground">
-              Todos os jogadores do elenco de {activeSeasonYear} serão movidos para o novo ano.
-            </p>
-            <Input
-              type="number"
-              min={1800}
-              max={2200}
-              value={renameYearValue}
-              onChange={(e) => setRenameYearValue(e.target.value)}
-              placeholder="Novo ano"
-            />
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setShowRenameYearDialog(false)}>
-              Cancelar
-            </Button>
-            <Button onClick={handleRenameYear}>Salvar</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      {/* Delete year confirmation */}
-      <Dialog open={showDeleteYearConfirm} onOpenChange={setShowDeleteYearConfirm}>
-        <DialogContent className="sm:max-w-sm">
-          <DialogHeader>
-            <DialogTitle>Excluir elenco de {activeSeasonYear}?</DialogTitle>
-          </DialogHeader>
-          <p className="text-sm text-muted-foreground py-2">
-            Todos os {squad.length} jogadores deste elenco serão removidos permanentemente. Esta ação não pode ser
-            desfeita.
-          </p>
+          <p className="text-sm text-muted-foreground">Esta ação removerá todos os jogadores deste ano.</p>
           <DialogFooter>
             <Button variant="outline" onClick={() => setShowDeleteYearConfirm(false)}>
               Cancelar
