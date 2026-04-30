@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState } from "react";
+import { useMemo, useRef, useState, useEffect } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
 import { useTournamentStore } from "@/store/tournamentStore";
 import { Button } from "@/components/ui/button";
@@ -6,7 +6,20 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
-import { ArrowLeft, PlusCircle, Pencil, Trash2, Download, Upload, Calendar, Plus, X } from "lucide-react";
+import {
+  ArrowLeft,
+  PlusCircle,
+  Pencil,
+  Trash2,
+  Download,
+  Upload,
+  Calendar,
+  Plus,
+  X,
+  Link2,
+  LinkIcon,
+  Unlink,
+} from "lucide-react";
 import TeamLogo from "@/components/TeamLogo";
 import CountryFlag from "@/components/CountryFlag";
 import PageTransition from "@/components/PageTransition";
@@ -14,6 +27,7 @@ import { toast } from "sonner";
 import { Player } from "@/types/tournament";
 import PlayerStars from "@/components/PlayerStars";
 import { SKILL_DEFAULT, clampSkill } from "@/lib/playerSkill";
+import { supabase } from "@/integrations/supabase/client";
 
 const MAX_PLAYERS = 30;
 
@@ -34,6 +48,195 @@ const POSITION_WEIGHTS: Record<string, number> = {
 const ALL_YEARS_VALUE = "__all__";
 const NO_YEAR_VALUE = "__none__";
 
+// ---------------------------------------------------------------------------
+// SolaraHub Sync Hook
+// ---------------------------------------------------------------------------
+function useSolaraSync(tm2TeamId: string | undefined) {
+  const [currentLink, setCurrentLink] = useState<{
+    solarahub_club_id: string;
+    solarahub_club_name: string;
+    sync_enabled: boolean;
+  } | null>(null);
+  const [loadingLink, setLoadingLink] = useState(true);
+
+  useEffect(() => {
+    if (!tm2TeamId) return;
+    supabase
+      .from("club_sync_links")
+      .select("solarahub_club_id, solarahub_club_name, sync_enabled")
+      .eq("tm2_team_id", tm2TeamId)
+      .maybeSingle()
+      .then(({ data }) => {
+        setCurrentLink(data ?? null);
+        setLoadingLink(false);
+      });
+  }, [tm2TeamId]);
+
+  return { currentLink, setCurrentLink, loadingLink };
+}
+
+// ---------------------------------------------------------------------------
+// SolaraHub Link Button + Dialog
+// ---------------------------------------------------------------------------
+interface SolaraSyncButtonProps {
+  tm2TeamId: string;
+}
+
+function SolaraSyncButton({ tm2TeamId }: SolaraSyncButtonProps) {
+  const { currentLink, setCurrentLink, loadingLink } = useSolaraSync(tm2TeamId);
+  const [open, setOpen] = useState(false);
+  const [solaraClubId, setSolaraClubId] = useState("");
+  const [solaraClubName, setSolaraClubName] = useState("");
+  const [linking, setLinking] = useState(false);
+  const [unlinking, setUnlinking] = useState(false);
+  const [showUnlinkConfirm, setShowUnlinkConfirm] = useState(false);
+
+  async function handleLink() {
+    if (!solaraClubId.trim()) return;
+    setLinking(true);
+    const { error } = await supabase.from("club_sync_links").upsert(
+      {
+        tm2_team_id: tm2TeamId,
+        solarahub_club_id: solaraClubId.trim(),
+        solarahub_club_name: solaraClubName.trim() || solaraClubId.trim(),
+        sync_enabled: true,
+        last_synced_at: new Date().toISOString(),
+      },
+      { onConflict: "tm2_team_id" },
+    );
+    setLinking(false);
+    if (error) {
+      toast.error("Erro ao vincular: " + error.message);
+      return;
+    }
+    setCurrentLink({
+      solarahub_club_id: solaraClubId.trim(),
+      solarahub_club_name: solaraClubName.trim() || solaraClubId.trim(),
+      sync_enabled: true,
+    });
+    setOpen(false);
+    setSolaraClubId("");
+    setSolaraClubName("");
+    toast.success("Clube vinculado ao SolaraHub com sucesso!");
+  }
+
+  async function handleUnlink() {
+    setUnlinking(true);
+    const { error } = await supabase.from("club_sync_links").delete().eq("tm2_team_id", tm2TeamId);
+    setUnlinking(false);
+    if (error) {
+      toast.error("Erro ao desvincular: " + error.message);
+      return;
+    }
+    setCurrentLink(null);
+    setShowUnlinkConfirm(false);
+    toast.success("Vínculo com SolaraHub removido.");
+  }
+
+  if (loadingLink) return null;
+
+  if (currentLink) {
+    return (
+      <>
+        <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-green-500/10 border border-green-500/30 text-sm">
+          <Link2 className="w-3.5 h-3.5 text-green-500" />
+          <span className="text-green-600 dark:text-green-400 font-medium">{currentLink.solarahub_club_name}</span>
+          <button
+            onClick={() => setShowUnlinkConfirm(true)}
+            className="ml-1 text-muted-foreground hover:text-destructive transition-colors"
+            title="Desvincular"
+          >
+            <Unlink className="w-3.5 h-3.5" />
+          </button>
+        </div>
+
+        {/* Unlink confirmation dialog */}
+        <Dialog open={showUnlinkConfirm} onOpenChange={setShowUnlinkConfirm}>
+          <DialogContent className="sm:max-w-sm">
+            <DialogHeader>
+              <DialogTitle>Desvincular do SolaraHub?</DialogTitle>
+            </DialogHeader>
+            <p className="text-sm text-muted-foreground py-2">
+              O elenco deixará de ser sincronizado automaticamente com{" "}
+              <strong>{currentLink.solarahub_club_name}</strong>. Os jogadores já importados não serão removidos.
+            </p>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setShowUnlinkConfirm(false)}>
+                Cancelar
+              </Button>
+              <Button variant="destructive" onClick={handleUnlink} disabled={unlinking}>
+                {unlinking ? "Removendo..." : "Desvincular"}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      </>
+    );
+  }
+
+  return (
+    <>
+      <Button
+        variant="outline"
+        size="sm"
+        className="gap-2 h-9 border-dashed border-blue-400 text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-950"
+        onClick={() => setOpen(true)}
+      >
+        <LinkIcon className="w-3.5 h-3.5" />
+        Vincular SolaraHub
+      </Button>
+
+      <Dialog open={open} onOpenChange={setOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Link2 className="w-4 h-4 text-blue-500" />
+              Vincular ao SolaraHub
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <p className="text-sm text-muted-foreground">
+              Após vincular, qualquer alteração no elenco do clube no SolaraHub (transferências, evoluções, remoções,
+              idade) será refletida automaticamente neste elenco.
+            </p>
+            <div className="space-y-1.5">
+              <label className="text-xs font-medium text-muted-foreground">ID do clube no SolaraHub</label>
+              <Input
+                className="font-mono text-sm"
+                placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
+                value={solaraClubId}
+                onChange={(e) => setSolaraClubId(e.target.value)}
+              />
+              <p className="text-xs text-muted-foreground">Encontre o ID na URL do clube no SolaraHub.</p>
+            </div>
+            <div className="space-y-1.5">
+              <label className="text-xs font-medium text-muted-foreground">Nome do clube (para exibição)</label>
+              <Input
+                className="text-sm"
+                placeholder="ex: Flamengo"
+                value={solaraClubName}
+                onChange={(e) => setSolaraClubName(e.target.value)}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setOpen(false)}>
+              Cancelar
+            </Button>
+            <Button onClick={handleLink} disabled={!solaraClubId.trim() || linking} className="gap-2">
+              <Link2 className="w-3.5 h-3.5" />
+              {linking ? "Vinculando..." : "Vincular"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Main Page
+// ---------------------------------------------------------------------------
 export default function ClubSquadPage() {
   const { teamId } = useParams<{ teamId: string }>();
   const navigate = useNavigate();
@@ -88,9 +291,8 @@ export default function ClubSquadPage() {
     toast.success(`${name} removido do elenco`);
   };
 
-  const activeSeasonYear = selectedYear !== ALL_YEARS_VALUE && selectedYear !== NO_YEAR_VALUE
-    ? parseInt(selectedYear)
-    : undefined;
+  const activeSeasonYear =
+    selectedYear !== ALL_YEARS_VALUE && selectedYear !== NO_YEAR_VALUE ? parseInt(selectedYear) : undefined;
 
   const handleExportSquad = () => {
     if (squad.length === 0) {
@@ -256,12 +458,16 @@ export default function ClubSquadPage() {
             <div>
               <h1 className="text-xl font-bold text-foreground">{team.name}</h1>
               <p className="text-sm text-muted-foreground">
-                {squad.length}{isSpecificYear ? ` / ${MAX_PLAYERS}` : ""} jogadores
+                {squad.length}
+                {isSpecificYear ? ` / ${MAX_PLAYERS}` : ""} jogadores
                 {isSpecificYear ? " (mín. 11)" : ""}
               </p>
             </div>
           </div>
           <div className="flex items-center gap-2 flex-wrap">
+            {/* SolaraHub sync button — always visible */}
+            {teamId && <SolaraSyncButton tm2TeamId={teamId} />}
+
             {/* Year selector */}
             <div className="flex items-center gap-1">
               <Calendar className="w-4 h-4 text-muted-foreground" />
@@ -271,9 +477,7 @@ export default function ClubSquadPage() {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value={ALL_YEARS_VALUE}>Todos os anos</SelectItem>
-                  {hasPlayersWithoutYear && (
-                    <SelectItem value={NO_YEAR_VALUE}>Sem ano</SelectItem>
-                  )}
+                  {hasPlayersWithoutYear && <SelectItem value={NO_YEAR_VALUE}>Sem ano</SelectItem>}
                   {availableYears.map((y) => (
                     <SelectItem key={y} value={String(y)}>
                       {y}
@@ -330,13 +534,7 @@ export default function ClubSquadPage() {
               <Upload className="w-4 h-4" />
               Importar
             </Button>
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept=".json"
-              className="hidden"
-              onChange={handleImportSquad}
-            />
+            <input ref={fileInputRef} type="file" accept=".json" className="hidden" onChange={handleImportSquad} />
             {isSpecificYear && squad.length < MAX_PLAYERS && (
               <Link to={`/squads/team/${teamId}/create?year=${activeSeasonYear}`}>
                 <Button className="gap-2">
@@ -437,7 +635,9 @@ export default function ClubSquadPage() {
             />
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setShowCreateYearDialog(false)}>Cancelar</Button>
+            <Button variant="outline" onClick={() => setShowCreateYearDialog(false)}>
+              Cancelar
+            </Button>
             <Button onClick={handleCreateYear}>Criar</Button>
           </DialogFooter>
         </DialogContent>
@@ -463,7 +663,9 @@ export default function ClubSquadPage() {
             />
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setShowRenameYearDialog(false)}>Cancelar</Button>
+            <Button variant="outline" onClick={() => setShowRenameYearDialog(false)}>
+              Cancelar
+            </Button>
             <Button onClick={handleRenameYear}>Salvar</Button>
           </DialogFooter>
         </DialogContent>
@@ -476,11 +678,16 @@ export default function ClubSquadPage() {
             <DialogTitle>Excluir elenco de {activeSeasonYear}?</DialogTitle>
           </DialogHeader>
           <p className="text-sm text-muted-foreground py-2">
-            Todos os {squad.length} jogadores deste elenco serão removidos permanentemente. Esta ação não pode ser desfeita.
+            Todos os {squad.length} jogadores deste elenco serão removidos permanentemente. Esta ação não pode ser
+            desfeita.
           </p>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setShowDeleteYearConfirm(false)}>Cancelar</Button>
-            <Button variant="destructive" onClick={handleDeleteYear}>Excluir</Button>
+            <Button variant="outline" onClick={() => setShowDeleteYearConfirm(false)}>
+              Cancelar
+            </Button>
+            <Button variant="destructive" onClick={handleDeleteYear}>
+              Excluir
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
