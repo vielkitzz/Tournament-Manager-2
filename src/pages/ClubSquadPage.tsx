@@ -351,8 +351,12 @@ export default function ClubSquadPage() {
         const posB = b.position || "";
         const weightA = POSITION_WEIGHTS[posA] || 99;
         const weightB = POSITION_WEIGHTS[posB] || 99;
+
+        // Se a posição for diferente, ordena pelo peso da posição
         if (weightA !== weightB) return weightA - weightB;
-        return (a.shirtNumber ?? 99) - (b.shirtNumber ?? 99);
+
+        // Se for a mesma posição, coloca o de maior Skill (Qualidade) primeiro
+        return (b.skill || 0) - (a.skill || 0);
       });
   }, [players, teamId, selectedYear]);
 
