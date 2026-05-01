@@ -297,11 +297,17 @@ export default function StatsView({ tournament, teams, players }: StatsViewProps
   const topWinRate = [...stats].filter((s) => s.played > 0).sort((a, b) => b.winRate - a.winRate || b.wins - a.wins);
 
   // Player leaderboards
-  const topScorers = [...playerStats].filter((s) => s.goals > 0).sort((a, b) => b.goals - a.goals);
+  const topScorers = [...playerStats].filter((s) => s.goals > 0)
+    .sort((a, b) => b.goals - a.goals);
+    .slice(0, 20);
   const topAssists = [...playerStats].filter((s) => s.assists > 0).sort((a, b) => b.assists - a.assists);
+    .slice(0, 20);
   const topGA = [...playerStats].filter((s) => s.goalsAndAssists > 0).sort((a, b) => b.goalsAndAssists - a.goalsAndAssists);
+    .slice(0, 20);
   const topYellow = [...playerStats].filter((s) => s.yellowCards > 0).sort((a, b) => b.yellowCards - a.yellowCards);
+    .slice(0, 20);
   const topRed = [...playerStats].filter((s) => s.redCards > 0).sort((a, b) => b.redCards - a.redCards);
+    .slice(0, 20);
 
   return (
     <div className="space-y-6">
