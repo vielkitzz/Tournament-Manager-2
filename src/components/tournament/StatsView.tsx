@@ -159,23 +159,13 @@ function CompactRow({ stat, value, rank }: { stat: TeamStats; value: string; ran
           <Shield className="w-3.5 h-3.5 text-muted-foreground" />
         )}
       </div>
-      <span className="text-xs text-foreground truncate flex-1">
-        {stat.team?.shortName || stat.team?.name || "—"}
-      </span>
+      <span className="text-xs text-foreground truncate flex-1">{stat.team?.shortName || stat.team?.name || "—"}</span>
       <span className="text-xs font-bold text-foreground tabular-nums">{value}</span>
     </div>
   );
 }
 
-function PlayerRow({
-  stat,
-  value,
-  rank,
-}: {
-  stat: PlayerStat;
-  value: string;
-  rank: number;
-}) {
+function PlayerRow({ stat, value, rank }: { stat: PlayerStat; value: string; rank: number }) {
   return (
     <div className="flex items-center gap-2 py-1.5 px-2">
       <span className="text-[10px] font-bold text-muted-foreground w-4 text-center">{rank}</span>
@@ -226,9 +216,13 @@ function StatCard({ icon: Icon, title, items, valueAccessor }: StatCardProps) {
           className="w-full flex items-center justify-center gap-1 py-1.5 text-[11px] font-medium text-primary hover:bg-secondary/40 transition-colors border-t border-border/30"
         >
           {expanded ? (
-            <>Ver menos <ChevronUp className="w-3 h-3" /></>
+            <>
+              Ver menos <ChevronUp className="w-3 h-3" />
+            </>
           ) : (
-            <>Ver mais <ChevronDown className="w-3 h-3" /></>
+            <>
+              Ver mais <ChevronDown className="w-3 h-3" />
+            </>
           )}
         </button>
       )}
@@ -267,9 +261,13 @@ function PlayerStatCard({ icon: Icon, title, items, valueAccessor }: PlayerStatC
           className="w-full flex items-center justify-center gap-1 py-1.5 text-[11px] font-medium text-primary hover:bg-secondary/40 transition-colors border-t border-border/30"
         >
           {expanded ? (
-            <>Ver menos <ChevronUp className="w-3 h-3" /></>
+            <>
+              Ver menos <ChevronUp className="w-3 h-3" />
+            </>
           ) : (
-            <>Ver mais <ChevronDown className="w-3 h-3" /></>
+            <>
+              Ver mais <ChevronDown className="w-3 h-3" />
+            </>
           )}
         </button>
       )}
@@ -297,28 +295,32 @@ export default function StatsView({ tournament, teams, players }: StatsViewProps
   const topWinRate = [...stats].filter((s) => s.played > 0).sort((a, b) => b.winRate - a.winRate || b.wins - a.wins);
 
   // Player leaderboards
-  const topScorers = [...playerStats].filter((s) => s.goals > 0)
-    .sort((a, b) => b.goals - a.goals);
+  const topScorers = [...playerStats]
+    .filter((s) => s.goals > 0)
+    .sort((a, b) => b.goals - a.goals)
     .slice(0, 20);
-  const topAssists = [...playerStats].filter((s) => s.assists > 0).sort((a, b) => b.assists - a.assists);
+  const topAssists = [...playerStats]
+    .filter((s) => s.assists > 0)
+    .sort((a, b) => b.assists - a.assists)
     .slice(0, 20);
-  const topGA = [...playerStats].filter((s) => s.goalsAndAssists > 0).sort((a, b) => b.goalsAndAssists - a.goalsAndAssists);
+  const topGA = [...playerStats]
+    .filter((s) => s.goalsAndAssists > 0)
+    .sort((a, b) => b.goalsAndAssists - a.goalsAndAssists)
     .slice(0, 20);
-  const topYellow = [...playerStats].filter((s) => s.yellowCards > 0).sort((a, b) => b.yellowCards - a.yellowCards);
+  const topYellow = [...playerStats]
+    .filter((s) => s.yellowCards > 0)
+    .sort((a, b) => b.yellowCards - a.yellowCards)
     .slice(0, 20);
-  const topRed = [...playerStats].filter((s) => s.redCards > 0).sort((a, b) => b.redCards - a.redCards);
+  const topRed = [...playerStats]
+    .filter((s) => s.redCards > 0)
+    .sort((a, b) => b.redCards - a.redCards)
     .slice(0, 20);
 
   return (
     <div className="space-y-6">
       {/* Team Stats */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-2 gap-4">
-        <StatCard
-          icon={Swords}
-          title="Melhor Ataque"
-          items={bestAttack}
-          valueAccessor={(s) => `${s.goalsFor}`}
-        />
+        <StatCard icon={Swords} title="Melhor Ataque" items={bestAttack} valueAccessor={(s) => `${s.goalsFor}`} />
         <StatCard
           icon={ShieldCheck}
           title="Melhor Defesa"
@@ -342,12 +344,7 @@ export default function StatsView({ tournament, teams, players }: StatsViewProps
       {/* Player Stats - only show if events exist */}
       {hasEvents && (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-2 gap-4">
-          <PlayerStatCard
-            icon={SoccerBallIcon}
-            title="Gols"
-            items={topScorers}
-            valueAccessor={(s) => `${s.goals}`}
-          />
+          <PlayerStatCard icon={SoccerBallIcon} title="Gols" items={topScorers} valueAccessor={(s) => `${s.goals}`} />
           <PlayerStatCard
             icon={Handshake}
             title="Assistências"
