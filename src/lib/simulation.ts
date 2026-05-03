@@ -298,8 +298,7 @@ export function getSuspendedPlayerIds(
 }
 
 // ---------------------------------------------------------------------------
-// Skill-weighted picker: gives strongly higher probability to players with
-// higher overall so goals and assists concentrate on the best players.
+// Skill-weighted picker — HEAVILY concentrates on high-skill attackers
 // ---------------------------------------------------------------------------
 
 /**
@@ -355,20 +354,28 @@ const POSITION_FOUL_WEIGHT: Record<string, number> = {
 };
 
 /**
- * Skill amplifier: exponentially increases the weight of higher-skill players
- * so that artilheiros and assistentes naturally emerge from the best squad members.
- * skill range: 45–99 → exponent applied to normalized (0-1) value.
+ * Skill amplifier: maps skill 45–99 → weight multiplier.
+ *
+ * Uses exponent 4 for a much steeper curve:
+ *   skill 45 → 1×  (baseline)
+ *   skill 63 → ~2×
+ *   skill 72 → ~5×
+ *   skill 81 → ~13×
+ *   skill 90 → ~27×
+ *   skill 99 → 50×
+ *
+ * Combined with position weights, a skill-95 Centroavante gets ~300×
+ * the draw-probability of a skill-50 goalkeeper — goals will concentrate
+ * heavily on the best attacking players.
  */
 function skillAmplifier(skill: number | undefined): number {
   const s = Math.max(45, Math.min(99, skill ?? 70));
-  // Map to 0–1 then raise to power 3 → top players get 8x weight of bottom players
   const normalized = (s - 45) / 54; // 0..1
-  return Math.pow(normalized, 3) * 9 + 1; // 1..10
+  return Math.pow(normalized, 4) * 49 + 1; // 1..50
 }
 
 /**
  * Weighted pick using both position weight and skill amplifier.
- * Ensures statistical concentration on high-skill players at attacking positions.
  */
 function weightedPickSkill(
   players: Player[],
@@ -393,7 +400,61 @@ function weightedPickSkill(
 }
 
 /**
+ * Build a "scorer pool" — a fixed-size array where high-skill attackers
+ * occupy many slots. Picking randomly from this pool across multiple goals
+ * naturally produces a dominant scorer rather than spreading goals evenly.
+ *
+ * Pool size = 30 slots.
+ */
+function buildScorerPool(players: Player[], posWeights: Record<string, number>): Player[] {
+  if (players.length === 0) return [];
+
+  const weights = players.map((p) => {
+    const posW = posWeights[p.position || ""] ?? 1;
+    return posW * skillAmplifier(p.skill);
+  });
+  const total = weights.reduce((s, v) => s + v, 0);
+
+  const POOL_SIZE = 30;
+  const pool: Player[] = [];
+
+  players.forEach((p, i) => {
+    const slots = Math.max(1, Math.round((weights[i] / total) * POOL_SIZE));
+    for (let s = 0; s < slots; s++) pool.push(p);
+  });
+
+  // Find the player with highest weight to pad/trim
+  let topIdx = 0;
+  weights.forEach((w, i) => {
+    if (w > weights[topIdx]) topIdx = i;
+  });
+  const topPlayer = players[topIdx];
+
+  while (pool.length > POOL_SIZE) pool.pop();
+  while (pool.length < POOL_SIZE) pool.push(topPlayer);
+
+  return pool;
+}
+
+/**
+ * Pick from a pre-built pool respecting on-pitch status.
+ * Excludes a specific player id (e.g. the scorer when picking assister).
+ */
+function pickFromPool(
+  pool: Player[],
+  minute: number,
+  isOnPitch: (id: string, minute: number) => boolean,
+  exclude?: string,
+): Player | undefined {
+  const eligible = pool.filter((p) => p.id !== exclude && isOnPitch(p.id, minute));
+  if (eligible.length === 0) return undefined;
+  return eligible[Math.floor(Math.random() * eligible.length)];
+}
+
+/**
  * Improved minute-by-minute events generator with stats-consistent events.
+ * Goals and assists are now drawn from pre-built weighted pools so the same
+ * top attackers dominate across an entire match (and cumulatively across a season).
  */
 export function generateMinuteByMinuteEvents(
   homeTeam: Team,
@@ -459,7 +520,17 @@ export function generateMinuteByMinuteEvents(
     return true;
   };
 
-  /** Skill-weighted pick respecting on-pitch status at given minute. */
+  // ---------------------------------------------------------------
+  // Build per-team scorer/assister pools ONCE per match.
+  // Picking repeatedly from these pools naturally concentrates goals
+  // on the same top attackers throughout the match.
+  // ---------------------------------------------------------------
+  const homeScorerPool = buildScorerPool(homePlayers, POSITION_GOAL_WEIGHT);
+  const awayScorerPool = buildScorerPool(awayPlayers, POSITION_GOAL_WEIGHT);
+  const homeAssistPool = buildScorerPool(homePlayers, POSITION_ASSIST_WEIGHT);
+  const awayAssistPool = buildScorerPool(awayPlayers, POSITION_ASSIST_WEIGHT);
+
+  /** Skill-weighted pick respecting on-pitch status at given minute (cold pick, no pool). */
   function pickAtMinuteSkill(
     players: Player[],
     posWeights: Record<string, number>,
@@ -471,17 +542,24 @@ export function generateMinuteByMinuteEvents(
   }
 
   // ---------------------------------------------------------------
-  // 1. Goals — distributed respecting half-time breakdown
+  // 1. Goals — drawn from the pre-built scorer pools
   // ---------------------------------------------------------------
-  const generateGoals = (team: Team, players: Player[], count: number, minuteRange: [number, number]) => {
+  const generateGoals = (
+    team: Team,
+    scorerPool: Player[],
+    assistPool: Player[],
+    count: number,
+    minuteRange: [number, number],
+  ) => {
     const isHome = team.id === homeTeam.id;
     const bucket = isHome ? produced.home : produced.away;
     for (let i = 0; i < count; i++) {
       const minute = randInt(minuteRange[0], minuteRange[1]);
-      const scorer = pickAtMinuteSkill(players, POSITION_GOAL_WEIGHT, minute);
+      // Use pool pick for scorer — this concentrates goals on top players
+      const scorer = pickFromPool(scorerPool, minute, isOnPitch);
       if (!scorer) continue;
-      const assister =
-        Math.random() < 0.65 ? pickAtMinuteSkill(players, POSITION_ASSIST_WEIGHT, minute, scorer.id) : undefined;
+      // 65% chance of an assist; assister also comes from pool (excluding scorer)
+      const assister = Math.random() < 0.65 ? pickFromPool(assistPool, minute, isOnPitch, scorer.id) : undefined;
       const descs = [
         `Gol de **${scorer.name}**${assister ? ` com assistência de **${assister.name}**` : ""}`,
         `Finalização certeira de **${scorer.name}**${assister ? ` após passe de **${assister.name}**` : ""}`,
@@ -502,13 +580,13 @@ export function generateMinuteByMinuteEvents(
   };
 
   if (halfGoals) {
-    generateGoals(homeTeam, homePlayers, halfGoals.h1[0], [1, 45]);
-    generateGoals(awayTeam, awayPlayers, halfGoals.h1[1], [1, 45]);
-    generateGoals(homeTeam, homePlayers, halfGoals.h2[0], [46, 90]);
-    generateGoals(awayTeam, awayPlayers, halfGoals.h2[1], [46, 90]);
+    generateGoals(homeTeam, homeScorerPool, homeAssistPool, halfGoals.h1[0], [1, 45]);
+    generateGoals(awayTeam, awayScorerPool, awayAssistPool, halfGoals.h1[1], [1, 45]);
+    generateGoals(homeTeam, homeScorerPool, homeAssistPool, halfGoals.h2[0], [46, 90]);
+    generateGoals(awayTeam, awayScorerPool, awayAssistPool, halfGoals.h2[1], [46, 90]);
   } else {
-    generateGoals(homeTeam, homePlayers, homeGoals, [1, 90]);
-    generateGoals(awayTeam, awayPlayers, awayGoals, [1, 90]);
+    generateGoals(homeTeam, homeScorerPool, homeAssistPool, homeGoals, [1, 90]);
+    generateGoals(awayTeam, awayScorerPool, awayAssistPool, awayGoals, [1, 90]);
   }
 
   // ---------------------------------------------------------------
@@ -577,7 +655,6 @@ export function generateMinuteByMinuteEvents(
       bucket.yellow++;
     }
 
-    // Red cards: generate only if reds > 0 (already decided at 10% per team in generateMatchStats)
     for (let i = 0; i < reds; i++) {
       const candidateFouls = sortedFouls.filter((f) => f.minute >= 25).filter((f) => !cardedIds.has(f.playerId));
       const foulRef = candidateFouls[candidateFouls.length - 1 - i] ?? sortedFouls[sortedFouls.length - 1] ?? null;
