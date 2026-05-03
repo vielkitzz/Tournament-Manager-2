@@ -1,139 +1,135 @@
 /**
- * Player skill (45-99) and Football Manager-style star rating utilities.
+ * playerSkill.ts
  *
- * Stars are computed RELATIVE to the club's "Exigência" (demand level)
- * derived from the team rate (0-10). A player average for one club may
- * be a star for another.
+ * Calcula o Rate Efetivo de Partida de um clube com base na habilidade
+ * dos seus 11 titulares. O Rate original nunca é alterado — o modificador
+ * existe apenas durante o cálculo de uma partida específica.
+ *
+ * Fórmula:
+ *   mediaHabilidade   = média do campo `skill` dos 11 titulares
+ *   exigenciaClube    = (rate × 7) + 42
+ *   saldoHabilidade   = mediaHabilidade − exigenciaClube
+ *   modificador       = (saldoHabilidade / 3) × 0.10
+ *   rateEfetivo       = rate + modificador
  */
-import type { Player } from "@/types/tournament";
 
-export const SKILL_MIN = 45;
-export const SKILL_MAX = 99;
-export const SKILL_DEFAULT = 70;
+import { Player } from "@/types/tournament";
 
-export function clampSkill(n: number): number {
-  if (!Number.isFinite(n)) return SKILL_DEFAULT;
-  return Math.max(SKILL_MIN, Math.min(SKILL_MAX, Math.round(n)));
+// ---------------------------------------------------------------------------
+// Tipos auxiliares
+// ---------------------------------------------------------------------------
+
+export interface EffectiveRateBreakdown {
+  /** Rate base original do clube (imutável). */
+  baseRate: number;
+  /** Média de habilidade dos titulares fornecidos. */
+  avgSkill: number;
+  /** Exigência mínima de habilidade para o rate do clube: (rate × 7) + 42. */
+  clubRequirement: number;
+  /** Diferença entre a média real e a exigência: pode ser positivo ou negativo. */
+  skillBalance: number;
+  /** Bônus/penalidade aplicada ao rate: (saldo / 3) × 0.10. */
+  modifier: number;
+  /** Rate usado exclusivamente no cálculo desta partida. */
+  effectiveRate: number;
 }
 
-export function randomSkill(): number {
-  return Math.floor(Math.random() * (SKILL_MAX - SKILL_MIN + 1)) + SKILL_MIN;
-}
+// ---------------------------------------------------------------------------
+// Constantes da fórmula
+// ---------------------------------------------------------------------------
 
-/** Exigência do clube = (rate * 7) + 42. Rate 5.00 → 72. */
-export function clubExigencia(teamRate: number | undefined | null): number {
-  const r = typeof teamRate === "number" && Number.isFinite(teamRate) ? teamRate : 5;
-  return Math.round(r * 7 + 42);
+/** Multiplica o rate para definir a exigência base de habilidade. */
+const REQUIREMENT_RATE_FACTOR = 7;
+
+/** Constante aditiva da exigência base. */
+const REQUIREMENT_BASE = 42;
+
+/** Divisor do saldo de habilidade antes de converter em modificador de rate. */
+const BALANCE_DIVISOR = 3;
+
+/** Escala do modificador: cada "ponto de saldo / divisor" vale este tanto no rate. */
+const MODIFIER_SCALE = 0.1;
+
+/**
+ * Limite máximo (absoluto) que o modificador pode adicionar ou subtrair do rate.
+ * Evita que elencos muito fracos ou muito fortes distorçam demais a simulação.
+ * Valor calibrado para que um elenco perfeitamente adequado ao rate dê modificador 0
+ * e elencos extremos fiquem dentro de ±1.5 de rate.
+ */
+const MODIFIER_CAP = 1.5;
+
+/** Rate efetivo nunca cai abaixo deste valor, independente do modificador. */
+const EFFECTIVE_RATE_FLOOR = 0.5;
+
+// ---------------------------------------------------------------------------
+// Função principal
+// ---------------------------------------------------------------------------
+
+/**
+ * Calcula o **Rate Efetivo de Partida** do clube.
+ *
+ * @param baseRate  Rate oficial do clube (ex.: 7.50). Não é modificado.
+ * @param players   Lista dos jogadores disponíveis do clube. A função usa os
+ *                  primeiros 11 (ou todos, se houver menos de 11) como titulares.
+ *                  Jogadores sem `skill` definido assumem habilidade 50.
+ * @returns         O rate efetivo a ser usado na simulação desta partida.
+ *
+ * @example
+ * // Clube com rate 7.0 e elenco habilidoso (média 95)
+ * // exigência = (7 × 7) + 42 = 91
+ * // saldo     = 95 − 91 = +4
+ * // modificador = (4 / 3) × 0.10 ≈ +0.133
+ * // rateEfetivo = 7.0 + 0.133 = 7.133
+ * effectiveMatchRate(7.0, players); // ≈ 7.13
+ */
+export function effectiveMatchRate(baseRate: number, players: Player[]): number {
+  return effectiveMatchRateDetailed(baseRate, players).effectiveRate;
 }
 
 /**
- * Maps a player's skill to a 1.0–5.0 star rating (with halves) relative
- * to the club's exigência:
- *
- *   skill >= exig + 15  → 5.0 stars
- *   skill >= exig + 8   → 4.0 / 4.5 stars
- *   |skill - exig| <= 7 → 3.0 / 3.5 stars (average for the club)
- *   skill <= exig - 8   → 2.0 / 2.5 stars
- *   skill <= exig - 15  → 1.0 / 1.5 stars
+ * Versão detalhada que retorna o breakdown completo do cálculo.
+ * Útil para debug, tooltips ou logs de simulação.
  */
-export function playerStars(skill: number, teamRate: number | undefined | null): number {
-  const exig = clubExigencia(teamRate);
-  const diff = skill - exig;
+export function effectiveMatchRateDetailed(baseRate: number, players: Player[]): EffectiveRateBreakdown {
+  // --- 1. Média de habilidade dos titulares ---
+  const starters = players.slice(0, 11);
+  const avgSkill = starters.length > 0 ? starters.reduce((sum, p) => sum + (p.skill ?? 50), 0) / starters.length : 50; // fallback neutro quando não há jogadores
 
-  if (diff >= 15) return 5;
-  if (diff >= 8) {
-    // 4.0 .. 4.5 across diff 8..14
-    return diff >= 11 ? 4.5 : 4;
-  }
-  if (diff >= -7) {
-    // 3.0 .. 3.5 across diff -7..7
-    return diff >= 1 ? 3.5 : 3;
-  }
-  if (diff >= -14) {
-    // 2.0 .. 2.5 across diff -8..-14
-    return diff >= -10 ? 2.5 : 2;
-  }
-  // diff <= -15
-  return diff >= -18 ? 1.5 : 1;
-}
+  // --- 2. Exigência do clube ---
+  const clubRequirement = baseRate * REQUIREMENT_RATE_FACTOR + REQUIREMENT_BASE;
 
-const POSITION_GROUP: Record<string, "GK" | "DEF" | "MID" | "ATT"> = {
-  Goleiro: "GK",
-  Zagueiro: "DEF",
-  "Lateral Direito": "DEF",
-  "Lateral Esquerdo": "DEF",
-  Volante: "MID",
-  Meia: "MID",
-  "Meia Atacante": "MID",
-  "Ponta Direita": "ATT",
-  "Ponta Esquerda": "ATT",
-  Centroavante: "ATT",
-  Atacante: "ATT",
-};
+  // --- 3. Saldo de habilidade ---
+  const skillBalance = avgSkill - clubRequirement;
 
-function groupOf(p: Player): "GK" | "DEF" | "MID" | "ATT" {
-  return POSITION_GROUP[p.position || ""] || "MID";
-}
+  // --- 4. Modificador (com cap para evitar distorções extremas) ---
+  const rawModifier = (skillBalance / BALANCE_DIVISOR) * MODIFIER_SCALE;
+  const modifier = Math.max(-MODIFIER_CAP, Math.min(MODIFIER_CAP, rawModifier));
 
-/**
- * Picks the starting XI by skill, respecting positional balance:
- * 1 GK + 4 DEF + 3 MID + 3 ATT, falling back to best-available when a
- * group is short. Returns up to 11 players, sorted by skill desc.
- */
-export function selectStarters(squad: Player[]): Player[] {
-  if (!squad || squad.length === 0) return [];
-  const sorted = [...squad].sort((a, b) => (b.skill ?? 0) - (a.skill ?? 0));
-  const wanted = { GK: 1, DEF: 4, MID: 3, ATT: 3 } as const;
-  const buckets: Record<"GK" | "DEF" | "MID" | "ATT", Player[]> = {
-    GK: [],
-    DEF: [],
-    MID: [],
-    ATT: [],
+  // --- 5. Rate efetivo (imutável para o rate base) ---
+  const effectiveRate = Math.max(EFFECTIVE_RATE_FLOOR, baseRate + modifier);
+
+  return {
+    baseRate,
+    avgSkill: Math.round(avgSkill * 10) / 10,
+    clubRequirement: Math.round(clubRequirement * 10) / 10,
+    skillBalance: Math.round(skillBalance * 10) / 10,
+    modifier: Math.round(modifier * 1000) / 1000,
+    effectiveRate: Math.round(effectiveRate * 1000) / 1000,
   };
-  for (const p of sorted) buckets[groupOf(p)].push(p);
-  const picked: Player[] = [];
-  const usedIds = new Set<string>();
-  (Object.keys(wanted) as Array<"GK" | "DEF" | "MID" | "ATT">).forEach((g) => {
-    for (const p of buckets[g]) {
-      if (picked.length >= 11) break;
-      if (buckets[g].indexOf(p) >= wanted[g]) break;
-      picked.push(p);
-      usedIds.add(p.id);
-    }
-  });
-  if (picked.length < 11) {
-    for (const p of sorted) {
-      if (picked.length >= 11) break;
-      if (!usedIds.has(p.id)) {
-        picked.push(p);
-        usedIds.add(p.id);
-      }
-    }
-  }
-  return picked.slice(0, 11);
 }
 
-/**
- * Computes the effective match rate for a club based on its starters'
- * average skill compared to the club's exigência. The result is the
- * base rate plus a small modifier (+/- a few tenths) that does NOT
- * persist anywhere — it is recomputed fresh per match.
- *
- *   modifier = ((avgSkill - exigência) / 3) * 0.10
- *   effectiveRate = baseRate + modifier
- *
- * If there are not enough players to form an XI, the base rate is
- * returned unchanged.
- */
-export function effectiveMatchRate(baseRate: number, squad: Player[] | undefined | null): number {
-  if (!squad || squad.length === 0) return baseRate;
-  const starters = selectStarters(squad);
-  if (starters.length === 0) return baseRate;
-  const avg = starters.reduce((s, p) => s + (p.skill ?? SKILL_DEFAULT), 0) / starters.length;
-  const exig = clubExigencia(baseRate);
-  const balance = avg - exig;
-  const modifier = (balance / 3) * 0.1;
-  const eff = baseRate + modifier;
-  // keep within plausible bounds
-  return Math.max(0.5, Math.min(10, eff));
-}
+// ---------------------------------------------------------------------------
+// Exemplos de calibração (remova em produção)
+// ---------------------------------------------------------------------------
+//
+// Rate 5.0 → exigência = (5×7)+42 = 77
+//   Elenco médio (skill 77): saldo 0   → modificador 0.000 → rate 5.000 (neutro ✓)
+//   Elenco forte (skill 91): saldo +14 → modificador +0.467 → rate 5.467
+//   Elenco fraco (skill 63): saldo -14 → modificador -0.467 → rate 4.533
+//
+// Rate 9.0 → exigência = (9×7)+42 = 105  (acima do máximo de skill = 99)
+//   Qualquer elenco terá saldo negativo → penalidade leve sempre presente
+//   Elenco elite (skill 99): saldo -6  → modificador -0.200 → rate 8.800
+//   Isso é intencional: nenhum elenco consegue suprir a exigência de um clube top.
+//
+// ---------------------------------------------------------------------------
