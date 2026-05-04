@@ -61,14 +61,15 @@ export function simulateHalf(
 export function simulateFullMatch(
   homeRate: number,
   awayRate: number,
+  isExtraTime = false, // CORREÇÃO: Parâmetro adicionado para suportar prorrogação corretamente
 ): {
   h1: [number, number];
   h2: [number, number];
   total: [number, number];
   xg: [number, number];
 } {
-  const homeXg1 = getExpectedGoals(homeRate, awayRate, false, 0.5, true);
-  const awayXg1 = getExpectedGoals(awayRate, homeRate, false, 0.5, false);
+  const homeXg1 = getExpectedGoals(homeRate, awayRate, isExtraTime, 0.5, true);
+  const awayXg1 = getExpectedGoals(awayRate, homeRate, isExtraTime, 0.5, false);
   const firstHalf: [number, number] = [poissonRandom(homeXg1), poissonRandom(awayXg1)];
   const goalDiff = firstHalf[0] - firstHalf[1];
   let momentum = 0.5;
@@ -77,8 +78,8 @@ export function simulateFullMatch(
   else if (goalDiff > 0) momentum = 0.6;
   else if (goalDiff < 0) momentum = 0.4;
 
-  const homeXg2 = getExpectedGoals(homeRate, awayRate, false, momentum, true);
-  const awayXg2 = getExpectedGoals(awayRate, homeRate, false, momentum, false);
+  const homeXg2 = getExpectedGoals(homeRate, awayRate, isExtraTime, momentum, true);
+  const awayXg2 = getExpectedGoals(awayRate, homeRate, isExtraTime, momentum, false);
   const secondHalf: [number, number] = [poissonRandom(homeXg2), poissonRandom(awayXg2)];
 
   return {
@@ -256,15 +257,23 @@ export function getSuspendedPlayerIds(
   tournamentMatches: Match[],
   currentRound: number,
   teamId: string,
-  settings: TournamentSettings,
+  settings: TournamentSettings & { resetYellowsAfterRound?: number },
 ): Set<string> {
   const suspended = new Set<string>();
   const yellowLimit = settings.yellowCardsToSuspend ?? 3;
   const yellowDuration = settings.yellowSuspensionDuration ?? 1;
   const redDuration = settings.redSuspensionDuration ?? 1;
 
+  // CORREÇÃO: Ignora cartões de fases anteriores (se configurado na regra do campeonato)
+  const resetRound = settings.resetYellowsAfterRound ?? 0;
+
   const pastMatches = tournamentMatches.filter(
-    (m) => m.played && m.round < currentRound && m.events && (m.homeTeamId === teamId || m.awayTeamId === teamId),
+    (m) =>
+      m.played &&
+      m.round < currentRound &&
+      m.round >= resetRound &&
+      m.events &&
+      (m.homeTeamId === teamId || m.awayTeamId === teamId),
   );
 
   const yellowCounts: Record<string, { count: number; lastRound: number }> = {};
@@ -297,14 +306,6 @@ export function getSuspendedPlayerIds(
   return suspended;
 }
 
-// ---------------------------------------------------------------------------
-// Skill-weighted picker — HEAVILY concentrates on high-skill attackers
-// ---------------------------------------------------------------------------
-
-/**
- * Position base weights for goal scoring.
- * Heavily front-loaded so midfielders/defenders rarely score.
- */
 const POSITION_GOAL_WEIGHT: Record<string, number> = {
   Goleiro: 0.05,
   Zagueiro: 0.15,
@@ -319,9 +320,6 @@ const POSITION_GOAL_WEIGHT: Record<string, number> = {
   Atacante: 5,
 };
 
-/**
- * Position base weights for assists.
- */
 const POSITION_ASSIST_WEIGHT: Record<string, number> = {
   Goleiro: 0.05,
   Zagueiro: 0.15,
@@ -336,9 +334,6 @@ const POSITION_ASSIST_WEIGHT: Record<string, number> = {
   Atacante: 2,
 };
 
-/**
- * Position base weights for fouls.
- */
 const POSITION_FOUL_WEIGHT: Record<string, number> = {
   Goleiro: 0.3,
   Zagueiro: 3,
@@ -353,30 +348,12 @@ const POSITION_FOUL_WEIGHT: Record<string, number> = {
   Atacante: 1,
 };
 
-/**
- * Skill amplifier: maps skill 45–99 → weight multiplier.
- *
- * Uses exponent 4 for a much steeper curve:
- *   skill 45 → 1×  (baseline)
- *   skill 63 → ~2×
- *   skill 72 → ~5×
- *   skill 81 → ~13×
- *   skill 90 → ~27×
- *   skill 99 → 50×
- *
- * Combined with position weights, a skill-95 Centroavante gets ~300×
- * the draw-probability of a skill-50 goalkeeper — goals will concentrate
- * heavily on the best attacking players.
- */
 function skillAmplifier(skill: number | undefined): number {
   const s = Math.max(45, Math.min(99, skill ?? 70));
-  const normalized = (s - 45) / 54; // 0..1
-  return Math.pow(normalized, 4) * 49 + 1; // 1..50
+  const normalized = (s - 45) / 54;
+  return Math.pow(normalized, 4) * 49 + 1;
 }
 
-/**
- * Weighted pick using both position weight and skill amplifier.
- */
 function weightedPickSkill(
   players: Player[],
   posWeights: Record<string, number>,
@@ -399,13 +376,6 @@ function weightedPickSkill(
   return available[available.length - 1];
 }
 
-/**
- * Build a "scorer pool" — a fixed-size array where high-skill attackers
- * occupy many slots. Picking randomly from this pool across multiple goals
- * naturally produces a dominant scorer rather than spreading goals evenly.
- *
- * Pool size = 30 slots.
- */
 function buildScorerPool(players: Player[], posWeights: Record<string, number>): Player[] {
   if (players.length === 0) return [];
 
@@ -423,12 +393,17 @@ function buildScorerPool(players: Player[], posWeights: Record<string, number>):
     for (let s = 0; s < slots; s++) pool.push(p);
   });
 
-  // Find the player with highest weight to pad/trim
   let topIdx = 0;
   weights.forEach((w, i) => {
     if (w > weights[topIdx]) topIdx = i;
   });
   const topPlayer = players[topIdx];
+
+  // CORREÇÃO: Embaralha a piscina antes do corte para não prejudicar a chance de zagueiros
+  for (let i = pool.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [pool[i], pool[j]] = [pool[j], pool[i]];
+  }
 
   while (pool.length > POOL_SIZE) pool.pop();
   while (pool.length < POOL_SIZE) pool.push(topPlayer);
@@ -436,22 +411,16 @@ function buildScorerPool(players: Player[], posWeights: Record<string, number>):
   return pool;
 }
 
-/**
- * Pick from a pre-built pool respecting on-pitch status.
- * Excludes a specific player id (e.g. the scorer when picking assister).
- */
-
 function pickFromPool(
   pool: Player[],
   minute: number,
   isOnPitch: (id: string, minute: number) => boolean,
-  matchGoalCounts: Map<string, number>, // movido para antes do optional
+  matchGoalCounts: Map<string, number>,
   exclude?: string,
 ): Player | undefined {
   const eligible = pool.filter((p) => p.id !== exclude && isOnPitch(p.id, minute));
   if (eligible.length === 0) return undefined;
 
-  // "Hot hand": peso extra para quem já marcou nesta partida
   const weights = eligible.map((p) => {
     const goalsThisMatch = matchGoalCounts.get(p.id) ?? 0;
     return 1 * Math.pow(1.6, goalsThisMatch);
@@ -469,18 +438,12 @@ function pickFromPool(
     }
   }
 
-  // fallback
   const last = eligible[eligible.length - 1];
   const current = matchGoalCounts.get(last.id) ?? 0;
   matchGoalCounts.set(last.id, current + 1);
   return last;
 }
 
-/**
- * Improved minute-by-minute events generator with stats-consistent events.
- * Goals and assists are now drawn from pre-built weighted pools so the same
- * top attackers dominate across an entire match (and cumulatively across a season).
- */
 export function generateMinuteByMinuteEvents(
   homeTeam: Team,
   awayTeam: Team,
@@ -492,10 +455,7 @@ export function generateMinuteByMinuteEvents(
   halfGoals?: { h1: [number, number]; h2: [number, number] },
 ): MatchEvent[] {
   const events: MatchEvent[] = [];
-
-  // DECLARE IT RIGHT HERE:
   const matchGoalCounts = new Map<string, number>();
-
   let eventId = 0;
   const genId = () => `evt-${++eventId}`;
 
@@ -504,63 +464,36 @@ export function generateMinuteByMinuteEvents(
     away: { goals: 0, fouls: 0, yellow: 0, red: 0, offsides: 0, shots: 0, shotsOnTarget: 0 },
   };
 
-  // ---------------------------------------------------------------
-  // Pre-generate substitutions
-  // ---------------------------------------------------------------
+  // CORREÇÃO: Divisão clara entre Titulares e Banco
+  const homeStarters = homePlayers.slice(0, 11);
+  const homeBench = homePlayers.slice(11);
+  const awayStarters = awayPlayers.slice(0, 11);
+  const awayBench = awayPlayers.slice(11);
+
+  const starterIds = new Set([...homeStarters.map((p) => p.id), ...awayStarters.map((p) => p.id)]);
+
   const subOutAt: Map<string, number> = new Map();
   const subInAt: Map<string, number> = new Map();
-
-  const generateSubstitutions = (team: Team, players: Player[]) => {
-    const subCount = Math.min(3, Math.max(0, Math.floor(players.length / 2) - 1));
-    if (subCount === 0) return;
-    const usedIds = new Set<string>();
-    const nonGk = players.filter((p) => p.position !== "Goleiro");
-    for (let i = 0; i < subCount; i++) {
-      const minute = randInt(55, 85);
-      const candidates = nonGk.filter((p) => !usedIds.has(p.id));
-      if (candidates.length < 2) break;
-      const outPlayer = candidates[randInt(0, candidates.length - 1)];
-      usedIds.add(outPlayer.id);
-      const inCandidates = candidates.filter((p) => p.id !== outPlayer.id && !usedIds.has(p.id));
-      if (inCandidates.length === 0) break;
-      const inPlayer = inCandidates[randInt(0, inCandidates.length - 1)];
-      usedIds.add(inPlayer.id);
-      subOutAt.set(outPlayer.id, minute);
-      subInAt.set(inPlayer.id, minute);
-      events.push({
-        id: genId(),
-        minute,
-        type: "substitution",
-        teamId: team.id,
-        playerId: inPlayer.id,
-        assistId: outPlayer.id,
-        text: `Substituição no **${team.shortName || team.name}**. Sai **${outPlayer.name}** para a entrada de **${inPlayer.name}**`,
-      });
-    }
-  };
-  generateSubstitutions(homeTeam, homePlayers);
-  generateSubstitutions(awayTeam, awayPlayers);
+  const redCardAt: Map<string, number> = new Map();
 
   const isOnPitch = (playerId: string, minute: number): boolean => {
-    const out = subOutAt.get(playerId);
-    if (out !== undefined && minute >= out) return false;
+    // CORREÇÃO: Lógica robusta avaliando titulares, banco e cartões vermelhos
+    const rc = redCardAt.get(playerId);
+    if (rc !== undefined && minute >= rc) return false;
+
+    const outAt = subOutAt.get(playerId);
+    if (outAt !== undefined && minute >= outAt) return false;
+
+    const isStarter = starterIds.has(playerId);
     const inAt = subInAt.get(playerId);
-    if (inAt !== undefined && minute < inAt) return false;
-    return true;
+
+    if (isStarter) {
+      return true;
+    } else {
+      return inAt !== undefined && minute >= inAt;
+    }
   };
 
-  // ---------------------------------------------------------------
-  // Build per-team scorer/assister pools ONCE per match.
-  // Picking repeatedly from these pools naturally concentrates goals
-  // on the same top attackers throughout the match.
-  // ---------------------------------------------------------------
-
-  const homeScorerPool = buildScorerPool(homePlayers, POSITION_GOAL_WEIGHT);
-  const awayScorerPool = buildScorerPool(awayPlayers, POSITION_GOAL_WEIGHT);
-  const homeAssistPool = buildScorerPool(homePlayers, POSITION_ASSIST_WEIGHT);
-  const awayAssistPool = buildScorerPool(awayPlayers, POSITION_ASSIST_WEIGHT);
-
-  /** Skill-weighted pick respecting on-pitch status at given minute (cold pick, no pool). */
   function pickAtMinuteSkill(
     players: Player[],
     posWeights: Record<string, number>,
@@ -571,9 +504,199 @@ export function generateMinuteByMinuteEvents(
     return weightedPickSkill(eligible, posWeights, undefined);
   }
 
-  // ---------------------------------------------------------------
-  // 1. Goals — drawn from the pre-built scorer pools
-  // ---------------------------------------------------------------
+  // 1. Substitutions (Geradas primeiro usando apenas quem está no banco para entrar)
+  const generateSubstitutions = (team: Team, starters: Player[], bench: Player[]) => {
+    const subCount = Math.min(3, Math.max(0, Math.floor((starters.length + bench.length) / 2) - 1));
+    if (subCount === 0 || bench.length === 0) return;
+    const usedOut = new Set<string>();
+    const usedIn = new Set<string>();
+
+    const outCandidates = starters.filter((p) => p.position !== "Goleiro");
+    const inCandidates = bench.filter((p) => p.position !== "Goleiro");
+
+    for (let i = 0; i < subCount; i++) {
+      const minute = randInt(55, 85);
+      const availableOut = outCandidates.filter((p) => !usedOut.has(p.id));
+      const availableIn = inCandidates.filter((p) => !usedIn.has(p.id));
+
+      if (availableOut.length === 0 || availableIn.length === 0) break;
+
+      const outPlayer = availableOut[randInt(0, availableOut.length - 1)];
+      const inPlayer = availableIn[randInt(0, availableIn.length - 1)];
+
+      usedOut.add(outPlayer.id);
+      usedIn.add(inPlayer.id);
+      subOutAt.set(outPlayer.id, minute);
+      subInAt.set(inPlayer.id, minute);
+
+      events.push({
+        id: genId(),
+        minute: minute + 0.1, // Offset temporal para não encavalar
+        type: "substitution",
+        teamId: team.id,
+        playerId: inPlayer.id,
+        assistId: outPlayer.id,
+        text: `Substituição no **${team.shortName || team.name}**. Sai **${outPlayer.name}** para a entrada de **${inPlayer.name}**`,
+      });
+    }
+  };
+  generateSubstitutions(homeTeam, homeStarters, homeBench);
+  generateSubstitutions(awayTeam, awayStarters, awayBench);
+
+  // 2. Cards & Fouls
+  const matchYellows = new Map<string, number>();
+
+  const generateCardsAndFouls = (
+    team: Team,
+    opponent: Team,
+    players: Player[],
+    targetFouls: number,
+    targetYellows: number,
+    targetReds: number,
+  ) => {
+    const isHome = team.id === homeTeam.id;
+    const bucket = isHome ? produced.home : produced.away;
+    let remainingFouls = targetFouls;
+
+    // Reds
+    for (let i = 0; i < targetReds; i++) {
+      const minute = randInt(25, 88);
+      // CORREÇÃO: Não dá cartão vermelho para quem já tem uma substituição marcada no futuro
+      const p = pickAtMinuteSkill(
+        players.filter((pl) => {
+          const scheduledOut = subOutAt.get(pl.id);
+          return !(scheduledOut && scheduledOut > minute) && !redCardAt.has(pl.id);
+        }),
+        POSITION_FOUL_WEIGHT,
+        minute,
+      );
+      if (!p) continue;
+
+      redCardAt.set(p.id, minute);
+      bucket.red++;
+      events.push({
+        id: genId(),
+        minute: minute + 0.35,
+        type: "foul",
+        teamId: team.id,
+        playerId: p.id,
+        text: `Falta dura de **${p.name}** parando ataque perigoso!`,
+      });
+      events.push({
+        id: genId(),
+        minute: minute + 0.45,
+        type: "red_card",
+        teamId: team.id,
+        playerId: p.id,
+        text: `Cartão vermelho direto para **${p.name}** após entrada violenta!`,
+      });
+      remainingFouls--;
+    }
+
+    // Yellows
+    for (let i = 0; i < targetYellows; i++) {
+      const minute = randInt(15, 85);
+      const p = pickAtMinuteSkill(
+        players.filter((pl) => {
+          const currentY = matchYellows.get(pl.id) || 0;
+          if (currentY === 1) {
+            // Transformará em segundo amarelo (vermelho)
+            const scheduledOut = subOutAt.get(pl.id);
+            return !(scheduledOut && scheduledOut > minute) && !redCardAt.has(pl.id);
+          }
+          return !redCardAt.has(pl.id);
+        }),
+        POSITION_FOUL_WEIGHT,
+        minute,
+      );
+      if (!p) continue;
+
+      const currentY = matchYellows.get(p.id) || 0;
+      if (currentY === 1) {
+        // CORREÇÃO: Lógica do 2º Cartão Amarelo e Expulsão
+        matchYellows.set(p.id, 2);
+        redCardAt.set(p.id, minute);
+        bucket.yellow++;
+        bucket.red++;
+        events.push({
+          id: genId(),
+          minute: minute + 0.35,
+          type: "foul",
+          teamId: team.id,
+          playerId: p.id,
+          text: `Falta tática cometida por **${p.name}**`,
+        });
+        events.push({
+          id: genId(),
+          minute: minute + 0.45,
+          type: "yellow_card",
+          teamId: team.id,
+          playerId: p.id,
+          text: `SEGUNDO AMARELO! **${p.name}** recebe mais um cartão e é expulso de campo!`,
+        });
+      } else {
+        matchYellows.set(p.id, 1);
+        bucket.yellow++;
+        events.push({
+          id: genId(),
+          minute: minute + 0.35,
+          type: "foul",
+          teamId: team.id,
+          playerId: p.id,
+          text: `Falta de **${p.name}** no meio campo`,
+        });
+        events.push({
+          id: genId(),
+          minute: minute + 0.45,
+          type: "yellow_card",
+          teamId: team.id,
+          playerId: p.id,
+          text: `Cartão amarelo para **${p.name}** por falta dura`,
+        });
+      }
+      remainingFouls--;
+    }
+
+    // Remaining Fouls
+    for (let i = 0; i < Math.max(0, remainingFouls); i++) {
+      const minute = randInt(2, 89);
+      const p = pickAtMinuteSkill(players, POSITION_FOUL_WEIGHT, minute);
+      if (!p) continue;
+      events.push({
+        id: genId(),
+        minute: minute + 0.3,
+        type: "foul",
+        teamId: team.id,
+        playerId: p.id,
+        text: `Falta cometida por **${p.name}**`,
+      });
+      bucket.fouls++;
+    }
+  };
+
+  generateCardsAndFouls(
+    homeTeam,
+    awayTeam,
+    homePlayers,
+    matchStats.homeStats.fouls,
+    matchStats.homeStats.yellowCards,
+    matchStats.homeStats.redCards,
+  );
+  generateCardsAndFouls(
+    awayTeam,
+    homeTeam,
+    awayPlayers,
+    matchStats.awayStats.fouls,
+    matchStats.awayStats.yellowCards,
+    matchStats.awayStats.redCards,
+  );
+
+  // 3. Goals
+  const homeScorerPool = buildScorerPool(homePlayers, POSITION_GOAL_WEIGHT);
+  const awayScorerPool = buildScorerPool(awayPlayers, POSITION_GOAL_WEIGHT);
+  const homeAssistPool = buildScorerPool(homePlayers, POSITION_ASSIST_WEIGHT);
+  const awayAssistPool = buildScorerPool(awayPlayers, POSITION_ASSIST_WEIGHT);
+
   const generateGoals = (
     team: Team,
     scorerPool: Player[],
@@ -585,10 +708,8 @@ export function generateMinuteByMinuteEvents(
     const bucket = isHome ? produced.home : produced.away;
     for (let i = 0; i < count; i++) {
       const minute = randInt(minuteRange[0], minuteRange[1]);
-      // Use pool pick for scorer — this concentrates goals on top players
       const scorer = pickFromPool(scorerPool, minute, isOnPitch, matchGoalCounts);
       if (!scorer) continue;
-      // 65% chance of an assist; assister also comes from pool (excluding scorer)
       const assister =
         Math.random() < 0.65 ? pickFromPool(assistPool, minute, isOnPitch, matchGoalCounts, scorer?.id) : undefined;
       const descs = [
@@ -599,7 +720,7 @@ export function generateMinuteByMinuteEvents(
       ];
       events.push({
         id: genId(),
-        minute,
+        minute: minute + 0.8, // Gol no topo da ordenação do minuto
         type: "goal",
         teamId: team.id,
         playerId: scorer.id,
@@ -620,121 +741,7 @@ export function generateMinuteByMinuteEvents(
     generateGoals(awayTeam, awayScorerPool, awayAssistPool, awayGoals, [1, 90]);
   }
 
-  // ---------------------------------------------------------------
-  // 2. Fouls & Cards
-  // ---------------------------------------------------------------
-  const generateFoulsAndCards = (
-    team: Team,
-    opponent: Team,
-    players: Player[],
-    foulsCount: number,
-    yellows: number,
-    reds: number,
-  ) => {
-    const isHome = team.id === homeTeam.id;
-    const bucket = isHome ? produced.home : produced.away;
-    const cardedIds = new Set<string>();
-    const foulEvents: { minute: number; playerId: string }[] = [];
-
-    for (let i = 0; i < foulsCount; i++) {
-      const minute = randInt(2, 89);
-      const p = pickAtMinuteSkill(players, POSITION_FOUL_WEIGHT, minute);
-      if (!p) continue;
-      foulEvents.push({ minute, playerId: p.id });
-      const texts = [
-        `Falta de **${p.name}** no meio de campo`,
-        `**${p.name}** comete falta no campo de defesa`,
-        `Falta dura de **${p.name}** interrompendo jogada do **${opponent.shortName || opponent.name}**`,
-        `**${p.name}** faz falta tática para parar o contra-ataque`,
-      ];
-      events.push({
-        id: genId(),
-        minute,
-        type: "foul",
-        teamId: team.id,
-        playerId: p.id,
-        text: texts[randInt(0, texts.length - 1)],
-      });
-      bucket.fouls++;
-    }
-
-    const sortedFouls = [...foulEvents].sort((a, b) => a.minute - b.minute);
-    for (let i = 0; i < yellows; i++) {
-      const foulRef = sortedFouls[Math.min(i + Math.floor(sortedFouls.length * 0.3), sortedFouls.length - 1)];
-      const minute = foulRef ? foulRef.minute : randInt(15, 85);
-      const p = pickAtMinuteSkill(
-        players.filter((pl) => !cardedIds.has(pl.id)),
-        POSITION_FOUL_WEIGHT,
-        minute,
-      );
-      if (!p) continue;
-      cardedIds.add(p.id);
-      const texts = [
-        `Cartão amarelo para **${p.name}** por falta dura`,
-        `**${p.name}** recebe o amarelo após falta`,
-        `Cartão amarelo aplicado a **${p.name}**`,
-        `**${p.name}** é advertido com cartão amarelo`,
-      ];
-      events.push({
-        id: genId(),
-        minute: minute + 0.1,
-        type: "yellow_card",
-        teamId: team.id,
-        playerId: p.id,
-        text: texts[randInt(0, texts.length - 1)],
-      });
-      bucket.yellow++;
-    }
-
-    for (let i = 0; i < reds; i++) {
-      const candidateFouls = sortedFouls.filter((f) => f.minute >= 25).filter((f) => !cardedIds.has(f.playerId));
-      const foulRef = candidateFouls[candidateFouls.length - 1 - i] ?? sortedFouls[sortedFouls.length - 1] ?? null;
-      if (!foulRef) continue;
-      const minute = foulRef.minute;
-      const p = players.find((pl) => pl.id === foulRef.playerId);
-      if (!p || !isOnPitch(p.id, minute)) continue;
-      cardedIds.add(p.id);
-      const texts = [
-        `Cartão vermelho direto para **${p.name}** após entrada violenta`,
-        `**${p.name}** é expulso de campo! Cartão vermelho!`,
-        `Expulsão! **${p.name}** recebe o cartão vermelho`,
-      ];
-      events.push({
-        id: genId(),
-        minute: minute + 0.1,
-        type: "red_card",
-        teamId: team.id,
-        playerId: p.id,
-        text: texts[randInt(0, texts.length - 1)],
-      });
-      bucket.red++;
-      const existingOut = subOutAt.get(p.id);
-      if (existingOut === undefined || existingOut > minute) {
-        subOutAt.set(p.id, minute);
-      }
-    }
-  };
-
-  generateFoulsAndCards(
-    homeTeam,
-    awayTeam,
-    homePlayers,
-    matchStats.homeStats.fouls,
-    matchStats.homeStats.yellowCards,
-    matchStats.homeStats.redCards,
-  );
-  generateFoulsAndCards(
-    awayTeam,
-    homeTeam,
-    awayPlayers,
-    matchStats.awayStats.fouls,
-    matchStats.awayStats.yellowCards,
-    matchStats.awayStats.redCards,
-  );
-
-  // ---------------------------------------------------------------
-  // 3. Offsides
-  // ---------------------------------------------------------------
+  // 4. Offsides
   const generateOffsides = (team: Team, players: Player[], count: number) => {
     const isHome = team.id === homeTeam.id;
     const bucket = isHome ? produced.home : produced.away;
@@ -742,18 +749,13 @@ export function generateMinuteByMinuteEvents(
       const minute = randInt(5, 88);
       const p = pickAtMinuteSkill(players, POSITION_GOAL_WEIGHT, minute);
       if (!p) continue;
-      const texts = [
-        `Impedimento marcado no **${p.name}**`,
-        `O bandeirinha assinala impedimento de **${p.name}**`,
-        `**${p.name}** é flagrado em posição irregular`,
-      ];
       events.push({
         id: genId(),
-        minute,
+        minute: minute + 0.2,
         type: "offside",
         teamId: team.id,
         playerId: p.id,
-        text: texts[randInt(0, texts.length - 1)],
+        text: `O bandeirinha assinala impedimento de **${p.name}**`,
       });
       bucket.offsides++;
     }
@@ -761,12 +763,9 @@ export function generateMinuteByMinuteEvents(
   generateOffsides(homeTeam, homePlayers, matchStats.homeStats.offsides);
   generateOffsides(awayTeam, awayPlayers, matchStats.awayStats.offsides);
 
-  // ---------------------------------------------------------------
-  // 4. Shots (non-goal: missed + saved)
-  // ---------------------------------------------------------------
+  // 5. Shots
   const generateShots = (
     team: Team,
-    _opponent: Team,
     players: Player[],
     opponentPlayers: Player[],
     totalShots: number,
@@ -781,24 +780,23 @@ export function generateMinuteByMinuteEvents(
     const saves = Math.max(0, shotsOnTarget - goals);
     const gk = opponentPlayers.find((p) => p.position === "Goleiro") || opponentPlayers[0];
 
+    // CORREÇÃO: Relaciona a narrativa de chutes e defesas com a probabilidade (xG figurativo)
     for (let i = 0; i < missedShots; i++) {
       const minute = randInt(3, 89);
       const p = pickAtMinuteSkill(players, POSITION_GOAL_WEIGHT, minute);
       if (!p) continue;
-      const texts = [
-        `**${p.name}** bateu para fora`,
-        `Chute de longe do **${p.name}**, mas a bola subiu demais`,
-        `**${p.name}** arrisca de longe, mas a bola passa pela linha de fundo`,
-        `**${p.name}** cobra falta e a bola passa raspando a trave`,
+
+      const textHighXg = [
+        `**${p.name}** solta a bomba e a bola passa tirando tinta da trave!`,
+        `Quase o gol de **${p.name}**, a bola passou muito perto!`,
       ];
-      events.push({
-        id: genId(),
-        minute,
-        type: "shot",
-        teamId: team.id,
-        playerId: p.id,
-        text: texts[randInt(0, texts.length - 1)],
-      });
+      const textLowXg = [
+        `**${p.name}** arrisca de longe, mas a bola sobe demais.`,
+        `Chute de muito longe de **${p.name}** indo direto para a linha de fundo.`,
+      ];
+      const text = Math.random() > 0.8 ? textHighXg[randInt(0, 1)] : textLowXg[randInt(0, 1)];
+
+      events.push({ id: genId(), minute: minute + 0.6, type: "shot", teamId: team.id, playerId: p.id, text });
       bucket.shots++;
     }
 
@@ -806,26 +804,24 @@ export function generateMinuteByMinuteEvents(
       const minute = randInt(3, 89);
       const shooter = pickAtMinuteSkill(players, POSITION_GOAL_WEIGHT, minute);
       if (!shooter || !gk) continue;
-      const texts = [
-        `Grande defesa de **${gk.name}** após chute de **${shooter.name}**`,
-        `**${shooter.name}** bateu pro gol, **${gk.name}** cai pra fazer a defesa`,
-        `Defesaça de **${gk.name}**! **${shooter.name}** faz um bela finalização`,
+
+      const textHighXg = [
+        `Defesa espetacular de **${gk.name}** num chute à queima-roupa de **${shooter.name}**!`,
+        `Milagre de **${gk.name}**! **${shooter.name}** ia marcando um golaço!`,
       ];
-      events.push({
-        id: genId(),
-        minute,
-        type: "shot",
-        teamId: team.id,
-        playerId: shooter.id,
-        text: texts[randInt(0, texts.length - 1)],
-      });
+      const textLowXg = [
+        `**${shooter.name}** chuta mascado no meio do gol, defesa tranquila de **${gk.name}**.`,
+        `Chute rasteiro de **${shooter.name}**, **${gk.name}** cai e segura firme.`,
+      ];
+      const text = Math.random() > 0.7 ? textHighXg[randInt(0, 1)] : textLowXg[randInt(0, 1)];
+
+      events.push({ id: genId(), minute: minute + 0.6, type: "shot", teamId: team.id, playerId: shooter.id, text });
       bucket.shots++;
       bucket.shotsOnTarget++;
     }
   };
   generateShots(
     homeTeam,
-    awayTeam,
     homePlayers,
     awayPlayers,
     matchStats.homeStats.shots,
@@ -834,7 +830,6 @@ export function generateMinuteByMinuteEvents(
   );
   generateShots(
     awayTeam,
-    homeTeam,
     awayPlayers,
     homePlayers,
     matchStats.awayStats.shots,
@@ -842,9 +837,7 @@ export function generateMinuteByMinuteEvents(
     awayGoals,
   );
 
-  // ---------------------------------------------------------------
-  // 5. General highlights
-  // ---------------------------------------------------------------
+  // 6. General highlights
   const highlightCount = randInt(3, 6);
   for (let i = 0; i < highlightCount; i++) {
     const isHome = Math.random() < 0.5;
@@ -856,14 +849,13 @@ export function generateMinuteByMinuteEvents(
     const p = eligible[randInt(0, eligible.length - 1)];
     const highlights = [
       `Pressão do **${team.shortName || team.name}** no campo de ataque`,
-      `**${p.name}** faz uma bela jogada individual, driblando dois marcadores`,
+      `**${p.name}** faz uma bela jogada individual`,
       `Contra-ataque rápido puxado por **${p.name}**`,
-      `Desarme providencial de **${p.name}** impedindo o avanço do adversário`,
-      `Jogo fica truncado no meio de campo com muitas disputas de bola`,
+      `Desarme providencial de **${p.name}**`,
     ];
     events.push({
       id: genId(),
-      minute,
+      minute: minute + 0.5,
       type: "highlight",
       teamId: team.id,
       playerId: p.id,
@@ -871,7 +863,7 @@ export function generateMinuteByMinuteEvents(
     });
   }
 
-  // Sort & round minutes
+  // Ordena levando em conta as decimais e depois as limpa
   events.sort((a, b) => a.minute - b.minute);
   events.forEach((e) => {
     e.minute = Math.floor(e.minute);
@@ -892,9 +884,7 @@ export function generateMinuteByMinuteEvents(
     text: "Fim de jogo! O árbitro apita o encerramento da partida",
   });
 
-  // ---------------------------------------------------------------
-  // Reconcile stats with actually produced events
-  // ---------------------------------------------------------------
+  // Reconcile stats
   matchStats.homeStats.fouls = produced.home.fouls;
   matchStats.homeStats.yellowCards = produced.home.yellow;
   matchStats.homeStats.redCards = produced.home.red;
