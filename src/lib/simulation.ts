@@ -492,7 +492,6 @@ export function generateMinuteByMinuteEvents(
   halfGoals?: { h1: [number, number]; h2: [number, number] },
 ): MatchEvent[] {
   const events: MatchEvent[] = [];
-  matchGoalCounts.clear();
   let eventId = 0;
   const genId = () => `evt-${++eventId}`;
 
@@ -551,8 +550,6 @@ export function generateMinuteByMinuteEvents(
   // Picking repeatedly from these pools naturally concentrates goals
   // on the same top attackers throughout the match.
   // ---------------------------------------------------------------
-
-  const matchGoalCounts = new Map<string, number>();
 
   const homeScorerPool = buildScorerPool(homePlayers, POSITION_GOAL_WEIGHT);
   const awayScorerPool = buildScorerPool(awayPlayers, POSITION_GOAL_WEIGHT);
