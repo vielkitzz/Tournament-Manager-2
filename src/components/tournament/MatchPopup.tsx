@@ -777,8 +777,10 @@ export default function MatchPopup({
           </div>
         </div>
 
-        {/* Half Tabs */}
-        <div className="flex items-center justify-center gap-2 py-3 border-b border-border flex-wrap">
+        {/* Half Tabs — oculto durante simulação minuto a minuto */}
+        <div
+          className={`flex items-center justify-center gap-2 py-3 border-b border-border flex-wrap ${isLiveSimulating ? "hidden" : ""}`}
+        >
           {halfTabs.map((tab) => (
             <button
               key={tab.key}
@@ -1095,7 +1097,7 @@ export default function MatchPopup({
           </div>
         )}
 
-        {/* Standings */}
+        {/* Standings — oculto durante simulação minuto a minuto */}
         {bottomStandings.length > 0 && !isLiveSimulating && (
           <div className="px-6 pb-4">
             <p className="text-xs font-display font-bold text-muted-foreground mb-2">{standingsTitle}</p>
