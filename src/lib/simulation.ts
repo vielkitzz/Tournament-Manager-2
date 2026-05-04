@@ -492,6 +492,10 @@ export function generateMinuteByMinuteEvents(
   halfGoals?: { h1: [number, number]; h2: [number, number] },
 ): MatchEvent[] {
   const events: MatchEvent[] = [];
+
+  // DECLARE IT RIGHT HERE:
+  const matchGoalCounts = new Map<string, number>();
+
   let eventId = 0;
   const genId = () => `evt-${++eventId}`;
 
