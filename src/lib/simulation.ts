@@ -551,12 +551,13 @@ export function generateMinuteByMinuteEvents(
   // Picking repeatedly from these pools naturally concentrates goals
   // on the same top attackers throughout the match.
   // ---------------------------------------------------------------
+
+  const matchGoalCounts = new Map<string, number>();
+
   const homeScorerPool = buildScorerPool(homePlayers, POSITION_GOAL_WEIGHT);
   const awayScorerPool = buildScorerPool(awayPlayers, POSITION_GOAL_WEIGHT);
   const homeAssistPool = buildScorerPool(homePlayers, POSITION_ASSIST_WEIGHT);
   const awayAssistPool = buildScorerPool(awayPlayers, POSITION_ASSIST_WEIGHT);
-
-  const matchGoalCounts = new Map<string, number>();
 
   /** Skill-weighted pick respecting on-pitch status at given minute (cold pick, no pool). */
   function pickAtMinuteSkill(
