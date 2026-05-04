@@ -152,19 +152,23 @@ function EventRow({
         {event.minute}'
       </span>
       <span className="shrink-0 flex items-center justify-center w-4 h-4 pt-0.5">
-        {IconComponent ? (
-          <IconComponent
-            size={14}
-            // Se o tipo for gol, aplica o azul; caso contrário, mantém a cor padrão
-            className={event.type === "goal" ? "text-primary" : ""}
-          />
-        ) : (
-          "•"
-        )}
+        {IconComponent ? <IconComponent size={14} className={event.type === "goal" ? "text-primary" : ""} /> : "•"}
       </span>
       <span className="text-xs text-foreground leading-tight">{formatEventText(event.text)}</span>
     </div>
   );
+}
+
+// ---------------------------------------------------------------------------
+// Helper: resolve o rate efetivo de um time.
+// Quando rateInfluence=true E há jogadores suficientes, aplica a fórmula
+// de habilidade do elenco. Caso contrário usa o rate base (ou 3 se ausente).
+// ---------------------------------------------------------------------------
+function resolveRate(rateInfluence: boolean, team: Team | undefined, players: Player[]): number {
+  const base = team?.rate ?? 3;
+  if (!rateInfluence) return 3; // modo sem influência: ambos ficam em 3
+  if (players.length >= 11) return effectiveMatchRate(base, players);
+  return base; // menos de 11 jogadores: usa rate bruto sem modificador
 }
 
 export default function MatchPopup({
@@ -215,7 +219,7 @@ export default function MatchPopup({
   const [liveEvents, setLiveEvents] = useState<MatchEvent[]>([]);
   const [liveFinished, setLiveFinished] = useState(false);
   const [isPaused, setIsPaused] = useState(false);
-  const [simSpeed, setSimSpeed] = useState(1); // 1x, 2x, 4x
+  const [simSpeed, setSimSpeed] = useState(1);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const eventsRef = useRef<HTMLDivElement>(null);
 
@@ -223,6 +227,12 @@ export default function MatchPopup({
   const homePlayers = (allPlayers || []).filter((p) => p.teamId === match.homeTeamId);
   const awayPlayers = (allPlayers || []).filter((p) => p.teamId === match.awayTeamId);
   const canLiveSimulate = homePlayers.length >= 11 && awayPlayers.length >= 11;
+
+  // ---------------------------------------------------------------------------
+  // Rates efetivos — calculados uma única vez por render, usados em todo popup
+  // ---------------------------------------------------------------------------
+  const homeEffectiveRate = resolveRate(rateInfluence, homeTeam, homePlayers);
+  const awayEffectiveRate = resolveRate(rateInfluence, awayTeam, awayPlayers);
 
   const setHalfScore = (half: HalfKey, side: 0 | 1, value: number) => {
     setScores((prev) => ({ ...prev, [half]: side === 0 ? [value, prev[half][1]] : [prev[half][0], value] }));
@@ -266,7 +276,6 @@ export default function MatchPopup({
 
   const [simulatedHalves, setSimulatedHalves] = useState<Set<HalfKey>>(new Set());
 
-  // Compute progressive live score from visible events
   const liveGoalsHome = isLiveSimulating
     ? liveEvents.filter((e) => e.type === "goal" && e.teamId === match.homeTeamId && e.minute <= liveMinute).length
     : 0;
@@ -274,7 +283,6 @@ export default function MatchPopup({
     ? liveEvents.filter((e) => e.type === "goal" && e.teamId === match.awayTeamId && e.minute <= liveMinute).length
     : 0;
 
-  // Progressive card counts during live sim
   const liveYellowHome = isLiveSimulating
     ? liveEvents.filter((e) => e.type === "yellow_card" && e.teamId === match.homeTeamId && e.minute <= liveMinute)
         .length
@@ -290,7 +298,6 @@ export default function MatchPopup({
     ? liveEvents.filter((e) => e.type === "red_card" && e.teamId === match.awayTeamId && e.minute <= liveMinute).length
     : 0;
 
-  // Current half label during live sim
   const [addedTime1, setAddedTime1] = useState(0);
   const [addedTime2, setAddedTime2] = useState(0);
 
@@ -329,11 +336,10 @@ export default function MatchPopup({
       if (match.homeStats && match.awayStats) {
         setMatchStats({ homeStats: match.homeStats, awayStats: match.awayStats });
       } else {
-        const homeRate = rateInfluence && homeTeam ? homeTeam.rate : 3;
-        const awayRate = rateInfluence && awayTeam ? awayTeam.rate : 3;
+        // ← CORRIGIDO: usa homeEffectiveRate / awayEffectiveRate (inclui elenco)
         const totalGoalsHome = match.homeScore + (match.homeExtraTime || 0);
         const totalGoalsAway = match.awayScore + (match.awayExtraTime || 0);
-        const stats = generateMatchStats(homeRate, awayRate, totalGoalsHome, totalGoalsAway);
+        const stats = generateMatchStats(homeEffectiveRate, awayEffectiveRate, totalGoalsHome, totalGoalsAway);
         setMatchStats(stats);
         onPersist?.({ ...match, homeStats: stats.homeStats, awayStats: stats.awayStats });
       }
@@ -351,7 +357,6 @@ export default function MatchPopup({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [match.id]);
 
-  // Live simulation clock with speed support
   useEffect(() => {
     if (!isLiveSimulating || isPaused) {
       if (intervalRef.current) {
@@ -361,7 +366,7 @@ export default function MatchPopup({
       return;
     }
     if (intervalRef.current) clearInterval(intervalRef.current);
-    const baseInterval = 600; // ~18 seconds at 1x (reduced by 50%)
+    const baseInterval = 600;
     const interval = baseInterval / simSpeed;
     intervalRef.current = setInterval(() => {
       setLiveMinute((prev) => {
@@ -380,14 +385,12 @@ export default function MatchPopup({
     };
   }, [isLiveSimulating, isPaused, simSpeed]);
 
-  // Auto-scroll events
   useEffect(() => {
     if (eventsRef.current) {
       eventsRef.current.scrollTop = eventsRef.current.scrollHeight;
     }
   }, [liveMinute]);
 
-  // Cleanup interval on unmount
   useEffect(() => {
     return () => {
       if (intervalRef.current) clearInterval(intervalRef.current);
@@ -443,10 +446,9 @@ export default function MatchPopup({
   const decrement = (side: 0 | 1) => setHalfScore(activeHalf, side, Math.max(0, scores[activeHalf][side] - 1));
 
   const handleSimulate = () => {
-    const homeRate = rateInfluence && homeTeam ? homeTeam.rate : 3;
-    const awayRate = rateInfluence && awayTeam ? awayTeam.rate : 3;
+    // ← CORRIGIDO: usa os rates efetivos (com elenco) em vez do rate bruto
     const isET = activeHalf === "et1" || activeHalf === "et2";
-    const [h, a] = simulateHalf(homeRate, awayRate, isET);
+    const [h, a] = simulateHalf(homeEffectiveRate, awayEffectiveRate, isET);
     setHalfScore(activeHalf, 0, h);
     setHalfScore(activeHalf, 1, a);
     setSimulatedHalves((prev) => new Set(prev).add(activeHalf));
@@ -506,21 +508,21 @@ export default function MatchPopup({
 
   const ensureStats = (): { homeStats: TeamMatchStats; awayStats: TeamMatchStats } => {
     if (matchStats && !hasScoreChanges) return matchStats;
-    const homeBase = rateInfluence && homeTeam ? homeTeam.rate : 3;
-    const awayBase = rateInfluence && awayTeam ? awayTeam.rate : 3;
-    const homeRate = rateInfluence ? effectiveMatchRate(homeBase, homePlayers) : homeBase;
-    const awayRate = rateInfluence ? effectiveMatchRate(awayBase, awayPlayers) : awayBase;
-    const stats = generateMatchStats(homeRate, awayRate, totalHome, totalAway, {
-      home: getExpectedGoals(homeRate, awayRate, false, 0.5, true) +
-        getExpectedGoals(homeRate, awayRate, false, 0.5, true),
-      away: getExpectedGoals(awayRate, homeRate, false, 0.5, false) +
-        getExpectedGoals(awayRate, homeRate, false, 0.5, false),
+    // ← CORRIGIDO: usa os rates efetivos (com elenco) em todos os cálculos de stats
+    const homeXg =
+      getExpectedGoals(homeEffectiveRate, awayEffectiveRate, false, 0.5, true) +
+      getExpectedGoals(homeEffectiveRate, awayEffectiveRate, false, 0.5, true);
+    const awayXg =
+      getExpectedGoals(awayEffectiveRate, homeEffectiveRate, false, 0.5, false) +
+      getExpectedGoals(awayEffectiveRate, homeEffectiveRate, false, 0.5, false);
+    const stats = generateMatchStats(homeEffectiveRate, awayEffectiveRate, totalHome, totalAway, {
+      home: homeXg,
+      away: awayXg,
     });
     setMatchStats(stats);
     return stats;
   };
 
-  // Generate available players (filtering suspended)
   const getAvailablePlayers = () => {
     let availableHome = homePlayers;
     let availableAway = awayPlayers;
@@ -535,22 +537,18 @@ export default function MatchPopup({
     return { availableHome, availableAway };
   };
 
-  // Handle minute-by-minute live simulation
   const handleLiveSimulate = () => {
     if (!homeTeam || !awayTeam || !canLiveSimulate) return;
 
-    const homeBase = rateInfluence ? homeTeam.rate : 3;
-    const awayBase = rateInfluence ? awayTeam.rate : 3;
-    const homeRate = rateInfluence ? effectiveMatchRate(homeBase, homePlayers) : homeBase;
-    const awayRate = rateInfluence ? effectiveMatchRate(awayBase, awayPlayers) : awayBase;
-    const [h1h, h1a] = simulateHalf(homeRate, awayRate, false, 0.5);
+    // ← CORRIGIDO: usa os rates efetivos (com elenco) — mesma fonte que handleSimulate
+    const [h1h, h1a] = simulateHalf(homeEffectiveRate, awayEffectiveRate, false, 0.5);
     const goalDiff = h1h - h1a;
     let momentum = 0.5;
     if (goalDiff > 1) momentum = 0.7;
     else if (goalDiff < -1) momentum = 0.3;
     else if (goalDiff > 0) momentum = 0.6;
     else if (goalDiff < 0) momentum = 0.4;
-    const [h2h, h2a] = simulateHalf(homeRate, awayRate, false, momentum);
+    const [h2h, h2a] = simulateHalf(homeEffectiveRate, awayEffectiveRate, false, momentum);
     setScores({ h1: [h1h, h1a], h2: [h2h, h2a], et1: [0, 0], et2: [0, 0] });
     setSimulatedHalves(new Set(["h1", "h2"]));
     setActiveHalf("h2");
@@ -558,11 +556,16 @@ export default function MatchPopup({
     const totalH = h1h + h2h;
     const totalA = h1a + h2a;
 
-    const homeXg = getExpectedGoals(homeRate, awayRate, false, 0.5, true) +
-      getExpectedGoals(homeRate, awayRate, false, momentum, true);
-    const awayXg = getExpectedGoals(awayRate, homeRate, false, 0.5, false) +
-      getExpectedGoals(awayRate, homeRate, false, momentum, false);
-    const stats = generateMatchStats(homeRate, awayRate, totalH, totalA, { home: homeXg, away: awayXg });
+    const homeXg =
+      getExpectedGoals(homeEffectiveRate, awayEffectiveRate, false, 0.5, true) +
+      getExpectedGoals(homeEffectiveRate, awayEffectiveRate, false, momentum, true);
+    const awayXg =
+      getExpectedGoals(awayEffectiveRate, homeEffectiveRate, false, 0.5, false) +
+      getExpectedGoals(awayEffectiveRate, homeEffectiveRate, false, momentum, false);
+    const stats = generateMatchStats(homeEffectiveRate, awayEffectiveRate, totalH, totalA, {
+      home: homeXg,
+      away: awayXg,
+    });
     setMatchStats(stats);
 
     const { availableHome, availableAway } = getAvailablePlayers();
@@ -577,29 +580,25 @@ export default function MatchPopup({
       totalA,
       { h1: [h1h, h1a], h2: [h2h, h2a] },
     );
-    // Generate added time for each half
-    const at1 = Math.floor(Math.random() * 4) + 1; // 1-4 mins
-    const at2 = Math.floor(Math.random() * 6) + 2; // 2-7 mins
+
+    const at1 = Math.floor(Math.random() * 4) + 1;
+    const at2 = Math.floor(Math.random() * 6) + 2;
     setAddedTime1(at1);
     setAddedTime2(at2);
 
-    // Adjust event minutes for added time
     const adjustedEvents = events.map((evt) => {
       if (evt.minute > 45 && evt.minute <= 90) {
-        // Events in 2nd half shift by addedTime1
         return { ...evt, minute: evt.minute + at1 };
       }
       return evt;
     });
 
-    // Add period end/start events
     const periodEvents: MatchEvent[] = [
       { id: "p1-end", minute: 45 + at1, type: "highlight", teamId: "", text: "Fim do primeiro tempo!" },
       { id: "p2-start", minute: 45 + at1 + 1, type: "highlight", teamId: "", text: "Início do segundo tempo!" },
     ];
 
     const finalEvents = [...adjustedEvents, ...periodEvents].sort((a, b) => a.minute - b.minute);
-    // Update the final whistle minute
     const finalWhistle = finalEvents.find((e) => e.text.includes("Fim de jogo"));
     if (finalWhistle) finalWhistle.minute = 90 + at1 + at2;
 
@@ -630,7 +629,6 @@ export default function MatchPopup({
 
     const stats = ensureStats();
 
-    // Generate events if none exist and teams have enough players
     let finalEvents = liveEvents.length > 0 ? liveEvents : undefined;
     if (!finalEvents && canLiveSimulate && homeTeam && awayTeam) {
       const { availableHome, availableAway } = getAvailablePlayers();
@@ -712,14 +710,11 @@ export default function MatchPopup({
 
   const displayStats = matchStats;
   const visibleEvents = isLiveSimulating ? liveEvents.filter((e) => e.minute <= liveMinute) : liveEvents;
-
   const hasEvents = liveEvents.length > 0 || (match.events && match.events.length > 0);
 
-  // Display scores: during live sim show progressive, otherwise accumulated
   const displayHome = isLiveSimulating ? liveGoalsHome : accumulatedHome;
   const displayAway = isLiveSimulating ? liveGoalsAway : accumulatedAway;
 
-  // Display cards: during live sim show progressive
   const displayYellowHome = isLiveSimulating ? liveYellowHome : (displayStats?.homeStats.yellowCards ?? 0);
   const displayYellowAway = isLiveSimulating ? liveYellowAway : (displayStats?.awayStats.yellowCards ?? 0);
   const displayRedHome = isLiveSimulating ? liveRedHome : (displayStats?.homeStats.redCards ?? 0);
@@ -749,7 +744,6 @@ export default function MatchPopup({
               </div>
             </div>
 
-            {/* Live clock */}
             {isLiveSimulating && (
               <div className="flex flex-col items-center px-4">
                 <div className="flex items-center gap-1.5 text-primary">
@@ -845,7 +839,6 @@ export default function MatchPopup({
               </div>
             </div>
 
-            {/* Simulation buttons */}
             <div className="px-6 pb-4 flex flex-col gap-2 items-center">
               {canSimulate && (
                 <button
@@ -855,8 +848,6 @@ export default function MatchPopup({
                   Simular {halfTabs.find((t) => t.key === activeHalf)?.label}
                 </button>
               )}
-
-              {/* Minute-by-minute button - only show when both teams have enough players */}
               {!match.played && !liveFinished && !simulatedHalves.has("h1") && canLiveSimulate && (
                 <button
                   onClick={handleLiveSimulate}
@@ -881,7 +872,6 @@ export default function MatchPopup({
                 <span className="text-6xl font-bold text-foreground font-display">{displayAway}</span>
               </div>
             </div>
-            {/* Speed & Pause controls */}
             <div className="flex items-center justify-center gap-2">
               <button
                 onClick={() => setIsPaused(!isPaused)}
@@ -980,7 +970,7 @@ export default function MatchPopup({
           </div>
         )}
 
-        {/* Bottom Tabs: Estatísticas + Eventos */}
+        {/* Bottom Tabs */}
         {showBottomPanel && (displayStats || hasEvents) && (
           <div className="border-t border-border">
             <Tabs value={bottomTab} onValueChange={(v) => setBottomTab(v as "stats" | "events")}>
@@ -1057,7 +1047,6 @@ export default function MatchPopup({
                 <div ref={eventsRef} className="px-6 py-4 max-h-64 overflow-y-auto">
                   {visibleEvents.length > 0 ? (
                     <div className="space-y-4">
-                      {/* Period: 1st Half */}
                       <div className="space-y-1">
                         <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider border-b border-border/50 pb-1 mb-2 text-center">
                           1º Tempo
@@ -1075,8 +1064,6 @@ export default function MatchPopup({
                             ))}
                         </div>
                       </div>
-
-                      {/* Period: 2nd Half */}
                       {visibleEvents.some((e) => e.minute > 45 + addedTime1) && (
                         <div className="space-y-1">
                           <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider border-b border-border/50 pb-1 mb-2 text-center">
