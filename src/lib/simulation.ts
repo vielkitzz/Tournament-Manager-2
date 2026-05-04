@@ -440,6 +440,8 @@ function buildScorerPool(players: Player[], posWeights: Record<string, number>):
  * Pick from a pre-built pool respecting on-pitch status.
  * Excludes a specific player id (e.g. the scorer when picking assister).
  */
+const matchGoalCounts: Map<string, number> = new Map();
+
 function pickFromPool(
   pool: Player[],
   minute: number,
@@ -448,7 +450,29 @@ function pickFromPool(
 ): Player | undefined {
   const eligible = pool.filter((p) => p.id !== exclude && isOnPitch(p.id, minute));
   if (eligible.length === 0) return undefined;
-  return eligible[Math.floor(Math.random() * eligible.length)];
+
+  // "Hot hand": peso extra para quem já marcou nesta partida
+  const seen = new Map<string, number>();
+  for (const p of eligible) seen.set(p.id, (seen.get(p.id) ?? 0) + 1);
+
+  const weights = eligible.map((p) => {
+    const poolSlots = seen.get(p.id) ?? 1;
+    const goalsThisMatch = matchGoalCounts.get(p.id) ?? 0;
+    return poolSlots * Math.pow(1.6, goalsThisMatch); // cada gol já marcado aumenta 60% a chance
+  });
+
+  const total = weights.reduce((s, v) => s + v, 0);
+  let r = Math.random() * total;
+  for (let i = 0; i < eligible.length; i++) {
+    r -= weights[i];
+    if (r <= 0) {
+      matchGoalCounts.set(eligible[i].id, (matchGoalCounts.get(eligible[i].id) ?? 0) + 1);
+      return eligible[i];
+    }
+  }
+  const last = eligible[eligible.length - 1];
+  matchGoalCounts.set(last.id, (matchGoalCounts.get(last.id) ?? 0) + 1);
+  return last;
 }
 
 /**
@@ -467,6 +491,7 @@ export function generateMinuteByMinuteEvents(
   halfGoals?: { h1: [number, number]; h2: [number, number] },
 ): MatchEvent[] {
   const events: MatchEvent[] = [];
+  matchGoalCounts.clear();
   let eventId = 0;
   const genId = () => `evt-${++eventId}`;
 
