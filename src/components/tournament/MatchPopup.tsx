@@ -1096,7 +1096,7 @@ export default function MatchPopup({
         )}
 
         {/* Standings */}
-        {bottomStandings.length > 0 && (
+        {bottomStandings.length > 0 && !isLiveSimulating && (
           <div className="px-6 pb-4">
             <p className="text-xs font-display font-bold text-muted-foreground mb-2">{standingsTitle}</p>
             <div className="rounded-lg border border-border overflow-hidden max-h-48 overflow-y-auto">
