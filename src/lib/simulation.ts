@@ -552,6 +552,7 @@ export function generateMinuteByMinuteEvents(
   const awayScorerPool = buildScorerPool(awayPlayers, POSITION_GOAL_WEIGHT);
   const homeAssistPool = buildScorerPool(homePlayers, POSITION_ASSIST_WEIGHT);
   const awayAssistPool = buildScorerPool(awayPlayers, POSITION_ASSIST_WEIGHT);
+  const matchGoalCounts = new Map<string, number>(); // ← Adicione esta linha
 
   /** Skill-weighted pick respecting on-pitch status at given minute (cold pick, no pool). */
   function pickAtMinuteSkill(
@@ -579,10 +580,11 @@ export function generateMinuteByMinuteEvents(
     for (let i = 0; i < count; i++) {
       const minute = randInt(minuteRange[0], minuteRange[1]);
       // Use pool pick for scorer — this concentrates goals on top players
-      const scorer = pickFromPool(scorerPool, minute, isOnPitch);
+      const scorer = pickFromPool(scorerPool, minute, isOnPitch, undefined, matchGoalCounts);
       if (!scorer) continue;
       // 65% chance of an assist; assister also comes from pool (excluding scorer)
-      const assister = Math.random() < 0.65 ? pickFromPool(assistPool, minute, isOnPitch, scorer.id) : undefined;
+      const assister =
+        Math.random() < 0.65 ? pickFromPool(assistPool, minute, isOnPitch, scorer.id, matchGoalCounts) : undefined;
       const descs = [
         `Gol de **${scorer.name}**${assister ? ` com assistência de **${assister.name}**` : ""}`,
         `Finalização certeira de **${scorer.name}**${assister ? ` após passe de **${assister.name}**` : ""}`,
