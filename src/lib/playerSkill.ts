@@ -62,3 +62,35 @@ export function effectiveMatchRateDetailed(baseRate: number, players: Player[]):
     effectiveRate: Math.round(effectiveRate * 1000) / 1000,
   };
 }
+
+// ---------------------------------------------------------------------------
+// Exports que existiam no playerSkill.ts original
+// ---------------------------------------------------------------------------
+
+export const SKILL_MIN = 45;
+export const SKILL_MAX = 99;
+export const SKILL_DEFAULT = 70;
+
+/** Garante que o skill fica dentro do intervalo válido. */
+export function clampSkill(skill: number): number {
+  return Math.max(SKILL_MIN, Math.min(SKILL_MAX, Math.round(skill)));
+}
+
+/** Gera um skill aleatório dentro do intervalo válido. */
+export function randomSkill(min = SKILL_MIN, max = SKILL_MAX): number {
+  return clampSkill(Math.floor(Math.random() * (max - min + 1)) + min);
+}
+
+/**
+ * Converte skill numérico (45–99) em estrelas (1–5).
+ * Usado pelo componente PlayerStars.
+ */
+export function playerStars(skill: number): number {
+  const clamped = clampSkill(skill);
+  // 45–53 → 1★  54–62 → 2★  63–71 → 3★  72–85 → 4★  86–99 → 5★
+  if (clamped <= 53) return 1;
+  if (clamped <= 62) return 2;
+  if (clamped <= 71) return 3;
+  if (clamped <= 85) return 4;
+  return 5;
+}
