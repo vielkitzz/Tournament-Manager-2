@@ -863,6 +863,26 @@ export function generateMinuteByMinuteEvents(
     });
   }
 
+  // 7. Acréscimos (Tempo de compensação)
+  const acrescimosT1 = randInt(1, 5); // Entre 1 e 5 minutos no 1º tempo
+  const acrescimosT2 = randInt(3, 8); // Entre 3 e 8 minutos no 2º tempo
+
+  events.push({
+    id: genId(),
+    minute: 45.0,
+    type: "highlight",
+    teamId: "",
+    text: `O quarto árbitro levanta a placa: +${acrescimosT1} minutos de compensação no primeiro tempo.`,
+  });
+
+  events.push({
+    id: genId(),
+    minute: 90.0,
+    type: "highlight",
+    teamId: "",
+    text: `O quarto árbitro indica +${acrescimosT2} minutos de compensação no segundo tempo.`,
+  });
+
   // Ordena levando em conta as decimais e depois as limpa
   events.sort((a, b) => a.minute - b.minute);
   events.forEach((e) => {
