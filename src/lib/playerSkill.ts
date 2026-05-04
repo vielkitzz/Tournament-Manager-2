@@ -82,15 +82,31 @@ export function randomSkill(min = SKILL_MIN, max = SKILL_MAX): number {
 }
 
 /**
- * Converte skill numérico (45–99) em estrelas (1–5).
- * Usado pelo componente PlayerStars.
+ * Converte skill numérico (45–99) em estrelas (1.0–5.0, com meias estrelas)
+ * relativo à exigência do clube.
+ *
+ * A exigência do clube é (rate × 7) + 42 — o mesmo valor de `clubRequirement`
+ * usado em `effectiveMatchRateDetailed`. Um jogador com skill exatamente igual
+ * à exigência recebe 3.0★. Acima ganha estrelas proporcionalmente, abaixo perde.
+ *
+ * @param skill     Habilidade bruta do jogador (45–99).
+ * @param teamRate  Rate oficial do clube. Se ausente, usa referência neutra (rate 5).
  */
-export function playerStars(skill: number): number {
+export function playerStars(skill: number, teamRate: number | undefined | null): number {
   const clamped = clampSkill(skill);
-  // 45–53 → 1★  54–62 → 2★  63–71 → 3★  72–85 → 4★  86–99 → 5★
-  if (clamped <= 53) return 1;
-  if (clamped <= 62) return 2;
-  if (clamped <= 71) return 3;
-  if (clamped <= 85) return 4;
-  return 5;
+  const rate = teamRate ?? 5;
+  const requirement = rate * 7 + 42; // exigência do clube
+
+  // Saldo normalizado: 0 quando skill == exigência
+  // Range esperado: ±27 (skill 45 a 99 vs exigência típica ~77)
+  const balance = clamped - requirement;
+
+  // Mapeia o saldo para 1.0–5.0 estrelas com 3.0 como ponto neutro
+  // Cada 13.5 pontos de saldo equivalem a 1 estrela
+  const stars = 3.0 + balance / 13.5;
+
+  // Arredonda para múltiplos de 0.5 (meias estrelas)
+  const rounded = Math.round(stars * 2) / 2;
+
+  return Math.max(1.0, Math.min(5.0, rounded));
 }
