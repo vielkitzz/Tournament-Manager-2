@@ -1,11 +1,28 @@
 /**
  * Realistic match simulation engine based on team rates.
  *
- * Uses a modified Poisson model with home advantage, form persistence,
- * and more realistic goal expectations.
+ * Changelog vs versão anterior:
+ * - Expoente de força proporcional ajustado de 0.7 → 1.0 (zebras menos frequentes)
+ * - Cap de gols esperados por tempo aumentado de 2.0 → 3.0
+ * - Suporte a moral (parâmetro externo opcional) como modificador do rate
+ * - Modificador de urgência no mata-mata proporcional ao deficit agregado
+ * - Faltas removidas do feed narrativo exceto as que geram cartão
+ * - Distribuição de faltas concentrada em fases do jogo (não mais flat)
+ * - skillAmplifier com curva menos agressiva (potência 2 em vez de 4)
+ * - Pênaltis: confronto overall batedor vs goleiro quando elencos disponíveis
+ *
+ * NOTA — Moral: para funcionar plenamente, o histórico de partidas deve ser
+ * calculado FORA deste arquivo (no MatchPopup ou num hook dedicado) e passado
+ * como parâmetro `homeMoral` / `awayMoral` (valor entre -0.15 e +0.15).
+ * Enquanto esse cálculo externo não existir, passe 0 para os dois e o
+ * comportamento será idêntico ao anterior.
  */
 
 import { TeamMatchStats, MatchEvent, Match, Player, Team, TournamentSettings } from "@/types/tournament";
+
+// ---------------------------------------------------------------------------
+// Utilitários
+// ---------------------------------------------------------------------------
 
 function poissonRandom(lambda: number): number {
   const L = Math.exp(-lambda);
@@ -18,11 +35,76 @@ function poissonRandom(lambda: number): number {
   return k - 1;
 }
 
-// Home advantage factor (teams perform slightly better at home)
+function randInt(min: number, max: number): number {
+  return Math.floor(Math.random() * (max - min + 1)) + min;
+}
+
+function roundTo2(n: number): number {
+  return Math.round(n * 100) / 100;
+}
+
+// ---------------------------------------------------------------------------
+// Constantes
+// ---------------------------------------------------------------------------
+
 const HOME_ADVANTAGE = 1.12;
 
-// Variance reduction: teams don't randomly fluctuate every half
-function getTeamFormFactor(teamRate: number, opponentRate: number, matchMomentum: number): number {
+// Expoente de força proporcional — era 0.7, agora 1.0 para reduzir zebras
+const STRENGTH_EXPONENT = 1.0;
+
+// Cap de gols esperados por tempo — era 2.0, aumentado para refletir jogos
+// onde o favoritismo é muito grande
+const MAX_EXPECTED_GOALS = 3.0;
+
+// ---------------------------------------------------------------------------
+// Moral
+// ---------------------------------------------------------------------------
+
+/**
+ * Aplica o modificador de moral ao rate efetivo.
+ * `moral` deve ser um valor entre -0.15 (má fase) e +0.15 (boa fase).
+ * Quando 0, não altera nada — compatível com o comportamento anterior.
+ *
+ * NOTA: Este valor deve ser calculado externamente com base no histórico
+ * de resultados do clube (últimas 5 partidas, por exemplo) e passado como
+ * parâmetro. Enquanto não implementado, passe 0.
+ */
+function applyMoral(rate: number, moral: number): number {
+  const clamped = Math.max(-0.15, Math.min(0.15, moral));
+  return rate * (1 + clamped);
+}
+
+// ---------------------------------------------------------------------------
+// Urgência no mata-mata
+// ---------------------------------------------------------------------------
+
+/**
+ * Calcula o modificador de urgência para o time que precisa buscar o resultado.
+ * Proporcional ao deficit no agregado — quanto maior o deficit, maior o ímpeto
+ * ofensivo, mas também maior a exposição defensiva.
+ *
+ * Retorna { attackMod, defenseMod } para o time que está atrás no agregado.
+ * O time que está na frente recebe o inverso (mais defensivo).
+ */
+export function getSecondLegModifiers(
+  aggregateDeficit: number, // positivo = este time está perdendo no agregado
+): { attackMod: number; defenseMod: number } {
+  if (aggregateDeficit <= 0) return { attackMod: 1.0, defenseMod: 1.0 };
+
+  // Cada gol de deficit adiciona ~8% de ímpeto ofensivo, com teto em 30%
+  const urgency = Math.min(aggregateDeficit * 0.08, 0.3);
+
+  return {
+    attackMod: 1 + urgency,
+    defenseMod: 1 - urgency * 0.6, // Defesa sofre menos que o ataque ganha
+  };
+}
+
+// ---------------------------------------------------------------------------
+// Núcleo de gols esperados
+// ---------------------------------------------------------------------------
+
+function getTeamFormFactor(teamRate: number, matchMomentum: number): number {
   const consistency = Math.min(0.95, Math.max(0.85, teamRate / 10));
   const randomVariance = (1 - consistency) * 0.25;
   const randomFactor = 0.95 + Math.random() * randomVariance * 2;
@@ -36,41 +118,62 @@ export function getExpectedGoals(
   isExtraTime = false,
   matchMomentum = 0.5,
   isHome = false,
+  // Modificadores externos (mata-mata, moral já aplicada no rate)
+  attackMod = 1.0,
 ): number {
   const BASE_GOALS_PER_HALF = 0.55;
-  const strengthRatio = Math.pow(teamRate / opponentRate, 0.7);
+
+  // Expoente 1.0 em vez de 0.7 — diferença de rate se traduz mais fielmente
+  const strengthRatio = Math.pow(teamRate / opponentRate, STRENGTH_EXPONENT);
   const homeBonus = isHome ? HOME_ADVANTAGE : 1.0;
-  const formFactor = getTeamFormFactor(teamRate, opponentRate, matchMomentum);
+  const formFactor = getTeamFormFactor(teamRate, matchMomentum);
   const fatigueFactor = isExtraTime ? 0.35 : 1.0;
-  let expected = BASE_GOALS_PER_HALF * strengthRatio * formFactor * fatigueFactor * homeBonus;
-  expected = Math.min(2.0, expected);
+
+  let expected = BASE_GOALS_PER_HALF * strengthRatio * formFactor * fatigueFactor * homeBonus * attackMod;
+
+  expected = Math.min(MAX_EXPECTED_GOALS, expected);
   return expected;
 }
+
+// ---------------------------------------------------------------------------
+// Simulação de tempos
+// ---------------------------------------------------------------------------
 
 export function simulateHalf(
   homeRate: number,
   awayRate: number,
   isExtraTime = false,
   matchMomentum = 0.5,
+  // Modificadores de urgência (mata-mata) já calculados externamente
+  homeAttackMod = 1.0,
+  awayAttackMod = 1.0,
 ): [number, number] {
-  const homeExpected = getExpectedGoals(homeRate, awayRate, isExtraTime, matchMomentum, true);
-  const awayExpected = getExpectedGoals(awayRate, homeRate, isExtraTime, matchMomentum, false);
+  const homeExpected = getExpectedGoals(homeRate, awayRate, isExtraTime, matchMomentum, true, homeAttackMod);
+  const awayExpected = getExpectedGoals(awayRate, homeRate, isExtraTime, matchMomentum, false, awayAttackMod);
   return [poissonRandom(homeExpected), poissonRandom(awayExpected)];
 }
 
 export function simulateFullMatch(
   homeRate: number,
   awayRate: number,
-  isExtraTime = false, // CORREÇÃO: Parâmetro adicionado para suportar prorrogação corretamente
+  isExtraTime = false,
+  homeMoral = 0,
+  awayMoral = 0,
+  homeAttackMod = 1.0,
+  awayAttackMod = 1.0,
 ): {
   h1: [number, number];
   h2: [number, number];
   total: [number, number];
   xg: [number, number];
 } {
-  const homeXg1 = getExpectedGoals(homeRate, awayRate, isExtraTime, 0.5, true);
-  const awayXg1 = getExpectedGoals(awayRate, homeRate, isExtraTime, 0.5, false);
+  const hRate = applyMoral(homeRate, homeMoral);
+  const aRate = applyMoral(awayRate, awayMoral);
+
+  const homeXg1 = getExpectedGoals(hRate, aRate, isExtraTime, 0.5, true, homeAttackMod);
+  const awayXg1 = getExpectedGoals(aRate, hRate, isExtraTime, 0.5, false, awayAttackMod);
   const firstHalf: [number, number] = [poissonRandom(homeXg1), poissonRandom(awayXg1)];
+
   const goalDiff = firstHalf[0] - firstHalf[1];
   let momentum = 0.5;
   if (goalDiff > 1) momentum = 0.7;
@@ -78,8 +181,8 @@ export function simulateFullMatch(
   else if (goalDiff > 0) momentum = 0.6;
   else if (goalDiff < 0) momentum = 0.4;
 
-  const homeXg2 = getExpectedGoals(homeRate, awayRate, isExtraTime, momentum, true);
-  const awayXg2 = getExpectedGoals(awayRate, homeRate, isExtraTime, momentum, false);
+  const homeXg2 = getExpectedGoals(hRate, aRate, isExtraTime, momentum, true, homeAttackMod);
+  const awayXg2 = getExpectedGoals(aRate, hRate, isExtraTime, momentum, false, awayAttackMod);
   const secondHalf: [number, number] = [poissonRandom(homeXg2), poissonRandom(awayXg2)];
 
   return {
@@ -90,68 +193,18 @@ export function simulateFullMatch(
   };
 }
 
-function randInt(min: number, max: number): number {
-  return Math.floor(Math.random() * (max - min + 1)) + min;
-}
-
-function roundTo2(n: number): number {
-  return Math.round(n * 100) / 100;
-}
-
-function generateShot(isOnTarget: boolean): { xG_value: number; onTarget: boolean } {
-  if (isOnTarget) {
-    const rand = Math.random();
-    const xG_value =
-      rand < 0.6 ? 0.05 + Math.random() * 0.12 : rand < 0.85 ? 0.17 + Math.random() * 0.23 : 0.4 + Math.random() * 0.35;
-    return { xG_value: roundTo2(xG_value), onTarget: true };
-  } else {
-    const xG_value = 0.01 + Math.random() * 0.1;
-    return { xG_value: roundTo2(xG_value), onTarget: false };
-  }
-}
-
-function generateShotsArray(
-  totalShots: number,
-  shotsOnTarget: number,
-  goalsScored: number,
-  targetXg?: number,
-): { xG_value: number; onTarget: boolean }[] {
-  const shots: { xG_value: number; onTarget: boolean }[] = [];
-  for (let i = 0; i < shotsOnTarget; i++) shots.push(generateShot(true));
-  for (let i = 0; i < totalShots - shotsOnTarget; i++) shots.push(generateShot(false));
-
-  if (goalsScored > 0) {
-    const onTargetShots = shots.filter((s) => s.onTarget);
-    onTargetShots.sort((a, b) => b.xG_value - a.xG_value);
-    for (let i = 0; i < Math.min(goalsScored, onTargetShots.length); i++) {
-      onTargetShots[i].xG_value = roundTo2(0.25 + Math.random() * 0.5);
-    }
-    for (let i = shots.length - 1; i > 0; i--) {
-      const j = Math.floor(Math.random() * (i + 1));
-      [shots[i], shots[j]] = [shots[j], shots[i]];
-    }
-  }
-
-  if (targetXg !== undefined && shots.length > 0) {
-    const currentTotal = shots.reduce((s, x) => s + x.xG_value, 0);
-    if (currentTotal > 0) {
-      const factor = targetXg / currentTotal;
-      for (const s of shots) {
-        s.xG_value = roundTo2(Math.max(0.01, Math.min(0.99, s.xG_value * factor)));
-      }
-    }
-  }
-  return shots;
-}
+// ---------------------------------------------------------------------------
+// Geração de estatísticas
+// ---------------------------------------------------------------------------
 
 function isUpsetLikely(homeRate: number, awayRate: number, homeGoals: number, awayGoals: number): boolean {
   const rateDiff = Math.abs(homeRate - awayRate);
   const strongerWon = (homeRate > awayRate && homeGoals > awayGoals) || (awayRate > homeRate && awayGoals > homeGoals);
   if (strongerWon) return false;
-  if (rateDiff > 3.0) return Math.random() > 0.85;
-  if (rateDiff > 2.0) return Math.random() > 0.75;
-  if (rateDiff > 1.0) return Math.random() > 0.6;
-  return Math.random() > 0.45;
+  if (rateDiff > 3.0) return Math.random() > 0.92; // Zebra ainda mais rara
+  if (rateDiff > 2.0) return Math.random() > 0.85;
+  if (rateDiff > 1.0) return Math.random() > 0.7;
+  return Math.random() > 0.5;
 }
 
 export function generateMatchStats(
@@ -197,6 +250,54 @@ export function generateMatchStats(
   const awaySotMax = Math.max(awaySotMin, Math.floor(awayShots * 0.45));
   const awayShotsOnTarget = randInt(awaySotMin, awaySotMax);
 
+  function generateShotsArray(
+    totalShots: number,
+    shotsOnTarget: number,
+    goalsScored: number,
+    targetXg?: number,
+  ): { xG_value: number; onTarget: boolean }[] {
+    const shots: { xG_value: number; onTarget: boolean }[] = [];
+    const generateShot = (isOnTarget: boolean) => {
+      if (isOnTarget) {
+        const rand = Math.random();
+        const xG_value =
+          rand < 0.6
+            ? 0.05 + Math.random() * 0.12
+            : rand < 0.85
+              ? 0.17 + Math.random() * 0.23
+              : 0.4 + Math.random() * 0.35;
+        return { xG_value: roundTo2(xG_value), onTarget: true };
+      }
+      return { xG_value: roundTo2(0.01 + Math.random() * 0.1), onTarget: false };
+    };
+
+    for (let i = 0; i < shotsOnTarget; i++) shots.push(generateShot(true));
+    for (let i = 0; i < totalShots - shotsOnTarget; i++) shots.push(generateShot(false));
+
+    if (goalsScored > 0) {
+      const onTargetShots = shots.filter((s) => s.onTarget);
+      onTargetShots.sort((a, b) => b.xG_value - a.xG_value);
+      for (let i = 0; i < Math.min(goalsScored, onTargetShots.length); i++) {
+        onTargetShots[i].xG_value = roundTo2(0.25 + Math.random() * 0.5);
+      }
+      for (let i = shots.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [shots[i], shots[j]] = [shots[j], shots[i]];
+      }
+    }
+
+    if (targetXg !== undefined && shots.length > 0) {
+      const currentTotal = shots.reduce((s, x) => s + x.xG_value, 0);
+      if (currentTotal > 0) {
+        const factor = targetXg / currentTotal;
+        for (const s of shots) {
+          s.xG_value = roundTo2(Math.max(0.01, Math.min(0.99, s.xG_value * factor)));
+        }
+      }
+    }
+    return shots;
+  }
+
   const homeShotsArray = generateShotsArray(homeShots, homeShotsOnTarget, homeGoals, xgInputs?.home);
   const awayShotsArray = generateShotsArray(awayShots, awayShotsOnTarget, awayGoals, xgInputs?.away);
 
@@ -209,6 +310,7 @@ export function generateMatchStats(
       ? roundTo2(xgInputs.away)
       : roundTo2(awayShotsArray.reduce((sum, s) => sum + s.xG_value, 0));
 
+  // Faltas — geradas nos números mas distribuição concentrada em fases
   let homeFouls = randInt(6, 14) + Math.round((awayPossession - 50) / 12);
   let awayFouls = randInt(6, 14) + Math.round((homePossession - 50) / 12);
   homeFouls = Math.max(4, Math.min(20, homeFouls));
@@ -220,7 +322,6 @@ export function generateMatchStats(
   const homeYellow = Math.min(3, randInt(0, Math.max(1, Math.floor(homeFouls / 6))));
   const awayYellow = Math.min(3, randInt(0, Math.max(1, Math.floor(awayFouls / 6))));
 
-  // Red cards: ~10% chance per team per match (independent rolls)
   const homeRed = Math.random() < 0.1 ? 1 : 0;
   const awayRed = Math.random() < 0.1 ? 1 : 0;
 
@@ -253,6 +354,10 @@ export function generateMatchStats(
   };
 }
 
+// ---------------------------------------------------------------------------
+// Suspensões
+// ---------------------------------------------------------------------------
+
 export function getSuspendedPlayerIds(
   tournamentMatches: Match[],
   currentRound: number,
@@ -263,8 +368,6 @@ export function getSuspendedPlayerIds(
   const yellowLimit = settings.yellowCardsToSuspend ?? 3;
   const yellowDuration = settings.yellowSuspensionDuration ?? 1;
   const redDuration = settings.redSuspensionDuration ?? 1;
-
-  // CORREÇÃO: Ignora cartões de fases anteriores (se configurado na regra do campeonato)
   const resetRound = settings.resetYellowsAfterRound ?? 0;
 
   const pastMatches = tournamentMatches.filter(
@@ -306,52 +409,60 @@ export function getSuspendedPlayerIds(
   return suspended;
 }
 
+// ---------------------------------------------------------------------------
+// Pesos posicionais — skillAmplifier menos agressivo (potência 2 em vez de 4)
+// ---------------------------------------------------------------------------
+
 const POSITION_GOAL_WEIGHT: Record<string, number> = {
-  Goleiro: 0.05,
-  Zagueiro: 0.15,
-  "Lateral Direito": 0.2,
-  "Lateral Esquerdo": 0.2,
-  Volante: 0.5,
+  Goleiro: 0.02,
+  Zagueiro: 0.1,
+  "Lateral Direito": 0.18,
+  "Lateral Esquerdo": 0.18,
+  Volante: 0.45,
   Meia: 1.5,
-  "Meia Atacante": 3,
-  "Ponta Direita": 4,
-  "Ponta Esquerda": 4,
-  Centroavante: 6,
-  Atacante: 5,
+  "Meia Atacante": 3.0,
+  "Ponta Direita": 4.0,
+  "Ponta Esquerda": 4.0,
+  Centroavante: 6.0,
+  Atacante: 5.0,
 };
 
 const POSITION_ASSIST_WEIGHT: Record<string, number> = {
-  Goleiro: 0.05,
-  Zagueiro: 0.15,
+  Goleiro: 0.02,
+  Zagueiro: 0.12,
   "Lateral Direito": 1.5,
   "Lateral Esquerdo": 1.5,
-  Volante: 1,
-  Meia: 5,
-  "Meia Atacante": 4,
+  Volante: 1.0,
+  Meia: 5.0,
+  "Meia Atacante": 4.0,
   "Ponta Direita": 3.5,
   "Ponta Esquerda": 3.5,
   Centroavante: 1.5,
-  Atacante: 2,
+  Atacante: 2.0,
 };
 
 const POSITION_FOUL_WEIGHT: Record<string, number> = {
   Goleiro: 0.3,
-  Zagueiro: 3,
-  "Lateral Direito": 2,
-  "Lateral Esquerdo": 2,
-  Volante: 4,
+  Zagueiro: 3.0,
+  "Lateral Direito": 2.0,
+  "Lateral Esquerdo": 2.0,
+  Volante: 4.0,
   Meia: 1.5,
-  "Meia Atacante": 1,
-  "Ponta Direita": 1,
-  "Ponta Esquerda": 1,
-  Centroavante: 1,
-  Atacante: 1,
+  "Meia Atacante": 1.0,
+  "Ponta Direita": 1.0,
+  "Ponta Esquerda": 1.0,
+  Centroavante: 1.0,
+  Atacante: 1.0,
 };
 
+/**
+ * Curva de amplificação por skill — potência 2 em vez de 4.
+ * Mantém diferenciação entre bons e mediocres sem dominar os pesos posicionais.
+ */
 function skillAmplifier(skill: number | undefined): number {
   const s = Math.max(45, Math.min(99, skill ?? 70));
   const normalized = (s - 45) / 54;
-  return Math.pow(normalized, 4) * 49 + 1;
+  return Math.pow(normalized, 2) * 9 + 1; // range ~1–10 em vez de 1–50
 }
 
 function weightedPickSkill(
@@ -399,7 +510,6 @@ function buildScorerPool(players: Player[], posWeights: Record<string, number>):
   });
   const topPlayer = players[topIdx];
 
-  // CORREÇÃO: Embaralha a piscina antes do corte para não prejudicar a chance de zagueiros
   for (let i = pool.length - 1; i > 0; i--) {
     const j = Math.floor(Math.random() * (i + 1));
     [pool[i], pool[j]] = [pool[j], pool[i]];
@@ -444,6 +554,58 @@ function pickFromPool(
   return last;
 }
 
+// ---------------------------------------------------------------------------
+// Pênaltis — confronto batedor vs goleiro quando elencos disponíveis
+// ---------------------------------------------------------------------------
+
+/**
+ * Simula uma cobrança de pênalti.
+ *
+ * Quando `kicker` e `goalkeeper` são fornecidos, a chance é calculada pelo
+ * confronto de skills individuais. Caso contrário mantém o flat 75% anterior.
+ */
+export function simulatePenaltyKick(kicker?: Player, goalkeeper?: Player): boolean {
+  if (!kicker || !goalkeeper) {
+    // Comportamento original — sem elenco disponível
+    return Math.random() < 0.75;
+  }
+
+  const kickerSkill = kicker.skill ?? 70;
+  const gkSkill = goalkeeper.skill ?? 70;
+
+  // Base de conversão: 75% para skills iguais (70 vs 70)
+  // Cada ponto de diferença vale ~0.4% na margem
+  const delta = kickerSkill - gkSkill;
+  const conversionRate = Math.max(0.45, Math.min(0.92, 0.75 + delta * 0.004));
+
+  return Math.random() < conversionRate;
+}
+
+/**
+ * Seleciona o goleiro titular de um elenco.
+ * Retorna o jogador com position === "Goleiro" de maior skill.
+ */
+export function getStartingGoalkeeper(players: Player[]): Player | undefined {
+  const gks = players.filter((p) => (p.position || "").toLowerCase() === "goleiro");
+  if (gks.length === 0) return undefined;
+  return gks.reduce((best, p) => ((p.skill ?? 0) > (best.skill ?? 0) ? p : best));
+}
+
+// ---------------------------------------------------------------------------
+// Geração de eventos minuto a minuto
+// ---------------------------------------------------------------------------
+
+/**
+ * Retorna um minuto concentrado nas fases quentes do jogo.
+ * 40% das faltas ocorrem nos primeiros 20 min ou nos últimos 15 min.
+ */
+function foulMinute(): number {
+  const r = Math.random();
+  if (r < 0.2) return randInt(1, 20); // Início — times se conhecendo
+  if (r < 0.35) return randInt(75, 90); // Final — pressão por resultado
+  return randInt(21, 74); // Restante distribuído
+}
+
 export function generateMinuteByMinuteEvents(
   homeTeam: Team,
   awayTeam: Team,
@@ -464,7 +626,6 @@ export function generateMinuteByMinuteEvents(
     away: { goals: 0, fouls: 0, yellow: 0, red: 0, offsides: 0, shots: 0, shotsOnTarget: 0 },
   };
 
-  // CORREÇÃO: Divisão clara entre Titulares e Banco
   const homeStarters = homePlayers.slice(0, 11);
   const homeBench = homePlayers.slice(11);
   const awayStarters = awayPlayers.slice(0, 11);
@@ -472,26 +633,18 @@ export function generateMinuteByMinuteEvents(
 
   const starterIds = new Set([...homeStarters.map((p) => p.id), ...awayStarters.map((p) => p.id)]);
 
-  const subOutAt: Map<string, number> = new Map();
-  const subInAt: Map<string, number> = new Map();
-  const redCardAt: Map<string, number> = new Map();
+  const subOutAt = new Map<string, number>();
+  const subInAt = new Map<string, number>();
+  const redCardAt = new Map<string, number>();
 
   const isOnPitch = (playerId: string, minute: number): boolean => {
-    // CORREÇÃO: Lógica robusta avaliando titulares, banco e cartões vermelhos
     const rc = redCardAt.get(playerId);
     if (rc !== undefined && minute >= rc) return false;
-
     const outAt = subOutAt.get(playerId);
     if (outAt !== undefined && minute >= outAt) return false;
-
-    const isStarter = starterIds.has(playerId);
+    if (starterIds.has(playerId)) return true;
     const inAt = subInAt.get(playerId);
-
-    if (isStarter) {
-      return true;
-    } else {
-      return inAt !== undefined && minute >= inAt;
-    }
+    return inAt !== undefined && minute >= inAt;
   };
 
   function pickAtMinuteSkill(
@@ -504,13 +657,12 @@ export function generateMinuteByMinuteEvents(
     return weightedPickSkill(eligible, posWeights, undefined);
   }
 
-  // 1. Substitutions (Geradas primeiro usando apenas quem está no banco para entrar)
+  // 1. Substituições
   const generateSubstitutions = (team: Team, starters: Player[], bench: Player[]) => {
     const subCount = Math.min(3, Math.max(0, Math.floor((starters.length + bench.length) / 2) - 1));
     if (subCount === 0 || bench.length === 0) return;
     const usedOut = new Set<string>();
     const usedIn = new Set<string>();
-
     const outCandidates = starters.filter((p) => p.position !== "Goleiro");
     const inCandidates = bench.filter((p) => p.position !== "Goleiro");
 
@@ -518,20 +670,16 @@ export function generateMinuteByMinuteEvents(
       const minute = randInt(55, 85);
       const availableOut = outCandidates.filter((p) => !usedOut.has(p.id));
       const availableIn = inCandidates.filter((p) => !usedIn.has(p.id));
-
       if (availableOut.length === 0 || availableIn.length === 0) break;
-
       const outPlayer = availableOut[randInt(0, availableOut.length - 1)];
       const inPlayer = availableIn[randInt(0, availableIn.length - 1)];
-
       usedOut.add(outPlayer.id);
       usedIn.add(inPlayer.id);
       subOutAt.set(outPlayer.id, minute);
       subInAt.set(inPlayer.id, minute);
-
       events.push({
         id: genId(),
-        minute: minute + 0.1, // Offset temporal para não encavalar
+        minute: minute + 0.1,
         type: "substitution",
         teamId: team.id,
         playerId: inPlayer.id,
@@ -543,12 +691,12 @@ export function generateMinuteByMinuteEvents(
   generateSubstitutions(homeTeam, homeStarters, homeBench);
   generateSubstitutions(awayTeam, awayStarters, awayBench);
 
-  // 2. Cards & Fouls
+  // 2. Cartões e faltas
+  // Faltas NÃO geram evento narrativo próprio — só cartões aparecem no feed
   const matchYellows = new Map<string, number>();
 
   const generateCardsAndFouls = (
     team: Team,
-    opponent: Team,
     players: Player[],
     targetFouls: number,
     targetYellows: number,
@@ -556,12 +704,10 @@ export function generateMinuteByMinuteEvents(
   ) => {
     const isHome = team.id === homeTeam.id;
     const bucket = isHome ? produced.home : produced.away;
-    let remainingFouls = targetFouls;
 
-    // Reds
+    // Cartões vermelhos diretos
     for (let i = 0; i < targetReds; i++) {
-      const minute = randInt(25, 88);
-      // CORREÇÃO: Não dá cartão vermelho para quem já tem uma substituição marcada no futuro
+      const minute = foulMinute();
       const p = pickAtMinuteSkill(
         players.filter((pl) => {
           const scheduledOut = subOutAt.get(pl.id);
@@ -571,17 +717,9 @@ export function generateMinuteByMinuteEvents(
         minute,
       );
       if (!p) continue;
-
       redCardAt.set(p.id, minute);
       bucket.red++;
-      events.push({
-        id: genId(),
-        minute: minute + 0.35,
-        type: "foul",
-        teamId: team.id,
-        playerId: p.id,
-        text: `Falta dura de **${p.name}** parando ataque perigoso!`,
-      });
+      // Apenas o cartão aparece no feed — sem evento de falta separado
       events.push({
         id: genId(),
         minute: minute + 0.45,
@@ -590,17 +728,16 @@ export function generateMinuteByMinuteEvents(
         playerId: p.id,
         text: `Cartão vermelho direto para **${p.name}** após entrada violenta!`,
       });
-      remainingFouls--;
+      bucket.fouls++;
     }
 
-    // Yellows
+    // Cartões amarelos
     for (let i = 0; i < targetYellows; i++) {
-      const minute = randInt(15, 85);
+      const minute = foulMinute();
       const p = pickAtMinuteSkill(
         players.filter((pl) => {
           const currentY = matchYellows.get(pl.id) || 0;
           if (currentY === 1) {
-            // Transformará em segundo amarelo (vermelho)
             const scheduledOut = subOutAt.get(pl.id);
             return !(scheduledOut && scheduledOut > minute) && !redCardAt.has(pl.id);
           }
@@ -613,19 +750,11 @@ export function generateMinuteByMinuteEvents(
 
       const currentY = matchYellows.get(p.id) || 0;
       if (currentY === 1) {
-        // CORREÇÃO: Lógica do 2º Cartão Amarelo e Expulsão
+        // Segundo amarelo → expulsão
         matchYellows.set(p.id, 2);
         redCardAt.set(p.id, minute);
         bucket.yellow++;
         bucket.red++;
-        events.push({
-          id: genId(),
-          minute: minute + 0.35,
-          type: "foul",
-          teamId: team.id,
-          playerId: p.id,
-          text: `Falta tática cometida por **${p.name}**`,
-        });
         events.push({
           id: genId(),
           minute: minute + 0.45,
@@ -639,14 +768,6 @@ export function generateMinuteByMinuteEvents(
         bucket.yellow++;
         events.push({
           id: genId(),
-          minute: minute + 0.35,
-          type: "foul",
-          teamId: team.id,
-          playerId: p.id,
-          text: `Falta de **${p.name}** no meio campo`,
-        });
-        events.push({
-          id: genId(),
           minute: minute + 0.45,
           type: "yellow_card",
           teamId: team.id,
@@ -654,29 +775,16 @@ export function generateMinuteByMinuteEvents(
           text: `Cartão amarelo para **${p.name}** por falta dura`,
         });
       }
-      remainingFouls--;
-    }
-
-    // Remaining Fouls
-    for (let i = 0; i < Math.max(0, remainingFouls); i++) {
-      const minute = randInt(2, 89);
-      const p = pickAtMinuteSkill(players, POSITION_FOUL_WEIGHT, minute);
-      if (!p) continue;
-      events.push({
-        id: genId(),
-        minute: minute + 0.3,
-        type: "foul",
-        teamId: team.id,
-        playerId: p.id,
-        text: `Falta cometida por **${p.name}**`,
-      });
       bucket.fouls++;
     }
+
+    // Faltas restantes — existem nos números mas NÃO geram evento narrativo
+    const remainingFouls = Math.max(0, targetFouls - targetYellows - targetReds);
+    bucket.fouls += remainingFouls;
   };
 
   generateCardsAndFouls(
     homeTeam,
-    awayTeam,
     homePlayers,
     matchStats.homeStats.fouls,
     matchStats.homeStats.yellowCards,
@@ -684,14 +792,13 @@ export function generateMinuteByMinuteEvents(
   );
   generateCardsAndFouls(
     awayTeam,
-    homeTeam,
     awayPlayers,
     matchStats.awayStats.fouls,
     matchStats.awayStats.yellowCards,
     matchStats.awayStats.redCards,
   );
 
-  // 3. Goals
+  // 3. Gols
   const homeScorerPool = buildScorerPool(homePlayers, POSITION_GOAL_WEIGHT);
   const awayScorerPool = buildScorerPool(awayPlayers, POSITION_GOAL_WEIGHT);
   const homeAssistPool = buildScorerPool(homePlayers, POSITION_ASSIST_WEIGHT);
@@ -720,7 +827,7 @@ export function generateMinuteByMinuteEvents(
       ];
       events.push({
         id: genId(),
-        minute: minute + 0.8, // Gol no topo da ordenação do minuto
+        minute: minute + 0.8,
         type: "goal",
         teamId: team.id,
         playerId: scorer.id,
@@ -741,7 +848,7 @@ export function generateMinuteByMinuteEvents(
     generateGoals(awayTeam, awayScorerPool, awayAssistPool, awayGoals, [1, 90]);
   }
 
-  // 4. Offsides
+  // 4. Impedimentos
   const generateOffsides = (team: Team, players: Player[], count: number) => {
     const isHome = team.id === homeTeam.id;
     const bucket = isHome ? produced.home : produced.away;
@@ -763,7 +870,7 @@ export function generateMinuteByMinuteEvents(
   generateOffsides(homeTeam, homePlayers, matchStats.homeStats.offsides);
   generateOffsides(awayTeam, awayPlayers, matchStats.awayStats.offsides);
 
-  // 5. Shots
+  // 5. Chutes e defesas
   const generateShots = (
     team: Team,
     players: Player[],
@@ -780,12 +887,10 @@ export function generateMinuteByMinuteEvents(
     const saves = Math.max(0, shotsOnTarget - goals);
     const gk = opponentPlayers.find((p) => p.position === "Goleiro") || opponentPlayers[0];
 
-    // CORREÇÃO: Relaciona a narrativa de chutes e defesas com a probabilidade (xG figurativo)
     for (let i = 0; i < missedShots; i++) {
       const minute = randInt(3, 89);
       const p = pickAtMinuteSkill(players, POSITION_GOAL_WEIGHT, minute);
       if (!p) continue;
-
       const textHighXg = [
         `**${p.name}** solta a bomba e a bola passa tirando tinta da trave!`,
         `Quase o gol de **${p.name}**, a bola passou muito perto!`,
@@ -795,8 +900,14 @@ export function generateMinuteByMinuteEvents(
         `Chute de muito longe de **${p.name}** indo direto para a linha de fundo.`,
       ];
       const text = Math.random() > 0.8 ? textHighXg[randInt(0, 1)] : textLowXg[randInt(0, 1)];
-
-      events.push({ id: genId(), minute: minute + 0.6, type: "shot", teamId: team.id, playerId: p.id, text });
+      events.push({
+        id: genId(),
+        minute: minute + 0.6,
+        type: "shot",
+        teamId: team.id,
+        playerId: p.id,
+        text,
+      });
       bucket.shots++;
     }
 
@@ -804,7 +915,6 @@ export function generateMinuteByMinuteEvents(
       const minute = randInt(3, 89);
       const shooter = pickAtMinuteSkill(players, POSITION_GOAL_WEIGHT, minute);
       if (!shooter || !gk) continue;
-
       const textHighXg = [
         `Defesa espetacular de **${gk.name}** num chute à queima-roupa de **${shooter.name}**!`,
         `Milagre de **${gk.name}**! **${shooter.name}** ia marcando um golaço!`,
@@ -814,12 +924,19 @@ export function generateMinuteByMinuteEvents(
         `Chute rasteiro de **${shooter.name}**, **${gk.name}** cai e segura firme.`,
       ];
       const text = Math.random() > 0.7 ? textHighXg[randInt(0, 1)] : textLowXg[randInt(0, 1)];
-
-      events.push({ id: genId(), minute: minute + 0.6, type: "shot", teamId: team.id, playerId: shooter.id, text });
+      events.push({
+        id: genId(),
+        minute: minute + 0.6,
+        type: "shot",
+        teamId: team.id,
+        playerId: shooter.id,
+        text,
+      });
       bucket.shots++;
       bucket.shotsOnTarget++;
     }
   };
+
   generateShots(
     homeTeam,
     homePlayers,
@@ -837,7 +954,7 @@ export function generateMinuteByMinuteEvents(
     awayGoals,
   );
 
-  // 6. General highlights
+  // 6. Destaques gerais
   const highlightCount = randInt(3, 6);
   for (let i = 0; i < highlightCount; i++) {
     const isHome = Math.random() < 0.5;
@@ -863,9 +980,9 @@ export function generateMinuteByMinuteEvents(
     });
   }
 
-  // 7. Acréscimos (Tempo de compensação)
-  const acrescimosT1 = randInt(1, 5); // Entre 1 e 5 minutos no 1º tempo
-  const acrescimosT2 = randInt(3, 8); // Entre 3 e 8 minutos no 2º tempo
+  // 7. Acréscimos
+  const acrescimosT1 = randInt(1, 5);
+  const acrescimosT2 = randInt(3, 8);
 
   events.push({
     id: genId(),
@@ -874,7 +991,6 @@ export function generateMinuteByMinuteEvents(
     teamId: "",
     text: `O quarto árbitro levanta a placa: +${acrescimosT1} minutos de compensação no primeiro tempo.`,
   });
-
   events.push({
     id: genId(),
     minute: 90.0,
@@ -883,7 +999,6 @@ export function generateMinuteByMinuteEvents(
     text: `O quarto árbitro indica +${acrescimosT2} minutos de compensação no segundo tempo.`,
   });
 
-  // Ordena levando em conta as decimais e depois as limpa
   events.sort((a, b) => a.minute - b.minute);
   events.forEach((e) => {
     e.minute = Math.floor(e.minute);
@@ -904,7 +1019,7 @@ export function generateMinuteByMinuteEvents(
     text: "Fim de jogo! O árbitro apita o encerramento da partida",
   });
 
-  // Reconcile stats
+  // Reconcilia estatísticas
   matchStats.homeStats.fouls = produced.home.fouls;
   matchStats.homeStats.yellowCards = produced.home.yellow;
   matchStats.homeStats.redCards = produced.home.red;
