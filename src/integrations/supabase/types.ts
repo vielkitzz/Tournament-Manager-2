@@ -14,11 +14,42 @@ export type Database = {
   }
   public: {
     Tables: {
+      club_sync_links: {
+        Row: {
+          created_at: string | null
+          id: string
+          last_synced_at: string | null
+          solarahub_club_id: string
+          solarahub_club_name: string | null
+          sync_enabled: boolean | null
+          tm2_team_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          last_synced_at?: string | null
+          solarahub_club_id: string
+          solarahub_club_name?: string | null
+          sync_enabled?: boolean | null
+          tm2_team_id: string
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          last_synced_at?: string | null
+          solarahub_club_id?: string
+          solarahub_club_name?: string | null
+          sync_enabled?: boolean | null
+          tm2_team_id?: string
+        }
+        Relationships: []
+      }
       players: {
         Row: {
           age: number | null
           created_at: string
           id: string
+          master_player_id: string | null
           name: string
           nationality: string | null
           photo_url: string | null
@@ -33,6 +64,7 @@ export type Database = {
           age?: number | null
           created_at?: string
           id?: string
+          master_player_id?: string | null
           name: string
           nationality?: string | null
           photo_url?: string | null
@@ -47,6 +79,7 @@ export type Database = {
           age?: number | null
           created_at?: string
           id?: string
+          master_player_id?: string | null
           name?: string
           nationality?: string | null
           photo_url?: string | null
@@ -83,6 +116,36 @@ export type Database = {
           tournament_id?: string | null
           user_id?: string | null
           visibility?: string
+        }
+        Relationships: []
+      }
+      sync_logs: {
+        Row: {
+          created_at: string | null
+          error_message: string | null
+          event_type: string | null
+          id: string
+          player_data: Json | null
+          status: string | null
+          tm2_team_id: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          error_message?: string | null
+          event_type?: string | null
+          id?: string
+          player_data?: Json | null
+          status?: string | null
+          tm2_team_id?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          error_message?: string | null
+          event_type?: string | null
+          id?: string
+          player_data?: Json | null
+          status?: string | null
+          tm2_team_id?: string | null
         }
         Relationships: []
       }
@@ -155,6 +218,30 @@ export type Database = {
           start_year?: number
           team_id?: string
           user_id?: string
+        }
+        Relationships: []
+      }
+      team_roster_player_links: {
+        Row: {
+          created_at: string
+          source_club_id: string
+          source_player_id: string
+          target_player_id: string
+          target_team_id: string
+        }
+        Insert: {
+          created_at?: string
+          source_club_id: string
+          source_player_id: string
+          target_player_id: string
+          target_team_id: string
+        }
+        Update: {
+          created_at?: string
+          source_club_id?: string
+          source_player_id?: string
+          target_player_id?: string
+          target_team_id?: string
         }
         Relationships: []
       }
@@ -362,6 +449,15 @@ export type Database = {
     }
     Functions: {
       check_logo_ownership: { Args: { object_name: string }; Returns: boolean }
+      force_skill_sync_from_master: {
+        Args: never
+        Returns: {
+          new_skill: number
+          old_skill: number
+          player_name: string
+          team_id: string
+        }[]
+      }
       get_collaborator_role: {
         Args: { p_token: string; p_user_email: string }
         Returns: string
