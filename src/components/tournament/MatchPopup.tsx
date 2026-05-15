@@ -8,8 +8,10 @@ import {
   generateMinuteByMinuteEvents,
   getSuspendedPlayerIds,
   getExpectedGoals,
+  getSecondLegModifiers,
 } from "@/lib/simulation";
 import { effectiveMatchRate } from "@/lib/playerSkill";
+import { supabase } from "@/integrations/supabase/client";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from "@/components/ui/tooltip";
 import SoccerBallIcon from "@/components/icons/SoccerBallIcon";
@@ -31,6 +33,9 @@ interface MatchPopupProps {
   onSave: (updated: Match) => void;
   onPersist?: (updated: Match) => void;
   onCancel: () => void;
+  /** Moral (boa/má fase) entre -0.15 e +0.15. Default 0. Cálculo externo. */
+  homeMoral?: number;
+  awayMoral?: number;
 }
 
 type HalfKey = "h1" | "h2" | "et1" | "et2";
@@ -171,6 +176,50 @@ function resolveRate(rateInfluence: boolean, team: Team | undefined, players: Pl
   return base; // menos de 11 jogadores: usa rate bruto sem modificador
 }
 
+// ---------------------------------------------------------------------------
+// SolaraHub lineup → modificadores táticos
+// ---------------------------------------------------------------------------
+interface SolaraLineup {
+  formation?: string;
+  mentality?: string;
+  pitchIds?: Record<string, string>;
+  benchIds?: string[];
+  estiloJogo?: "Posse de Bola" | "Ligação Direta" | "Contra-ataque";
+  pressao?: "Alta" | "Média" | "Baixa";
+  bolaAerea?: "Priorizar" | "Evitar";
+}
+
+const STYLE_MODS: Record<string, { atk: number; def: number }> = {
+  "Posse de Bola": { atk: 1.0, def: 1.05 },
+  "Ligação Direta": { atk: 1.05, def: 0.97 },
+  "Contra-ataque": { atk: 0.97, def: 1.08 },
+};
+
+const PRESSURE_MODS: Record<string, { atk: number; def: number }> = {
+  Alta: { atk: 1.05, def: 0.95 },
+  Média: { atk: 1.0, def: 1.0 },
+  Baixa: { atk: 0.97, def: 1.05 },
+};
+
+function getTacticalMods(lineup: SolaraLineup | null): { atk: number; def: number } {
+  if (!lineup) return { atk: 1.0, def: 1.0 };
+  const s = (lineup.estiloJogo && STYLE_MODS[lineup.estiloJogo]) || { atk: 1, def: 1 };
+  const p = (lineup.pressao && PRESSURE_MODS[lineup.pressao]) || { atk: 1, def: 1 };
+  // Bola Aérea: sem hook em simulation.ts ainda — registrado, sem efeito numérico.
+  return { atk: s.atk * p.atk, def: s.def * p.def };
+}
+
+/** Filtra os 11 titulares casando pitchIds (UUID SolaraHub) com master_player_id. */
+function getStartersFromLineup(players: Player[], lineup: SolaraLineup | null): Player[] {
+  if (!lineup?.pitchIds) return players.slice(0, 11);
+  const starterIds = new Set(Object.values(lineup.pitchIds));
+  const matched = players.filter((p) => {
+    const mid = (p as unknown as { master_player_id?: string | null }).master_player_id;
+    return !!mid && starterIds.has(mid);
+  });
+  return matched.length >= 11 ? matched.slice(0, 11) : players.slice(0, 11);
+}
+
 export default function MatchPopup({
   match,
   homeTeam,
@@ -182,6 +231,8 @@ export default function MatchPopup({
   onSave,
   onPersist,
   onCancel,
+  homeMoral = 0,
+  awayMoral = 0,
 }: MatchPopupProps) {
   const isKnockoutFormat = match.stage === "knockout" || tournament?.format === "mata-mata";
   const isLeg1OfPair = !!(match.pairId && match.leg === 1);
@@ -229,10 +280,47 @@ export default function MatchPopup({
   const canLiveSimulate = homePlayers.length >= 11 && awayPlayers.length >= 11;
 
   // ---------------------------------------------------------------------------
-  // Rates efetivos — calculados uma única vez por render, usados em todo popup
+  // SolaraHub lineup loading (background, non-blocking)
   // ---------------------------------------------------------------------------
-  const homeEffectiveRate = resolveRate(rateInfluence, homeTeam, homePlayers);
-  const awayEffectiveRate = resolveRate(rateInfluence, awayTeam, awayPlayers);
+  const [homeLineup, setHomeLineup] = useState<SolaraLineup | null>(null);
+  const [awayLineup, setAwayLineup] = useState<SolaraLineup | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    async function fetchLineup(tm2TeamId: string): Promise<SolaraLineup | null> {
+      const { data: link } = await (supabase as any)
+        .from("club_sync_links")
+        .select("solarahub_club_id")
+        .eq("tm2_team_id", tm2TeamId)
+        .maybeSingle();
+      if (!link?.solarahub_club_id) return null;
+      const { data, error } = await supabase.functions.invoke("get-solarahub-lineup", {
+        body: { solarahub_club_id: link.solarahub_club_id },
+      });
+      if (error) return null;
+      return (data as { lineup: SolaraLineup | null })?.lineup ?? null;
+    }
+    Promise.all([
+      match.homeTeamId ? fetchLineup(match.homeTeamId) : Promise.resolve(null),
+      match.awayTeamId ? fetchLineup(match.awayTeamId) : Promise.resolve(null),
+    ]).then(([h, a]) => {
+      if (cancelled) return;
+      setHomeLineup(h);
+      setAwayLineup(a);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [match.homeTeamId, match.awayTeamId]);
+
+  // ---------------------------------------------------------------------------
+  // Rates efetivos — calculados uma única vez por render, usados em todo popup.
+  // Quando há lineup do SolaraHub, usa os 11 titulares casados via master_player_id.
+  // ---------------------------------------------------------------------------
+  const homeStarters = getStartersFromLineup(homePlayers, homeLineup);
+  const awayStarters = getStartersFromLineup(awayPlayers, awayLineup);
+  const homeEffectiveRate = resolveRate(rateInfluence, homeTeam, homeStarters);
+  const awayEffectiveRate = resolveRate(rateInfluence, awayTeam, awayStarters);
 
   const setHalfScore = (half: HalfKey, side: 0 | 1, value: number) => {
     setScores((prev) => ({ ...prev, [half]: side === 0 ? [value, prev[half][1]] : [prev[half][0], value] }));
@@ -442,13 +530,47 @@ export default function MatchPopup({
   const accumulatedHome = halvesOrder.slice(0, activeIndex + 1).reduce((sum, k) => sum + scores[k][0], 0);
   const accumulatedAway = halvesOrder.slice(0, activeIndex + 1).reduce((sum, k) => sum + scores[k][1], 0);
 
+  // ---------------------------------------------------------------------------
+  // Modificadores táticos (estilo + pressão) e urgência (mata-mata 2ª perna)
+  //
+  // attackMod final passado para simulateHalf =
+  //   styleAtk_self × pressureAtk_self × urgency_self × (1 / (styleDef_opp × pressureDef_opp))
+  //
+  // O fator 1/defesaOpp aproxima a separação atk/def sem refatorar simulation.ts.
+  // ---------------------------------------------------------------------------
+  const homeTactical = getTacticalMods(homeLineup);
+  const awayTactical = getTacticalMods(awayLineup);
+
+  // Urgência: só faz sentido na 2ª perna de mata-mata
+  let homeUrgencyAtk = 1.0;
+  let awayUrgencyAtk = 1.0;
+  if (isLeg2OfPair && pairLeg1) {
+    const leg1Home = (pairLeg1.homeScore || 0) + (pairLeg1.homeExtraTime || 0);
+    const leg1Away = (pairLeg1.awayScore || 0) + (pairLeg1.awayExtraTime || 0);
+    // No leg 2 o "home" é o que jogou fora no leg 1 → agregado:
+    const aggHomeForLeg2Home = leg1Away + accumulatedHome;
+    const aggAwayForLeg2Home = leg1Home + accumulatedAway;
+    const deficitHome = aggAwayForLeg2Home - aggHomeForLeg2Home;
+    const deficitAway = aggHomeForLeg2Home - aggAwayForLeg2Home;
+    homeUrgencyAtk = getSecondLegModifiers(Math.max(0, deficitHome)).attackMod;
+    awayUrgencyAtk = getSecondLegModifiers(Math.max(0, deficitAway)).attackMod;
+  }
+
+  const homeAttackMod =
+    homeTactical.atk * homeUrgencyAtk * (1 / Math.max(0.5, awayTactical.def));
+  const awayAttackMod =
+    awayTactical.atk * awayUrgencyAtk * (1 / Math.max(0.5, homeTactical.def));
+
+  // Moral aplicada como multiplicador no rate antes da simulação.
+  const homeRateForSim = homeEffectiveRate * (1 + Math.max(-0.15, Math.min(0.15, homeMoral)));
+  const awayRateForSim = awayEffectiveRate * (1 + Math.max(-0.15, Math.min(0.15, awayMoral)));
+
   const increment = (side: 0 | 1) => setHalfScore(activeHalf, side, scores[activeHalf][side] + 1);
   const decrement = (side: 0 | 1) => setHalfScore(activeHalf, side, Math.max(0, scores[activeHalf][side] - 1));
 
   const handleSimulate = () => {
-    // ← CORRIGIDO: usa os rates efetivos (com elenco) em vez do rate bruto
     const isET = activeHalf === "et1" || activeHalf === "et2";
-    const [h, a] = simulateHalf(homeEffectiveRate, awayEffectiveRate, isET);
+    const [h, a] = simulateHalf(homeRateForSim, awayRateForSim, isET, 0.5, homeAttackMod, awayAttackMod);
     setHalfScore(activeHalf, 0, h);
     setHalfScore(activeHalf, 1, a);
     setSimulatedHalves((prev) => new Set(prev).add(activeHalf));
@@ -508,14 +630,13 @@ export default function MatchPopup({
 
   const ensureStats = (): { homeStats: TeamMatchStats; awayStats: TeamMatchStats } => {
     if (matchStats && !hasScoreChanges) return matchStats;
-    // ← CORRIGIDO: usa os rates efetivos (com elenco) em todos os cálculos de stats
     const homeXg =
-      getExpectedGoals(homeEffectiveRate, awayEffectiveRate, false, 0.5, true) +
-      getExpectedGoals(homeEffectiveRate, awayEffectiveRate, false, 0.5, true);
+      getExpectedGoals(homeRateForSim, awayRateForSim, false, 0.5, true, homeAttackMod) +
+      getExpectedGoals(homeRateForSim, awayRateForSim, false, 0.5, true, homeAttackMod);
     const awayXg =
-      getExpectedGoals(awayEffectiveRate, homeEffectiveRate, false, 0.5, false) +
-      getExpectedGoals(awayEffectiveRate, homeEffectiveRate, false, 0.5, false);
-    const stats = generateMatchStats(homeEffectiveRate, awayEffectiveRate, totalHome, totalAway, {
+      getExpectedGoals(awayRateForSim, homeRateForSim, false, 0.5, false, awayAttackMod) +
+      getExpectedGoals(awayRateForSim, homeRateForSim, false, 0.5, false, awayAttackMod);
+    const stats = generateMatchStats(homeRateForSim, awayRateForSim, totalHome, totalAway, {
       home: homeXg,
       away: awayXg,
     });
@@ -540,15 +661,14 @@ export default function MatchPopup({
   const handleLiveSimulate = () => {
     if (!homeTeam || !awayTeam || !canLiveSimulate) return;
 
-    // ← CORRIGIDO: usa os rates efetivos (com elenco) — mesma fonte que handleSimulate
-    const [h1h, h1a] = simulateHalf(homeEffectiveRate, awayEffectiveRate, false, 0.5);
+    const [h1h, h1a] = simulateHalf(homeRateForSim, awayRateForSim, false, 0.5, homeAttackMod, awayAttackMod);
     const goalDiff = h1h - h1a;
     let momentum = 0.5;
     if (goalDiff > 1) momentum = 0.7;
     else if (goalDiff < -1) momentum = 0.3;
     else if (goalDiff > 0) momentum = 0.6;
     else if (goalDiff < 0) momentum = 0.4;
-    const [h2h, h2a] = simulateHalf(homeEffectiveRate, awayEffectiveRate, false, momentum);
+    const [h2h, h2a] = simulateHalf(homeRateForSim, awayRateForSim, false, momentum, homeAttackMod, awayAttackMod);
     setScores({ h1: [h1h, h1a], h2: [h2h, h2a], et1: [0, 0], et2: [0, 0] });
     setSimulatedHalves(new Set(["h1", "h2"]));
     setActiveHalf("h2");
@@ -557,12 +677,12 @@ export default function MatchPopup({
     const totalA = h1a + h2a;
 
     const homeXg =
-      getExpectedGoals(homeEffectiveRate, awayEffectiveRate, false, 0.5, true) +
-      getExpectedGoals(homeEffectiveRate, awayEffectiveRate, false, momentum, true);
+      getExpectedGoals(homeRateForSim, awayRateForSim, false, 0.5, true, homeAttackMod) +
+      getExpectedGoals(homeRateForSim, awayRateForSim, false, momentum, true, homeAttackMod);
     const awayXg =
-      getExpectedGoals(awayEffectiveRate, homeEffectiveRate, false, 0.5, false) +
-      getExpectedGoals(awayEffectiveRate, homeEffectiveRate, false, momentum, false);
-    const stats = generateMatchStats(homeEffectiveRate, awayEffectiveRate, totalH, totalA, {
+      getExpectedGoals(awayRateForSim, homeRateForSim, false, 0.5, false, awayAttackMod) +
+      getExpectedGoals(awayRateForSim, homeRateForSim, false, momentum, false, awayAttackMod);
+    const stats = generateMatchStats(homeRateForSim, awayRateForSim, totalH, totalA, {
       home: homeXg,
       away: awayXg,
     });
