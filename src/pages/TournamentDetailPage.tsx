@@ -1055,13 +1055,56 @@ export default function TournamentDetailPage() {
       return;
     }
 
-    // scope === "bracket"
-    if (tournament.format === "mata-mata") {
-      // Clear and rerun mata-mata branch via autoGenerate (which requires empty matches)
-      updateTournament(tournament.id, { matches: [] });
-      // defer to allow state to flush, then regenerate
-      setTimeout(() => autoGenerate(), 0);
+    // scope === "bracket" — re-shuffle mata-mata
+    if (tournament.format !== "mata-mata") return;
+    const teamIds = [...tournament.teamIds];
+    const startStage = tournament.mataMataInicio || "1/8";
+    const expectedTeams = STAGE_TEAM_COUNTS[startStage] || 16;
+    if (teamIds.length < 2) return;
+    if (teamIds.length > expectedTeams) {
+      toast.error(`A fase ${startStage} suporta no máximo ${expectedTeams} times.`);
+      return;
     }
+    for (let i = teamIds.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [teamIds[i], teamIds[j]] = [teamIds[j], teamIds[i]];
+    }
+    let bracketSize = 2;
+    while (bracketSize < teamIds.length) bracketSize *= 2;
+    if (bracketSize > expectedTeams) bracketSize = expectedTeams;
+    const paddedIds: (string | null)[] = [...teamIds];
+    while (paddedIds.length < bracketSize) paddedIds.push(null);
+    const legMode = tournament.settings.knockoutLegMode || "single";
+    const newMatches: Match[] = [];
+    for (let i = 0; i < paddedIds.length; i += 2) {
+      const homeId = paddedIds[i];
+      const awayId = paddedIds[i + 1];
+      if (!homeId && !awayId) continue;
+      if (legMode === "home-away" && homeId && awayId) {
+        const pairId = crypto.randomUUID();
+        newMatches.push({
+          id: crypto.randomUUID(), tournamentId: tournament.id, round: 1,
+          homeTeamId: homeId, awayTeamId: awayId, homeScore: 0, awayScore: 0,
+          played: false, leg: 1, pairId, stage: "knockout",
+        });
+        newMatches.push({
+          id: crypto.randomUUID(), tournamentId: tournament.id, round: 1,
+          homeTeamId: awayId, awayTeamId: homeId, homeScore: 0, awayScore: 0,
+          played: false, leg: 2, pairId, stage: "knockout",
+        });
+      } else {
+        const matchHomeId = homeId || awayId!;
+        const matchAwayId = homeId && awayId ? awayId : "";
+        const isBye = !homeId || !awayId;
+        newMatches.push({
+          id: crypto.randomUUID(), tournamentId: tournament.id, round: 1,
+          homeTeamId: matchHomeId, awayTeamId: matchAwayId,
+          homeScore: isBye ? 1 : 0, awayScore: 0, played: isBye, stage: "knockout",
+        });
+      }
+    }
+    updateTournament(tournament.id, { matches: newMatches });
+    toast.success("Sorteio refeito!");
   };
 
   const optionIcons = [
