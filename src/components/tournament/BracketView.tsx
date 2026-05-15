@@ -27,6 +27,7 @@ interface BracketViewProps {
   onFinalize?: () => void;
   onAddMatch?: (match: Match) => void;
   onRemoveMatch?: (matchId: string, pairId?: string) => void;
+  onResetDraw?: () => void;
 }
 
 const STAGE_LABELS: Record<string, string> = {
@@ -88,6 +89,7 @@ export default function BracketView({
   onFinalize,
   onAddMatch,
   onRemoveMatch,
+  onResetDraw,
 }: BracketViewProps) {
   const matches = tournament.matches || [];
   const [selectedMatch, setSelectedMatch] = useState<Match | null>(null);
