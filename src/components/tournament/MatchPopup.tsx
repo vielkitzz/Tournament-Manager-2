@@ -530,13 +530,47 @@ export default function MatchPopup({
   const accumulatedHome = halvesOrder.slice(0, activeIndex + 1).reduce((sum, k) => sum + scores[k][0], 0);
   const accumulatedAway = halvesOrder.slice(0, activeIndex + 1).reduce((sum, k) => sum + scores[k][1], 0);
 
+  // ---------------------------------------------------------------------------
+  // Modificadores táticos (estilo + pressão) e urgência (mata-mata 2ª perna)
+  //
+  // attackMod final passado para simulateHalf =
+  //   styleAtk_self × pressureAtk_self × urgency_self × (1 / (styleDef_opp × pressureDef_opp))
+  //
+  // O fator 1/defesaOpp aproxima a separação atk/def sem refatorar simulation.ts.
+  // ---------------------------------------------------------------------------
+  const homeTactical = getTacticalMods(homeLineup);
+  const awayTactical = getTacticalMods(awayLineup);
+
+  // Urgência: só faz sentido na 2ª perna de mata-mata
+  let homeUrgencyAtk = 1.0;
+  let awayUrgencyAtk = 1.0;
+  if (isLeg2OfPair && pairLeg1) {
+    const leg1Home = (pairLeg1.homeScore || 0) + (pairLeg1.homeExtraTime || 0);
+    const leg1Away = (pairLeg1.awayScore || 0) + (pairLeg1.awayExtraTime || 0);
+    // No leg 2 o "home" é o que jogou fora no leg 1 → agregado:
+    const aggHomeForLeg2Home = leg1Away + accumulatedHome;
+    const aggAwayForLeg2Home = leg1Home + accumulatedAway;
+    const deficitHome = aggAwayForLeg2Home - aggHomeForLeg2Home;
+    const deficitAway = aggHomeForLeg2Home - aggAwayForLeg2Home;
+    homeUrgencyAtk = getSecondLegModifiers(Math.max(0, deficitHome)).attackMod;
+    awayUrgencyAtk = getSecondLegModifiers(Math.max(0, deficitAway)).attackMod;
+  }
+
+  const homeAttackMod =
+    homeTactical.atk * homeUrgencyAtk * (1 / Math.max(0.5, awayTactical.def));
+  const awayAttackMod =
+    awayTactical.atk * awayUrgencyAtk * (1 / Math.max(0.5, homeTactical.def));
+
+  // Moral aplicada como multiplicador no rate antes da simulação.
+  const homeRateForSim = homeEffectiveRate * (1 + Math.max(-0.15, Math.min(0.15, homeMoral)));
+  const awayRateForSim = awayEffectiveRate * (1 + Math.max(-0.15, Math.min(0.15, awayMoral)));
+
   const increment = (side: 0 | 1) => setHalfScore(activeHalf, side, scores[activeHalf][side] + 1);
   const decrement = (side: 0 | 1) => setHalfScore(activeHalf, side, Math.max(0, scores[activeHalf][side] - 1));
 
   const handleSimulate = () => {
-    // ← CORRIGIDO: usa os rates efetivos (com elenco) em vez do rate bruto
     const isET = activeHalf === "et1" || activeHalf === "et2";
-    const [h, a] = simulateHalf(homeEffectiveRate, awayEffectiveRate, isET);
+    const [h, a] = simulateHalf(homeRateForSim, awayRateForSim, isET, 0.5, homeAttackMod, awayAttackMod);
     setHalfScore(activeHalf, 0, h);
     setHalfScore(activeHalf, 1, a);
     setSimulatedHalves((prev) => new Set(prev).add(activeHalf));
@@ -596,14 +630,13 @@ export default function MatchPopup({
 
   const ensureStats = (): { homeStats: TeamMatchStats; awayStats: TeamMatchStats } => {
     if (matchStats && !hasScoreChanges) return matchStats;
-    // ← CORRIGIDO: usa os rates efetivos (com elenco) em todos os cálculos de stats
     const homeXg =
-      getExpectedGoals(homeEffectiveRate, awayEffectiveRate, false, 0.5, true) +
-      getExpectedGoals(homeEffectiveRate, awayEffectiveRate, false, 0.5, true);
+      getExpectedGoals(homeRateForSim, awayRateForSim, false, 0.5, true, homeAttackMod) +
+      getExpectedGoals(homeRateForSim, awayRateForSim, false, 0.5, true, homeAttackMod);
     const awayXg =
-      getExpectedGoals(awayEffectiveRate, homeEffectiveRate, false, 0.5, false) +
-      getExpectedGoals(awayEffectiveRate, homeEffectiveRate, false, 0.5, false);
-    const stats = generateMatchStats(homeEffectiveRate, awayEffectiveRate, totalHome, totalAway, {
+      getExpectedGoals(awayRateForSim, homeRateForSim, false, 0.5, false, awayAttackMod) +
+      getExpectedGoals(awayRateForSim, homeRateForSim, false, 0.5, false, awayAttackMod);
+    const stats = generateMatchStats(homeRateForSim, awayRateForSim, totalHome, totalAway, {
       home: homeXg,
       away: awayXg,
     });
@@ -628,15 +661,14 @@ export default function MatchPopup({
   const handleLiveSimulate = () => {
     if (!homeTeam || !awayTeam || !canLiveSimulate) return;
 
-    // ← CORRIGIDO: usa os rates efetivos (com elenco) — mesma fonte que handleSimulate
-    const [h1h, h1a] = simulateHalf(homeEffectiveRate, awayEffectiveRate, false, 0.5);
+    const [h1h, h1a] = simulateHalf(homeRateForSim, awayRateForSim, false, 0.5, homeAttackMod, awayAttackMod);
     const goalDiff = h1h - h1a;
     let momentum = 0.5;
     if (goalDiff > 1) momentum = 0.7;
     else if (goalDiff < -1) momentum = 0.3;
     else if (goalDiff > 0) momentum = 0.6;
     else if (goalDiff < 0) momentum = 0.4;
-    const [h2h, h2a] = simulateHalf(homeEffectiveRate, awayEffectiveRate, false, momentum);
+    const [h2h, h2a] = simulateHalf(homeRateForSim, awayRateForSim, false, momentum, homeAttackMod, awayAttackMod);
     setScores({ h1: [h1h, h1a], h2: [h2h, h2a], et1: [0, 0], et2: [0, 0] });
     setSimulatedHalves(new Set(["h1", "h2"]));
     setActiveHalf("h2");
@@ -645,12 +677,12 @@ export default function MatchPopup({
     const totalA = h1a + h2a;
 
     const homeXg =
-      getExpectedGoals(homeEffectiveRate, awayEffectiveRate, false, 0.5, true) +
-      getExpectedGoals(homeEffectiveRate, awayEffectiveRate, false, momentum, true);
+      getExpectedGoals(homeRateForSim, awayRateForSim, false, 0.5, true, homeAttackMod) +
+      getExpectedGoals(homeRateForSim, awayRateForSim, false, momentum, true, homeAttackMod);
     const awayXg =
-      getExpectedGoals(awayEffectiveRate, homeEffectiveRate, false, 0.5, false) +
-      getExpectedGoals(awayEffectiveRate, homeEffectiveRate, false, momentum, false);
-    const stats = generateMatchStats(homeEffectiveRate, awayEffectiveRate, totalH, totalA, {
+      getExpectedGoals(awayRateForSim, homeRateForSim, false, 0.5, false, awayAttackMod) +
+      getExpectedGoals(awayRateForSim, homeRateForSim, false, momentum, false, awayAttackMod);
+    const stats = generateMatchStats(homeRateForSim, awayRateForSim, totalH, totalA, {
       home: homeXg,
       away: awayXg,
     });
