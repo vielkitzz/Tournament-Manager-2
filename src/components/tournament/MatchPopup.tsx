@@ -8,8 +8,10 @@ import {
   generateMinuteByMinuteEvents,
   getSuspendedPlayerIds,
   getExpectedGoals,
+  getSecondLegModifiers,
 } from "@/lib/simulation";
 import { effectiveMatchRate } from "@/lib/playerSkill";
+import { supabase } from "@/integrations/supabase/client";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from "@/components/ui/tooltip";
 import SoccerBallIcon from "@/components/icons/SoccerBallIcon";
@@ -31,6 +33,9 @@ interface MatchPopupProps {
   onSave: (updated: Match) => void;
   onPersist?: (updated: Match) => void;
   onCancel: () => void;
+  /** Moral (boa/má fase) entre -0.15 e +0.15. Default 0. Cálculo externo. */
+  homeMoral?: number;
+  awayMoral?: number;
 }
 
 type HalfKey = "h1" | "h2" | "et1" | "et2";
@@ -171,6 +176,47 @@ function resolveRate(rateInfluence: boolean, team: Team | undefined, players: Pl
   return base; // menos de 11 jogadores: usa rate bruto sem modificador
 }
 
+// ---------------------------------------------------------------------------
+// SolaraHub lineup → modificadores táticos
+// ---------------------------------------------------------------------------
+interface SolaraLineup {
+  formation?: string;
+  mentality?: string;
+  pitchIds?: Record<string, string>;
+  benchIds?: string[];
+  estiloJogo?: "Posse de Bola" | "Ligação Direta" | "Contra-ataque";
+  pressao?: "Alta" | "Média" | "Baixa";
+  bolaAerea?: "Priorizar" | "Evitar";
+}
+
+const STYLE_MODS: Record<string, { atk: number; def: number }> = {
+  "Posse de Bola": { atk: 1.0, def: 1.05 },
+  "Ligação Direta": { atk: 1.05, def: 0.97 },
+  "Contra-ataque": { atk: 0.97, def: 1.08 },
+};
+
+const PRESSURE_MODS: Record<string, { atk: number; def: number }> = {
+  Alta: { atk: 1.05, def: 0.95 },
+  Média: { atk: 1.0, def: 1.0 },
+  Baixa: { atk: 0.97, def: 1.05 },
+};
+
+function getTacticalMods(lineup: SolaraLineup | null): { atk: number; def: number } {
+  if (!lineup) return { atk: 1.0, def: 1.0 };
+  const s = (lineup.estiloJogo && STYLE_MODS[lineup.estiloJogo]) || { atk: 1, def: 1 };
+  const p = (lineup.pressao && PRESSURE_MODS[lineup.pressao]) || { atk: 1, def: 1 };
+  // Bola Aérea: sem hook em simulation.ts ainda — registrado, sem efeito numérico.
+  return { atk: s.atk * p.atk, def: s.def * p.def };
+}
+
+/** Filtra os 11 titulares casando pitchIds (UUID SolaraHub) com master_player_id. */
+function getStartersFromLineup(players: Player[], lineup: SolaraLineup | null): Player[] {
+  if (!lineup?.pitchIds) return players.slice(0, 11);
+  const starterIds = new Set(Object.values(lineup.pitchIds));
+  const matched = players.filter((p) => p.master_player_id && starterIds.has(p.master_player_id));
+  return matched.length >= 11 ? matched.slice(0, 11) : players.slice(0, 11);
+}
+
 export default function MatchPopup({
   match,
   homeTeam,
@@ -182,6 +228,8 @@ export default function MatchPopup({
   onSave,
   onPersist,
   onCancel,
+  homeMoral = 0,
+  awayMoral = 0,
 }: MatchPopupProps) {
   const isKnockoutFormat = match.stage === "knockout" || tournament?.format === "mata-mata";
   const isLeg1OfPair = !!(match.pairId && match.leg === 1);
@@ -229,10 +277,47 @@ export default function MatchPopup({
   const canLiveSimulate = homePlayers.length >= 11 && awayPlayers.length >= 11;
 
   // ---------------------------------------------------------------------------
-  // Rates efetivos — calculados uma única vez por render, usados em todo popup
+  // SolaraHub lineup loading (background, non-blocking)
   // ---------------------------------------------------------------------------
-  const homeEffectiveRate = resolveRate(rateInfluence, homeTeam, homePlayers);
-  const awayEffectiveRate = resolveRate(rateInfluence, awayTeam, awayPlayers);
+  const [homeLineup, setHomeLineup] = useState<SolaraLineup | null>(null);
+  const [awayLineup, setAwayLineup] = useState<SolaraLineup | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    async function fetchLineup(tm2TeamId: string): Promise<SolaraLineup | null> {
+      const { data: link } = await (supabase as any)
+        .from("club_sync_links")
+        .select("solarahub_club_id")
+        .eq("tm2_team_id", tm2TeamId)
+        .maybeSingle();
+      if (!link?.solarahub_club_id) return null;
+      const { data, error } = await supabase.functions.invoke("get-solarahub-lineup", {
+        body: { solarahub_club_id: link.solarahub_club_id },
+      });
+      if (error) return null;
+      return (data as { lineup: SolaraLineup | null })?.lineup ?? null;
+    }
+    Promise.all([
+      match.homeTeamId ? fetchLineup(match.homeTeamId) : Promise.resolve(null),
+      match.awayTeamId ? fetchLineup(match.awayTeamId) : Promise.resolve(null),
+    ]).then(([h, a]) => {
+      if (cancelled) return;
+      setHomeLineup(h);
+      setAwayLineup(a);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [match.homeTeamId, match.awayTeamId]);
+
+  // ---------------------------------------------------------------------------
+  // Rates efetivos — calculados uma única vez por render, usados em todo popup.
+  // Quando há lineup do SolaraHub, usa os 11 titulares casados via master_player_id.
+  // ---------------------------------------------------------------------------
+  const homeStarters = getStartersFromLineup(homePlayers, homeLineup);
+  const awayStarters = getStartersFromLineup(awayPlayers, awayLineup);
+  const homeEffectiveRate = resolveRate(rateInfluence, homeTeam, homeStarters);
+  const awayEffectiveRate = resolveRate(rateInfluence, awayTeam, awayStarters);
 
   const setHalfScore = (half: HalfKey, side: 0 | 1, value: number) => {
     setScores((prev) => ({ ...prev, [half]: side === 0 ? [value, prev[half][1]] : [prev[half][0], value] }));
