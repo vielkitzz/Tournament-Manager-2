@@ -1027,6 +1027,43 @@ export default function TournamentDetailPage() {
     }
   };
 
+  /** Regenerate matches for the current phase, discarding existing unplayed matches. */
+  const regenerateDraw = (scope: "rounds" | "bracket") => {
+    if (tournament.finalized || isViewingPastSeason) return;
+    const allMatches = tournament.matches || [];
+    const anyPlayed = allMatches.some((m) => m.played);
+    if (anyPlayed) {
+      toast.error("Não é possível refazer: existem jogos já disputados.");
+      return;
+    }
+
+    if (scope === "rounds") {
+      if (tournament.format === "liga") {
+        const turnos = tournament.ligaTurnos || 1;
+        const matches = generateRoundRobin(tournament.id, tournament.teamIds, turnos);
+        updateTournament(tournament.id, { matches });
+        toast.success(`Confrontos refeitos! ${matches.length} jogos gerados.`);
+      } else if (tournament.format === "suico") {
+        const rounds = tournament.suicoJogosLiga || 8;
+        const matches = generateSwissLeagueMatches(tournament.id, tournament.teamIds, rounds);
+        updateTournament(tournament.id, { matches });
+        toast.success(`Confrontos refeitos! ${matches.length} jogos gerados.`);
+      } else if (tournament.format === "grupos") {
+        regenerateGroupMatches(currentAssignments);
+        toast.success("Confrontos da fase de grupos refeitos!");
+      }
+      return;
+    }
+
+    // scope === "bracket"
+    if (tournament.format === "mata-mata") {
+      // Clear and rerun mata-mata branch via autoGenerate (which requires empty matches)
+      updateTournament(tournament.id, { matches: [] });
+      // defer to allow state to flush, then regenerate
+      setTimeout(() => autoGenerate(), 0);
+    }
+  };
+
   const optionIcons = [
     { icon: Pencil, label: "Editar Competição", action: () => navigate(`/tournament/${id}/edit`) },
     { icon: Settings, label: "Editar Sistemas", action: () => navigate(`/tournament/${id}/settings`) },
