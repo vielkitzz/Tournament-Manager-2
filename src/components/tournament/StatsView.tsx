@@ -1,9 +1,10 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { Match, Team, Tournament, Player, MatchEvent } from "@/types/tournament";
 import { Shield, Swords, ShieldCheck, TrendingUp, ChevronDown, ChevronUp, Award, Handshake } from "lucide-react";
 import SoccerBallIcon from "@/components/icons/SoccerBallIcon";
 import YellowCardIcon from "@/components/icons/YellowCardIcon";
 import RedCardIcon from "@/components/icons/RedCardIcon";
+import ScreenshotButton from "@/components/ScreenshotButton";
 
 interface StatsViewProps {
   tournament: Tournament;
@@ -280,6 +281,7 @@ export default function StatsView({ tournament, teams, players }: StatsViewProps
   const hasMatches = tournament.matches.some((m) => m.played);
   const hasEvents = tournament.matches.some((m) => m.played && m.events && m.events.length > 0);
   const playerStats = hasEvents ? computePlayerStats(tournament, teams, players) : [];
+  const statsRef = useRef<HTMLDivElement>(null);
 
   if (!hasMatches) {
     return (
@@ -317,7 +319,11 @@ export default function StatsView({ tournament, teams, players }: StatsViewProps
     .slice(0, 20);
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-3">
+      <div className="flex justify-end">
+        <ScreenshotButton targetRef={statsRef as any} filename="estatisticas.png" discrete />
+      </div>
+      <div ref={statsRef} className="space-y-6">
       {/* Team Stats */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-2 gap-4">
         <StatCard icon={Swords} title="Melhor Ataque" items={bestAttack} valueAccessor={(s) => `${s.goalsFor}`} />
@@ -373,6 +379,7 @@ export default function StatsView({ tournament, teams, players }: StatsViewProps
           )}
         </div>
       )}
+      </div>
     </div>
   );
 }
