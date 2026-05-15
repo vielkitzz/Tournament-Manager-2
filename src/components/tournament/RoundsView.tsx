@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { Match, Team, Tournament, Player } from "@/types/tournament";
-import { Shield, ChevronLeft, ChevronRight, Trophy, CheckCircle, Play } from "lucide-react";
+import { Shield, ChevronLeft, ChevronRight, Trophy, CheckCircle, Play, Shuffle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { simulateFullMatch, generateMatchStats, generateMinuteByMinuteEvents, getSuspendedPlayerIds } from "@/lib/simulation";
 import { effectiveMatchRate } from "@/lib/playerSkill";
@@ -15,6 +15,7 @@ interface RoundsViewProps {
   onBatchUpdateMatches?: (matches: Match[]) => void;
   onGenerateRounds?: () => void;
   onFinalize?: () => void;
+  onResetDraw?: () => void;
 }
 
 export default function RoundsView({
@@ -24,6 +25,7 @@ export default function RoundsView({
   onUpdateMatch,
   onBatchUpdateMatches,
   onFinalize,
+  onResetDraw,
 }: RoundsViewProps) {
   const matches = tournament.matches;
   const totalRounds = matches.length > 0 ? Math.max(...matches.map((m) => m.round)) : 0;
@@ -47,6 +49,7 @@ export default function RoundsView({
   const allPlayed = matches.length > 0 && matches.every((m) => m.played);
   const roundMatches = matches.filter((m) => m.round === currentRound);
   const unplayedInRound = roundMatches.filter((m) => !m.played);
+  const noneEverPlayed = matches.length > 0 && matches.every((m) => !m.played);
 
   const getTeam = (id: string) => teams.find((t) => t.id === id);
 
@@ -148,6 +151,17 @@ export default function RoundsView({
             className="p-1.5 rounded-lg bg-primary/10 text-primary hover:bg-primary/20 transition-colors"
           >
             <Play className="w-4 h-4" />
+          </button>
+        )}
+        {onResetDraw && !tournament.finalized && noneEverPlayed && (
+          <button
+            onClick={() => {
+              if (confirm("Refazer os confrontos? Os jogos atuais serão substituídos.")) onResetDraw();
+            }}
+            title="Refazer confrontos"
+            className="p-1.5 rounded-lg hover:bg-secondary text-muted-foreground hover:text-foreground transition-colors"
+          >
+            <Shuffle className="w-4 h-4" />
           </button>
         )}
         <ScreenshotButton targetRef={roundsRef as any} filename={`rodada-${currentRound}.png`} />

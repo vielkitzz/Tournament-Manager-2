@@ -81,27 +81,24 @@ export async function captureScreenshot(element: HTMLElement, filename: string =
 
     // Copy to clipboard
     try {
-      const blob = await (await fetch(dataUrl)).blob();
-      await navigator.clipboard.write([
-        new ClipboardItem({ "image/png": blob }),
-      ]);
-      toast.success("Imagem copiada para a área de transferência!");
-    } catch {
-      try {
-        const blob = await (await fetch(dataUrl)).blob();
-        const file = new File([blob], filename, { type: "image/png" });
-        if (navigator.share && navigator.canShare && navigator.canShare({ files: [file] })) {
-          await navigator.share({ files: [file], title: filename.replace(".png", "") });
-          return;
-        }
-      } catch {
-        // Fall through to download
+      // Use the Promise form so Safari keeps the user-gesture context
+      // through the async toPng() above. Chromium also accepts this form.
+      const blobPromise = fetch(dataUrl).then((r) => r.blob());
+      if (typeof ClipboardItem !== "undefined" && navigator.clipboard?.write) {
+        await navigator.clipboard.write([
+          new ClipboardItem({ "image/png": blobPromise }),
+        ]);
+        toast.success("Imagem copiada para a área de transferência!");
+      } else {
+        throw new Error("Clipboard API indisponível");
       }
+    } catch (err) {
+      console.warn("Clipboard copy failed, falling back to download:", err);
       const link = document.createElement("a");
       link.download = filename;
       link.href = dataUrl;
       link.click();
-      toast.success("Imagem salva!");
+      toast.success("Imagem salva (cópia indisponível neste navegador)");
     }
   } catch (err) {
     console.error("Screenshot error:", err);

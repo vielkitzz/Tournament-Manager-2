@@ -27,6 +27,7 @@ interface BracketViewProps {
   onFinalize?: () => void;
   onAddMatch?: (match: Match) => void;
   onRemoveMatch?: (matchId: string, pairId?: string) => void;
+  onResetDraw?: () => void;
 }
 
 const STAGE_LABELS: Record<string, string> = {
@@ -88,6 +89,7 @@ export default function BracketView({
   onFinalize,
   onAddMatch,
   onRemoveMatch,
+  onResetDraw,
 }: BracketViewProps) {
   const matches = tournament.matches || [];
   const [selectedMatch, setSelectedMatch] = useState<Match | null>(null);
@@ -997,6 +999,17 @@ export default function BracketView({
       })()}
 
       <div className="flex justify-end mb-1">
+        {onResetDraw && !tournament.finalized && matches.every((m) => !m.played) && (
+          <button
+            onClick={() => {
+              if (confirm("Refazer o sorteio? O chaveamento atual será substituído.")) onResetDraw();
+            }}
+            title="Refazer sorteio"
+            className="p-1 mr-1 text-muted-foreground/40 hover:text-muted-foreground hover:bg-secondary/50 rounded-lg transition-colors"
+          >
+            <Shuffle className="w-3.5 h-3.5" />
+          </button>
+        )}
         <ScreenshotButton targetRef={bracketRef as any} filename="chaveamento.png" discrete />
       </div>
 
