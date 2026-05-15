@@ -1646,6 +1646,9 @@ export default function TournamentDetailPage() {
                     onGenerateBracket={() => {
                       if (!isViewingPastSeason) autoGenerate();
                     }}
+                    onResetDraw={
+                      isMataMata && !isViewingPastSeason ? () => regenerateDraw("bracket") : undefined
+                    }
                     onFinalize={isViewingPastSeason ? undefined : handleFinalizeSeason}
                     onAddMatch={(match) => {
                       if (isViewingPastSeason) return;
