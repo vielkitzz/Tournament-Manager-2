@@ -1564,6 +1564,7 @@ export default function TournamentDetailPage() {
                 updateTournament(tournament.id, { matches: newMatches });
               }}
               onGenerateRounds={undefined}
+              onResetDraw={() => regenerateDraw("rounds")}
             />
           </div>
         </TabsContent>
