@@ -213,7 +213,10 @@ function getTacticalMods(lineup: SolaraLineup | null): { atk: number; def: numbe
 function getStartersFromLineup(players: Player[], lineup: SolaraLineup | null): Player[] {
   if (!lineup?.pitchIds) return players.slice(0, 11);
   const starterIds = new Set(Object.values(lineup.pitchIds));
-  const matched = players.filter((p) => p.master_player_id && starterIds.has(p.master_player_id));
+  const matched = players.filter((p) => {
+    const mid = (p as unknown as { master_player_id?: string | null }).master_player_id;
+    return !!mid && starterIds.has(mid);
+  });
   return matched.length >= 11 ? matched.slice(0, 11) : players.slice(0, 11);
 }
 
