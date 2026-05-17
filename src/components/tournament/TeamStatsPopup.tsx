@@ -610,7 +610,6 @@ function IndividualStatsTab({ team, matches, allPlayers }: { team: Team; matches
     };
   
     for (const m of matches) {
-      // Todo jogador do time conta o jogo automaticamente, independente de eventos
       for (const p of teamPlayers) {
         ensure(p.id).matches.add(m.id);
       }
