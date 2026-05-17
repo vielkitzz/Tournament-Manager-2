@@ -677,13 +677,40 @@ export function generateMinuteByMinuteEvents(
     const outCandidates = starters.filter((p) => p.position !== "Goleiro");
     const inCandidates = bench.filter((p) => p.position !== "Goleiro");
 
+    // Agrupa posições "compatíveis" para que uma substituição respeite a
+    // função em campo (defensor sai → defensor entra, e assim por diante).
+    const POSITION_GROUP: Record<string, string> = {
+      Zagueiro: "DEF",
+      "Lateral Direito": "DEF",
+      "Lateral Esquerdo": "DEF",
+      Volante: "MID",
+      Meia: "MID",
+      "Meia Atacante": "MID",
+      "Ponta Direita": "ATK",
+      "Ponta Esquerda": "ATK",
+      Atacante: "ATK",
+      Centroavante: "ATK",
+    };
+    const groupOf = (p: Player) => POSITION_GROUP[p.position || ""] || "MID";
+
     for (let i = 0; i < subCount; i++) {
       const minute = randInt(55, 85);
       const availableOut = outCandidates.filter((p) => !usedOut.has(p.id));
       const availableIn = inCandidates.filter((p) => !usedIn.has(p.id));
       if (availableOut.length === 0 || availableIn.length === 0) break;
       const outPlayer = availableOut[randInt(0, availableOut.length - 1)];
-      const inPlayer = availableIn[randInt(0, availableIn.length - 1)];
+
+      // Tenta primeiro alguém da mesma posição exata, depois do mesmo grupo
+      // tático e, em último caso, qualquer jogador disponível.
+      const samePosition = availableIn.filter((p) => p.position === outPlayer.position);
+      const sameGroup = availableIn.filter((p) => groupOf(p) === groupOf(outPlayer));
+      const inPool =
+        samePosition.length > 0
+          ? samePosition
+          : sameGroup.length > 0
+            ? sameGroup
+            : availableIn;
+      const inPlayer = inPool[randInt(0, inPool.length - 1)];
       usedOut.add(outPlayer.id);
       usedIn.add(inPlayer.id);
       subOutAt.set(outPlayer.id, minute);
