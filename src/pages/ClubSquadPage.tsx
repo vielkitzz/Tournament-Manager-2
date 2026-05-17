@@ -294,19 +294,31 @@ export default function ClubSquadPage() {
         { event: "INSERT", schema: "public", table: "players", filter: `team_id=eq.${teamId}` },
         (payload) => {
           const p = payload.new as any;
-          addPlayer({
-            id: p.id,
-            teamId: p.team_id,
-            name: p.name,
-            position: p.position ?? undefined,
-            age: p.age ?? undefined,
-            nationality: p.nationality ?? undefined,
-            shirtNumber: p.shirt_number ?? undefined,
-            skill: p.skill ?? 70,
-            photoUrl: p.photo_url ?? undefined,
-            seasonYear: p.season_year ?? undefined,
+          
+          // Atualiza o Zustand diretamente, sem chamar a action que vai no banco
+          useTournamentStore.setState((state) => {
+            // Trava de segurança: Se o jogador já estiver na tela, não faz nada
+            if (state.players.some((player) => player.id === p.id)) return state;
+            
+            toast.success(`${p.name} adicionado via SolaraHub`);
+            return {
+              players: [
+                ...state.players,
+                {
+                  id: p.id,
+                  teamId: p.team_id,
+                  name: p.name,
+                  position: p.position ?? undefined,
+                  age: p.age ?? undefined,
+                  nationality: p.nationality ?? undefined,
+                  shirtNumber: p.shirt_number ?? undefined,
+                  skill: p.skill ?? 70,
+                  photoUrl: p.photo_url ?? undefined,
+                  seasonYear: p.season_year ?? undefined,
+                },
+              ],
+            };
           });
-          toast.success(`${p.name} adicionado via SolaraHub`);
         },
       )
       .on(
@@ -314,17 +326,24 @@ export default function ClubSquadPage() {
         { event: "UPDATE", schema: "public", table: "players", filter: `team_id=eq.${teamId}` },
         (payload) => {
           const p = payload.new as any;
-          updatePlayer(p.id, {
-            name: p.name,
-            position: p.position ?? undefined,
-            age: p.age ?? undefined,
-            nationality: p.nationality ?? undefined,
-            shirtNumber: p.shirt_number ?? undefined,
-            skill: p.skill ?? 70,
-            photoUrl: p.photo_url ?? undefined,
-            seasonYear: p.season_year ?? undefined,
-          });
-          toast.info(`${p.name} atualizado via SolaraHub`);
+          
+          useTournamentStore.setState((state) => ({
+            players: state.players.map((player) =>
+              player.id === p.id
+                ? {
+                    ...player,
+                    name: p.name,
+                    position: p.position ?? undefined,
+                    age: p.age ?? undefined,
+                    nationality: p.nationality ?? undefined,
+                    shirtNumber: p.shirt_number ?? undefined,
+                    skill: p.skill ?? 70,
+                    photoUrl: p.photo_url ?? undefined,
+                    seasonYear: p.season_year ?? undefined,
+                  }
+                : player
+            ),
+          }));
         },
       )
       .on(
@@ -332,8 +351,10 @@ export default function ClubSquadPage() {
         { event: "DELETE", schema: "public", table: "players", filter: `team_id=eq.${teamId}` },
         (payload) => {
           const p = payload.old as any;
-          removePlayer(p.id);
-          toast.info(`Jogador removido via SolaraHub`);
+          
+          useTournamentStore.setState((state) => ({
+            players: state.players.filter((player) => player.id !== p.id),
+          }));
         },
       )
       .subscribe();
@@ -341,7 +362,7 @@ export default function ClubSquadPage() {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [teamId, addPlayer, updatePlayer, removePlayer]);
+  }, [teamId]);
 
   const availableYears = useMemo(() => {
     const years = new Set<number>();
