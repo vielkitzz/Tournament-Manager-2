@@ -1,7 +1,7 @@
 import { useState, useRef } from "react";
 import { Shield, X } from "lucide-react";
 import { StandingRow } from "@/lib/standings";
-import { PromotionRule, Match, Team } from "@/types/tournament";
+import { PromotionRule, Match, Team, Player } from "@/types/tournament";
 import { cn } from "@/lib/utils";
 import TeamStatsPopup from "./TeamStatsPopup";
 import ScreenshotButton from "@/components/ScreenshotButton";
@@ -19,10 +19,11 @@ interface StandingsTableProps {
   onRemoveTeam?: (teamId: string) => void;
   matches?: Match[];
   allTeams?: Team[];
+  allPlayers?: Player[];
   hideScreenshot?: boolean;
 }
 
-export default function StandingsTable({ standings, promotions = [], qualifyUntil, onRemoveTeam, matches = [], allTeams = [], hideScreenshot }: StandingsTableProps) {
+export default function StandingsTable({ standings, promotions = [], qualifyUntil, onRemoveTeam, matches = [], allTeams = [], allPlayers = [], hideScreenshot }: StandingsTableProps) {
   const [selectedTeamId, setSelectedTeamId] = useState<string | null>(null);
   const tableRef = useRef<HTMLDivElement>(null);
 
