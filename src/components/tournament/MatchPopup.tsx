@@ -152,14 +152,38 @@ function EventRow({
   };
 
   return (
-    <div className={`flex items-start gap-2 py-1.5 ${isHome ? "" : "flex-row-reverse text-right"}`}>
-      <span className="text-[10px] font-mono text-muted-foreground w-8 shrink-0 text-center pt-0.5">
+    <div
+      className={`flex items-start gap-2 py-1.5 ${isHome ? "" : "flex-row-reverse text-right"} ${
+        event.type === "goal"
+          ? "bg-primary/10 border-l-2 border-primary rounded-r-md px-2 -mx-2 my-1"
+          : ""
+      }`}
+    >
+      <span
+        className={`font-mono shrink-0 w-8 text-center pt-0.5 ${
+          event.type === "goal" ? "text-sm font-bold text-primary" : "text-[10px] text-muted-foreground"
+        }`}
+      >
         {event.minute}'
       </span>
-      <span className="shrink-0 flex items-center justify-center w-4 h-4 pt-0.5">
-        {IconComponent ? <IconComponent size={14} className={event.type === "goal" ? "text-primary" : ""} /> : "•"}
+      <span
+        className={`shrink-0 flex items-center justify-center pt-0.5 ${
+          event.type === "goal" ? "w-5 h-5" : "w-4 h-4"
+        }`}
+      >
+        {IconComponent ? (
+          <IconComponent size={event.type === "goal" ? 18 : 14} className={event.type === "goal" ? "text-primary" : ""} />
+        ) : (
+          "•"
+        )}
       </span>
-      <span className="text-xs text-foreground leading-tight">{formatEventText(event.text)}</span>
+      <span
+        className={`leading-tight ${
+          event.type === "goal" ? "text-sm font-semibold text-foreground" : "text-xs text-foreground"
+        }`}
+      >
+        {formatEventText(event.text)}
+      </span>
     </div>
   );
 }
