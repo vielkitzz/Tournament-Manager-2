@@ -555,12 +555,15 @@ function pickFromPool(
   matchGoalCounts: Map<string, number>,
   exclude?: string,
 ): Player | undefined {
-  const eligible = pool.filter((p) => p.id !== exclude && isOnPitch(p.id, minute));
+  // Filtra goleiros explicitamente além do isOnPitch
+  const eligible = pool.filter(
+    (p) => p.id !== exclude && isOnPitch(p.id, minute) && (POSITION_GOAL_WEIGHT[p.position || ""] ?? 0) > 0,
+  );
   if (eligible.length === 0) return undefined;
 
   const weights = eligible.map((p) => {
     const goalsThisMatch = matchGoalCounts.get(p.id) ?? 0;
-    return 1 * Math.pow(1.6, goalsThisMatch);
+    return Math.pow(1.6, goalsThisMatch);
   });
 
   const total = weights.reduce((s, v) => s + v, 0);
@@ -569,15 +572,13 @@ function pickFromPool(
   for (let i = 0; i < eligible.length; i++) {
     r -= weights[i];
     if (r <= 0) {
-      const current = matchGoalCounts.get(eligible[i].id) ?? 0;
-      matchGoalCounts.set(eligible[i].id, current + 1);
+      matchGoalCounts.set(eligible[i].id, (matchGoalCounts.get(eligible[i].id) ?? 0) + 1);
       return eligible[i];
     }
   }
 
   const last = eligible[eligible.length - 1];
-  const current = matchGoalCounts.get(last.id) ?? 0;
-  matchGoalCounts.set(last.id, current + 1);
+  matchGoalCounts.set(last.id, (matchGoalCounts.get(last.id) ?? 0) + 1);
   return last;
 }
 
