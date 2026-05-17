@@ -160,6 +160,8 @@ function SolaraSyncButton({ tm2TeamId }: SolaraSyncButtonProps) {
       sync_enabled: true,
     });
 
+    setTimeout(() => window.location.reload(), 2000);
+
     setOpen(false);
   }
 
