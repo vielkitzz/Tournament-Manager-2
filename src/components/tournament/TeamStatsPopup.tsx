@@ -156,7 +156,11 @@ export default function TeamStatsPopup({ open, onClose, team, standing, matches,
 
   return (
     <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
-      <DialogContent className="max-w-md p-0 gap-0 overflow-hidden rounded-2xl border-0 shadow-2xl">
+      <DialogContent
+        className={`p-0 gap-0 overflow-hidden rounded-2xl border-0 shadow-2xl ${
+          activeTab === "individual" ? "max-w-4xl" : "max-w-md"
+        }`}
+      >
         {/* Hero Header */}
         <div
           className="relative px-5 pt-5 pb-4"
