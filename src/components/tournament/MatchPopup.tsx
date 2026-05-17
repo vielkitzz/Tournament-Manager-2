@@ -1244,6 +1244,63 @@ export default function MatchPopup({
                   )}
                 </div>
               </TabsContent>
+
+              <TabsContent value="goals" className="mt-0">
+                <div className="px-6 py-4 max-h-64 overflow-y-auto">
+                  {(() => {
+                    const goalEvents = visibleEvents.filter((e) => e.type === "goal");
+                    if (goalEvents.length === 0) {
+                      return (
+                        <p className="text-xs text-muted-foreground text-center py-6">
+                          {isLiveSimulating ? "Aguardando gols..." : "Nenhum gol marcado"}
+                        </p>
+                      );
+                    }
+                    const playersMap = new Map((allPlayers || []).map((p) => [p.id, p]));
+                    return (
+                      <div className="space-y-1.5">
+                        {goalEvents.map((evt) => {
+                          const isHome = evt.teamId === match.homeTeamId;
+                          const team = isHome ? homeTeam : awayTeam;
+                          const scorer = evt.playerId ? playersMap.get(evt.playerId) : undefined;
+                          const assister = evt.assistId ? playersMap.get(evt.assistId) : undefined;
+                          return (
+                            <div
+                              key={evt.id}
+                              className={`flex items-center gap-3 px-3 py-2 rounded-lg bg-primary/5 border border-primary/20`}
+                            >
+                              <span className="font-mono text-sm font-bold text-primary w-10 text-center shrink-0">
+                                {evt.minute}'
+                              </span>
+                              <SoccerBallIcon size={18} className="text-primary shrink-0" />
+                              <div className="flex-1 min-w-0">
+                                <p className="text-sm font-semibold text-foreground truncate">
+                                  {scorer?.name || "Jogador"}
+                                </p>
+                                {assister && (
+                                  <p className="text-[11px] text-muted-foreground truncate">
+                                    Assistência: {assister.name}
+                                  </p>
+                                )}
+                              </div>
+                              <div className="flex items-center gap-1.5 shrink-0">
+                                {team?.logo ? (
+                                  <img src={team.logo} alt="" className="w-5 h-5 object-contain" />
+                                ) : (
+                                  <Shield className="w-4 h-4 text-muted-foreground" />
+                                )}
+                                <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">
+                                  {team?.abbreviation || team?.shortName || ""}
+                                </span>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    );
+                  })()}
+                </div>
+              </TabsContent>
             </Tabs>
           </div>
         )}
