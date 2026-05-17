@@ -69,7 +69,7 @@ const MAX_EXPECTED_GOALS = 3.0;
  * de resultados do clube (últimas 5 partidas, por exemplo) e passado como
  * parâmetro. Enquanto não implementado, passe 0.
  */
-function applyMoral(rate: number, moral: number): number {
+export function applyMoral(rate: number, moral: number): number {
   const clamped = Math.max(-0.15, Math.min(0.15, moral));
   return rate * (1 + clamped);
 }
@@ -118,8 +118,8 @@ export function getExpectedGoals(
   isExtraTime = false,
   matchMomentum = 0.5,
   isHome = false,
-  // Modificadores externos (mata-mata, moral já aplicada no rate)
   attackMod = 1.0,
+  opponentDefenseMod = 1.0, // exposição defensiva do adversário
 ): number {
   const BASE_GOALS_PER_HALF = 0.55;
 
@@ -129,7 +129,8 @@ export function getExpectedGoals(
   const formFactor = getTeamFormFactor(teamRate, matchMomentum);
   const fatigueFactor = isExtraTime ? 0.35 : 1.0;
 
-  let expected = BASE_GOALS_PER_HALF * strengthRatio * formFactor * fatigueFactor * homeBonus * attackMod;
+  let expected =
+    BASE_GOALS_PER_HALF * strengthRatio * formFactor * fatigueFactor * homeBonus * attackMod * opponentDefenseMod;
 
   expected = Math.min(MAX_EXPECTED_GOALS, expected);
   return expected;
@@ -144,12 +145,29 @@ export function simulateHalf(
   awayRate: number,
   isExtraTime = false,
   matchMomentum = 0.5,
-  // Modificadores de urgência (mata-mata) já calculados externamente
   homeAttackMod = 1.0,
   awayAttackMod = 1.0,
+  homeDefenseMod = 1.0,
+  awayDefenseMod = 1.0,
 ): [number, number] {
-  const homeExpected = getExpectedGoals(homeRate, awayRate, isExtraTime, matchMomentum, true, homeAttackMod);
-  const awayExpected = getExpectedGoals(awayRate, homeRate, isExtraTime, matchMomentum, false, awayAttackMod);
+  const homeExpected = getExpectedGoals(
+    homeRate,
+    awayRate,
+    isExtraTime,
+    matchMomentum,
+    true,
+    homeAttackMod,
+    awayDefenseMod,
+  );
+  const awayExpected = getExpectedGoals(
+    awayRate,
+    homeRate,
+    isExtraTime,
+    matchMomentum,
+    false,
+    awayAttackMod,
+    homeDefenseMod,
+  );
   return [poissonRandom(homeExpected), poissonRandom(awayExpected)];
 }
 
@@ -161,6 +179,8 @@ export function simulateFullMatch(
   awayMoral = 0,
   homeAttackMod = 1.0,
   awayAttackMod = 1.0,
+  homeDefenseMod = 1.0,
+  awayDefenseMod = 1.0,
 ): {
   h1: [number, number];
   h2: [number, number];
@@ -170,8 +190,8 @@ export function simulateFullMatch(
   const hRate = applyMoral(homeRate, homeMoral);
   const aRate = applyMoral(awayRate, awayMoral);
 
-  const homeXg1 = getExpectedGoals(hRate, aRate, isExtraTime, 0.5, true, homeAttackMod);
-  const awayXg1 = getExpectedGoals(aRate, hRate, isExtraTime, 0.5, false, awayAttackMod);
+  const homeXg1 = getExpectedGoals(hRate, aRate, isExtraTime, 0.5, true, homeAttackMod, awayDefenseMod);
+  const awayXg1 = getExpectedGoals(aRate, hRate, isExtraTime, 0.5, false, awayAttackMod, homeDefenseMod);
   const firstHalf: [number, number] = [poissonRandom(homeXg1), poissonRandom(awayXg1)];
 
   const goalDiff = firstHalf[0] - firstHalf[1];
@@ -181,8 +201,8 @@ export function simulateFullMatch(
   else if (goalDiff > 0) momentum = 0.6;
   else if (goalDiff < 0) momentum = 0.4;
 
-  const homeXg2 = getExpectedGoals(hRate, aRate, isExtraTime, momentum, true, homeAttackMod);
-  const awayXg2 = getExpectedGoals(aRate, hRate, isExtraTime, momentum, false, awayAttackMod);
+  const homeXg2 = getExpectedGoals(hRate, aRate, isExtraTime, momentum, true, homeAttackMod, awayDefenseMod);
+  const awayXg2 = getExpectedGoals(aRate, hRate, isExtraTime, momentum, false, awayAttackMod, homeDefenseMod);
   const secondHalf: [number, number] = [poissonRandom(homeXg2), poissonRandom(awayXg2)];
 
   return {
@@ -602,6 +622,12 @@ export function getStartingGoalkeeper(players: Player[]): Player | undefined {
   return gks.reduce((best, p) => ((p.skill ?? 0) > (best.skill ?? 0) ? p : best));
 }
 
+export function getBestPenaltyKicker(players: Player[]): Player | undefined {
+  const outfield = players.filter((p) => (p.position || "").toLowerCase() !== "goleiro");
+  if (outfield.length === 0) return undefined;
+  return outfield.reduce((best, p) => ((p.skill ?? 0) > (best.skill ?? 0) ? p : best));
+}
+
 // ---------------------------------------------------------------------------
 // Geração de eventos minuto a minuto
 // ---------------------------------------------------------------------------
@@ -704,12 +730,7 @@ export function generateMinuteByMinuteEvents(
       // tático e, em último caso, qualquer jogador disponível.
       const samePosition = availableIn.filter((p) => p.position === outPlayer.position);
       const sameGroup = availableIn.filter((p) => groupOf(p) === groupOf(outPlayer));
-      const inPool =
-        samePosition.length > 0
-          ? samePosition
-          : sameGroup.length > 0
-            ? sameGroup
-            : availableIn;
+      const inPool = samePosition.length > 0 ? samePosition : sameGroup.length > 0 ? sameGroup : availableIn;
       const inPlayer = inPool[randInt(0, inPool.length - 1)];
       usedOut.add(outPlayer.id);
       usedIn.add(inPlayer.id);

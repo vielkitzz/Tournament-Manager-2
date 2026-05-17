@@ -9,6 +9,9 @@ import {
   getSuspendedPlayerIds,
   getExpectedGoals,
   getSecondLegModifiers,
+  simulatePenaltyKick, // ADICIONAR
+  getStartingGoalkeeper, // ADICIONAR
+  getBestPenaltyKicker, // ADICIONAR
 } from "@/lib/simulation";
 import { effectiveMatchRate } from "@/lib/playerSkill";
 import { supabase } from "@/integrations/supabase/client";
@@ -39,10 +42,6 @@ interface MatchPopupProps {
 }
 
 type HalfKey = "h1" | "h2" | "et1" | "et2";
-
-function simulatePenaltyKick(): boolean {
-  return Math.random() < 0.75;
-}
 
 function StatRow({
   label,
@@ -154,9 +153,7 @@ function EventRow({
   return (
     <div
       className={`flex items-start gap-2 py-1.5 ${isHome ? "" : "flex-row-reverse text-right"} ${
-        event.type === "goal"
-          ? "bg-primary/10 border-l-2 border-primary rounded-r-md px-2 -mx-2 my-1"
-          : ""
+        event.type === "goal" ? "bg-primary/10 border-l-2 border-primary rounded-r-md px-2 -mx-2 my-1" : ""
       }`}
     >
       <span
@@ -167,12 +164,13 @@ function EventRow({
         {event.minute}'
       </span>
       <span
-        className={`shrink-0 flex items-center justify-center pt-0.5 ${
-          event.type === "goal" ? "w-5 h-5" : "w-4 h-4"
-        }`}
+        className={`shrink-0 flex items-center justify-center pt-0.5 ${event.type === "goal" ? "w-5 h-5" : "w-4 h-4"}`}
       >
         {IconComponent ? (
-          <IconComponent size={event.type === "goal" ? 18 : 14} className={event.type === "goal" ? "text-primary" : ""} />
+          <IconComponent
+            size={event.type === "goal" ? 18 : 14}
+            className={event.type === "goal" ? "text-primary" : ""}
+          />
         ) : (
           "•"
         )}
@@ -568,22 +566,27 @@ export default function MatchPopup({
   // Urgência: só faz sentido na 2ª perna de mata-mata
   let homeUrgencyAtk = 1.0;
   let awayUrgencyAtk = 1.0;
+  let homeUrgencyDef = 1.0;
+  let awayUrgencyDef = 1.0;
   if (isLeg2OfPair && pairLeg1) {
     const leg1Home = (pairLeg1.homeScore || 0) + (pairLeg1.homeExtraTime || 0);
     const leg1Away = (pairLeg1.awayScore || 0) + (pairLeg1.awayExtraTime || 0);
-    // No leg 2 o "home" é o que jogou fora no leg 1 → agregado:
     const aggHomeForLeg2Home = leg1Away + accumulatedHome;
     const aggAwayForLeg2Home = leg1Home + accumulatedAway;
     const deficitHome = aggAwayForLeg2Home - aggHomeForLeg2Home;
     const deficitAway = aggHomeForLeg2Home - aggAwayForLeg2Home;
-    homeUrgencyAtk = getSecondLegModifiers(Math.max(0, deficitHome)).attackMod;
-    awayUrgencyAtk = getSecondLegModifiers(Math.max(0, deficitAway)).attackMod;
+    const homeMods = getSecondLegModifiers(Math.max(0, deficitHome));
+    const awayMods = getSecondLegModifiers(Math.max(0, deficitAway));
+    homeUrgencyAtk = homeMods.attackMod;
+    awayUrgencyAtk = awayMods.attackMod;
+    homeUrgencyDef = homeMods.defenseMod;
+    awayUrgencyDef = awayMods.defenseMod;
   }
 
-  const homeAttackMod =
-    homeTactical.atk * homeUrgencyAtk * (1 / Math.max(0.5, awayTactical.def));
-  const awayAttackMod =
-    awayTactical.atk * awayUrgencyAtk * (1 / Math.max(0.5, homeTactical.def));
+  const homeAttackMod = homeTactical.atk * homeUrgencyAtk * (1 / Math.max(0.5, awayTactical.def));
+  const awayAttackMod = awayTactical.atk * awayUrgencyAtk * (1 / Math.max(0.5, homeTactical.def));
+  const homeDefenseMod = homeUrgencyDef;
+  const awayDefenseMod = awayUrgencyDef;
 
   // Moral aplicada como multiplicador no rate antes da simulação.
   const homeRateForSim = homeEffectiveRate * (1 + Math.max(-0.15, Math.min(0.15, homeMoral)));
@@ -594,7 +597,16 @@ export default function MatchPopup({
 
   const handleSimulate = () => {
     const isET = activeHalf === "et1" || activeHalf === "et2";
-    const [h, a] = simulateHalf(homeRateForSim, awayRateForSim, isET, 0.5, homeAttackMod, awayAttackMod);
+    const [h, a] = simulateHalf(
+      homeRateForSim,
+      awayRateForSim,
+      isET,
+      0.5,
+      homeAttackMod,
+      awayAttackMod,
+      homeDefenseMod,
+      awayDefenseMod,
+    );
     setHalfScore(activeHalf, 0, h);
     setHalfScore(activeHalf, 1, a);
     setSimulatedHalves((prev) => new Set(prev).add(activeHalf));
@@ -613,7 +625,11 @@ export default function MatchPopup({
     if (penaltyFinished) return;
     const isHomeKick = penaltyIndex % 2 === 0;
     const side = isHomeKick ? "home" : "away";
-    const result = simulatePenaltyKick();
+
+    const kicker = isHomeKick ? getBestPenaltyKicker(homePlayers) : getBestPenaltyKicker(awayPlayers);
+    const goalkeeper = isHomeKick ? getStartingGoalkeeper(awayPlayers) : getStartingGoalkeeper(homePlayers);
+
+    const result = simulatePenaltyKick(kicker, goalkeeper);
     setPenalties((prev) => ({ ...prev, [side]: [...prev[side], result] }));
     setPenaltyIndex((i) => i + 1);
   }, [penaltyIndex, penaltyFinished]);
@@ -685,14 +701,32 @@ export default function MatchPopup({
   const handleLiveSimulate = () => {
     if (!homeTeam || !awayTeam || !canLiveSimulate) return;
 
-    const [h1h, h1a] = simulateHalf(homeRateForSim, awayRateForSim, false, 0.5, homeAttackMod, awayAttackMod);
+    const [h1h, h1a] = simulateHalf(
+      homeRateForSim,
+      awayRateForSim,
+      false,
+      0.5,
+      homeAttackMod,
+      awayAttackMod,
+      homeDefenseMod,
+      awayDefenseMod,
+    );
     const goalDiff = h1h - h1a;
     let momentum = 0.5;
     if (goalDiff > 1) momentum = 0.7;
     else if (goalDiff < -1) momentum = 0.3;
     else if (goalDiff > 0) momentum = 0.6;
     else if (goalDiff < 0) momentum = 0.4;
-    const [h2h, h2a] = simulateHalf(homeRateForSim, awayRateForSim, false, momentum, homeAttackMod, awayAttackMod);
+    const [h2h, h2a] = simulateHalf(
+      homeRateForSim,
+      awayRateForSim,
+      false,
+      momentum,
+      homeAttackMod,
+      awayAttackMod,
+      homeDefenseMod,
+      awayDefenseMod,
+    );
     setScores({ h1: [h1h, h1a], h2: [h2h, h2a], et1: [0, 0], et2: [0, 0] });
     setSimulatedHalves(new Set(["h1", "h2"]));
     setActiveHalf("h2");
