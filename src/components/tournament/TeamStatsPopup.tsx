@@ -518,7 +518,7 @@ function IndividualStatsTab({
   );
 
   const stats = useMemo(() => {
-    const map = new Map<
+    const map = new Map
       string,
       { matches: Set<string>; goals: number; assists: number; yellows: number; reds: number }
     >();
@@ -530,16 +530,19 @@ function IndividualStatsTab({
       }
       return s;
     };
-
+  
     for (const m of matches) {
+      // Todo jogador do time conta o jogo automaticamente, independente de eventos
+      for (const p of teamPlayers) {
+        ensure(p.id).matches.add(m.id);
+      }
+  
       if (!m.events) continue;
-      // Quem aparece em qualquer evento conta como participante da partida
       const yellowsInMatch = new Map<string, number>();
       for (const evt of m.events) {
         if (evt.teamId !== team.id) continue;
         if (evt.playerId) {
           const s = ensure(evt.playerId);
-          s.matches.add(m.id);
           if (evt.type === "goal") s.goals++;
           if (evt.type === "yellow_card") {
             s.yellows++;
@@ -548,18 +551,15 @@ function IndividualStatsTab({
           if (evt.type === "red_card") s.reds++;
         }
         if (evt.assistId && evt.type === "goal") {
-          const s = ensure(evt.assistId);
-          s.matches.add(m.id);
-          s.assists++;
+          ensure(evt.assistId).assists++;
         }
       }
-      // Segundo amarelo → conta também como cartão vermelho
       for (const [pid, count] of yellowsInMatch) {
         if (count >= 2) ensure(pid).reds++;
       }
     }
     return map;
-  }, [matches, team.id]);
+  }, [matches, team.id, teamPlayers]);
 
   const rows = useMemo(() => {
     return teamPlayers.map((p) => {
