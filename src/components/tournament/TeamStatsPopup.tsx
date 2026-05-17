@@ -120,6 +120,7 @@ export default function TeamStatsPopup({ open, onClose, team, standing, matches,
     { id: "overview" as const, label: "Visão Geral", icon: BarChart3 },
     { id: "h2h" as const, label: "H2H", icon: Swords },
     { id: "compare" as const, label: "Comparar", icon: Users },
+    { id: "individual" as const, label: "Estatísticas Individuais", icon: User },
   ];
 
   const StatBar = ({ value, max, color = "bg-primary" }: { value: number; max: number; color?: string }) => {
