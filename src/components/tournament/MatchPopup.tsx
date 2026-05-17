@@ -308,6 +308,9 @@ export default function MatchPopup({
   const [awayLineup, setAwayLineup] = useState<SolaraLineup | null>(null);
 
   useEffect(() => {
+      console.log("homeLineup raw:", homeLineup);
+      console.log("homeStarters:", homeStarters.map(p => p.name));
+    }, [homeLineup, homeStarters]);
     let cancelled = false;
     async function fetchLineup(tm2TeamId: string): Promise<SolaraLineup | null> {
       const { data: link } = await (supabase as any)
