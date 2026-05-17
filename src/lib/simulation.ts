@@ -414,11 +414,15 @@ export function getSuspendedPlayerIds(
 // ---------------------------------------------------------------------------
 
 const POSITION_GOAL_WEIGHT: Record<string, number> = {
-  Goleiro: 0.02,
-  Zagueiro: 0.1,
-  "Lateral Direito": 0.18,
-  "Lateral Esquerdo": 0.18,
-  Volante: 0.45,
+  // Goleiros NUNCA marcam em jogadas de linha (apenas batem pênalti/falta
+  // se explicitamente habilitado nas táticas do elenco).
+  Goleiro: 0,
+  // Zagueiros e laterais raramente partem para o ataque na simulação minuto
+  // a minuto — frequência reduzida.
+  Zagueiro: 0.04,
+  "Lateral Direito": 0.08,
+  "Lateral Esquerdo": 0.08,
+  Volante: 0.2,
   Meia: 1.5,
   "Meia Atacante": 3.0,
   "Ponta Direita": 4.0,
@@ -428,11 +432,11 @@ const POSITION_GOAL_WEIGHT: Record<string, number> = {
 };
 
 const POSITION_ASSIST_WEIGHT: Record<string, number> = {
-  Goleiro: 0.02,
-  Zagueiro: 0.12,
-  "Lateral Direito": 1.5,
-  "Lateral Esquerdo": 1.5,
-  Volante: 1.0,
+  Goleiro: 0,
+  Zagueiro: 0.08,
+  "Lateral Direito": 1.0,
+  "Lateral Esquerdo": 1.0,
+  Volante: 0.6,
   Meia: 5.0,
   "Meia Atacante": 4.0,
   "Ponta Direita": 3.5,
@@ -442,7 +446,7 @@ const POSITION_ASSIST_WEIGHT: Record<string, number> = {
 };
 
 const POSITION_FOUL_WEIGHT: Record<string, number> = {
-  Goleiro: 0.3,
+  Goleiro: 0,
   Zagueiro: 3.0,
   "Lateral Direito": 2.0,
   "Lateral Esquerdo": 2.0,
@@ -473,24 +477,31 @@ function weightedPickSkill(
   const available = exclude ? players.filter((p) => p.id !== exclude) : players;
   if (available.length === 0) return undefined;
 
-  const w = available.map((p) => {
+  // Filtra explicitamente jogadores com peso 0 (ex.: goleiro em ações de linha)
+  const filtered = available.filter((p) => (posWeights[p.position || ""] ?? 1) > 0);
+  const pool = filtered.length > 0 ? filtered : available;
+
+  const w = pool.map((p) => {
     const posW = posWeights[p.position || ""] ?? 1;
     return posW * skillAmplifier(p.skill);
   });
 
   const total = w.reduce((s, v) => s + v, 0);
+  if (total <= 0) return undefined;
   let r = Math.random() * total;
-  for (let i = 0; i < available.length; i++) {
+  for (let i = 0; i < pool.length; i++) {
     r -= w[i];
-    if (r <= 0) return available[i];
+    if (r <= 0) return pool[i];
   }
-  return available[available.length - 1];
+  return pool[pool.length - 1];
 }
 
 function buildScorerPool(players: Player[], posWeights: Record<string, number>): Player[] {
-  if (players.length === 0) return [];
+  // Exclui jogadores com peso 0 (goleiros não entram em pool de gols/assists)
+  const eligible = players.filter((p) => (posWeights[p.position || ""] ?? 1) > 0);
+  if (eligible.length === 0) return [];
 
-  const weights = players.map((p) => {
+  const weights = eligible.map((p) => {
     const posW = posWeights[p.position || ""] ?? 1;
     return posW * skillAmplifier(p.skill);
   });
@@ -499,7 +510,7 @@ function buildScorerPool(players: Player[], posWeights: Record<string, number>):
   const POOL_SIZE = 30;
   const pool: Player[] = [];
 
-  players.forEach((p, i) => {
+  eligible.forEach((p, i) => {
     const slots = Math.max(1, Math.round((weights[i] / total) * POOL_SIZE));
     for (let s = 0; s < slots; s++) pool.push(p);
   });
@@ -508,7 +519,7 @@ function buildScorerPool(players: Player[], posWeights: Record<string, number>):
   weights.forEach((w, i) => {
     if (w > weights[topIdx]) topIdx = i;
   });
-  const topPlayer = players[topIdx];
+  const topPlayer = eligible[topIdx];
 
   for (let i = pool.length - 1; i > 0; i--) {
     const j = Math.floor(Math.random() * (i + 1));
@@ -666,13 +677,40 @@ export function generateMinuteByMinuteEvents(
     const outCandidates = starters.filter((p) => p.position !== "Goleiro");
     const inCandidates = bench.filter((p) => p.position !== "Goleiro");
 
+    // Agrupa posições "compatíveis" para que uma substituição respeite a
+    // função em campo (defensor sai → defensor entra, e assim por diante).
+    const POSITION_GROUP: Record<string, string> = {
+      Zagueiro: "DEF",
+      "Lateral Direito": "DEF",
+      "Lateral Esquerdo": "DEF",
+      Volante: "MID",
+      Meia: "MID",
+      "Meia Atacante": "MID",
+      "Ponta Direita": "ATK",
+      "Ponta Esquerda": "ATK",
+      Atacante: "ATK",
+      Centroavante: "ATK",
+    };
+    const groupOf = (p: Player) => POSITION_GROUP[p.position || ""] || "MID";
+
     for (let i = 0; i < subCount; i++) {
       const minute = randInt(55, 85);
       const availableOut = outCandidates.filter((p) => !usedOut.has(p.id));
       const availableIn = inCandidates.filter((p) => !usedIn.has(p.id));
       if (availableOut.length === 0 || availableIn.length === 0) break;
       const outPlayer = availableOut[randInt(0, availableOut.length - 1)];
-      const inPlayer = availableIn[randInt(0, availableIn.length - 1)];
+
+      // Tenta primeiro alguém da mesma posição exata, depois do mesmo grupo
+      // tático e, em último caso, qualquer jogador disponível.
+      const samePosition = availableIn.filter((p) => p.position === outPlayer.position);
+      const sameGroup = availableIn.filter((p) => groupOf(p) === groupOf(outPlayer));
+      const inPool =
+        samePosition.length > 0
+          ? samePosition
+          : sameGroup.length > 0
+            ? sameGroup
+            : availableIn;
+      const inPlayer = inPool[randInt(0, inPool.length - 1)];
       usedOut.add(outPlayer.id);
       usedIn.add(inPlayer.id);
       subOutAt.set(outPlayer.id, minute);

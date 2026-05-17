@@ -152,14 +152,38 @@ function EventRow({
   };
 
   return (
-    <div className={`flex items-start gap-2 py-1.5 ${isHome ? "" : "flex-row-reverse text-right"}`}>
-      <span className="text-[10px] font-mono text-muted-foreground w-8 shrink-0 text-center pt-0.5">
+    <div
+      className={`flex items-start gap-2 py-1.5 ${isHome ? "" : "flex-row-reverse text-right"} ${
+        event.type === "goal"
+          ? "bg-primary/10 border-l-2 border-primary rounded-r-md px-2 -mx-2 my-1"
+          : ""
+      }`}
+    >
+      <span
+        className={`font-mono shrink-0 w-8 text-center pt-0.5 ${
+          event.type === "goal" ? "text-sm font-bold text-primary" : "text-[10px] text-muted-foreground"
+        }`}
+      >
         {event.minute}'
       </span>
-      <span className="shrink-0 flex items-center justify-center w-4 h-4 pt-0.5">
-        {IconComponent ? <IconComponent size={14} className={event.type === "goal" ? "text-primary" : ""} /> : "•"}
+      <span
+        className={`shrink-0 flex items-center justify-center pt-0.5 ${
+          event.type === "goal" ? "w-5 h-5" : "w-4 h-4"
+        }`}
+      >
+        {IconComponent ? (
+          <IconComponent size={event.type === "goal" ? 18 : 14} className={event.type === "goal" ? "text-primary" : ""} />
+        ) : (
+          "•"
+        )}
       </span>
-      <span className="text-xs text-foreground leading-tight">{formatEventText(event.text)}</span>
+      <span
+        className={`leading-tight ${
+          event.type === "goal" ? "text-sm font-semibold text-foreground" : "text-xs text-foreground"
+        }`}
+      >
+        {formatEventText(event.text)}
+      </span>
     </div>
   );
 }
@@ -261,7 +285,7 @@ export default function MatchPopup({
   const [penaltyIndex, setPenaltyIndex] = useState(0);
   const [penaltyFinished, setPenaltyFinished] = useState(false);
   const [matchStats, setMatchStats] = useState<{ homeStats: TeamMatchStats; awayStats: TeamMatchStats } | null>(null);
-  const [bottomTab, setBottomTab] = useState<"stats" | "events">("stats");
+  const [bottomTab, setBottomTab] = useState<"stats" | "events" | "goals">("stats");
   const [showBottomPanel, setShowBottomPanel] = useState(false);
 
   // Live simulation state
@@ -1095,7 +1119,7 @@ export default function MatchPopup({
         {/* Bottom Tabs */}
         {showBottomPanel && (displayStats || hasEvents) && (
           <div className="border-t border-border">
-            <Tabs value={bottomTab} onValueChange={(v) => setBottomTab(v as "stats" | "events")}>
+            <Tabs value={bottomTab} onValueChange={(v) => setBottomTab(v as "stats" | "events" | "goals")}>
               <TabsList className="w-full justify-center rounded-none border-b border-border bg-transparent h-auto p-0">
                 <TabsTrigger
                   value="stats"
@@ -1108,6 +1132,13 @@ export default function MatchPopup({
                   className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent px-6 py-2.5 text-xs font-display font-bold"
                 >
                   Eventos
+                </TabsTrigger>
+                <TabsTrigger
+                  value="goals"
+                  className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent px-6 py-2.5 text-xs font-display font-bold flex items-center gap-1.5"
+                >
+                  <SoccerBallIcon size={12} />
+                  Gols
                 </TabsTrigger>
               </TabsList>
 
@@ -1211,6 +1242,63 @@ export default function MatchPopup({
                       {isLiveSimulating ? "Aguardando eventos..." : "Nenhum evento registrado"}
                     </p>
                   )}
+                </div>
+              </TabsContent>
+
+              <TabsContent value="goals" className="mt-0">
+                <div className="px-6 py-4 max-h-64 overflow-y-auto">
+                  {(() => {
+                    const goalEvents = visibleEvents.filter((e) => e.type === "goal");
+                    if (goalEvents.length === 0) {
+                      return (
+                        <p className="text-xs text-muted-foreground text-center py-6">
+                          {isLiveSimulating ? "Aguardando gols..." : "Nenhum gol marcado"}
+                        </p>
+                      );
+                    }
+                    const playersMap = new Map((allPlayers || []).map((p) => [p.id, p]));
+                    return (
+                      <div className="space-y-1.5">
+                        {goalEvents.map((evt) => {
+                          const isHome = evt.teamId === match.homeTeamId;
+                          const team = isHome ? homeTeam : awayTeam;
+                          const scorer = evt.playerId ? playersMap.get(evt.playerId) : undefined;
+                          const assister = evt.assistId ? playersMap.get(evt.assistId) : undefined;
+                          return (
+                            <div
+                              key={evt.id}
+                              className={`flex items-center gap-3 px-3 py-2 rounded-lg bg-primary/5 border border-primary/20`}
+                            >
+                              <span className="font-mono text-sm font-bold text-primary w-10 text-center shrink-0">
+                                {evt.minute}'
+                              </span>
+                              <SoccerBallIcon size={18} className="text-primary shrink-0" />
+                              <div className="flex-1 min-w-0">
+                                <p className="text-sm font-semibold text-foreground truncate">
+                                  {scorer?.name || "Jogador"}
+                                </p>
+                                {assister && (
+                                  <p className="text-[11px] text-muted-foreground truncate">
+                                    Assistência: {assister.name}
+                                  </p>
+                                )}
+                              </div>
+                              <div className="flex items-center gap-1.5 shrink-0">
+                                {team?.logo ? (
+                                  <img src={team.logo} alt="" className="w-5 h-5 object-contain" />
+                                ) : (
+                                  <Shield className="w-4 h-4 text-muted-foreground" />
+                                )}
+                                <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">
+                                  {team?.abbreviation || team?.shortName || ""}
+                                </span>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    );
+                  })()}
                 </div>
               </TabsContent>
             </Tabs>

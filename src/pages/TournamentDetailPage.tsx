@@ -1488,6 +1488,7 @@ export default function TournamentDetailPage() {
                               }
                               matches={groupMatches.filter((m) => m.group === groupNum)}
                               allTeams={resolvedTeams}
+                              allPlayers={players}
                               hideScreenshot
                             />
                           </div>
@@ -1532,6 +1533,7 @@ export default function TournamentDetailPage() {
                   promotions={settings.promotions}
                   matches={isSuico ? suicoLeagueMatches : activeMatches}
                   allTeams={resolvedTeams}
+                  allPlayers={players}
                 />
               </div>
             </div>
