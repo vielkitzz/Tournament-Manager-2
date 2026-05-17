@@ -1,5 +1,17 @@
 import { useState, useMemo } from "react";
-import { Shield, TrendingUp, TrendingDown, Minus, Swords, Users, BarChart3, Target, Award, Percent, User } from "lucide-react";
+import {
+  Shield,
+  TrendingUp,
+  TrendingDown,
+  Minus,
+  Swords,
+  Users,
+  BarChart3,
+  Target,
+  Award,
+  Percent,
+  User,
+} from "lucide-react";
 import { Team, Match, Player } from "@/types/tournament";
 import { StandingRow } from "@/lib/standings";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
@@ -15,7 +27,16 @@ interface TeamStatsPopupProps {
   allPlayers?: Player[];
 }
 
-export default function TeamStatsPopup({ open, onClose, team, standing, matches, allTeams, allStandings = [], allPlayers = [] }: TeamStatsPopupProps) {
+export default function TeamStatsPopup({
+  open,
+  onClose,
+  team,
+  standing,
+  matches,
+  allTeams,
+  allStandings = [],
+  allPlayers = [],
+}: TeamStatsPopupProps) {
   const [activeTab, setActiveTab] = useState<"overview" | "h2h" | "compare" | "individual">("overview");
   const [h2hTeamId, setH2hTeamId] = useState<string | null>(null);
   const [compareTeamIds, setCompareTeamIds] = useState<string[]>([]);
@@ -51,32 +72,53 @@ export default function TeamStatsPopup({ open, onClose, team, standing, matches,
     teamMatches.forEach((m) => {
       oppIds.add(m.homeTeamId === teamId ? m.awayTeamId : m.homeTeamId);
     });
-    return Array.from(oppIds).map((id) => allTeams.find((t) => t.id === id)).filter(Boolean) as Team[];
+    return Array.from(oppIds)
+      .map((id) => allTeams.find((t) => t.id === id))
+      .filter(Boolean) as Team[];
   }, [teamMatches, teamId, allTeams]);
 
   const h2hData = useMemo(() => {
     if (!h2hTeamId || !teamId) return null;
-    const h2hMatches = teamMatches.filter(
-      (m) => m.homeTeamId === h2hTeamId || m.awayTeamId === h2hTeamId
-    );
-    let w = 0, d = 0, l = 0, gf = 0, ga = 0;
+    const h2hMatches = teamMatches.filter((m) => m.homeTeamId === h2hTeamId || m.awayTeamId === h2hTeamId);
+    let w = 0,
+      d = 0,
+      l = 0,
+      gf = 0,
+      ga = 0;
     h2hMatches.forEach((m) => {
       const isHome = m.homeTeamId === teamId;
       const tg = isHome ? m.homeScore : m.awayScore;
       const og = isHome ? m.awayScore : m.homeScore;
-      gf += tg; ga += og;
-      if (tg > og) w++; else if (tg === og) d++; else l++;
+      gf += tg;
+      ga += og;
+      if (tg > og) w++;
+      else if (tg === og) d++;
+      else l++;
     });
     return { matches: h2hMatches, wins: w, draws: d, losses: l, goalsFor: gf, goalsAgainst: ga };
   }, [h2hTeamId, teamMatches, teamId]);
 
   const compareData = useMemo(() => {
     if (compareTeamIds.length === 0) return [];
-    const emptyStanding: StandingRow = { teamId: "", played: 0, wins: 0, draws: 0, losses: 0, goalsFor: 0, goalsAgainst: 0, goalDifference: 0, points: 0, yellowCards: 0, redCards: 0 };
-    return compareTeamIds.map((cid) => ({
-      team: allTeams.find((t) => t.id === cid),
-      standing: allStandings.find((s) => s.teamId === cid) || { ...emptyStanding, teamId: cid },
-    })).filter((c) => c.team) as { team: Team; standing: StandingRow }[];
+    const emptyStanding: StandingRow = {
+      teamId: "",
+      played: 0,
+      wins: 0,
+      draws: 0,
+      losses: 0,
+      goalsFor: 0,
+      goalsAgainst: 0,
+      goalDifference: 0,
+      points: 0,
+      yellowCards: 0,
+      redCards: 0,
+    };
+    return compareTeamIds
+      .map((cid) => ({
+        team: allTeams.find((t) => t.id === cid),
+        standing: allStandings.find((s) => s.teamId === cid) || { ...emptyStanding, teamId: cid },
+      }))
+      .filter((c) => c.team) as { team: Team; standing: StandingRow }[];
   }, [compareTeamIds, allStandings, allTeams]);
 
   if (!team || !standing) return null;
@@ -108,9 +150,7 @@ export default function TeamStatsPopup({ open, onClose, team, standing, matches,
   const position = allStandings.findIndex((s) => s.teamId === team.id) + 1;
 
   const toggleCompareTeam = (tid: string) => {
-    setCompareTeamIds((prev) =>
-      prev.includes(tid) ? prev.filter((id) => id !== tid) : [...prev, tid]
-    );
+    setCompareTeamIds((prev) => (prev.includes(tid) ? prev.filter((id) => id !== tid) : [...prev, tid]));
   };
 
   const teamColors = team.colors || [];
@@ -139,17 +179,21 @@ export default function TeamStatsPopup({ open, onClose, team, standing, matches,
     const resultLabel = result === "W" ? "V" : result === "D" ? "E" : "D";
     return (
       <div key={m.id} className="flex items-center gap-2 py-1.5 px-2 rounded-lg bg-muted/30">
-        <div className={`w-5 h-5 rounded ${resultColor} text-white text-[10px] font-bold flex items-center justify-center shrink-0`}>
+        <div
+          className={`w-5 h-5 rounded ${resultColor} text-white text-[10px] font-bold flex items-center justify-center shrink-0`}
+        >
           {resultLabel}
         </div>
         <div className="w-5 h-5 shrink-0 flex items-center justify-center">
-          {opp?.logo ? <img src={opp.logo} alt="" className="w-5 h-5 object-contain" /> : <Shield className="w-3.5 h-3.5 text-muted-foreground" />}
+          {opp?.logo ? (
+            <img src={opp.logo} alt="" className="w-5 h-5 object-contain" />
+          ) : (
+            <Shield className="w-3.5 h-3.5 text-muted-foreground" />
+          )}
         </div>
         <span className="text-xs text-foreground truncate flex-1">{opp?.shortName || opp?.name || "—"}</span>
         <span className="text-xs font-mono font-bold text-foreground">{getScore(m)}</span>
-        <span className="text-[9px] text-muted-foreground">
-          {m.homeTeamId === team.id ? "C" : "F"}
-        </span>
+        <span className="text-[9px] text-muted-foreground">{m.homeTeamId === team.id ? "C" : "F"}</span>
       </div>
     );
   };
@@ -216,9 +260,7 @@ export default function TeamStatsPopup({ open, onClose, team, standing, matches,
               key={tab.id}
               onClick={() => setActiveTab(tab.id)}
               className={`flex-1 flex items-center justify-center gap-1.5 py-2.5 text-[11px] font-medium transition-colors relative whitespace-nowrap ${
-                activeTab === tab.id
-                  ? "text-primary"
-                  : "text-muted-foreground hover:text-foreground"
+                activeTab === tab.id ? "text-primary" : "text-muted-foreground hover:text-foreground"
               }`}
             >
               <tab.icon className="w-3.5 h-3.5" />
@@ -241,10 +283,23 @@ export default function TeamStatsPopup({ open, onClose, team, standing, matches,
                   { label: "V", value: standing.wins, color: "text-emerald-500" },
                   { label: "E", value: standing.draws, color: "text-amber-500" },
                   { label: "D", value: standing.losses, color: "text-destructive" },
-                  { label: "SG", value: standing.goalDifference, color: standing.goalDifference > 0 ? "text-emerald-500" : standing.goalDifference < 0 ? "text-destructive" : "text-muted-foreground", prefix: standing.goalDifference > 0 ? "+" : "" },
+                  {
+                    label: "SG",
+                    value: standing.goalDifference,
+                    color:
+                      standing.goalDifference > 0
+                        ? "text-emerald-500"
+                        : standing.goalDifference < 0
+                          ? "text-destructive"
+                          : "text-muted-foreground",
+                    prefix: standing.goalDifference > 0 ? "+" : "",
+                  },
                 ].map((s) => (
                   <div key={s.label} className="text-center py-2.5 rounded-xl bg-muted/30">
-                    <p className={`text-lg font-bold ${s.color}`}>{(s as any).prefix || ""}{s.value}</p>
+                    <p className={`text-lg font-bold ${s.color}`}>
+                      {(s as any).prefix || ""}
+                      {s.value}
+                    </p>
                     <p className="text-[9px] text-muted-foreground uppercase tracking-wider font-medium">{s.label}</p>
                   </div>
                 ))}
@@ -304,14 +359,20 @@ export default function TeamStatsPopup({ open, onClose, team, standing, matches,
                   { label: "Derrotas", list: losses, icon: TrendingDown, color: "text-destructive" },
                 ].map(({ label, list, icon: Icon, color }) => (
                   <details key={label} className="group">
-                    <summary className={`flex items-center gap-2 cursor-pointer text-xs font-semibold ${color} py-1.5 px-1`}>
+                    <summary
+                      className={`flex items-center gap-2 cursor-pointer text-xs font-semibold ${color} py-1.5 px-1`}
+                    >
                       <Icon className="w-3.5 h-3.5" />
-                      <span>{label} ({list.length})</span>
+                      <span>
+                        {label} ({list.length})
+                      </span>
                     </summary>
                     <div className="mt-1 space-y-0.5 max-h-32 overflow-y-auto">
-                      {list.length === 0
-                        ? <p className="text-xs text-muted-foreground italic px-2 py-2">Nenhuma</p>
-                        : list.map(renderMatchResult)}
+                      {list.length === 0 ? (
+                        <p className="text-xs text-muted-foreground italic px-2 py-2">Nenhuma</p>
+                      ) : (
+                        list.map(renderMatchResult)
+                      )}
                     </div>
                   </details>
                 ))}
@@ -336,7 +397,11 @@ export default function TeamStatsPopup({ open, onClose, team, standing, matches,
                       }`}
                     >
                       <div className="w-4 h-4 shrink-0 flex items-center justify-center">
-                        {opp.logo ? <img src={opp.logo} alt="" className="w-4 h-4 object-contain" /> : <Shield className="w-3 h-3 text-muted-foreground" />}
+                        {opp.logo ? (
+                          <img src={opp.logo} alt="" className="w-4 h-4 object-contain" />
+                        ) : (
+                          <Shield className="w-3 h-3 text-muted-foreground" />
+                        )}
                       </div>
                       {opp.shortName || opp.name}
                     </button>
@@ -350,9 +415,15 @@ export default function TeamStatsPopup({ open, onClose, team, standing, matches,
                   <div className="flex items-center justify-center gap-5 py-3">
                     <div className="flex flex-col items-center gap-1">
                       <div className="w-10 h-10 rounded-xl bg-muted/30 flex items-center justify-center">
-                        {team.logo ? <img src={team.logo} alt="" className="w-8 h-8 object-contain" /> : <Shield className="w-5 h-5 text-muted-foreground" />}
+                        {team.logo ? (
+                          <img src={team.logo} alt="" className="w-8 h-8 object-contain" />
+                        ) : (
+                          <Shield className="w-5 h-5 text-muted-foreground" />
+                        )}
                       </div>
-                      <span className="text-[10px] font-bold text-foreground">{team.shortName || team.abbreviation}</span>
+                      <span className="text-[10px] font-bold text-foreground">
+                        {team.shortName || team.abbreviation}
+                      </span>
                     </div>
                     <div className="flex items-center gap-2">
                       <span className="text-2xl font-bold text-emerald-500">{h2hData.wins}</span>
@@ -363,9 +434,15 @@ export default function TeamStatsPopup({ open, onClose, team, standing, matches,
                     </div>
                     <div className="flex flex-col items-center gap-1">
                       <div className="w-10 h-10 rounded-xl bg-muted/30 flex items-center justify-center">
-                        {h2hTeam.logo ? <img src={h2hTeam.logo} alt="" className="w-8 h-8 object-contain" /> : <Shield className="w-5 h-5 text-muted-foreground" />}
+                        {h2hTeam.logo ? (
+                          <img src={h2hTeam.logo} alt="" className="w-8 h-8 object-contain" />
+                        ) : (
+                          <Shield className="w-5 h-5 text-muted-foreground" />
+                        )}
                       </div>
-                      <span className="text-[10px] font-bold text-foreground">{h2hTeam.shortName || h2hTeam.abbreviation}</span>
+                      <span className="text-[10px] font-bold text-foreground">
+                        {h2hTeam.shortName || h2hTeam.abbreviation}
+                      </span>
                     </div>
                   </div>
 
@@ -386,9 +463,7 @@ export default function TeamStatsPopup({ open, onClose, team, standing, matches,
                   </div>
 
                   {/* Match list */}
-                  <div className="space-y-0.5 max-h-36 overflow-y-auto">
-                    {h2hData.matches.map(renderMatchResult)}
-                  </div>
+                  <div className="space-y-0.5 max-h-36 overflow-y-auto">{h2hData.matches.map(renderMatchResult)}</div>
                 </div>
               )}
 
@@ -404,25 +479,31 @@ export default function TeamStatsPopup({ open, onClose, team, standing, matches,
               <div>
                 <p className="text-xs text-muted-foreground mb-2">Selecione times para comparar:</p>
                 <div className="flex flex-wrap gap-1.5 max-h-28 overflow-y-auto">
-                  {allTeams.filter((t) => t.id !== team.id).map((t) => {
-                    const isSelected = compareTeamIds.includes(t.id);
-                    return (
-                      <button
-                        key={t.id}
-                        onClick={() => toggleCompareTeam(t.id)}
-                        className={`flex items-center gap-1.5 px-2 py-1.5 rounded-lg text-xs border transition-all ${
-                          isSelected
-                            ? "border-primary bg-primary/10 text-primary shadow-sm"
-                            : "border-border bg-muted/20 text-foreground hover:border-primary/40"
-                        }`}
-                      >
-                        <div className="w-4 h-4 shrink-0 flex items-center justify-center">
-                          {t.logo ? <img src={t.logo} alt="" className="w-4 h-4 object-contain" /> : <Shield className="w-3 h-3 text-muted-foreground" />}
-                        </div>
-                        {t.shortName || t.name}
-                      </button>
-                    );
-                  })}
+                  {allTeams
+                    .filter((t) => t.id !== team.id)
+                    .map((t) => {
+                      const isSelected = compareTeamIds.includes(t.id);
+                      return (
+                        <button
+                          key={t.id}
+                          onClick={() => toggleCompareTeam(t.id)}
+                          className={`flex items-center gap-1.5 px-2 py-1.5 rounded-lg text-xs border transition-all ${
+                            isSelected
+                              ? "border-primary bg-primary/10 text-primary shadow-sm"
+                              : "border-border bg-muted/20 text-foreground hover:border-primary/40"
+                          }`}
+                        >
+                          <div className="w-4 h-4 shrink-0 flex items-center justify-center">
+                            {t.logo ? (
+                              <img src={t.logo} alt="" className="w-4 h-4 object-contain" />
+                            ) : (
+                              <Shield className="w-3 h-3 text-muted-foreground" />
+                            )}
+                          </div>
+                          {t.shortName || t.name}
+                        </button>
+                      );
+                    })}
                 </div>
               </div>
 
@@ -453,9 +534,15 @@ export default function TeamStatsPopup({ open, onClose, team, standing, matches,
                             <td className="py-2 px-2.5">
                               <div className="flex items-center gap-1.5">
                                 <div className="w-4 h-4 shrink-0 flex items-center justify-center">
-                                  {ct.logo ? <img src={ct.logo} alt="" className="w-4 h-4 object-contain" /> : <Shield className="w-3 h-3 text-muted-foreground" />}
+                                  {ct.logo ? (
+                                    <img src={ct.logo} alt="" className="w-4 h-4 object-contain" />
+                                  ) : (
+                                    <Shield className="w-3 h-3 text-muted-foreground" />
+                                  )}
                                 </div>
-                                <span className={`truncate text-foreground ${isMain ? "font-bold" : ""}`}>{ct.shortName || ct.name}</span>
+                                <span className={`truncate text-foreground ${isMain ? "font-bold" : ""}`}>
+                                  {ct.shortName || ct.name}
+                                </span>
                               </div>
                             </td>
                             <td className="text-center py-2 px-1 font-bold text-foreground">{cs.points}</td>
@@ -478,7 +565,9 @@ export default function TeamStatsPopup({ open, onClose, team, standing, matches,
               )}
 
               {compareTeamIds.length === 0 && (
-                <p className="text-xs text-muted-foreground italic text-center py-4">Selecione times acima para comparar</p>
+                <p className="text-xs text-muted-foreground italic text-center py-4">
+                  Selecione times acima para comparar
+                </p>
               )}
             </div>
           )}
@@ -500,25 +589,14 @@ export default function TeamStatsPopup({ open, onClose, team, standing, matches,
 
 type SortKey = "name" | "matches" | "goals" | "assists" | "yellows" | "reds";
 
-function IndividualStatsTab({
-  team,
-  matches,
-  allPlayers,
-}: {
-  team: Team;
-  matches: Match[];
-  allPlayers: Player[];
-}) {
+function IndividualStatsTab({ team, matches, allPlayers }: { team: Team; matches: Match[]; allPlayers: Player[] }) {
   const [sortKey, setSortKey] = useState<SortKey>("goals");
   const [sortAsc, setSortAsc] = useState(false);
 
-  const teamPlayers = useMemo(
-    () => allPlayers.filter((p) => p.teamId === team.id),
-    [allPlayers, team.id],
-  );
+  const teamPlayers = useMemo(() => allPlayers.filter((p) => p.teamId === team.id), [allPlayers, team.id]);
 
   const stats = useMemo(() => {
-    const map = new Map
+    const map = new Map<
       string,
       { matches: Set<string>; goals: number; assists: number; yellows: number; reds: number }
     >();
@@ -530,13 +608,13 @@ function IndividualStatsTab({
       }
       return s;
     };
-  
+
     for (const m of matches) {
       // Todo jogador do time conta o jogo automaticamente, independente de eventos
       for (const p of teamPlayers) {
         ensure(p.id).matches.add(m.id);
       }
-  
+
       if (!m.events) continue;
       const yellowsInMatch = new Map<string, number>();
       for (const evt of m.events) {
@@ -583,11 +661,21 @@ function IndividualStatsTab({
         case "name":
           cmp = a.player.name.localeCompare(b.player.name);
           break;
-        case "matches": cmp = a.matches - b.matches; break;
-        case "goals": cmp = a.goals - b.goals; break;
-        case "assists": cmp = a.assists - b.assists; break;
-        case "yellows": cmp = a.yellows - b.yellows; break;
-        case "reds": cmp = a.reds - b.reds; break;
+        case "matches":
+          cmp = a.matches - b.matches;
+          break;
+        case "goals":
+          cmp = a.goals - b.goals;
+          break;
+        case "assists":
+          cmp = a.assists - b.assists;
+          break;
+        case "yellows":
+          cmp = a.yellows - b.yellows;
+          break;
+        case "reds":
+          cmp = a.reds - b.reds;
+          break;
       }
       return sortAsc ? cmp : -cmp;
     });
@@ -604,9 +692,7 @@ function IndividualStatsTab({
 
   if (teamPlayers.length === 0) {
     return (
-      <p className="text-xs text-muted-foreground italic text-center py-8">
-        Nenhum jogador cadastrado para este time.
-      </p>
+      <p className="text-xs text-muted-foreground italic text-center py-8">Nenhum jogador cadastrado para este time.</p>
     );
   }
 
@@ -660,10 +746,26 @@ function IndividualStatsTab({
                 </td>
                 <td className="py-2 px-2 text-muted-foreground truncate">{player.position || "—"}</td>
                 <td className="py-2 px-2 text-center text-muted-foreground">{j}</td>
-                <td className={`py-2 px-2 text-center font-bold ${goals > 0 ? "text-primary" : "text-muted-foreground"}`}>{goals}</td>
-                <td className={`py-2 px-2 text-center font-medium ${assists > 0 ? "text-foreground" : "text-muted-foreground"}`}>{assists}</td>
-                <td className={`py-2 px-2 text-center ${yellows > 0 ? "text-amber-500 font-medium" : "text-muted-foreground"}`}>{yellows}</td>
-                <td className={`py-2 px-2 text-center ${reds > 0 ? "text-destructive font-medium" : "text-muted-foreground"}`}>{reds}</td>
+                <td
+                  className={`py-2 px-2 text-center font-bold ${goals > 0 ? "text-primary" : "text-muted-foreground"}`}
+                >
+                  {goals}
+                </td>
+                <td
+                  className={`py-2 px-2 text-center font-medium ${assists > 0 ? "text-foreground" : "text-muted-foreground"}`}
+                >
+                  {assists}
+                </td>
+                <td
+                  className={`py-2 px-2 text-center ${yellows > 0 ? "text-amber-500 font-medium" : "text-muted-foreground"}`}
+                >
+                  {yellows}
+                </td>
+                <td
+                  className={`py-2 px-2 text-center ${reds > 0 ? "text-destructive font-medium" : "text-muted-foreground"}`}
+                >
+                  {reds}
+                </td>
               </tr>
             ))}
           </tbody>
