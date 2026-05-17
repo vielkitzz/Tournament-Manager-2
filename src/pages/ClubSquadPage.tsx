@@ -159,9 +159,8 @@ function SolaraSyncButton({ tm2TeamId }: SolaraSyncButtonProps) {
       solarahub_club_name: solaraClubName.trim() || finalId,
       sync_enabled: true,
     });
-    setOpen(false);
 
-    setTimeout(() => window.location.reload(), 2000);
+    setOpen(false);
   }
 
   async function handleUnlink() {
