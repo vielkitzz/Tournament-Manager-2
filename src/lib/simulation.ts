@@ -448,7 +448,7 @@ const POSITION_GOAL_WEIGHT: Record<string, number> = {
   "Ponta Direita": 4.0,
   "Ponta Esquerda": 4.0,
   Centroavante: 6.0,
-  Atacante: 5.0,
+  Atacante: 6.0,
 };
 
 const POSITION_ASSIST_WEIGHT: Record<string, number> = {
@@ -497,7 +497,6 @@ function weightedPickSkill(
   const available = exclude ? players.filter((p) => p.id !== exclude) : players;
   if (available.length === 0) return undefined;
 
-  // Filtra explicitamente jogadores com peso 0 (ex.: goleiro em ações de linha)
   const filtered = available.filter((p) => (posWeights[p.position || ""] ?? 1) > 0);
   const pool = filtered.length > 0 ? filtered : available;
 
@@ -535,10 +534,7 @@ function buildScorerPool(players: Player[], posWeights: Record<string, number>):
     for (let s = 0; s < slots; s++) pool.push(p);
   });
 
-  let topIdx = 0;
-  weights.forEach((w, i) => {
-    if (w > weights[topIdx]) topIdx = i;
-  });
+  const topIdx = weights.reduce((best, w, i) => (w > weights[best] ? i : best), 0);
   const topPlayer = eligible[topIdx];
 
   for (let i = pool.length - 1; i > 0; i--) {
@@ -911,9 +907,11 @@ export function generateMinuteByMinuteEvents(
   const generateOffsides = (team: Team, players: Player[], count: number) => {
     const isHome = team.id === homeTeam.id;
     const bucket = isHome ? produced.home : produced.away;
+    // Apenas jogadores de linha podem ser pegos em impedimento
+    const outfield = players.filter((p) => (POSITION_GOAL_WEIGHT[p.position || ""] ?? 0) > 0);
     for (let i = 0; i < count; i++) {
       const minute = randInt(5, 88);
-      const p = pickAtMinuteSkill(players, POSITION_GOAL_WEIGHT, minute);
+      const p = pickAtMinuteSkill(outfield, POSITION_GOAL_WEIGHT, minute);
       if (!p) continue;
       events.push({
         id: genId(),
