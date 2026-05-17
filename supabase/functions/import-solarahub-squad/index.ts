@@ -75,7 +75,7 @@ Deno.serve(async (req) => {
       position: p.position,
       age: p.age,
       shirt_number: p.shirt_number,
-      skill: p.skill ?? 70,
+      skill: p.habilidade ?? 70,
       photo_url: p.photo_url,
       season_year: p.season_year,
     }));
