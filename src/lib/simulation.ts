@@ -477,24 +477,31 @@ function weightedPickSkill(
   const available = exclude ? players.filter((p) => p.id !== exclude) : players;
   if (available.length === 0) return undefined;
 
-  const w = available.map((p) => {
+  // Filtra explicitamente jogadores com peso 0 (ex.: goleiro em ações de linha)
+  const filtered = available.filter((p) => (posWeights[p.position || ""] ?? 1) > 0);
+  const pool = filtered.length > 0 ? filtered : available;
+
+  const w = pool.map((p) => {
     const posW = posWeights[p.position || ""] ?? 1;
     return posW * skillAmplifier(p.skill);
   });
 
   const total = w.reduce((s, v) => s + v, 0);
+  if (total <= 0) return undefined;
   let r = Math.random() * total;
-  for (let i = 0; i < available.length; i++) {
+  for (let i = 0; i < pool.length; i++) {
     r -= w[i];
-    if (r <= 0) return available[i];
+    if (r <= 0) return pool[i];
   }
-  return available[available.length - 1];
+  return pool[pool.length - 1];
 }
 
 function buildScorerPool(players: Player[], posWeights: Record<string, number>): Player[] {
-  if (players.length === 0) return [];
+  // Exclui jogadores com peso 0 (goleiros não entram em pool de gols/assists)
+  const eligible = players.filter((p) => (posWeights[p.position || ""] ?? 1) > 0);
+  if (eligible.length === 0) return [];
 
-  const weights = players.map((p) => {
+  const weights = eligible.map((p) => {
     const posW = posWeights[p.position || ""] ?? 1;
     return posW * skillAmplifier(p.skill);
   });
@@ -503,7 +510,7 @@ function buildScorerPool(players: Player[], posWeights: Record<string, number>):
   const POOL_SIZE = 30;
   const pool: Player[] = [];
 
-  players.forEach((p, i) => {
+  eligible.forEach((p, i) => {
     const slots = Math.max(1, Math.round((weights[i] / total) * POOL_SIZE));
     for (let s = 0; s < slots; s++) pool.push(p);
   });
@@ -512,7 +519,7 @@ function buildScorerPool(players: Player[], posWeights: Record<string, number>):
   weights.forEach((w, i) => {
     if (w > weights[topIdx]) topIdx = i;
   });
-  const topPlayer = players[topIdx];
+  const topPlayer = eligible[topIdx];
 
   for (let i = pool.length - 1; i > 0; i--) {
     const j = Math.floor(Math.random() * (i + 1));
