@@ -596,10 +596,17 @@ function IndividualStatsTab({ team, matches, allPlayers }: { team: Team; matches
   const teamPlayers = useMemo(() => allPlayers.filter((p) => p.teamId === team.id), [allPlayers, team.id]);
 
   const stats = useMemo(() => {
+    // 1. TRAVA DE SEGURANÇA: Se as dependências principais não estiverem prontas, 
+    // retorna um Map vazio e não quebra a tela.
+    if (!matches || !teamPlayers || !team) {
+      return new Map(); 
+    }
+  
     const map = new Map<
       string,
       { matches: Set<string>; goals: number; assists: number; yellows: number; reds: number }
     >();
+  
     const ensure = (id: string) => {
       let s = map.get(id);
       if (!s) {
@@ -610,34 +617,47 @@ function IndividualStatsTab({ team, matches, allPlayers }: { team: Team; matches
     };
   
     for (const m of matches) {
-      // Todo jogador do time conta o jogo automaticamente, independente de eventos
       for (const p of teamPlayers) {
+        // Como a gente garantiu que teamPlayers existe e é iterável, isso aqui tá seguro
         ensure(p.id).matches.add(m.id);
       }
   
       if (!m.events) continue;
+      
       const yellowsInMatch = new Map<string, number>();
+      
       for (const evt of m.events) {
-        if (evt.teamId !== team.id) continue;
+        // Outra segurança: ignora eventos que não tenham a tipagem correta
+        if (!evt || evt.teamId !== team.id) continue;
+  
         if (evt.playerId) {
           const s = ensure(evt.playerId);
+          
           if (evt.type === "goal") s.goals++;
+          
           if (evt.type === "yellow_card") {
             s.yellows++;
             yellowsInMatch.set(evt.playerId, (yellowsInMatch.get(evt.playerId) || 0) + 1);
           }
+          
           if (evt.type === "red_card") s.reds++;
         }
+  
         if (evt.assistId && evt.type === "goal") {
           ensure(evt.assistId).assists++;
         }
       }
+  
+      // Regra de 2 amarelos = 1 vermelho
       for (const [pid, count] of yellowsInMatch) {
         if (count >= 2) ensure(pid).reds++;
       }
     }
+  
     return map;
-  }, [matches, team.id, teamPlayers]);
+    
+  // 2. TRAVA DE SEGURANÇA: Optional chaining (team?.id) para evitar leitura de undefined
+  }, [matches, team?.id, teamPlayers]);
 
     for (const m of matches) {
       // Todo jogador do time conta o jogo automaticamente, independente de eventos
