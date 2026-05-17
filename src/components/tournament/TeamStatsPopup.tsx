@@ -608,38 +608,8 @@ function IndividualStatsTab({ team, matches, allPlayers }: { team: Team; matches
       }
       return s;
     };
-  
-    for (const m of matches) {
-      for (const p of teamPlayers) {
-        ensure(p.id).matches.add(m.id);
-      }
-  
-      if (!m.events) continue;
-      const yellowsInMatch = new Map<string, number>();
-      for (const evt of m.events) {
-        if (evt.teamId !== team.id) continue;
-        if (evt.playerId) {
-          const s = ensure(evt.playerId);
-          if (evt.type === "goal") s.goals++;
-          if (evt.type === "yellow_card") {
-            s.yellows++;
-            yellowsInMatch.set(evt.playerId, (yellowsInMatch.get(evt.playerId) || 0) + 1);
-          }
-          if (evt.type === "red_card") s.reds++;
-        }
-        if (evt.assistId && evt.type === "goal") {
-          ensure(evt.assistId).assists++;
-        }
-      }
-      for (const [pid, count] of yellowsInMatch) {
-        if (count >= 2) ensure(pid).reds++;
-      }
-    }
-    return map;
-  }, [matches, team.id, teamPlayers]);
 
     for (const m of matches) {
-      // Todo jogador do time conta o jogo automaticamente, independente de eventos
       for (const p of teamPlayers) {
         ensure(p.id).matches.add(m.id);
       }
