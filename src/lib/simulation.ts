@@ -434,49 +434,78 @@ export function getSuspendedPlayerIds(
 // ---------------------------------------------------------------------------
 
 const POSITION_GOAL_WEIGHT: Record<string, number> = {
-  // Goleiros NUNCA marcam em jogadas de linha (apenas batem pênalti/falta
-  // se explicitamente habilitado nas táticas do elenco).
   Goleiro: 0,
-  // Zagueiros e laterais raramente partem para o ataque na simulação minuto
-  // a minuto — frequência reduzida.
+  GOL: 0,
   Zagueiro: 0.04,
+  ZAG: 0.04,
   "Lateral Direito": 0.08,
+  LD: 0.08,
   "Lateral Esquerdo": 0.08,
+  LE: 0.08,
   Volante: 0.2,
+  VOL: 0.2,
   Meia: 1.5,
+  MC: 1.5,
   "Meia Atacante": 3.0,
+  MEI: 3.0,
   "Ponta Direita": 4.0,
+  PD: 4.0,
   "Ponta Esquerda": 4.0,
+  PE: 4.0,
   Centroavante: 6.0,
+  ATA: 6.0,
   Atacante: 6.0,
+  SA: 6.0,
 };
 
 const POSITION_ASSIST_WEIGHT: Record<string, number> = {
   Goleiro: 0,
+  GOL: 0,
   Zagueiro: 0.08,
+  ZAG: 0.08,
   "Lateral Direito": 1.0,
+  LD: 1.0,
   "Lateral Esquerdo": 1.0,
+  LE: 1.0,
   Volante: 0.6,
+  VOL: 0.6,
   Meia: 5.0,
+  MC: 5.0,
   "Meia Atacante": 4.0,
+  MEI: 4.0,
   "Ponta Direita": 3.5,
+  PD: 3.5,
   "Ponta Esquerda": 3.5,
+  PE: 3.5,
   Centroavante: 1.5,
+  ATA: 1.5,
   Atacante: 2.0,
+  SA: 2.0,
 };
 
 const POSITION_FOUL_WEIGHT: Record<string, number> = {
   Goleiro: 0,
+  GOL: 0,
   Zagueiro: 3.0,
+  ZAG: 3.0,
   "Lateral Direito": 2.0,
+  LD: 2.0,
   "Lateral Esquerdo": 2.0,
+  LE: 2.0,
   Volante: 4.0,
+  VOL: 4.0,
   Meia: 1.5,
+  MC: 1.5,
   "Meia Atacante": 1.0,
+  MEI: 1.0,
   "Ponta Direita": 1.0,
+  PD: 1.0,
   "Ponta Esquerda": 1.0,
+  PE: 1.0,
   Centroavante: 1.0,
+  ATA: 1.0,
   Atacante: 1.0,
+  SA: 1.0,
 };
 
 /**
