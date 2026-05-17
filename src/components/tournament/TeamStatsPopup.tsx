@@ -1,6 +1,6 @@
 import { useState, useMemo } from "react";
-import { Shield, TrendingUp, TrendingDown, Minus, Swords, Users, BarChart3, Target, Award, Percent } from "lucide-react";
-import { Team, Match } from "@/types/tournament";
+import { Shield, TrendingUp, TrendingDown, Minus, Swords, Users, BarChart3, Target, Award, Percent, User } from "lucide-react";
+import { Team, Match, Player } from "@/types/tournament";
 import { StandingRow } from "@/lib/standings";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 
@@ -12,10 +12,11 @@ interface TeamStatsPopupProps {
   matches: Match[];
   allTeams: Team[];
   allStandings?: StandingRow[];
+  allPlayers?: Player[];
 }
 
-export default function TeamStatsPopup({ open, onClose, team, standing, matches, allTeams, allStandings = [] }: TeamStatsPopupProps) {
-  const [activeTab, setActiveTab] = useState<"overview" | "h2h" | "compare">("overview");
+export default function TeamStatsPopup({ open, onClose, team, standing, matches, allTeams, allStandings = [], allPlayers = [] }: TeamStatsPopupProps) {
+  const [activeTab, setActiveTab] = useState<"overview" | "h2h" | "compare" | "individual">("overview");
   const [h2hTeamId, setH2hTeamId] = useState<string | null>(null);
   const [compareTeamIds, setCompareTeamIds] = useState<string[]>([]);
 
