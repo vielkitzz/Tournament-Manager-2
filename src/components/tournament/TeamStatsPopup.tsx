@@ -482,8 +482,193 @@ export default function TeamStatsPopup({ open, onClose, team, standing, matches,
               )}
             </div>
           )}
+
+          {/* Individual Stats Tab */}
+          {activeTab === "individual" && (
+            <IndividualStatsTab team={team} matches={teamMatches} allPlayers={allPlayers} />
+          )}
         </div>
       </DialogContent>
     </Dialog>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Estatísticas individuais — agrega gols, assistências, cartões e jogos
+// disputados de cada jogador a partir dos eventos das partidas do time.
+// ---------------------------------------------------------------------------
+
+type SortKey = "name" | "matches" | "goals" | "assists" | "yellows" | "reds";
+
+function IndividualStatsTab({
+  team,
+  matches,
+  allPlayers,
+}: {
+  team: Team;
+  matches: Match[];
+  allPlayers: Player[];
+}) {
+  const [sortKey, setSortKey] = useState<SortKey>("goals");
+  const [sortAsc, setSortAsc] = useState(false);
+
+  const teamPlayers = useMemo(
+    () => allPlayers.filter((p) => p.teamId === team.id),
+    [allPlayers, team.id],
+  );
+
+  const stats = useMemo(() => {
+    const map = new Map<
+      string,
+      { matches: Set<string>; goals: number; assists: number; yellows: number; reds: number }
+    >();
+    const ensure = (id: string) => {
+      let s = map.get(id);
+      if (!s) {
+        s = { matches: new Set(), goals: 0, assists: 0, yellows: 0, reds: 0 };
+        map.set(id, s);
+      }
+      return s;
+    };
+
+    for (const m of matches) {
+      if (!m.events) continue;
+      // Quem aparece em qualquer evento conta como participante da partida
+      const yellowsInMatch = new Map<string, number>();
+      for (const evt of m.events) {
+        if (evt.teamId !== team.id) continue;
+        if (evt.playerId) {
+          const s = ensure(evt.playerId);
+          s.matches.add(m.id);
+          if (evt.type === "goal") s.goals++;
+          if (evt.type === "yellow_card") {
+            s.yellows++;
+            yellowsInMatch.set(evt.playerId, (yellowsInMatch.get(evt.playerId) || 0) + 1);
+          }
+          if (evt.type === "red_card") s.reds++;
+        }
+        if (evt.assistId && evt.type === "goal") {
+          const s = ensure(evt.assistId);
+          s.matches.add(m.id);
+          s.assists++;
+        }
+      }
+      // Segundo amarelo → conta também como cartão vermelho
+      for (const [pid, count] of yellowsInMatch) {
+        if (count >= 2) ensure(pid).reds++;
+      }
+    }
+    return map;
+  }, [matches, team.id]);
+
+  const rows = useMemo(() => {
+    return teamPlayers.map((p) => {
+      const s = stats.get(p.id);
+      return {
+        player: p,
+        matches: s?.matches.size ?? 0,
+        goals: s?.goals ?? 0,
+        assists: s?.assists ?? 0,
+        yellows: s?.yellows ?? 0,
+        reds: s?.reds ?? 0,
+      };
+    });
+  }, [teamPlayers, stats]);
+
+  const sortedRows = useMemo(() => {
+    const arr = [...rows];
+    arr.sort((a, b) => {
+      let cmp = 0;
+      switch (sortKey) {
+        case "name":
+          cmp = a.player.name.localeCompare(b.player.name);
+          break;
+        case "matches": cmp = a.matches - b.matches; break;
+        case "goals": cmp = a.goals - b.goals; break;
+        case "assists": cmp = a.assists - b.assists; break;
+        case "yellows": cmp = a.yellows - b.yellows; break;
+        case "reds": cmp = a.reds - b.reds; break;
+      }
+      return sortAsc ? cmp : -cmp;
+    });
+    return arr;
+  }, [rows, sortKey, sortAsc]);
+
+  const toggleSort = (k: SortKey) => {
+    if (k === sortKey) setSortAsc((v) => !v);
+    else {
+      setSortKey(k);
+      setSortAsc(k === "name");
+    }
+  };
+
+  if (teamPlayers.length === 0) {
+    return (
+      <p className="text-xs text-muted-foreground italic text-center py-8">
+        Nenhum jogador cadastrado para este time.
+      </p>
+    );
+  }
+
+  const SortHeader = ({ k, label, className = "" }: { k: SortKey; label: string; className?: string }) => (
+    <th
+      onClick={() => toggleSort(k)}
+      className={`py-2 px-2 font-medium cursor-pointer hover:text-foreground transition-colors ${className}`}
+    >
+      {label}
+      {sortKey === k && <span className="ml-0.5 text-primary">{sortAsc ? "↑" : "↓"}</span>}
+    </th>
+  );
+
+  return (
+    <div className="space-y-3">
+      <div className="flex items-center justify-between">
+        <p className="text-xs text-muted-foreground">
+          {teamPlayers.length} jogadores · {matches.length} jogos disputados pelo time
+        </p>
+      </div>
+      <div className="overflow-x-auto rounded-xl border border-border">
+        <table className="w-full text-xs">
+          <thead>
+            <tr className="bg-muted/30 text-muted-foreground">
+              <SortHeader k="name" label="Jogador" className="text-left" />
+              <th className="py-2 px-2 font-medium text-left">Posição</th>
+              <SortHeader k="matches" label="J" className="text-center w-12" />
+              <SortHeader k="goals" label="G" className="text-center w-12" />
+              <SortHeader k="assists" label="A" className="text-center w-12" />
+              <SortHeader k="yellows" label="CA" className="text-center w-12" />
+              <SortHeader k="reds" label="CV" className="text-center w-12" />
+            </tr>
+          </thead>
+          <tbody>
+            {sortedRows.map(({ player, matches: j, goals, assists, yellows, reds }) => (
+              <tr key={player.id} className="border-t border-border/50">
+                <td className="py-2 px-2">
+                  <div className="flex items-center gap-2">
+                    {player.photoUrl ? (
+                      <img src={player.photoUrl} alt="" className="w-6 h-6 rounded-full object-cover" />
+                    ) : (
+                      <div className="w-6 h-6 rounded-full bg-muted flex items-center justify-center">
+                        <User className="w-3 h-3 text-muted-foreground" />
+                      </div>
+                    )}
+                    <span className="text-foreground font-medium truncate">{player.name}</span>
+                    {player.shirtNumber != null && (
+                      <span className="text-[10px] font-mono text-muted-foreground">#{player.shirtNumber}</span>
+                    )}
+                  </div>
+                </td>
+                <td className="py-2 px-2 text-muted-foreground truncate">{player.position || "—"}</td>
+                <td className="py-2 px-2 text-center text-muted-foreground">{j}</td>
+                <td className={`py-2 px-2 text-center font-bold ${goals > 0 ? "text-primary" : "text-muted-foreground"}`}>{goals}</td>
+                <td className={`py-2 px-2 text-center font-medium ${assists > 0 ? "text-foreground" : "text-muted-foreground"}`}>{assists}</td>
+                <td className={`py-2 px-2 text-center ${yellows > 0 ? "text-amber-500 font-medium" : "text-muted-foreground"}`}>{yellows}</td>
+                <td className={`py-2 px-2 text-center ${reds > 0 ? "text-destructive font-medium" : "text-muted-foreground"}`}>{reds}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
   );
 }
