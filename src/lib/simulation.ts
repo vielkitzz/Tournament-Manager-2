@@ -414,11 +414,15 @@ export function getSuspendedPlayerIds(
 // ---------------------------------------------------------------------------
 
 const POSITION_GOAL_WEIGHT: Record<string, number> = {
-  Goleiro: 0.02,
-  Zagueiro: 0.1,
-  "Lateral Direito": 0.18,
-  "Lateral Esquerdo": 0.18,
-  Volante: 0.45,
+  // Goleiros NUNCA marcam em jogadas de linha (apenas batem pênalti/falta
+  // se explicitamente habilitado nas táticas do elenco).
+  Goleiro: 0,
+  // Zagueiros e laterais raramente partem para o ataque na simulação minuto
+  // a minuto — frequência reduzida.
+  Zagueiro: 0.04,
+  "Lateral Direito": 0.08,
+  "Lateral Esquerdo": 0.08,
+  Volante: 0.2,
   Meia: 1.5,
   "Meia Atacante": 3.0,
   "Ponta Direita": 4.0,
@@ -428,11 +432,11 @@ const POSITION_GOAL_WEIGHT: Record<string, number> = {
 };
 
 const POSITION_ASSIST_WEIGHT: Record<string, number> = {
-  Goleiro: 0.02,
-  Zagueiro: 0.12,
-  "Lateral Direito": 1.5,
-  "Lateral Esquerdo": 1.5,
-  Volante: 1.0,
+  Goleiro: 0,
+  Zagueiro: 0.08,
+  "Lateral Direito": 1.0,
+  "Lateral Esquerdo": 1.0,
+  Volante: 0.6,
   Meia: 5.0,
   "Meia Atacante": 4.0,
   "Ponta Direita": 3.5,
@@ -442,7 +446,7 @@ const POSITION_ASSIST_WEIGHT: Record<string, number> = {
 };
 
 const POSITION_FOUL_WEIGHT: Record<string, number> = {
-  Goleiro: 0.3,
+  Goleiro: 0,
   Zagueiro: 3.0,
   "Lateral Direito": 2.0,
   "Lateral Esquerdo": 2.0,
