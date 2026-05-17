@@ -308,14 +308,6 @@ export default function MatchPopup({
   const [awayLineup, setAwayLineup] = useState<SolaraLineup | null>(null);
 
   useEffect(() => {
-    console.log("homeLineup raw:", homeLineup);
-    console.log(
-      "homeStarters:",
-      homeStarters.map((p) => p.name),
-    );
-  }, [homeLineup, homeStarters]);
-
-  useEffect(() => {
     let cancelled = false;
     async function fetchLineup(tm2TeamId: string): Promise<SolaraLineup | null> {
       const { data: link } = await (supabase as any)
@@ -351,6 +343,14 @@ export default function MatchPopup({
   const awayStarters = getStartersFromLineup(awayPlayers, awayLineup);
   const homeEffectiveRate = resolveRate(rateInfluence, homeTeam, homeStarters);
   const awayEffectiveRate = resolveRate(rateInfluence, awayTeam, awayStarters);
+
+  useEffect(() => {
+    console.log("homeLineup raw:", homeLineup);
+    console.log(
+      "homeStarters:",
+      homeStarters.map((p) => p.name),
+    );
+  }, [homeLineup, homeStarters]);
 
   const setHalfScore = (half: HalfKey, side: 0 | 1, value: number) => {
     setScores((prev) => ({ ...prev, [half]: side === 0 ? [value, prev[half][1]] : [prev[half][0], value] }));
