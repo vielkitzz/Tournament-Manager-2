@@ -517,10 +517,11 @@ function IndividualStatsTab({
     [allPlayers, team.id],
   );
 
-  const map = new Map
-    string,
-    { matches: Set<string>; goals: number; assists: number; yellows: number; reds: number }
-  >();
+  const stats = useMemo(() => {
+    const map = new Map
+      string,
+      { matches: Set<string>; goals: number; assists: number; yellows: number; reds: number }
+    >();
     const ensure = (id: string) => {
       let s = map.get(id);
       if (!s) {
