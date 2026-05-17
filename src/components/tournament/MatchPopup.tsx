@@ -261,7 +261,7 @@ export default function MatchPopup({
   const [penaltyIndex, setPenaltyIndex] = useState(0);
   const [penaltyFinished, setPenaltyFinished] = useState(false);
   const [matchStats, setMatchStats] = useState<{ homeStats: TeamMatchStats; awayStats: TeamMatchStats } | null>(null);
-  const [bottomTab, setBottomTab] = useState<"stats" | "events">("stats");
+  const [bottomTab, setBottomTab] = useState<"stats" | "events" | "goals">("stats");
   const [showBottomPanel, setShowBottomPanel] = useState(false);
 
   // Live simulation state
