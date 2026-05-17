@@ -1119,7 +1119,7 @@ export default function MatchPopup({
         {/* Bottom Tabs */}
         {showBottomPanel && (displayStats || hasEvents) && (
           <div className="border-t border-border">
-            <Tabs value={bottomTab} onValueChange={(v) => setBottomTab(v as "stats" | "events")}>
+            <Tabs value={bottomTab} onValueChange={(v) => setBottomTab(v as "stats" | "events" | "goals")}>
               <TabsList className="w-full justify-center rounded-none border-b border-border bg-transparent h-auto p-0">
                 <TabsTrigger
                   value="stats"
@@ -1132,6 +1132,13 @@ export default function MatchPopup({
                   className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent px-6 py-2.5 text-xs font-display font-bold"
                 >
                   Eventos
+                </TabsTrigger>
+                <TabsTrigger
+                  value="goals"
+                  className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent px-6 py-2.5 text-xs font-display font-bold flex items-center gap-1.5"
+                >
+                  <SoccerBallIcon size={12} />
+                  Gols
                 </TabsTrigger>
               </TabsList>
 
