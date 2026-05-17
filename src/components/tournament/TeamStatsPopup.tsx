@@ -610,8 +610,25 @@ function IndividualStatsTab({ team, matches, allPlayers }: { team: Team; matches
     };
 
     for (const m of matches) {
-      for (const p of teamPlayers) {
-        ensure(p.id).matches.add(m.id);
+      const lineup = m.homeTeamId === team.id ? m.homeLineup : m.awayLineup;
+
+      if (lineup && lineup.length > 0) {
+        for (const pid of lineup) {
+          ensure(pid).matches.add(m.id);
+        }
+      } else {
+        for (const p of teamPlayers) {
+          ensure(p.id).matches.add(m.id);
+        }
+      }
+
+      // Substitutos que entraram
+      if (m.events) {
+        for (const evt of m.events) {
+          if (evt.type === "substitution" && evt.teamId === team.id && evt.playerId) {
+            ensure(evt.playerId).matches.add(m.id);
+          }
+        }
       }
 
       if (!m.events) continue;

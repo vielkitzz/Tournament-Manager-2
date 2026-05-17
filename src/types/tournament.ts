@@ -43,7 +43,16 @@ export interface TournamentSettings {
   redSuspensionDuration?: number;
 }
 
-export type EventType = 'goal' | 'yellow_card' | 'red_card' | 'injury' | 'highlight' | 'substitution' | 'offside' | 'foul' | 'shot';
+export type EventType =
+  | "goal"
+  | "yellow_card"
+  | "red_card"
+  | "injury"
+  | "highlight"
+  | "substitution"
+  | "offside"
+  | "foul"
+  | "shot";
 
 export interface MatchEvent {
   id: string;
@@ -114,6 +123,9 @@ export interface Match {
   awayStats?: TeamMatchStats;
   // Minute-by-minute events
   events?: MatchEvent[];
+  // Lineup (IDs dos 11 titulares de cada time)
+  homeLineup?: string[];
+  awayLineup?: string[];
 }
 
 export interface SeasonRecord {
@@ -122,7 +134,18 @@ export interface SeasonRecord {
   championName: string;
   championLogo?: string;
   format?: TournamentFormat;
-  standings: { teamId: string; teamName: string; teamLogo?: string; points: number; wins: number; draws: number; losses: number; goalsFor: number; goalsAgainst: number; group?: number }[];
+  standings: {
+    teamId: string;
+    teamName: string;
+    teamLogo?: string;
+    points: number;
+    wins: number;
+    draws: number;
+    losses: number;
+    goalsFor: number;
+    goalsAgainst: number;
+    group?: number;
+  }[];
   matches?: Match[];
   groupCount?: number;
   teamIds?: string[];
@@ -214,7 +237,17 @@ export const DEFAULT_SETTINGS: TournamentSettings = {
   pointsWin: 3,
   pointsDraw: 1,
   pointsLoss: 0,
-  tiebreakers: ["Pontos", "Vitórias", "Saldo de Gols", "Gols Marcados", "Empates", "Gols Sofridos", "Confronto Direto", "Cartões Amarelos", "Cartões Vermelhos"],
+  tiebreakers: [
+    "Pontos",
+    "Vitórias",
+    "Saldo de Gols",
+    "Gols Marcados",
+    "Empates",
+    "Gols Sofridos",
+    "Confronto Direto",
+    "Cartões Amarelos",
+    "Cartões Vermelhos",
+  ],
   awayGoalsRule: false,
   extraTime: false,
   goldenGoal: false,
@@ -243,16 +276,10 @@ export const STAGE_TEAM_COUNTS: Record<string, number> = {
   "1/64": 64,
   "1/32": 32, // Pré-oitavas (32 times)
   "1/16": 16, // Oitavas (16 times)
-  "1/8": 8,   // Quartas (8 times)
-  "1/4": 4,   // Semis (4 times)
-  "1/2": 2,   // Final (2 times)
-  "final": 2
+  "1/8": 8, // Quartas (8 times)
+  "1/4": 4, // Semis (4 times)
+  "1/2": 2, // Final (2 times)
+  final: 2,
 };
 
-export const SPORTS = [
-  "Futebol",
-  "Futsal",
-  "Futebol de Salão",
-  "Society",
-  "Beach Soccer",
-];
+export const SPORTS = ["Futebol", "Futsal", "Futebol de Salão", "Society", "Beach Soccer"];

@@ -824,6 +824,8 @@ export default function MatchPopup({
 
     onSave({
       ...match,
+      homeLineup: homeStarters.map((p) => p.id),
+      awayLineup: awayStarters.map((p) => p.id),
       homeScore: regularHome,
       awayScore: regularAway,
       homeScoreH1: scores.h1[0],
