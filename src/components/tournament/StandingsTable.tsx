@@ -21,9 +21,10 @@ interface StandingsTableProps {
   allTeams?: Team[];
   allPlayers?: Player[];
   hideScreenshot?: boolean;
+  year?: number;
 }
 
-export default function StandingsTable({ standings, promotions = [], qualifyUntil, onRemoveTeam, matches = [], allTeams = [], allPlayers = [], hideScreenshot }: StandingsTableProps) {
+export default function StandingsTable({ standings, promotions = [], qualifyUntil, onRemoveTeam, matches = [], allTeams = [], allPlayers = [], hideScreenshot, year }: StandingsTableProps) {
   const [selectedTeamId, setSelectedTeamId] = useState<string | null>(null);
   const tableRef = useRef<HTMLDivElement>(null);
 
@@ -215,6 +216,7 @@ export default function StandingsTable({ standings, promotions = [], qualifyUnti
           allTeams={allTeams}
           allStandings={standings}
           allPlayers={allPlayers}
+          year={year}
         />
         </div>
       </div>

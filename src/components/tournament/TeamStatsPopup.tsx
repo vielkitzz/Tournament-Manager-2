@@ -11,10 +11,26 @@ import {
   Award,
   Percent,
   User,
+  Download,
 } from "lucide-react";
 import { Team, Match, Player } from "@/types/tournament";
 import { StandingRow } from "@/lib/standings";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  buildExportPayload,
+  computeAverageRatings,
+  downloadStatsJson,
+  formatAverageRating,
+} from "@/utils/exportStats";
+import { toast } from "sonner";
 
 interface TeamStatsPopupProps {
   open: boolean;
@@ -25,6 +41,7 @@ interface TeamStatsPopupProps {
   allTeams: Team[];
   allStandings?: StandingRow[];
   allPlayers?: Player[];
+  year?: number;
 }
 
 export default function TeamStatsPopup({
@@ -36,6 +53,7 @@ export default function TeamStatsPopup({
   allTeams,
   allStandings = [],
   allPlayers = [],
+  year,
 }: TeamStatsPopupProps) {
   const [activeTab, setActiveTab] = useState<"overview" | "h2h" | "compare" | "individual">("overview");
   const [h2hTeamId, setH2hTeamId] = useState<string | null>(null);
@@ -574,7 +592,14 @@ export default function TeamStatsPopup({
 
           {/* Individual Stats Tab */}
           {activeTab === "individual" && (
-            <IndividualStatsTab team={team} matches={teamMatches} allPlayers={allPlayers} />
+            <IndividualStatsTab
+              team={team}
+              matches={teamMatches}
+              allPlayers={allPlayers}
+              allTeams={allTeams}
+              allMatches={matches}
+              year={year ?? new Date().getFullYear()}
+            />
           )}
         </div>
       </DialogContent>
@@ -587,13 +612,62 @@ export default function TeamStatsPopup({
 // disputados de cada jogador a partir dos eventos das partidas do time.
 // ---------------------------------------------------------------------------
 
-type SortKey = "name" | "matches" | "goals" | "assists" | "yellows" | "reds";
+type SortKey = "name" | "matches" | "goals" | "assists" | "yellows" | "reds" | "rating";
 
-function IndividualStatsTab({ team, matches, allPlayers }: { team: Team; matches: Match[]; allPlayers: Player[] }) {
+function IndividualStatsTab({
+  team,
+  matches,
+  allPlayers,
+  allTeams,
+  allMatches,
+  year,
+}: {
+  team: Team;
+  matches: Match[];
+  allPlayers: Player[];
+  allTeams: Team[];
+  allMatches: Match[];
+  year: number;
+}) {
   const [sortKey, setSortKey] = useState<SortKey>("goals");
   const [sortAsc, setSortAsc] = useState(false);
+  const [exportScope, setExportScope] = useState<string>("all");
 
   const teamPlayers = useMemo(() => allPlayers.filter((p) => p.teamId === team.id), [allPlayers, team.id]);
+
+  const averageRatings = useMemo(
+    () => computeAverageRatings(team, teamPlayers, matches),
+    [team, teamPlayers, matches],
+  );
+
+  // Times participantes da temporada — derivados das partidas
+  const seasonTeams = useMemo(() => {
+    const ids = new Set<string>();
+    for (const m of allMatches) {
+      if (m.homeTeamId) ids.add(m.homeTeamId);
+      if (m.awayTeamId) ids.add(m.awayTeamId);
+    }
+    return allTeams.filter((t) => ids.has(t.id));
+  }, [allMatches, allTeams]);
+
+  const handleExport = () => {
+    const selectedTeams =
+      exportScope === "all" ? seasonTeams : seasonTeams.filter((t) => t.id === exportScope);
+    if (selectedTeams.length === 0) {
+      toast.error("Nenhum time disponível para exportar.");
+      return;
+    }
+    const payload = buildExportPayload(
+      selectedTeams,
+      allPlayers,
+      allMatches,
+      year,
+      exportScope === "all" ? "all" : "team",
+    );
+    const teamName = exportScope === "all" ? null : selectedTeams[0]?.name ?? null;
+    downloadStatsJson(payload, year, teamName);
+    toast.success("Estatísticas exportadas!");
+  };
 
   const stats = useMemo(() => {
     const map = new Map<
@@ -665,9 +739,10 @@ function IndividualStatsTab({ team, matches, allPlayers }: { team: Team; matches
         assists: s?.assists ?? 0,
         yellows: s?.yellows ?? 0,
         reds: s?.reds ?? 0,
+        rating: averageRatings[p.id] ?? null,
       };
     });
-  }, [teamPlayers, stats]);
+  }, [teamPlayers, stats, averageRatings]);
 
   const sortedRows = useMemo(() => {
     const arr = [...rows];
@@ -692,6 +767,13 @@ function IndividualStatsTab({ team, matches, allPlayers }: { team: Team; matches
         case "reds":
           cmp = a.reds - b.reds;
           break;
+        case "rating": {
+          // N/A é tratado como o menor valor possível
+          const ar = a.rating ?? -Infinity;
+          const br = b.rating ?? -Infinity;
+          cmp = ar - br;
+          break;
+        }
       }
       return sortAsc ? cmp : -cmp;
     });
@@ -724,10 +806,29 @@ function IndividualStatsTab({ team, matches, allPlayers }: { team: Team; matches
 
   return (
     <div className="space-y-3">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-wrap items-center justify-between gap-2">
         <p className="text-xs text-muted-foreground">
           {teamPlayers.length} jogadores · {matches.length} jogos disputados pelo time
         </p>
+        <div className="flex items-center gap-2">
+          <Select value={exportScope} onValueChange={setExportScope}>
+            <SelectTrigger className="h-8 text-xs w-44">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Todos os Clubes</SelectItem>
+              {seasonTeams.map((t) => (
+                <SelectItem key={t.id} value={t.id}>
+                  {t.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <Button size="sm" onClick={handleExport} className="h-8 gap-1.5 text-xs">
+            <Download className="w-3.5 h-3.5" />
+            Exportar Estatísticas
+          </Button>
+        </div>
       </div>
       <div className="overflow-x-auto rounded-xl border border-border">
         <table className="w-full text-xs">
@@ -740,10 +841,11 @@ function IndividualStatsTab({ team, matches, allPlayers }: { team: Team; matches
               <SortHeader k="assists" label="A" className="text-center w-12" />
               <SortHeader k="yellows" label="CA" className="text-center w-12" />
               <SortHeader k="reds" label="CV" className="text-center w-12" />
+              <SortHeader k="rating" label="NM" className="text-center w-14" />
             </tr>
           </thead>
           <tbody>
-            {sortedRows.map(({ player, matches: j, goals, assists, yellows, reds }) => (
+            {sortedRows.map(({ player, matches: j, goals, assists, yellows, reds, rating }) => (
               <tr key={player.id} className="border-t border-border/50">
                 <td className="py-2 px-2">
                   <div className="flex items-center gap-2">
@@ -781,6 +883,21 @@ function IndividualStatsTab({ team, matches, allPlayers }: { team: Team; matches
                   className={`py-2 px-2 text-center ${reds > 0 ? "text-destructive font-medium" : "text-muted-foreground"}`}
                 >
                   {reds}
+                </td>
+                <td
+                  className={`py-2 px-2 text-center font-bold ${
+                    rating == null
+                      ? "text-muted-foreground"
+                      : rating >= 8
+                        ? "text-emerald-500"
+                        : rating >= 7
+                          ? "text-primary"
+                          : rating >= 6
+                            ? "text-foreground"
+                            : "text-destructive"
+                  }`}
+                >
+                  {formatAverageRating(rating)}
                 </td>
               </tr>
             ))}
