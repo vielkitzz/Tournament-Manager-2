@@ -1185,6 +1185,12 @@ export default function MatchPopup({
                   <SoccerBallIcon size={12} />
                   Gols
                 </TabsTrigger>
+                <TabsTrigger
+                  value="ratings"
+                  className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent px-6 py-2.5 text-xs font-display font-bold"
+                >
+                  Notas
+                </TabsTrigger>
               </TabsList>
 
               <TabsContent value="stats" className="mt-0">
