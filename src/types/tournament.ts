@@ -61,6 +61,8 @@ export interface MatchEvent {
   teamId: string;
   playerId?: string;
   assistId?: string;
+  /** ID do jogador alvo da ação (ex: goleiro que defendeu um chute) */
+  targetId?: string;
   text: string;
 }
 

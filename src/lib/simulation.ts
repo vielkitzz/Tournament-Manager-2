@@ -1017,6 +1017,7 @@ export function generateMinuteByMinuteEvents(
         type: "shot",
         teamId: team.id,
         playerId: shooter.id,
+        targetId: gk.id,
         text,
       });
       bucket.shots++;
@@ -1122,3 +1123,166 @@ export function generateMinuteByMinuteEvents(
 
   return events;
 }
+
+// ---------------------------------------------------------------------------
+// Notas individuais dos jogadores (estilo Sofascore)
+// ---------------------------------------------------------------------------
+
+const RATING_BASE = 6.5;
+const RATING_MIN = 3.0;
+const RATING_MAX = 10.0;
+
+type PositionGroup = "GK" | "DEF" | "MID" | "ATK";
+
+function getPositionGroup(pos?: string): PositionGroup {
+  const p = (pos || "").toLowerCase();
+  if (p === "goleiro" || p === "gol") return "GK";
+  if (
+    p === "zagueiro" ||
+    p === "zag" ||
+    p === "lateral direito" ||
+    p === "lateral esquerdo" ||
+    p === "ld" ||
+    p === "le"
+  )
+    return "DEF";
+  if (
+    p === "volante" ||
+    p === "vol" ||
+    p === "meia" ||
+    p === "mc" ||
+    p === "meia atacante" ||
+    p === "mei"
+  )
+    return "MID";
+  return "ATK";
+}
+
+function getGoalBonus(group: PositionGroup): number {
+  if (group === "DEF" || group === "GK") return 2.0;
+  if (group === "MID") return 1.3;
+  return 1.0;
+}
+
+/**
+ * Calcula a nota final (3.0 — 10.0) de cada jogador da partida.
+ *
+ * @param homePlayers Jogadores da equipe da casa que participaram da partida
+ * @param awayPlayers Jogadores da equipe visitante que participaram da partida
+ * @param events Lista cronológica de eventos da partida
+ * @param goalsConceded Gols sofridos por cada lado (chave: teamId → gols sofridos)
+ */
+export function calculatePlayerRatings(
+  homePlayers: Player[],
+  awayPlayers: Player[],
+  homeTeamId: string,
+  awayTeamId: string,
+  events: MatchEvent[],
+  goalsConceded: { home: number; away: number },
+): Record<string, number> {
+  const ratings: Record<string, number> = {};
+  const playerTeam: Record<string, string> = {};
+  const playerGroup: Record<string, PositionGroup> = {};
+
+  const init = (players: Player[], teamId: string) => {
+    for (const p of players) {
+      ratings[p.id] = RATING_BASE;
+      playerTeam[p.id] = teamId;
+      playerGroup[p.id] = getPositionGroup(p.position);
+    }
+  };
+  init(homePlayers, homeTeamId);
+  init(awayPlayers, awayTeamId);
+
+  const bump = (id: string | undefined, delta: number) => {
+    if (!id || ratings[id] === undefined) return;
+    ratings[id] += delta;
+  };
+
+  for (const evt of events) {
+    switch (evt.type) {
+      case "goal": {
+        if (evt.playerId) {
+          const group = playerGroup[evt.playerId] ?? "ATK";
+          bump(evt.playerId, getGoalBonus(group));
+        }
+        if (evt.assistId) bump(evt.assistId, 0.8);
+        break;
+      }
+      case "yellow_card":
+        bump(evt.playerId, -0.4);
+        break;
+      case "red_card":
+        bump(evt.playerId, -1.5);
+        break;
+      case "offside":
+        bump(evt.playerId, -0.1);
+        break;
+      case "shot": {
+        const text = evt.text || "";
+        const isSave = /defesa|milagre/i.test(text);
+        if (isSave) {
+          bump(evt.targetId, 0.3);
+          bump(evt.playerId, -0.05);
+        } else {
+          // chute para fora
+          bump(evt.playerId, -0.1);
+        }
+        break;
+      }
+      case "highlight": {
+        const text = evt.text || "";
+        if (/desarme|jogada individual|contra-?ataque/i.test(text)) {
+          bump(evt.playerId, 0.2);
+        }
+        break;
+      }
+      default:
+        break;
+    }
+  }
+
+  // Modificadores de fim de partida (defesa)
+  const applyDefenseEnd = (players: Player[], teamId: string) => {
+    const conceded = teamId === homeTeamId ? goalsConceded.home : goalsConceded.away;
+    for (const p of players) {
+      const group = playerGroup[p.id];
+      if (group !== "GK" && group !== "DEF") continue;
+      if (conceded === 0) {
+        bump(p.id, 0.6); // clean sheet
+      } else {
+        bump(p.id, -0.2 * conceded);
+      }
+    }
+  };
+  applyDefenseEnd(homePlayers, homeTeamId);
+  applyDefenseEnd(awayPlayers, awayTeamId);
+
+  // Clamp e arredondamento final
+  for (const id of Object.keys(ratings)) {
+    const r = Math.max(RATING_MIN, Math.min(RATING_MAX, ratings[id]));
+    ratings[id] = Math.round(r * 10) / 10;
+  }
+
+  return ratings;
+}
+
+/*
+ * EXEMPLO DE USO (no MatchPopup, logo após `generateMinuteByMinuteEvents`):
+ *
+ *   const events = generateMinuteByMinuteEvents(
+ *     homeTeam, awayTeam, homePlayers, awayPlayers,
+ *     { homeStats, awayStats }, finalHome, finalAway, halfGoals,
+ *   );
+ *
+ *   const playerRatings = calculatePlayerRatings(
+ *     homePlayers,
+ *     awayPlayers,
+ *     homeTeam.id,
+ *     awayTeam.id,
+ *     events,
+ *     { home: finalAway, away: finalHome }, // gols sofridos = gols do adversário
+ *   );
+ *
+ *   // Persistir junto da partida (ex: match.playerRatings = playerRatings).
+ */
