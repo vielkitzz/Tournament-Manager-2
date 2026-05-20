@@ -1352,6 +1352,106 @@ export default function MatchPopup({
                   })()}
                 </div>
               </TabsContent>
+
+              <TabsContent value="ratings" className="mt-0">
+                <div className="px-6 py-4 max-h-80 overflow-y-auto">
+                  {(() => {
+                    const goalEvents = visibleEvents.filter((e) => e.type === "goal");
+                    const homeGoalsLive = goalEvents.filter((e) => e.teamId === match.homeTeamId).length;
+                    const awayGoalsLive = goalEvents.filter((e) => e.teamId === match.awayTeamId).length;
+
+                    // Participantes: titulares + quem entrou em substituição
+                    const subInIds = new Set(
+                      visibleEvents
+                        .filter((e) => e.type === "substitution" && e.playerId)
+                        .map((e) => e.playerId as string),
+                    );
+                    const homeParticipants = [
+                      ...homeStarters,
+                      ...homePlayers.filter((p) => subInIds.has(p.id) && !homeStarters.find((s) => s.id === p.id)),
+                    ];
+                    const awayParticipants = [
+                      ...awayStarters,
+                      ...awayPlayers.filter((p) => subInIds.has(p.id) && !awayStarters.find((s) => s.id === p.id)),
+                    ];
+
+                    if (homeParticipants.length === 0 && awayParticipants.length === 0) {
+                      return (
+                        <p className="text-xs text-muted-foreground text-center py-6">
+                          Notas indisponíveis — elenco não definido
+                        </p>
+                      );
+                    }
+
+                    const ratings = calculatePlayerRatings(
+                      homeParticipants,
+                      awayParticipants,
+                      match.homeTeamId,
+                      match.awayTeamId,
+                      visibleEvents,
+                      { home: awayGoalsLive, away: homeGoalsLive },
+                    );
+
+                    const ratingColor = (r: number) => {
+                      if (r >= 8) return "bg-emerald-500/15 text-emerald-500 border-emerald-500/30";
+                      if (r >= 7) return "bg-primary/15 text-primary border-primary/30";
+                      if (r >= 6) return "bg-muted-foreground/15 text-muted-foreground border-border";
+                      return "bg-destructive/15 text-destructive border-destructive/30";
+                    };
+
+                    const renderTeamColumn = (
+                      team: Team | undefined,
+                      participants: Player[],
+                    ) => {
+                      const sorted = [...participants].sort(
+                        (a, b) => (ratings[b.id] ?? 0) - (ratings[a.id] ?? 0),
+                      );
+                      return (
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2 mb-2 pb-1.5 border-b border-border">
+                            {team?.logo ? (
+                              <img src={team.logo} alt="" className="w-4 h-4 object-contain" />
+                            ) : (
+                              <Shield className="w-3.5 h-3.5 text-muted-foreground" />
+                            )}
+                            <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground truncate">
+                              {team?.shortName || team?.name || "—"}
+                            </p>
+                          </div>
+                          <div className="space-y-1">
+                            {sorted.map((p) => {
+                              const r = ratings[p.id] ?? 6.5;
+                              return (
+                                <div key={p.id} className="flex items-center gap-2 py-1">
+                                  <span className="text-[10px] text-muted-foreground w-5 text-right tabular-nums shrink-0">
+                                    {p.shirtNumber ?? ""}
+                                  </span>
+                                  <div className="flex-1 min-w-0">
+                                    <p className="text-xs font-medium text-foreground truncate">{p.name}</p>
+                                    <p className="text-[10px] text-muted-foreground truncate">{p.position || ""}</p>
+                                  </div>
+                                  <span
+                                    className={`text-xs font-bold tabular-nums px-2 py-0.5 rounded border ${ratingColor(r)}`}
+                                  >
+                                    {r.toFixed(1)}
+                                  </span>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      );
+                    };
+
+                    return (
+                      <div className="flex gap-6">
+                        {renderTeamColumn(homeTeam, homeParticipants)}
+                        {renderTeamColumn(awayTeam, awayParticipants)}
+                      </div>
+                    );
+                  })()}
+                </div>
+              </TabsContent>
             </Tabs>
           </div>
         )}
