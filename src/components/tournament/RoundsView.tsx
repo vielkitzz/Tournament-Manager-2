@@ -79,6 +79,8 @@ export default function RoundsView({
 
       // Generate events if both teams have enough players
       let events: any[] | undefined;
+      let homeLineupIds: string[] | undefined;
+      let awayLineupIds: string[] | undefined;
       if (home && away) {
         const homePl = homeSquad;
         const awayPl = awaySquad;
@@ -93,6 +95,8 @@ export default function RoundsView({
             h1: result.h1,
             h2: result.h2,
           });
+          homeLineupIds = availHome.slice(0, 11).map((p) => p.id);
+          awayLineupIds = availAway.slice(0, 11).map((p) => p.id);
         }
       }
 
@@ -107,6 +111,8 @@ export default function RoundsView({
         homeStats: stats.homeStats,
         awayStats: stats.awayStats,
         events,
+        homeLineup: homeLineupIds,
+        awayLineup: awayLineupIds,
         played: true,
       };
     });
