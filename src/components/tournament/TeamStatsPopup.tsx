@@ -11,10 +11,26 @@ import {
   Award,
   Percent,
   User,
+  Download,
 } from "lucide-react";
 import { Team, Match, Player } from "@/types/tournament";
 import { StandingRow } from "@/lib/standings";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  buildExportPayload,
+  computeAverageRatings,
+  downloadStatsJson,
+  formatAverageRating,
+} from "@/utils/exportStats";
+import { toast } from "sonner";
 
 interface TeamStatsPopupProps {
   open: boolean;
@@ -25,6 +41,7 @@ interface TeamStatsPopupProps {
   allTeams: Team[];
   allStandings?: StandingRow[];
   allPlayers?: Player[];
+  year?: number;
 }
 
 export default function TeamStatsPopup({
@@ -36,6 +53,7 @@ export default function TeamStatsPopup({
   allTeams,
   allStandings = [],
   allPlayers = [],
+  year,
 }: TeamStatsPopupProps) {
   const [activeTab, setActiveTab] = useState<"overview" | "h2h" | "compare" | "individual">("overview");
   const [h2hTeamId, setH2hTeamId] = useState<string | null>(null);
@@ -574,7 +592,14 @@ export default function TeamStatsPopup({
 
           {/* Individual Stats Tab */}
           {activeTab === "individual" && (
-            <IndividualStatsTab team={team} matches={teamMatches} allPlayers={allPlayers} />
+            <IndividualStatsTab
+              team={team}
+              matches={teamMatches}
+              allPlayers={allPlayers}
+              allTeams={allTeams}
+              allMatches={matches}
+              year={year ?? new Date().getFullYear()}
+            />
           )}
         </div>
       </DialogContent>
