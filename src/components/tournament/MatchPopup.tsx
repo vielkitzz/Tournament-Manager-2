@@ -256,10 +256,7 @@ function getTacticalMods(lineup: SolaraLineup | null): { atk: number; def: numbe
 function getStartersFromLineup(players: Player[], lineup: SolaraLineup | null): Player[] {
   if (!lineup?.pitchIds) return players.slice(0, 11);
   const starterIds = new Set(Object.values(lineup.pitchIds));
-  const matched = players.filter((p) => {
-    const mid = (p as unknown as { master_player_id?: string | null }).master_player_id;
-    return !!mid && starterIds.has(mid);
-  });
+  const matched = players.filter((p) => starterIds.has(p.id));
   return matched.length >= 11 ? matched.slice(0, 11) : players.slice(0, 11);
 }
 
@@ -330,22 +327,13 @@ export default function MatchPopup({
 
   useEffect(() => {
     let cancelled = false;
-    async function fetchLineup(tm2TeamId: string): Promise<SolaraLineup | null> {
-      const { data: link } = await (supabase as any)
-        .from("club_sync_links")
-        .select("solarahub_club_id")
-        .eq("tm2_team_id", tm2TeamId)
-        .maybeSingle();
-      if (!link?.solarahub_club_id) return null;
-      const { data, error } = await supabase.functions.invoke("get-solarahub-lineup", {
-        body: { solarahub_club_id: link.solarahub_club_id },
-      });
-      if (error) return null;
-      return (data as { lineup: SolaraLineup | null })?.lineup ?? null;
+    async function fetchClubLineup(teamId: string) {
+      const { data } = await supabase.from("clubs").select("lineup").eq("id", teamId).maybeSingle();
+      return (data?.lineup as { pitchIds?: Record<string, string> } | null) ?? null;
     }
     Promise.all([
-      match.homeTeamId ? fetchLineup(match.homeTeamId) : Promise.resolve(null),
-      match.awayTeamId ? fetchLineup(match.awayTeamId) : Promise.resolve(null),
+      match.homeTeamId ? fetchClubLineup(match.homeTeamId) : Promise.resolve(null),
+      match.awayTeamId ? fetchClubLineup(match.awayTeamId) : Promise.resolve(null),
     ]).then(([h, a]) => {
       if (cancelled) return;
       setHomeLineup(h);
