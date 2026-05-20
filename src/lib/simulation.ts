@@ -1017,6 +1017,7 @@ export function generateMinuteByMinuteEvents(
         type: "shot",
         teamId: team.id,
         playerId: shooter.id,
+        targetId: gk.id,
         text,
       });
       bucket.shots++;
