@@ -1403,9 +1403,34 @@ export default function MatchPopup({
                       team: Team | undefined,
                       participants: Player[],
                     ) => {
-                      const sorted = [...participants].sort(
-                        (a, b) => (ratings[b.id] ?? 0) - (ratings[a.id] ?? 0),
+                      const starterIds = new Set(
+                        (team?.id === match.homeTeamId ? homeStarters : awayStarters).map((p) => p.id),
                       );
+                      const starters = participants
+                        .filter((p) => starterIds.has(p.id))
+                        .sort((a, b) => (ratings[b.id] ?? 0) - (ratings[a.id] ?? 0));
+                      const subs = participants
+                        .filter((p) => !starterIds.has(p.id))
+                        .sort((a, b) => (ratings[b.id] ?? 0) - (ratings[a.id] ?? 0));
+                      const renderRow = (p: Player) => {
+                        const r = ratings[p.id] ?? 6.5;
+                        return (
+                          <div key={p.id} className="flex items-center gap-2 py-1">
+                            <span className="text-[10px] text-muted-foreground w-5 text-right tabular-nums shrink-0">
+                              {p.shirtNumber ?? ""}
+                            </span>
+                            <div className="flex-1 min-w-0">
+                              <p className="text-xs font-medium text-foreground truncate">{p.name}</p>
+                              <p className="text-[10px] text-muted-foreground truncate">{p.position || ""}</p>
+                            </div>
+                            <span
+                              className={`text-xs font-bold tabular-nums px-2 py-0.5 rounded border ${ratingColor(r)}`}
+                            >
+                              {r.toFixed(1)}
+                            </span>
+                          </div>
+                        );
+                      };
                       return (
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center gap-2 mb-2 pb-1.5 border-b border-border">
@@ -1418,26 +1443,27 @@ export default function MatchPopup({
                               {team?.shortName || team?.name || "—"}
                             </p>
                           </div>
-                          <div className="space-y-1">
-                            {sorted.map((p) => {
-                              const r = ratings[p.id] ?? 6.5;
-                              return (
-                                <div key={p.id} className="flex items-center gap-2 py-1">
-                                  <span className="text-[10px] text-muted-foreground w-5 text-right tabular-nums shrink-0">
-                                    {p.shirtNumber ?? ""}
-                                  </span>
-                                  <div className="flex-1 min-w-0">
-                                    <p className="text-xs font-medium text-foreground truncate">{p.name}</p>
-                                    <p className="text-[10px] text-muted-foreground truncate">{p.position || ""}</p>
-                                  </div>
-                                  <span
-                                    className={`text-xs font-bold tabular-nums px-2 py-0.5 rounded border ${ratingColor(r)}`}
-                                  >
-                                    {r.toFixed(1)}
-                                  </span>
-                                </div>
-                              );
-                            })}
+                          <div>
+                            <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground mb-1">
+                              Titulares
+                            </p>
+                            <div className="space-y-1">
+                              {starters.length > 0 ? (
+                                starters.map(renderRow)
+                              ) : (
+                                <p className="text-[10px] text-muted-foreground italic py-1">—</p>
+                              )}
+                            </div>
+                            <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground mt-3 mb-1">
+                              Reservas
+                            </p>
+                            <div className="space-y-1">
+                              {subs.length > 0 ? (
+                                subs.map(renderRow)
+                              ) : (
+                                <p className="text-[10px] text-muted-foreground italic py-1">—</p>
+                              )}
+                            </div>
                           </div>
                         </div>
                       );
