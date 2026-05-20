@@ -211,6 +211,8 @@ export default function BracketView({
 
     // Generate events if both teams have enough players
     let events: any[] | undefined;
+    let homeLineupIds: string[] | undefined;
+    let awayLineupIds: string[] | undefined;
     if (home && away) {
       const homePl = homeSquad;
       const awayPl = awaySquad;
@@ -225,6 +227,8 @@ export default function BracketView({
           h1: result.h1,
           h2: result.h2,
         });
+        homeLineupIds = availHome.slice(0, 11).map((p) => p.id);
+        awayLineupIds = availAway.slice(0, 11).map((p) => p.id);
       }
     }
 
@@ -239,6 +243,8 @@ export default function BracketView({
       homeStats: stats.homeStats,
       awayStats: stats.awayStats,
       events,
+      homeLineup: homeLineupIds,
+      awayLineup: awayLineupIds,
       played: true,
       ...(homePenalties !== undefined && { homePenalties, awayPenalties }),
     };

@@ -690,10 +690,6 @@ function IndividualStatsTab({
         for (const pid of lineup) {
           ensure(pid).matches.add(m.id);
         }
-      } else {
-        for (const p of teamPlayers) {
-          ensure(p.id).matches.add(m.id);
-        }
       }
 
       // Substitutos que entraram
