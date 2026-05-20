@@ -26,6 +26,35 @@ import HighlightIcon from "@/components/icons/HighlightIcon";
 import SubstitutionIcon from "@/components/icons/SubstitutionIcon";
 import OffsideIcon from "@/components/icons/OffsideIcon";
 
+const POSITION_ORDER: Record<string, number> = {
+  Goleiro: 0,
+  GK: 0,
+  Zagueiro: 1,
+  ZAG: 1,
+  Lateral: 2,
+  "Lateral Direito": 2,
+  "Lateral Esquerdo": 2,
+  LD: 2,
+  LE: 2,
+  Volante: 3,
+  VOL: 3,
+  "Meio-campo": 4,
+  Meia: 4,
+  MC: 4,
+  MEI: 4,
+  "Meia Ofensivo": 5,
+  MO: 5,
+  Atacante: 6,
+  Ponta: 6,
+  ATA: 6,
+  Centroavante: 7,
+  CA: 7,
+  "Segundo Atacante": 7,
+  SA: 7,
+};
+
+const positionRank = (pos?: string | null) => POSITION_ORDER[pos ?? ""] ?? 50;
+
 interface MatchPopupProps {
   match: Match;
   homeTeam?: Team;
@@ -1399,19 +1428,24 @@ export default function MatchPopup({
                       return "bg-destructive/15 text-destructive border-destructive/30";
                     };
 
-                    const renderTeamColumn = (
-                      team: Team | undefined,
-                      participants: Player[],
-                    ) => {
+                    const renderTeamColumn = (team: Team | undefined, participants: Player[]) => {
                       const starterIds = new Set(
                         (team?.id === match.homeTeamId ? homeStarters : awayStarters).map((p) => p.id),
                       );
                       const starters = participants
                         .filter((p) => starterIds.has(p.id))
-                        .sort((a, b) => (ratings[b.id] ?? 0) - (ratings[a.id] ?? 0));
+                        .sort(
+                          (a, b) =>
+                            positionRank(a.position) - positionRank(b.position) ||
+                            (ratings[b.id] ?? 0) - (ratings[a.id] ?? 0),
+                        );
                       const subs = participants
                         .filter((p) => !starterIds.has(p.id))
-                        .sort((a, b) => (ratings[b.id] ?? 0) - (ratings[a.id] ?? 0));
+                        .sort(
+                          (a, b) =>
+                            positionRank(a.position) - positionRank(b.position) ||
+                            (ratings[b.id] ?? 0) - (ratings[a.id] ?? 0),
+                        );
                       const renderRow = (p: Player) => {
                         const r = ratings[p.id] ?? 6.5;
                         return (

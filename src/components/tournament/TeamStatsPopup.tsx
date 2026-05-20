@@ -44,6 +44,8 @@ const POSITION_ORDER: Record<string, number> = {
   ATA: 6,
   Centroavante: 7,
   CA: 7,
+  "Segundo Atacante": 7,
+  SA: 7,
 };
 
 const positionRank = (pos?: string | null) => POSITION_ORDER[pos ?? ""] ?? 50;
