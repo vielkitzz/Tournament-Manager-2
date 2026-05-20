@@ -42,10 +42,6 @@ export function computeAverageRatings(
         }
       }
     }
-    if (participantIds.size === 0) {
-      for (const p of teamPlayers) participantIds.add(p.id);
-    }
-
     const participants = teamPlayers.filter((p) => participantIds.has(p.id));
     if (participants.length === 0) continue;
 
@@ -113,8 +109,6 @@ function aggregateTeamStats(
     const lineup = m.homeTeamId === team.id ? m.homeLineup : m.awayLineup;
     if (lineup && lineup.length > 0) {
       for (const pid of lineup) ensure(pid).matches.add(m.id);
-    } else {
-      for (const p of teamPlayers) ensure(p.id).matches.add(m.id);
     }
     if (m.events) {
       const yellowsInMatch = new Map<string, number>();
