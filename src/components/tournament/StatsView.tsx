@@ -6,34 +6,25 @@ import YellowCardIcon from "@/components/icons/YellowCardIcon";
 import RedCardIcon from "@/components/icons/RedCardIcon";
 import ScreenshotButton from "@/components/ScreenshotButton";
 
-const POSITION_ORDER: Record<string, number> = {
-  Goleiro: 0,
-  GK: 0,
-  Zagueiro: 1,
-  ZAG: 1,
-  Lateral: 2,
-  "Lateral Direito": 2,
-  "Lateral Esquerdo": 2,
-  LD: 2,
-  LE: 2,
-  Volante: 3,
-  VOL: 3,
-  "Meio-campo": 4,
-  Meia: 4,
-  MC: 4,
-  MEI: 4,
-  "Meia Ofensivo": 5,
-  MO: 5,
-  Atacante: 6,
-  Ponta: 6,
-  ATA: 6,
-  Centroavante: 7,
-  CA: 7,
-  "Segundo Atacante": 7,
-  SA: 7,
-};
+const POSITION_ORDER: [RegExp, number][] = [
+  [/gol|gk/i, 0],
+  [/zag/i, 1],
+  [/lateral|^ld$|^le$/i, 2],
+  [/vol/i, 3],
+  [/meia|^mc$|^mei$/i, 4],
+  [/meia.?atac|^mo$/i, 5],
+  [/ponta|^pd$|^pe$/i, 6],
+  [/segundo.?atac|^sa$/i, 7],
+  [/atac|^ata$|^ca$/i, 8],
+];
 
-const positionRank = (pos?: string | null) => POSITION_ORDER[pos ?? ""] ?? 50;
+const positionRank = (pos?: string | null): number => {
+  if (!pos) return 99;
+  for (const [regex, rank] of POSITION_ORDER) {
+    if (regex.test(pos)) return rank;
+  }
+  return 50;
+};
 
 interface StatsViewProps {
   tournament: Tournament;
