@@ -12,6 +12,7 @@ import {
   simulatePenaltyKick, // ADICIONAR
   getStartingGoalkeeper, // ADICIONAR
   getBestPenaltyKicker, // ADICIONAR
+  calculatePlayerRatings,
 } from "@/lib/simulation";
 import { effectiveMatchRate } from "@/lib/playerSkill";
 import { supabase } from "@/integrations/supabase/client";
@@ -283,7 +284,7 @@ export default function MatchPopup({
   const [penaltyIndex, setPenaltyIndex] = useState(0);
   const [penaltyFinished, setPenaltyFinished] = useState(false);
   const [matchStats, setMatchStats] = useState<{ homeStats: TeamMatchStats; awayStats: TeamMatchStats } | null>(null);
-  const [bottomTab, setBottomTab] = useState<"stats" | "events" | "goals">("stats");
+  const [bottomTab, setBottomTab] = useState<"stats" | "events" | "goals" | "ratings">("stats");
   const [showBottomPanel, setShowBottomPanel] = useState(false);
 
   // Live simulation state
@@ -1163,7 +1164,7 @@ export default function MatchPopup({
         {/* Bottom Tabs */}
         {showBottomPanel && (displayStats || hasEvents) && (
           <div className="border-t border-border">
-            <Tabs value={bottomTab} onValueChange={(v) => setBottomTab(v as "stats" | "events" | "goals")}>
+            <Tabs value={bottomTab} onValueChange={(v) => setBottomTab(v as "stats" | "events" | "goals" | "ratings")}>
               <TabsList className="w-full justify-center rounded-none border-b border-border bg-transparent h-auto p-0">
                 <TabsTrigger
                   value="stats"
