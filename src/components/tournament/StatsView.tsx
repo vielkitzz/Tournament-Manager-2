@@ -6,6 +6,35 @@ import YellowCardIcon from "@/components/icons/YellowCardIcon";
 import RedCardIcon from "@/components/icons/RedCardIcon";
 import ScreenshotButton from "@/components/ScreenshotButton";
 
+const POSITION_ORDER: Record<string, number> = {
+  Goleiro: 0,
+  GK: 0,
+  Zagueiro: 1,
+  ZAG: 1,
+  Lateral: 2,
+  "Lateral Direito": 2,
+  "Lateral Esquerdo": 2,
+  LD: 2,
+  LE: 2,
+  Volante: 3,
+  VOL: 3,
+  "Meio-campo": 4,
+  Meia: 4,
+  MC: 4,
+  MEI: 4,
+  "Meia Ofensivo": 5,
+  MO: 5,
+  Atacante: 6,
+  Ponta: 6,
+  ATA: 6,
+  Centroavante: 7,
+  CA: 7,
+  "Segundo Atacante": 7,
+  SA: 7,
+};
+
+const positionRank = (pos?: string | null) => POSITION_ORDER[pos ?? ""] ?? 50;
+
 interface StatsViewProps {
   tournament: Tournament;
   teams: Team[];
@@ -36,6 +65,7 @@ interface PlayerStat {
   goalsAndAssists: number;
   yellowCards: number;
   redCards: number;
+  position?: string | null;
 }
 
 function computeStats(tournament: Tournament, teams: Team[]): TeamStats[] {
@@ -111,6 +141,7 @@ function computePlayerStats(tournament: Tournament, teams: Team[], players?: Pla
           goalsAndAssists: 0,
           yellowCards: 0,
           redCards: 0,
+          position: player?.position ?? null,
         });
       }
 
@@ -299,23 +330,23 @@ export default function StatsView({ tournament, teams, players }: StatsViewProps
   // Player leaderboards
   const topScorers = [...playerStats]
     .filter((s) => s.goals > 0)
-    .sort((a, b) => b.goals - a.goals)
+    .sort((a, b) => b.goals - a.goals || positionRank(a.position) - positionRank(b.position))
     .slice(0, 20);
   const topAssists = [...playerStats]
     .filter((s) => s.assists > 0)
-    .sort((a, b) => b.assists - a.assists)
+    .sort((a, b) => b.assists - a.assists || positionRank(a.position) - positionRank(b.position))
     .slice(0, 20);
   const topGA = [...playerStats]
     .filter((s) => s.goalsAndAssists > 0)
-    .sort((a, b) => b.goalsAndAssists - a.goalsAndAssists)
+    .sort((a, b) => b.goalsAndAssists - a.goalsAndAssists || positionRank(a.position) - positionRank(b.position))
     .slice(0, 20);
   const topYellow = [...playerStats]
     .filter((s) => s.yellowCards > 0)
-    .sort((a, b) => b.yellowCards - a.yellowCards)
+    .sort((a, b) => b.yellowCards - a.yellowCards || positionRank(a.position) - positionRank(b.position))
     .slice(0, 20);
   const topRed = [...playerStats]
     .filter((s) => s.redCards > 0)
-    .sort((a, b) => b.redCards - a.redCards)
+    .sort((a, b) => b.redCards - a.redCards || positionRank(a.position) - positionRank(b.position))
     .slice(0, 20);
 
   return (
@@ -324,61 +355,61 @@ export default function StatsView({ tournament, teams, players }: StatsViewProps
         <ScreenshotButton targetRef={statsRef as any} filename="estatisticas.png" discrete />
       </div>
       <div ref={statsRef} className="space-y-6">
-      {/* Team Stats */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-2 gap-4">
-        <StatCard icon={Swords} title="Melhor Ataque" items={bestAttack} valueAccessor={(s) => `${s.goalsFor}`} />
-        <StatCard
-          icon={ShieldCheck}
-          title="Melhor Defesa"
-          items={bestDefense}
-          valueAccessor={(s) => `${s.goalsAgainst}`}
-        />
-        <StatCard
-          icon={SoccerBallIcon}
-          title="Média de Gols/Jogo"
-          items={topAvgGoals}
-          valueAccessor={(s) => s.avgFor.toFixed(1)}
-        />
-        <StatCard
-          icon={TrendingUp}
-          title="Aproveitamento"
-          items={topWinRate}
-          valueAccessor={(s) => `${s.winRate.toFixed(0)}%`}
-        />
-      </div>
-
-      {/* Player Stats - only show if events exist */}
-      {hasEvents && (
+        {/* Team Stats */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-2 gap-4">
-          <PlayerStatCard icon={SoccerBallIcon} title="Gols" items={topScorers} valueAccessor={(s) => `${s.goals}`} />
-          <PlayerStatCard
-            icon={Handshake}
-            title="Assistências"
-            items={topAssists}
-            valueAccessor={(s) => `${s.assists}`}
+          <StatCard icon={Swords} title="Melhor Ataque" items={bestAttack} valueAccessor={(s) => `${s.goalsFor}`} />
+          <StatCard
+            icon={ShieldCheck}
+            title="Melhor Defesa"
+            items={bestDefense}
+            valueAccessor={(s) => `${s.goalsAgainst}`}
           />
-          <PlayerStatCard
-            icon={Award}
-            title="Gols + Assistências"
-            items={topGA}
-            valueAccessor={(s) => `${s.goalsAndAssists}`}
+          <StatCard
+            icon={SoccerBallIcon}
+            title="Média de Gols/Jogo"
+            items={topAvgGoals}
+            valueAccessor={(s) => s.avgFor.toFixed(1)}
           />
-          <PlayerStatCard
-            icon={YellowCardIcon}
-            title="Cartões Amarelos"
-            items={topYellow}
-            valueAccessor={(s) => `${s.yellowCards}`}
+          <StatCard
+            icon={TrendingUp}
+            title="Aproveitamento"
+            items={topWinRate}
+            valueAccessor={(s) => `${s.winRate.toFixed(0)}%`}
           />
-          {topRed.length > 0 && (
-            <PlayerStatCard
-              icon={RedCardIcon}
-              title="Cartões Vermelhos"
-              items={topRed}
-              valueAccessor={(s) => `${s.redCards}`}
-            />
-          )}
         </div>
-      )}
+
+        {/* Player Stats - only show if events exist */}
+        {hasEvents && (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-2 gap-4">
+            <PlayerStatCard icon={SoccerBallIcon} title="Gols" items={topScorers} valueAccessor={(s) => `${s.goals}`} />
+            <PlayerStatCard
+              icon={Handshake}
+              title="Assistências"
+              items={topAssists}
+              valueAccessor={(s) => `${s.assists}`}
+            />
+            <PlayerStatCard
+              icon={Award}
+              title="Gols + Assistências"
+              items={topGA}
+              valueAccessor={(s) => `${s.goalsAndAssists}`}
+            />
+            <PlayerStatCard
+              icon={YellowCardIcon}
+              title="Cartões Amarelos"
+              items={topYellow}
+              valueAccessor={(s) => `${s.yellowCards}`}
+            />
+            {topRed.length > 0 && (
+              <PlayerStatCard
+                icon={RedCardIcon}
+                title="Cartões Vermelhos"
+                items={topRed}
+                valueAccessor={(s) => `${s.redCards}`}
+              />
+            )}
+          </div>
+        )}
       </div>
     </div>
   );

@@ -17,20 +17,36 @@ import { Team, Match, Player } from "@/types/tournament";
 import { StandingRow } from "@/lib/standings";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import {
-  buildExportPayload,
-  computeAverageRatings,
-  downloadStatsJson,
-  formatAverageRating,
-} from "@/utils/exportStats";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { buildExportPayload, computeAverageRatings, downloadStatsJson, formatAverageRating } from "@/utils/exportStats";
 import { toast } from "sonner";
+
+const POSITION_ORDER: Record<string, number> = {
+  Goleiro: 0,
+  GK: 0,
+  Zagueiro: 1,
+  ZAG: 1,
+  Lateral: 2,
+  "Lateral Direito": 2,
+  "Lateral Esquerdo": 2,
+  LD: 2,
+  LE: 2,
+  Volante: 3,
+  VOL: 3,
+  "Meio-campo": 4,
+  Meia: 4,
+  MC: 4,
+  MEI: 4,
+  "Meia Ofensivo": 5,
+  MO: 5,
+  Atacante: 6,
+  Ponta: 6,
+  ATA: 6,
+  Centroavante: 7,
+  CA: 7,
+};
+
+const positionRank = (pos?: string | null) => POSITION_ORDER[pos ?? ""] ?? 50;
 
 interface TeamStatsPopupProps {
   open: boolean;
@@ -633,12 +649,15 @@ function IndividualStatsTab({
   const [sortAsc, setSortAsc] = useState(false);
   const [exportScope, setExportScope] = useState<string>("all");
 
-  const teamPlayers = useMemo(() => allPlayers.filter((p) => p.teamId === team.id), [allPlayers, team.id]);
-
-  const averageRatings = useMemo(
-    () => computeAverageRatings(team, teamPlayers, matches),
-    [team, teamPlayers, matches],
+  const teamPlayers = useMemo(
+    () =>
+      allPlayers
+        .filter((p) => p.teamId === team.id)
+        .sort((a, b) => positionRank(a.position) - positionRank(b.position)),
+    [allPlayers, team.id],
   );
+
+  const averageRatings = useMemo(() => computeAverageRatings(team, teamPlayers, matches), [team, teamPlayers, matches]);
 
   // Times participantes da temporada — derivados das partidas
   const seasonTeams = useMemo(() => {
@@ -651,8 +670,7 @@ function IndividualStatsTab({
   }, [allMatches, allTeams]);
 
   const handleExport = () => {
-    const selectedTeams =
-      exportScope === "all" ? seasonTeams : seasonTeams.filter((t) => t.id === exportScope);
+    const selectedTeams = exportScope === "all" ? seasonTeams : seasonTeams.filter((t) => t.id === exportScope);
     if (selectedTeams.length === 0) {
       toast.error("Nenhum time disponível para exportar.");
       return;
@@ -664,7 +682,7 @@ function IndividualStatsTab({
       year,
       exportScope === "all" ? "all" : "team",
     );
-    const teamName = exportScope === "all" ? null : selectedTeams[0]?.name ?? null;
+    const teamName = exportScope === "all" ? null : (selectedTeams[0]?.name ?? null);
     downloadStatsJson(payload, year, teamName);
     toast.success("Estatísticas exportadas!");
   };
@@ -771,6 +789,7 @@ function IndividualStatsTab({
           break;
         }
       }
+      if (cmp === 0) cmp = positionRank(a.player.position) - positionRank(b.player.position);
       return sortAsc ? cmp : -cmp;
     });
     return arr;
