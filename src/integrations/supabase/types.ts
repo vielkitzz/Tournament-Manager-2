@@ -73,7 +73,7 @@ export type Database = {
           shirt_number?: number | null
           skill?: number
           team_id?: string | null
-          user_id: string
+          user_id?: string
         }
         Update: {
           age?: number | null
