@@ -48,13 +48,28 @@ export async function fetchTeamLineups(teamIds: string[]): Promise<Map<string, S
         result.set(teamId, null);
         return;
       }
+      // Altere temporariamente o bloco try do src/lib/solaraLineups.ts para investigar:
       try {
-        // Invoca de forma limpa a Edge Function do seu próprio Supabase
-        const { data, error } = await supabase.functions.invoke("get-solarahub-lineup", {
-          body: { solarahub_club_id: solaraId },
+        const res = await fetch(`${solaraUrl}/rest/v1/clubs?select=lineup&id=eq.${solaraId}`, {
+          headers: { apikey: solaraKey, Authorization: `Bearer ${solaraKey}` },
         });
 
-        const raw = data?.lineup;
+        // SE ISSO ANTES DAVA PARSE, VAMOS VER O QUE REALMENTE ESTÁ VINDO:
+        const textBody = await res.text();
+        console.log("--- RESPOSTA BRUTA DO SERVIDOR ---");
+        console.log("Status HTTP:", res.status);
+        console.log("Corpo retornado:", textBody);
+        console.log("---------------------------------");
+
+        // Se for HTML, o código abaixo vai parar aqui e não vai quebrar o simulador
+        if (textBody.trim().startsWith("<!doctype") || !res.ok) {
+          lineupCache.set(teamId, null);
+          result.set(teamId, null);
+          return;
+        }
+
+        const data = JSON.parse(textBody);
+        const raw = data?.[0]?.lineup;
         if (error || !raw) {
           if (error) console.error("Erro retornado da Edge Function:", error);
           lineupCache.set(teamId, null);
