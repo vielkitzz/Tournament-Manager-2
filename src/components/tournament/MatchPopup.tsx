@@ -799,23 +799,29 @@ export default function MatchPopup({
     const homeFullList = [...homeStarters, ...homePlayers.filter((p) => !homeStarters.some((s) => s.id === p.id))];
     const awayFullList = [...awayStarters, ...awayPlayers.filter((p) => !awayStarters.some((s) => s.id === p.id))];
 
-    // 2. DEBUG: Logar o tamanho da lista que VAI para o simulador
-    console.log("SIMULADOR - Enviando lista Home com tamanho:", homeFullList.length);
+    // No MatchPopup.tsx, ao invés de usar homeStarters ou homePlayers filtrados,
+    // use o allPlayers original do componente pai:
 
-    const homeBench = homePlayers.filter((p) => !homeStarters.some((s) => s.id === p.id));
-    const awayBench = awayPlayers.filter((p) => !awayStarters.some((s) => s.id === p.id));
+    const homeBench = allPlayers.filter(
+      (p) => p.teamId === match.homeTeamId && !homeStarters.some((s) => s.id === p.id),
+    );
+    const awayBench = allPlayers.filter(
+      (p) => p.teamId === match.awayTeamId && !awayStarters.some((s) => s.id === p.id),
+    );
+
+    console.log("DEBUG - Tamanho do Banco enviado:", homeBench.length);
 
     const events = generateMinuteByMinuteEvents(
       homeTeam,
       awayTeam,
-      homeStarters, // ← só os 11 titulares
-      awayStarters, // ← só os 11 titulares
+      homeStarters, // os 11
+      awayStarters, // os 11
       stats,
       totalH,
       totalA,
-      { h1: [h1h, h1a], h2: [h2h, h2a] },
-      homeBench, // ← banco explícito (4 jogadores)
-      awayBench, // ← banco explícito
+      { h1: [scores.h1[0], scores.h1[1]], h2: [scores.h2[0], scores.h2[1]] },
+      homeBench, // Enviando explícito
+      awayBench, // Enviando explícito
     );
 
     const at1 = Math.floor(Math.random() * 4) + 1;
