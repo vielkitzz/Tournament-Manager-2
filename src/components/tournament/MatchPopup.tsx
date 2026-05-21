@@ -797,15 +797,14 @@ export default function MatchPopup({
       availableAway: awayPlayers,
     };
 
-    const starterIds = new Set(homeStarters.map(p => p.id));
+    const starterIds = new Set(homeStarters.map((p) => p.id));
 
     const homeList = [
       ...homeStarters, // Os 11 que você já definiu como titulares
-      ...homePlayers.filter(p => !starterIds.has(p.id)) // Todo o resto do elenco (os reservas!)
+      ...homePlayers.filter((p) => !starterIds.has(p.id)), // Todo o resto do elenco (os reservas!)
     ];
-    const awayList = [
-      ...awayStarters,
-      ...awayPlayers.filter(p => !starterIds.has(p.id))
+
+    const awayList = [...awayStarters, ...awayPlayers.filter((p) => !starterIds.has(p.id))];
 
     console.log("Lista enviada - Home (deve ter >11):", homeList.length);
 
