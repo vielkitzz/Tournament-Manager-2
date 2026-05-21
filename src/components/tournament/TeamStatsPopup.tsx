@@ -892,24 +892,26 @@ function IndividualStatsTab({
                 >
                   {reds}
                 </td>
-                <td
-                  className={`py-2 px-2 text-center font-bold border rounded-lg ${
-                    rating == null
-                      ? "text-[#A4A9B3] border-[#A4A9B3] bg-[#A4A9B3]/10"
-                      : rating >= 9.0
-                        ? "text-[#374DF5] border-[#374DF5] bg-[#374DF5]/10"
-                        : rating >= 8.0
-                          ? "text-[#00ADC4] border-[#00ADC4] bg-[#00ADC4]/10"
-                          : rating >= 7.0
-                            ? "text-[#00C424] border-[#00C424] bg-[#00C424]/10"
-                            : rating >= 6.5
-                              ? "text-[#D9AF00] border-[#D9AF00] bg-[#D9AF00]/10"
-                              : rating >= 6.0
-                                ? "text-[#ED7E07] border-[#ED7E07] bg-[#ED7E07]/10"
-                                : "text-[#DC0C00] border-[#DC0C00] bg-[#DC0C00]/10"
-                  }`}
-                >
-                  {formatAverageRating(rating)}
+                <td className="py-2 px-2 text-center">
+                  <span
+                    className={`px-2 py-0.5 rounded border-2 font-bold ${
+                      rating == null
+                        ? "text-[#A4A9B3] border-[#A4A9B3] bg-transparent"
+                        : rating >= 9.0
+                          ? "text-[#374DF5] border-[#374DF5] bg-transparent"
+                          : rating >= 8.0
+                            ? "text-[#00ADC4] border-[#00ADC4] bg-transparent"
+                            : rating >= 7.0
+                              ? "text-[#00C424] border-[#00C424] bg-transparent"
+                              : rating >= 6.5
+                                ? "text-[#D9AF00] border-[#D9AF00] bg-transparent"
+                                : rating >= 6.0
+                                  ? "text-[#ED7E07] border-[#ED7E07] bg-transparent"
+                                  : "text-[#DC0C00] border-[#DC0C00] bg-transparent"
+                    }`}
+                  >
+                    {formatAverageRating(rating)}
+                  </span>
                 </td>
               </tr>
             ))}
