@@ -4,6 +4,7 @@ import { Shield, ChevronLeft, ChevronRight, Trophy, CheckCircle, Play, Shuffle }
 import { Button } from "@/components/ui/button";
 import { simulateFullMatch, generateMatchStats, generateMinuteByMinuteEvents, getSuspendedPlayerIds } from "@/lib/simulation";
 import { effectiveMatchRate } from "@/lib/playerSkill";
+import { fetchTeamLineups, pickStartingXIWithSubs } from "@/lib/solaraLineups";
 import MatchPopup from "./MatchPopup";
 import ScreenshotButton from "@/components/ScreenshotButton";
 
@@ -53,9 +54,15 @@ export default function RoundsView({
 
   const getTeam = (id: string) => teams.find((t) => t.id === id);
 
-  const handleSimulateRound = () => {
+  const handleSimulateRound = async () => {
     if (unplayedInRound.length === 0) return;
     const allPlayersList = players || [];
+    const teamIdsInRound = Array.from(
+      new Set(
+        unplayedInRound.flatMap((m) => [m.homeTeamId, m.awayTeamId]).filter(Boolean) as string[],
+      ),
+    );
+    const lineupMap = await fetchTeamLineups(teamIdsInRound);
     const updated = unplayedInRound.map((match) => {
       const home = getTeam(match.homeTeamId);
       const away = getTeam(match.awayTeamId);
@@ -87,16 +94,14 @@ export default function RoundsView({
         if (homePl.length >= 11 && awayPl.length >= 11) {
           const suspHome = getSuspendedPlayerIds(tournament.matches, match.round, home.id, tournament.settings);
           const suspAway = getSuspendedPlayerIds(tournament.matches, match.round, away.id, tournament.settings);
-          let availHome = homePl.filter((p) => !suspHome.has(p.id));
-          let availAway = awayPl.filter((p) => !suspAway.has(p.id));
-          if (availHome.length < 11) availHome = homePl.slice(0, 11);
-          if (availAway.length < 11) availAway = awayPl.slice(0, 11);
+          const availHome = pickStartingXIWithSubs(homePl, suspHome, lineupMap.get(home.id) ?? null);
+          const availAway = pickStartingXIWithSubs(awayPl, suspAway, lineupMap.get(away.id) ?? null);
           events = generateMinuteByMinuteEvents(home, away, availHome, availAway, stats, totalH, totalA, {
             h1: result.h1,
             h2: result.h2,
           });
-          homeLineupIds = availHome.slice(0, 11).map((p) => p.id);
-          awayLineupIds = availAway.slice(0, 11).map((p) => p.id);
+          homeLineupIds = availHome.map((p) => p.id);
+          awayLineupIds = availAway.map((p) => p.id);
         }
       }
 

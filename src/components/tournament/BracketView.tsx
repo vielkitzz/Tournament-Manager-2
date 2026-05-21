@@ -6,6 +6,7 @@ import { Shield, Play, Trophy, Medal, UserPlus, Shuffle, Plus, Trash2, RotateCcw
 import { Button } from "@/components/ui/button";
 import { simulateFullMatch, simulateHalf, generateMatchStats, generateMinuteByMinuteEvents, getSuspendedPlayerIds } from "@/lib/simulation";
 import { effectiveMatchRate } from "@/lib/playerSkill";
+import { fetchTeamLineups, pickStartingXIWithSubs, type SolaraLineup } from "@/lib/solaraLineups";
 import MatchPopup from "./MatchPopup";
 import BracketTeamEditor from "./BracketTeamEditor";
 import ScreenshotButton from "@/components/ScreenshotButton";
@@ -184,7 +185,11 @@ export default function BracketView({
   const finalPairs = getPairs(finalMatchesList);
   const allFinalResolved = finalPairs.length > 0 && finalPairs.every((p) => getTieResult(p) !== null);
 
-  const simulateMatch = (match: Match, isLeg1OfPair = false): Match => {
+  const simulateMatch = (
+    match: Match,
+    isLeg1OfPair = false,
+    lineupMap?: Map<string, SolaraLineup | null>,
+  ): Match => {
     const home = getTeam(match.homeTeamId);
     const away = getTeam(match.awayTeamId);
     const allPlayersList = players || [];
@@ -219,16 +224,14 @@ export default function BracketView({
       if (homePl.length >= 11 && awayPl.length >= 11) {
         const suspHome = getSuspendedPlayerIds(tournament.matches, match.round, home.id, tournament.settings);
         const suspAway = getSuspendedPlayerIds(tournament.matches, match.round, away.id, tournament.settings);
-        let availHome = homePl.filter((p) => !suspHome.has(p.id));
-        let availAway = awayPl.filter((p) => !suspAway.has(p.id));
-        if (availHome.length < 11) availHome = homePl.slice(0, 11);
-        if (availAway.length < 11) availAway = awayPl.slice(0, 11);
+        const availHome = pickStartingXIWithSubs(homePl, suspHome, lineupMap?.get(home.id) ?? null);
+        const availAway = pickStartingXIWithSubs(awayPl, suspAway, lineupMap?.get(away.id) ?? null);
         events = generateMinuteByMinuteEvents(home, away, availHome, availAway, stats, homeScore, awayScore, {
           h1: result.h1,
           h2: result.h2,
         });
-        homeLineupIds = availHome.slice(0, 11).map((p) => p.id);
-        awayLineupIds = availAway.slice(0, 11).map((p) => p.id);
+        homeLineupIds = availHome.map((p) => p.id);
+        awayLineupIds = availAway.map((p) => p.id);
       }
     }
 
@@ -369,12 +372,18 @@ export default function BracketView({
     toast.success("Times e resultado reiniciados");
   };
 
-  const handleSimulateStage = (stage: string) => {
+  const handleSimulateStage = async (stage: string) => {
     const stageMatches = matchesByStage[stage]?.filter((m) => !m.played && m.homeTeamId && m.awayTeamId) || [];
     if (stageMatches.length === 0) return;
+    const teamIdsInStage = Array.from(
+      new Set(
+        stageMatches.flatMap((m) => [m.homeTeamId, m.awayTeamId]).filter(Boolean) as string[],
+      ),
+    );
+    const lineupMap = await fetchTeamLineups(teamIdsInStage);
     const firstPass = stageMatches.map((match) => {
       if (match.pairId && match.leg === 2) return match;
-      return simulateMatch(match, !!(match.pairId && match.leg === 1));
+      return simulateMatch(match, !!(match.pairId && match.leg === 1), lineupMap);
     });
     const updated = firstPass.map((match) => {
       if (match.pairId && match.leg === 2 && !match.played) {
@@ -382,7 +391,7 @@ export default function BracketView({
           firstPass.find((m) => m.pairId === match.pairId && m.leg === 1 && m.played) ||
           matchesByStage[stage].find((m) => m.pairId === match.pairId && m.leg === 1 && m.played);
         if (leg1) return simulateLeg2(match, leg1);
-        return simulateMatch(match, false);
+        return simulateMatch(match, false, lineupMap);
       }
       return match;
     });
@@ -393,10 +402,14 @@ export default function BracketView({
     }
   };
 
-  const handleSimulateThirdPlace = () => {
+  const handleSimulateThirdPlace = async () => {
     const unplayed = thirdPlaceMatches.filter((m) => !m.played && m.homeTeamId && m.awayTeamId);
     if (unplayed.length === 0) return;
-    const updated = unplayed.map((m) => simulateMatch(m));
+    const teamIds = Array.from(
+      new Set(unplayed.flatMap((m) => [m.homeTeamId, m.awayTeamId]).filter(Boolean) as string[]),
+    );
+    const lineupMap = await fetchTeamLineups(teamIds);
+    const updated = unplayed.map((m) => simulateMatch(m, false, lineupMap));
     if (onBatchUpdateMatches) onBatchUpdateMatches(updated);
     else updated.forEach((m) => onUpdateMatch(m));
   };

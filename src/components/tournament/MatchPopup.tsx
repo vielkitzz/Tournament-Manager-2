@@ -16,6 +16,7 @@ import {
 } from "@/lib/simulation";
 import { effectiveMatchRate } from "@/lib/playerSkill";
 import { supabase } from "@/integrations/supabase/client";
+import { pickStartingXIWithSubs, type SolaraLineup as SolaraLineupShared } from "@/lib/solaraLineups";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from "@/components/ui/tooltip";
 import SoccerBallIcon from "@/components/icons/SoccerBallIcon";
@@ -252,16 +253,6 @@ function getTacticalMods(lineup: SolaraLineup | null): { atk: number; def: numbe
   return { atk: s.atk * p.atk, def: s.def * p.def };
 }
 
-/** Filtra os 11 titulares casando pitchIds (UUID SolaraHub) com master_player_id. */
-function getStartersFromLineup(players: Player[], lineup: SolaraLineup | null): Player[] {
-  if (!lineup?.pitchIds) return players.slice(0, 11);
-  const starterIds = new Set(Object.values(lineup.pitchIds));
-  const matched = players.filter((p) => {
-    const mid = (p as any).master_player_id;
-    return !!mid && starterIds.has(mid);
-  });
-  return matched.length >= 11 ? matched.slice(0, 11) : players.slice(0, 11);
-}
 
 export default function MatchPopup({
   match,
@@ -375,8 +366,15 @@ export default function MatchPopup({
   // Rates efetivos — calculados uma única vez por render, usados em todo popup.
   // Quando há lineup do SolaraHub, usa os 11 titulares casados via master_player_id.
   // ---------------------------------------------------------------------------
-  const homeStarters = getStartersFromLineup(homePlayers, homeLineup);
-  const awayStarters = getStartersFromLineup(awayPlayers, awayLineup);
+  // Suspensões aplicáveis para esta partida (se em torneio)
+  const suspendedHomeIds = tournament && homeTeam
+    ? getSuspendedPlayerIds(tournament.matches, match.round, homeTeam.id, tournament.settings)
+    : new Set<string>();
+  const suspendedAwayIds = tournament && awayTeam
+    ? getSuspendedPlayerIds(tournament.matches, match.round, awayTeam.id, tournament.settings)
+    : new Set<string>();
+  const homeStarters = pickStartingXIWithSubs(homePlayers, suspendedHomeIds, homeLineup as SolaraLineupShared | null);
+  const awayStarters = pickStartingXIWithSubs(awayPlayers, suspendedAwayIds, awayLineup as SolaraLineupShared | null);
   const homeEffectiveRate = resolveRate(rateInfluence, homeTeam, homeStarters);
   const awayEffectiveRate = resolveRate(rateInfluence, awayTeam, awayStarters);
 
@@ -729,17 +727,11 @@ export default function MatchPopup({
   };
 
   const getAvailablePlayers = () => {
-    let availableHome = homePlayers;
-    let availableAway = awayPlayers;
-    if (tournament) {
-      const suspendedHome = getSuspendedPlayerIds(tournament.matches, match.round, homeTeam!.id, tournament.settings);
-      const suspendedAway = getSuspendedPlayerIds(tournament.matches, match.round, awayTeam!.id, tournament.settings);
-      availableHome = homePlayers.filter((p) => !suspendedHome.has(p.id));
-      availableAway = awayPlayers.filter((p) => !suspendedAway.has(p.id));
-      if (availableHome.length < 11) availableHome = homePlayers.slice(0, 11);
-      if (availableAway.length < 11) availableAway = awayPlayers.slice(0, 11);
-    }
-    return { availableHome, availableAway };
+    // Sempre prioriza titulares da escalação do SolaraHub, com substituições por posição.
+    return {
+      availableHome: homeStarters,
+      availableAway: awayStarters,
+    };
   };
 
   const handleLiveSimulate = () => {

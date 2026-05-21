@@ -98,6 +98,7 @@ function dbToPlayer(row: any): Player {
     skill: row.skill != null ? Number(row.skill) : 70,
     photoUrl: row.photo_url || undefined,
     seasonYear: row.season_year != null ? Number(row.season_year) : undefined,
+    masterPlayerId: row.master_player_id || undefined,
   };
 }
 
@@ -199,6 +200,9 @@ interface TournamentState {
   updatePlayer: (id: string, updates: Partial<Player>) => Promise<void>;
   removePlayer: (id: string) => Promise<void>;
   transferPlayer: (playerId: string, teamId: string | null) => Promise<void>;
+  // Local-only setters used by realtime subscriptions (não escrevem no DB)
+  upsertPlayerLocal: (row: any) => void;
+  removePlayerLocal: (id: string) => void;
 }
 
 export const useTournamentStore = create<TournamentState>((set, get) => ({
@@ -570,5 +574,21 @@ export const useTournamentStore = create<TournamentState>((set, get) => ({
     if (!userId) return;
     set((s) => ({ players: s.players.map((p) => (p.id === playerId ? { ...p, teamId } : p)) }));
     await db.from("players").update({ team_id: teamId }).eq("id", playerId).eq("user_id", userId);
+  },
+
+  upsertPlayerLocal: (row) => {
+    const player = dbToPlayer(row);
+    set((s) => {
+      const exists = s.players.some((p) => p.id === player.id);
+      return {
+        players: exists
+          ? s.players.map((p) => (p.id === player.id ? { ...p, ...player } : p))
+          : [...s.players, player],
+      };
+    });
+  },
+
+  removePlayerLocal: (id) => {
+    set((s) => ({ players: s.players.filter((p) => p.id !== id) }));
   },
 }));
