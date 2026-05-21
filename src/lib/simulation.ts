@@ -1266,23 +1266,3 @@ export function calculatePlayerRatings(
 
   return ratings;
 }
-
-/*
- * EXEMPLO DE USO (no MatchPopup, logo após `generateMinuteByMinuteEvents`):
- *
- *   const events = generateMinuteByMinuteEvents(
- *     homeTeam, awayTeam, homePlayers, awayPlayers,
- *     { homeStats, awayStats }, finalHome, finalAway, halfGoals,
- *   );
- *
- *   const playerRatings = calculatePlayerRatings(
- *     homePlayers,
- *     awayPlayers,
- *     homeTeam.id,
- *     awayTeam.id,
- *     events,
- *     { home: finalAway, away: finalHome }, // gols sofridos = gols do adversário
- *   );
- *
- *   // Persistir junto da partida (ex: match.playerRatings = playerRatings).
- */

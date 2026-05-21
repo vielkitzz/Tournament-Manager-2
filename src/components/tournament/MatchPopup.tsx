@@ -814,14 +814,15 @@ export default function MatchPopup({
     const events = generateMinuteByMinuteEvents(
       homeTeam,
       awayTeam,
-      homeStarters, // os 11
-      awayStarters, // os 11
+      homeStarters, // Titulares
+      awayStarters, // Titulares
       stats,
       totalH,
       totalA,
       { h1: [scores.h1[0], scores.h1[1]], h2: [scores.h2[0], scores.h2[1]] },
-      homeBench, // Enviando explícito
-      awayBench, // Enviando explícito
+      // AQUI É O PULO DO GATO:
+      homePlayers.filter((p) => !homeStarters.some((s) => s.id === p.id)), // Banco explícito
+      awayPlayers.filter((p) => !awayStarters.some((s) => s.id === p.id)), // Banco explícito
     );
 
     const at1 = Math.floor(Math.random() * 4) + 1;
