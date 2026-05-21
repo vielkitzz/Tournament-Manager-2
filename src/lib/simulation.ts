@@ -689,6 +689,8 @@ export function generateMinuteByMinuteEvents(
     away: { goals: 0, fouls: 0, yellow: 0, red: 0, offsides: 0, shots: 0, shotsOnTarget: 0 },
   };
 
+  const starterIds = new Set([...homeStarters.map((p) => p.id), ...awayStarters.map((p) => p.id)]);
+
   // 1. Identifique quem são os titulares com base nos IDs (você já tem a lista de starterIds)
   // Se o jogador estiver na lista de starterIds, ele é titular, senão é banco.
   const homeStarters = homePlayers.filter((p) => starterIds.has(p.id));
