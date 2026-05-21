@@ -678,25 +678,20 @@ export function generateMinuteByMinuteEvents(
   homeGoals: number,
   awayGoals: number,
   halfGoals?: { h1: [number, number]; h2: [number, number] },
-  homeBenchPlayers?: Player[],
-  awayBenchPlayers?: Player[],
+  homeBenchPlayers: Player[] = [], // Garantir que nunca seja undefined
+  awayBenchPlayers: Player[] = [],
 ): MatchEvent[] {
   const events: MatchEvent[] = [];
   const matchGoalCounts = new Map<string, number>();
   let eventId = 0;
   const genId = () => `evt-${++eventId}`;
 
-  const produced = {
-    home: { goals: 0, fouls: 0, yellow: 0, red: 0, offsides: 0, shots: 0, shotsOnTarget: 0 },
-    away: { goals: 0, fouls: 0, yellow: 0, red: 0, offsides: 0, shots: 0, shotsOnTarget: 0 },
-  };
+  // Use os parâmetros diretamente
+  const homeBench = homeBenchPlayers;
+  const awayBench = awayBenchPlayers;
 
-  // Cria o conjunto de IDs para busca rápida
+  // starterIds agora usa os parâmetros que já chegam prontos
   const starterIds = new Set([...homeStarters.map((p) => p.id), ...awayStarters.map((p) => p.id)]);
-
-  // O BANCO: Todo mundo que não está no conjunto de IDs dos titulares
-  const homeBench = homeBenchPlayers || [];
-  const awayBench = awayBenchPlayers || [];
 
   console.log(`[SIMULADOR] ${homeTeam.name} - Recebeu ${homeStarters.length} titulares e ${homeBench.length} reservas`);
 
