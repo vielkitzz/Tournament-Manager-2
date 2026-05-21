@@ -22,6 +22,7 @@ export async function fetchTeamLineups(teamIds: string[]): Promise<Map<string, S
   const result = new Map<string, SolaraLineup | null>();
   const toFetch: string[] = [];
 
+  // 1. Verifica o cache local para evitar requisições duplicadas
   for (const id of teamIds) {
     if (!id) continue;
     if (lineupCache.has(id)) {
@@ -32,6 +33,7 @@ export async function fetchTeamLineups(teamIds: string[]): Promise<Map<string, S
   }
   if (toFetch.length === 0) return result;
 
+  // 2. Busca os links de sincronização na sua tabela local
   const { data: links } = await (supabase as any)
     .from("club_sync_links")
     .select("tm2_team_id, solarahub_club_id")
@@ -40,51 +42,49 @@ export async function fetchTeamLineups(teamIds: string[]): Promise<Map<string, S
   const tm2ToSolara = new Map<string, string>();
   (links || []).forEach((l: any) => tm2ToSolara.set(l.tm2_team_id, l.solarahub_club_id));
 
+  // 3. Processa cada time chamando a Edge Function com segurança
   await Promise.all(
     toFetch.map(async (teamId) => {
       const solaraId = tm2ToSolara.get(teamId);
+
+      // Se não houver ID vinculado para o parceiro, define como null direto
       if (!solaraId) {
         lineupCache.set(teamId, null);
         result.set(teamId, null);
         return;
       }
-      // Altere temporariamente o bloco try do src/lib/solaraLineups.ts para investigar:
+
       try {
-        const res = await fetch(`${solaraUrl}/rest/v1/clubs?select=lineup&id=eq.${solaraId}`, {
-          headers: { apikey: solaraKey, Authorization: `Bearer ${solaraKey}` },
+        // Invoca a Edge Function integrada do seu Supabase
+        const { data, error } = await supabase.functions.invoke("get-solarahub-lineup", {
+          body: { solarahub_club_id: solaraId },
         });
 
-        // SE ISSO ANTES DAVA PARSE, VAMOS VER O QUE REALMENTE ESTÁ VINDO:
-        const textBody = await res.text();
-        console.log("--- RESPOSTA BRUTA DO SERVIDOR ---");
-        console.log("Status HTTP:", res.status);
-        console.log("Corpo retornado:", textBody);
-        console.log("---------------------------------");
-
-        // Se for HTML, o código abaixo vai parar aqui e não vai quebrar o simulador
-        if (textBody.trim().startsWith("<!doctype") || !res.ok) {
+        if (error) {
+          console.error(`[Lineup] Erro retornado da Edge Function para o time ${teamId}:`, error);
           lineupCache.set(teamId, null);
           result.set(teamId, null);
           return;
         }
 
-        const data = JSON.parse(textBody);
-        const raw = data?.[0]?.lineup;
-        if (error || !raw) {
-          if (error) console.error("Erro retornado da Edge Function:", error);
+        const raw = data?.lineup;
+        if (!raw) {
           lineupCache.set(teamId, null);
           result.set(teamId, null);
           return;
         }
 
+        // Monta o objeto de escalação esperado pelo simulador
         const lineup: SolaraLineup = {
           pitchIds: (raw.pitchIds ?? raw) as Record<string, string>,
           benchIds: raw.benchIds,
         };
+
         lineupCache.set(teamId, lineup);
         result.set(teamId, lineup);
       } catch (err) {
-        console.error("Falha ao invocar a Edge Function get-solarahub-lineup:", err);
+        // Captura falhas de rede sem quebrar a execução global da página
+        console.error(`[Lineup] Falha crítica de rede na Edge Function para o time ${teamId}:`, err);
         lineupCache.set(teamId, null);
         result.set(teamId, null);
       }
