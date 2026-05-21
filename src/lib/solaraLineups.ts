@@ -49,19 +49,15 @@ export async function fetchTeamLineups(teamIds: string[]): Promise<Map<string, S
           body: { solarahub_club_id: solaraId },
         });
 
-        if (error) {
-          console.error(`Erro na Edge Function para o time ${teamId}:`, error);
+        // CORREÇÃO: O erro precisa atualizar o Map 'result' e não apenas dar return null
+        if (error || !data?.lineup) {
+          console.error("Erro na Edge Function ou sem lineup:", error);
           lineupCache.set(teamId, null);
           result.set(teamId, null);
-          return;
+          return; // Apenas sai da iteração atual do map
         }
 
-        const raw = data?.lineup;
-        if (!raw) {
-          lineupCache.set(teamId, null);
-          result.set(teamId, null);
-          return;
-        }
+        const raw = data.lineup; // Acessa o dado corretamente
 
         const lineup: SolaraLineup = {
           pitchIds: (raw.pitchIds ?? raw) as Record<string, string>,
