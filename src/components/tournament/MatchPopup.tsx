@@ -366,8 +366,15 @@ export default function MatchPopup({
   // Rates efetivos — calculados uma única vez por render, usados em todo popup.
   // Quando há lineup do SolaraHub, usa os 11 titulares casados via master_player_id.
   // ---------------------------------------------------------------------------
-  const homeStarters = getStartersFromLineup(homePlayers, homeLineup);
-  const awayStarters = getStartersFromLineup(awayPlayers, awayLineup);
+  // Suspensões aplicáveis para esta partida (se em torneio)
+  const suspendedHomeIds = tournament && homeTeam
+    ? getSuspendedPlayerIds(tournament.matches, match.round, homeTeam.id, tournament.settings)
+    : new Set<string>();
+  const suspendedAwayIds = tournament && awayTeam
+    ? getSuspendedPlayerIds(tournament.matches, match.round, awayTeam.id, tournament.settings)
+    : new Set<string>();
+  const homeStarters = pickStartingXIWithSubs(homePlayers, suspendedHomeIds, homeLineup as SolaraLineupShared | null);
+  const awayStarters = pickStartingXIWithSubs(awayPlayers, suspendedAwayIds, awayLineup as SolaraLineupShared | null);
   const homeEffectiveRate = resolveRate(rateInfluence, homeTeam, homeStarters);
   const awayEffectiveRate = resolveRate(rateInfluence, awayTeam, awayStarters);
 
