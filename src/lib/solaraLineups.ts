@@ -93,8 +93,25 @@ export function pickStartingXIWithSubs(
   const available = squad.filter((p) => !suspendedIds.has(p.id));
   const fallbackPool = available.length >= 11 ? available : squad;
 
+  // SE NÃO HOUVER LINEUP, APLICA O PADRÃO 4-3-3
   if (!lineup?.pitchIds || Object.keys(lineup.pitchIds).length === 0) {
-    return sorted.slice(0, 11);
+    const starters: Player[] = [];
+    const usedIds = new Set<string>();
+
+    // Definição do 4-3-3 (1 GR, 4 DEF, 3 MID, 3 ATT)
+    const formation = ["GK", "DEF", "DEF", "DEF", "DEF", "MID", "MID", "MID", "ATT", "ATT", "ATT"];
+
+    for (const pos of formation) {
+      // Tenta encontrar o melhor jogador disponível para aquela posição
+      const candidate =
+        available.find((p) => p.position === pos && !usedIds.has(p.id)) || available.find((p) => !usedIds.has(p.id)); // Fallback genérico
+
+      if (candidate) {
+        starters.push(candidate);
+        usedIds.add(candidate.id);
+      }
+    }
+    return starters;
   }
 
   const byMaster = new Map<string, Player>();
