@@ -253,7 +253,6 @@ function getTacticalMods(lineup: SolaraLineup | null): { atk: number; def: numbe
   return { atk: s.atk * p.atk, def: s.def * p.def };
 }
 
-
 export default function MatchPopup({
   match,
   homeTeam,
@@ -316,15 +315,15 @@ export default function MatchPopup({
   // ---------------------------------------------------------------------------
   // SolaraHub lineup loading (background, non-blocking)
   // ---------------------------------------------------------------------------
-  const [homeLineup, setHomeLineup] = useState<SolaraLineup | null>(null);
-  const [awayLineup, setAwayLineup] = useState<SolaraLineup | null>(null);
+  const [homeLineup, setHomeLineup] = useState<SolaraLineupShared | null>(null);
+  const [awayLineup, setAwayLineup] = useState<SolaraLineupShared | null>(null);
 
   useEffect(() => {
     let cancelled = false;
 
-    async function fetchLineup(tm2TeamId: string) {
-      // 1. Busca o link com o SolaraHub
-      const { data: link } = await (supabase as any)
+    async function fetchLineup(tm2TeamId: string): Promise<SolaraLineupShared | null> {
+      // 1. Busca o link com o SolaraHub no seu banco local
+      const { data: link } = await supabase
         .from("club_sync_links")
         .select("solarahub_club_id")
         .eq("tm2_team_id", tm2TeamId)
@@ -332,20 +331,26 @@ export default function MatchPopup({
 
       if (!link?.solarahub_club_id) return null;
 
-      // 2. Busca a escalação diretamente da tabela clubs do SolaraHub
-      const solaraUrl = import.meta.env.VITE_SOLARAHUB_URL;
-      const solaraKey = import.meta.env.VITE_SOLARAHUB_ANON_KEY;
+      try {
+        // 2. Chama a Edge Function que centraliza a comunicação segura
+        const { data, error } = await supabase.functions.invoke("get-solarahub-lineup", {
+          body: { solarahub_club_id: link.solarahub_club_id },
+        });
 
-      const res = await fetch(`${solaraUrl}/rest/v1/clubs?select=lineup&id=eq.${link.solarahub_club_id}`, {
-        headers: { apikey: solaraKey, Authorization: `Bearer ${solaraKey}` },
-      });
+        if (error || !data?.lineup) {
+          console.warn(`[Lineup] Falha ao obter lineup para ${tm2TeamId}:`, error);
+          return null;
+        }
 
-      const data = await res.json();
-      const clubData = data?.[0];
-      if (!clubData?.lineup) return null;
-
-      const raw = clubData.lineup as any;
-      return { pitchIds: (raw.pitchIds ?? raw) as Record<string, string> };
+        const raw = data.lineup as any;
+        return {
+          pitchIds: (raw.pitchIds ?? raw) as Record<string, string>,
+          benchIds: raw.benchIds,
+        };
+      } catch (err) {
+        console.error(`[Lineup] Erro inesperado na Edge Function:`, err);
+        return null;
+      }
     }
 
     Promise.all([
@@ -367,12 +372,14 @@ export default function MatchPopup({
   // Quando há lineup do SolaraHub, usa os 11 titulares casados via master_player_id.
   // ---------------------------------------------------------------------------
   // Suspensões aplicáveis para esta partida (se em torneio)
-  const suspendedHomeIds = tournament && homeTeam
-    ? getSuspendedPlayerIds(tournament.matches, match.round, homeTeam.id, tournament.settings)
-    : new Set<string>();
-  const suspendedAwayIds = tournament && awayTeam
-    ? getSuspendedPlayerIds(tournament.matches, match.round, awayTeam.id, tournament.settings)
-    : new Set<string>();
+  const suspendedHomeIds =
+    tournament && homeTeam
+      ? getSuspendedPlayerIds(tournament.matches, match.round, homeTeam.id, tournament.settings)
+      : new Set<string>();
+  const suspendedAwayIds =
+    tournament && awayTeam
+      ? getSuspendedPlayerIds(tournament.matches, match.round, awayTeam.id, tournament.settings)
+      : new Set<string>();
   const homeStarters = pickStartingXIWithSubs(homePlayers, suspendedHomeIds, homeLineup as SolaraLineupShared | null);
   const awayStarters = pickStartingXIWithSubs(awayPlayers, suspendedAwayIds, awayLineup as SolaraLineupShared | null);
   const homeEffectiveRate = resolveRate(rateInfluence, homeTeam, homeStarters);
