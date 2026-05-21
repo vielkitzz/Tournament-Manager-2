@@ -808,14 +808,16 @@ export default function MatchPopup({
     const events = generateMinuteByMinuteEvents(
       homeTeam,
       awayTeam,
-      homeStarters,
-      awayStarters,
+      homeStarters, // os 11
+      awayStarters, // os 11
       stats,
       totalH,
       totalA,
       { h1: [scores.h1[0], scores.h1[1]], h2: [scores.h2[0], scores.h2[1]] },
-      homeBench, // Passando aqui
-      awayBench, // Passando aqui
+
+      // AQUI É ONDE VOCÊ DEVE FILTRAR O BANCO REAL:
+      allPlayers.filter((p) => p.teamId === homeTeam.id && !homeStarters.some((s) => s.id === p.id)),
+      allPlayers.filter((p) => p.teamId === awayTeam.id && !awayStarters.some((s) => s.id === p.id)),
     );
 
     const at1 = Math.floor(Math.random() * 4) + 1;
