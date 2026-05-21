@@ -284,65 +284,8 @@ export default function ClubSquadPage() {
 
   const team = useMemo(() => teams.find((t) => t.id === teamId), [teams, teamId]);
 
-  // COLOQUE ISSO NO LUGAR:
-  useEffect(() => {
-    if (!teamId) return;
-
-    const channel = supabase
-      .channel("realtime-squad-updates")
-      .on(
-        "postgres_changes",
-        { event: "INSERT", schema: "public", table: "players", filter: `team_id=eq.${teamId}` },
-        (payload) => {
-          const p = payload.new as any;
-          addPlayer({
-            id: p.id,
-            teamId: p.team_id,
-            name: p.name,
-            position: p.position ?? undefined,
-            age: p.age ?? undefined,
-            nationality: p.nationality ?? undefined,
-            shirtNumber: p.shirt_number ?? undefined,
-            skill: p.skill ?? 70,
-            photoUrl: p.photo_url ?? undefined,
-            seasonYear: p.season_year ?? undefined,
-          });
-          toast.success(`${p.name} adicionado via SolaraHub`);
-        },
-      )
-      .on(
-        "postgres_changes",
-        { event: "UPDATE", schema: "public", table: "players", filter: `team_id=eq.${teamId}` },
-        (payload) => {
-          const p = payload.new as any;
-          updatePlayer(p.id, {
-            name: p.name,
-            position: p.position ?? undefined,
-            age: p.age ?? undefined,
-            nationality: p.nationality ?? undefined,
-            shirtNumber: p.shirt_number ?? undefined,
-            skill: p.skill ?? 70,
-            photoUrl: p.photo_url ?? undefined,
-            seasonYear: p.season_year ?? undefined,
-          });
-          toast.info(`${p.name} atualizado via SolaraHub`);
-        },
-      )
-      .on(
-        "postgres_changes",
-        { event: "DELETE", schema: "public", table: "players", filter: `team_id=eq.${teamId}` },
-        (payload) => {
-          const p = payload.old as any;
-          removePlayer(p.id);
-          toast.info(`Jogador removido via SolaraHub`);
-        },
-      )
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(channel);
-    };
-  }, [teamId, addPlayer, updatePlayer, removePlayer]);
+  // Sincronização em tempo real com SolaraHub agora é global (ver StoreInitializer).
+  // Esta página apenas reage automaticamente às alterações no store Zustand.
 
   const availableYears = useMemo(() => {
     const years = new Set<number>();
