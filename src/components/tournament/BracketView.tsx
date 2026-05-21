@@ -372,12 +372,18 @@ export default function BracketView({
     toast.success("Times e resultado reiniciados");
   };
 
-  const handleSimulateStage = (stage: string) => {
+  const handleSimulateStage = async (stage: string) => {
     const stageMatches = matchesByStage[stage]?.filter((m) => !m.played && m.homeTeamId && m.awayTeamId) || [];
     if (stageMatches.length === 0) return;
+    const teamIdsInStage = Array.from(
+      new Set(
+        stageMatches.flatMap((m) => [m.homeTeamId, m.awayTeamId]).filter(Boolean) as string[],
+      ),
+    );
+    const lineupMap = await fetchTeamLineups(teamIdsInStage);
     const firstPass = stageMatches.map((match) => {
       if (match.pairId && match.leg === 2) return match;
-      return simulateMatch(match, !!(match.pairId && match.leg === 1));
+      return simulateMatch(match, !!(match.pairId && match.leg === 1), lineupMap);
     });
     const updated = firstPass.map((match) => {
       if (match.pairId && match.leg === 2 && !match.played) {
@@ -385,7 +391,7 @@ export default function BracketView({
           firstPass.find((m) => m.pairId === match.pairId && m.leg === 1 && m.played) ||
           matchesByStage[stage].find((m) => m.pairId === match.pairId && m.leg === 1 && m.played);
         if (leg1) return simulateLeg2(match, leg1);
-        return simulateMatch(match, false);
+        return simulateMatch(match, false, lineupMap);
       }
       return match;
     });
@@ -396,10 +402,14 @@ export default function BracketView({
     }
   };
 
-  const handleSimulateThirdPlace = () => {
+  const handleSimulateThirdPlace = async () => {
     const unplayed = thirdPlaceMatches.filter((m) => !m.played && m.homeTeamId && m.awayTeamId);
     if (unplayed.length === 0) return;
-    const updated = unplayed.map((m) => simulateMatch(m));
+    const teamIds = Array.from(
+      new Set(unplayed.flatMap((m) => [m.homeTeamId, m.awayTeamId]).filter(Boolean) as string[]),
+    );
+    const lineupMap = await fetchTeamLineups(teamIds);
+    const updated = unplayed.map((m) => simulateMatch(m, false, lineupMap));
     if (onBatchUpdateMatches) onBatchUpdateMatches(updated);
     else updated.forEach((m) => onUpdateMatch(m));
   };
