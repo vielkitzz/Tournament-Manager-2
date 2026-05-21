@@ -50,11 +50,19 @@ export async function fetchTeamLineups(teamIds: string[]): Promise<Map<string, S
         });
 
         // CORREÇÃO: O erro precisa atualizar o Map 'result' e não apenas dar return null
-        if (error || !data?.lineup) {
-          console.error("Erro na Edge Function ou sem lineup:", error);
+        if (error) {
+          console.warn(`[SolaraHub] Erro ao buscar lineup para ${teamId}:`, error);
           lineupCache.set(teamId, null);
           result.set(teamId, null);
-          return; // Apenas sai da iteração atual do map
+          return;
+        }
+
+        if (!data?.lineup) {
+          // Apenas um log de informação, não é um erro crítico
+          console.info(`[SolaraHub] Nenhum lineup configurado para o clube ${teamId}`);
+          lineupCache.set(teamId, null);
+          result.set(teamId, null);
+          return;
         }
 
         const raw = data.lineup; // Acessa o dado corretamente
