@@ -799,17 +799,10 @@ export default function MatchPopup({
     const homeFullList = [...homeStarters, ...homePlayers.filter((p) => !homeStarters.some((s) => s.id === p.id))];
     const awayFullList = [...awayStarters, ...awayPlayers.filter((p) => !awayStarters.some((s) => s.id === p.id))];
 
-    // No MatchPopup.tsx, ao invés de usar homeStarters ou homePlayers filtrados,
-    // use o allPlayers original do componente pai:
-
-    const homeBench = allPlayers.filter(
-      (p) => p.teamId === match.homeTeamId && !homeStarters.some((s) => s.id === p.id),
-    );
-    const awayBench = allPlayers.filter(
-      (p) => p.teamId === match.awayTeamId && !awayStarters.some((s) => s.id === p.id),
-    );
-
     console.log("DEBUG - Tamanho do Banco enviado:", homeBench.length);
+
+    const homeBench = homePlayers.filter((p) => !homeStarters.some((s) => s.id === p.id));
+    const awayBench = awayPlayers.filter((p) => !awayStarters.some((s) => s.id === p.id));
 
     const events = generateMinuteByMinuteEvents(
       homeTeam,
@@ -820,9 +813,8 @@ export default function MatchPopup({
       totalH,
       totalA,
       { h1: [scores.h1[0], scores.h1[1]], h2: [scores.h2[0], scores.h2[1]] },
-      // ENVIE O BANCO AQUI:
-      homePlayers.filter((p) => !homeStarters.some((s) => s.id === p.id)),
-      awayPlayers.filter((p) => !awayStarters.some((s) => s.id === p.id)),
+      homeBench, // Banco explícito
+      awayBench, // Banco explícito
     );
 
     const at1 = Math.floor(Math.random() * 4) + 1;
