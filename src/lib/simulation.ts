@@ -689,19 +689,20 @@ export function generateMinuteByMinuteEvents(
     away: { goals: 0, fouls: 0, yellow: 0, red: 0, offsides: 0, shots: 0, shotsOnTarget: 0 },
   };
 
-  const starterIds = new Set([...homeStarters.map((p) => p.id), ...awayStarters.map((p) => p.id)]);
-
+  // 1. Identificar titulares (baseado no slice conforme lógica original do simulador)
   const homeStartersList = homePlayers.slice(0, 11);
   const awayStartersList = awayPlayers.slice(0, 11);
 
-  // 2. Crie o set de IDs de forma isolada
+  // 2. Criar set de IDs de titulares
   const starterIds = new Set([...homeStartersList.map((p) => p.id), ...awayStartersList.map((p) => p.id)]);
 
-  // 3. Defina os bancos usando o Set criado
+  // 3. Definir bancos e listar titulares corretamente
+  const homeStarters = homeStartersList;
+  const awayStarters = awayStartersList;
   const homeBench = homePlayers.filter((p) => !starterIds.has(p.id));
   const awayBench = awayPlayers.filter((p) => !starterIds.has(p.id));
 
-  // 4. Mapeamento de eventos e substituições
+  // 4. Mapeamento de eventos
   const subOutAt = new Map<string, number>();
   const subInAt = new Map<string, number>();
   const redCardAt = new Map<string, number>();
