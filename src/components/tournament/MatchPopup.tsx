@@ -328,14 +328,16 @@ export default function MatchPopup({
   useEffect(() => {
     let cancelled = false;
     async function fetchClubLineup(teamId: string) {
-      const { data } = await supabase
-        .from("clubs")
-        .select("lineup_pitch_ids, lineup_formation, lineup_mentality")
-        .eq("id", teamId)
-        .maybeSingle();
+      const { data, error } = await supabase.from("clubs").select("lineup").eq("id", teamId).maybeSingle();
 
-      if (!data?.lineup_pitch_ids) return null;
-      return { pitchIds: data.lineup_pitch_ids as Record<string, string> };
+      console.log("lineup data:", data, "error:", error);
+
+      if (!data?.lineup) return null;
+
+      // lineup pode ser { pitchIds: {...} } ou diretamente { "0-2": "uuid", ... }
+      const raw = data.lineup as any;
+      const pitchIds = raw.pitchIds ?? raw;
+      return { pitchIds: pitchIds as Record<string, string> };
     }
     Promise.all([
       match.homeTeamId ? fetchClubLineup(match.homeTeamId) : Promise.resolve(null),
