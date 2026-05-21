@@ -672,14 +672,14 @@ function foulMinute(): number {
 export function generateMinuteByMinuteEvents(
   homeTeam: Team,
   awayTeam: Team,
-  homePlayers: Player[], // os 11 titulares (índices 0-10)
-  awayPlayers: Player[], // os 11 titulares (índices 0-10)
+  homePlayers: Player[],
+  awayPlayers: Player[],
   matchStats: { homeStats: TeamMatchStats; awayStats: TeamMatchStats },
   homeGoals: number,
   awayGoals: number,
   halfGoals?: { h1: [number, number]; h2: [number, number] },
-  homeBenchPlayers?: Player[], // ← NOVO parâmetro opcional
-  awayBenchPlayers?: Player[], // ← NOVO parâmetro opcional
+  homeBenchPlayers?: Player[],
+  awayBenchPlayers?: Player[],
 ): MatchEvent[] {
   const events: MatchEvent[] = [];
   const matchGoalCounts = new Map<string, number>();
@@ -691,7 +691,11 @@ export function generateMinuteByMinuteEvents(
     away: { goals: 0, fouls: 0, yellow: 0, red: 0, offsides: 0, shots: 0, shotsOnTarget: 0 },
   };
 
-  const starterIds = new Set([...homeStarters.map((p) => p.id), ...awayStarters.map((p) => p.id)]);
+  const hStarters = homePlayers.slice(0, 11);
+  const aStarters = awayPlayers.slice(0, 11);
+
+  const starterIds = new Set([...hStarters.map((p) => p.id), ...aStarters.map((p) => p.id)]);
+
   const homeBench = homeBenchPlayers ?? homePlayers.filter((p) => !starterIds.has(p.id));
   const awayBench = awayBenchPlayers ?? awayPlayers.filter((p) => !starterIds.has(p.id));
 
@@ -735,16 +739,16 @@ export function generateMinuteByMinuteEvents(
     // Agrupa posições "compatíveis" para que uma substituição respeite a
     // função em campo (defensor sai → defensor entra, e assim por diante).
     const POSITION_GROUP: Record<string, string> = {
-      Zagueiro: "DEF",
-      "Lateral Direito": "DEF",
-      "Lateral Esquerdo": "DEF",
-      Volante: "MID",
-      Meia: "MID",
-      "Meia Atacante": "MID",
-      "Ponta Direita": "ATK",
-      "Ponta Esquerda": "ATK",
-      Atacante: "ATK",
-      Centroavante: "ATK",
+      Zagueiro: "ZAG",
+      "Lateral Direito": "LD",
+      "Lateral Esquerdo": "LE",
+      Volante: "VOL",
+      Meia: "MC",
+      "Meia Atacante": "MEI",
+      "Ponta Direita": "PD",
+      "Ponta Esquerda": "PE",
+      Atacante: "ATA",
+      "Segundo Atacante": "SA",
     };
     const groupOf = (p: Player) => POSITION_GROUP[p.position || ""] || "MID";
 
