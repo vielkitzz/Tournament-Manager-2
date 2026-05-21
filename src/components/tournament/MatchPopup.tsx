@@ -16,6 +16,7 @@ import {
 } from "@/lib/simulation";
 import { effectiveMatchRate } from "@/lib/playerSkill";
 import { supabase } from "@/integrations/supabase/client";
+import { pickStartingXIWithSubs, type SolaraLineup as SolaraLineupShared } from "@/lib/solaraLineups";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from "@/components/ui/tooltip";
 import SoccerBallIcon from "@/components/icons/SoccerBallIcon";
