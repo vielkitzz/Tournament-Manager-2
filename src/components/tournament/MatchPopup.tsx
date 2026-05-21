@@ -790,7 +790,12 @@ export default function MatchPopup({
     });
     setMatchStats(stats);
 
-    const { availableHome, availableAway } = getAvailablePlayers();
+    const { availableHome, availableAway } = {
+      // homePlayers e awayPlayers são definidos no início do MatchPopup
+      // usando (allPlayers || []).filter(...)
+      availableHome: homePlayers,
+      availableAway: awayPlayers,
+    };
 
     const homeList = [...homeStarters, ...homePlayers.filter((p) => !homeStarters.find((s) => s.id === p.id))];
     const awayList = [...awayStarters, ...awayPlayers.filter((p) => !awayStarters.find((s) => s.id === p.id))];
@@ -800,8 +805,8 @@ export default function MatchPopup({
     const events = generateMinuteByMinuteEvents(
       homeTeam,
       awayTeam,
-      homeList, // <--- Passe a lista ordenada
-      awayList, // <--- Passe a lista ordenada
+      availableHome, // Lista com 20+ jogadores
+      availableAway, // Lista com 20+ jogadores
       stats,
       totalH,
       totalA,
