@@ -795,6 +795,8 @@ export default function MatchPopup({
     const homeList = [...homeStarters, ...homePlayers.filter((p) => !homeStarters.find((s) => s.id === p.id))];
     const awayList = [...awayStarters, ...awayPlayers.filter((p) => !awayStarters.find((s) => s.id === p.id))];
 
+    console.log("Lista enviada - Home (deve ter >11):", homeList.length);
+
     const events = generateMinuteByMinuteEvents(
       homeTeam,
       awayTeam,

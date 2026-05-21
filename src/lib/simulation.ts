@@ -722,6 +722,8 @@ export function generateMinuteByMinuteEvents(
 
   // 1. Substituições
   const generateSubstitutions = (team: Team, starters: Player[], bench: Player[]) => {
+    console.log("Simulador - Jogadores totais:", starters.length + bench.length);
+    console.log("Simulador - Tamanho do banco:", bench.length);
     const subCount = Math.min(3, Math.max(0, Math.floor((starters.length + bench.length) / 2) - 1));
     if (subCount === 0 || bench.length === 0) return;
     const usedOut = new Set<string>();
@@ -1146,14 +1148,7 @@ function getPositionGroup(pos?: string): PositionGroup {
     p === "le"
   )
     return "DEF";
-  if (
-    p === "volante" ||
-    p === "vol" ||
-    p === "meia" ||
-    p === "mc" ||
-    p === "meia atacante" ||
-    p === "mei"
-  )
+  if (p === "volante" || p === "vol" || p === "meia" || p === "mc" || p === "meia atacante" || p === "mei")
     return "MID";
   return "ATK";
 }
