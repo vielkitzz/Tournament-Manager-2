@@ -727,17 +727,11 @@ export default function MatchPopup({
   };
 
   const getAvailablePlayers = () => {
-    let availableHome = homePlayers;
-    let availableAway = awayPlayers;
-    if (tournament) {
-      const suspendedHome = getSuspendedPlayerIds(tournament.matches, match.round, homeTeam!.id, tournament.settings);
-      const suspendedAway = getSuspendedPlayerIds(tournament.matches, match.round, awayTeam!.id, tournament.settings);
-      availableHome = homePlayers.filter((p) => !suspendedHome.has(p.id));
-      availableAway = awayPlayers.filter((p) => !suspendedAway.has(p.id));
-      if (availableHome.length < 11) availableHome = homePlayers.slice(0, 11);
-      if (availableAway.length < 11) availableAway = awayPlayers.slice(0, 11);
-    }
-    return { availableHome, availableAway };
+    // Sempre prioriza titulares da escalação do SolaraHub, com substituições por posição.
+    return {
+      availableHome: homeStarters,
+      availableAway: awayStarters,
+    };
   };
 
   const handleLiveSimulate = () => {
