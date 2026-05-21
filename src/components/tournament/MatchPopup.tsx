@@ -256,7 +256,10 @@ function getTacticalMods(lineup: SolaraLineup | null): { atk: number; def: numbe
 function getStartersFromLineup(players: Player[], lineup: SolaraLineup | null): Player[] {
   if (!lineup?.pitchIds) return players.slice(0, 11);
   const starterIds = new Set(Object.values(lineup.pitchIds));
-  const matched = players.filter((p) => starterIds.has(p.id));
+  const matched = players.filter((p) => {
+    const mid = (p as any).master_player_id;
+    return !!mid && starterIds.has(mid);
+  });
   return matched.length >= 11 ? matched.slice(0, 11) : players.slice(0, 11);
 }
 
@@ -327,25 +330,42 @@ export default function MatchPopup({
 
   useEffect(() => {
     let cancelled = false;
-    async function fetchClubLineup(teamId: string) {
-      const { data, error } = await supabase.from("clubs_public").select("lineup").eq("id", teamId).maybeSingle();
 
-      console.log("lineup data:", data, "error:", error);
+    async function fetchLineup(tm2TeamId: string) {
+      // 1. Busca o link com o SolaraHub
+      const { data: link } = await (supabase as any)
+        .from("club_sync_links")
+        .select("solarahub_club_id")
+        .eq("tm2_team_id", tm2TeamId)
+        .maybeSingle();
 
-      if (!data?.lineup) return null;
+      if (!link?.solarahub_club_id) return null;
 
-      const raw = data.lineup as any;
-      const pitchIds = raw.pitchIds ?? raw;
-      return { pitchIds: pitchIds as Record<string, string> };
+      // 2. Busca a escalação diretamente da tabela clubs do SolaraHub
+      const solaraUrl = import.meta.env.VITE_SOLARAHUB_URL;
+      const solaraKey = import.meta.env.VITE_SOLARAHUB_ANON_KEY;
+
+      const res = await fetch(`${solaraUrl}/rest/v1/clubs?select=lineup&id=eq.${link.solarahub_club_id}`, {
+        headers: { apikey: solaraKey, Authorization: `Bearer ${solaraKey}` },
+      });
+
+      const data = await res.json();
+      const clubData = data?.[0];
+      if (!clubData?.lineup) return null;
+
+      const raw = clubData.lineup as any;
+      return { pitchIds: (raw.pitchIds ?? raw) as Record<string, string> };
     }
+
     Promise.all([
-      match.homeTeamId ? fetchClubLineup(match.homeTeamId) : Promise.resolve(null),
-      match.awayTeamId ? fetchClubLineup(match.awayTeamId) : Promise.resolve(null),
+      match.homeTeamId ? fetchLineup(match.homeTeamId) : Promise.resolve(null),
+      match.awayTeamId ? fetchLineup(match.awayTeamId) : Promise.resolve(null),
     ]).then(([h, a]) => {
       if (cancelled) return;
       setHomeLineup(h);
       setAwayLineup(a);
     });
+
     return () => {
       cancelled = true;
     };
