@@ -2,11 +2,10 @@ import { supabase } from "@/integrations/supabase/client";
 import type { Player } from "@/types/tournament";
 
 export interface SolaraLineup {
-  pitchIds: Record<string, string>; // cell -> master_player_id
+  pitchIds: Record<string, string>;
   benchIds?: string[];
 }
 
-// Cache em memória (vida do app) para evitar refetch em loop de simulação.
 const lineupCache = new Map<string, SolaraLineup | null>();
 
 export function clearLineupCache(teamId?: string) {
@@ -14,15 +13,10 @@ export function clearLineupCache(teamId?: string) {
   else lineupCache.clear();
 }
 
-/**
- * Busca as escalações titulares (pitchIds) salvas no SolaraHub para múltiplos times.
- * Retorna Map<tm2_team_id, SolaraLineup | null>.
- */
 export async function fetchTeamLineups(teamIds: string[]): Promise<Map<string, SolaraLineup | null>> {
   const result = new Map<string, SolaraLineup | null>();
   const toFetch: string[] = [];
 
-  // 1. Verifica o cache local para evitar requisições duplicadas
   for (const id of teamIds) {
     if (!id) continue;
     if (lineupCache.has(id)) {
@@ -33,7 +27,6 @@ export async function fetchTeamLineups(teamIds: string[]): Promise<Map<string, S
   }
   if (toFetch.length === 0) return result;
 
-  // 2. Busca os links de sincronização na sua tabela local
   const { data: links } = await (supabase as any)
     .from("club_sync_links")
     .select("tm2_team_id, solarahub_club_id")
@@ -42,12 +35,9 @@ export async function fetchTeamLineups(teamIds: string[]): Promise<Map<string, S
   const tm2ToSolara = new Map<string, string>();
   (links || []).forEach((l: any) => tm2ToSolara.set(l.tm2_team_id, l.solarahub_club_id));
 
-  // 3. Processa cada time chamando a Edge Function com segurança
   await Promise.all(
     toFetch.map(async (teamId) => {
       const solaraId = tm2ToSolara.get(teamId);
-
-      // Se não houver ID vinculado para o parceiro, define como null direto
       if (!solaraId) {
         lineupCache.set(teamId, null);
         result.set(teamId, null);
@@ -55,13 +45,12 @@ export async function fetchTeamLineups(teamIds: string[]): Promise<Map<string, S
       }
 
       try {
-        // Invoca a Edge Function integrada do seu Supabase
         const { data, error } = await supabase.functions.invoke("get-solarahub-lineup", {
           body: { solarahub_club_id: solaraId },
         });
 
         if (error) {
-          console.error(`[Lineup] Erro retornado da Edge Function para o time ${teamId}:`, error);
+          console.error(`Erro na Edge Function para o time ${teamId}:`, error);
           lineupCache.set(teamId, null);
           result.set(teamId, null);
           return;
@@ -74,7 +63,6 @@ export async function fetchTeamLineups(teamIds: string[]): Promise<Map<string, S
           return;
         }
 
-        // Monta o objeto de escalação esperado pelo simulador
         const lineup: SolaraLineup = {
           pitchIds: (raw.pitchIds ?? raw) as Record<string, string>,
           benchIds: raw.benchIds,
@@ -83,8 +71,7 @@ export async function fetchTeamLineups(teamIds: string[]): Promise<Map<string, S
         lineupCache.set(teamId, lineup);
         result.set(teamId, lineup);
       } catch (err) {
-        // Captura falhas de rede sem quebrar a execução global da página
-        console.error(`[Lineup] Falha crítica de rede na Edge Function para o time ${teamId}:`, err);
+        console.error(`Falha ao processar escalação do time ${teamId}:`, err);
         lineupCache.set(teamId, null);
         result.set(teamId, null);
       }
@@ -94,16 +81,6 @@ export async function fetchTeamLineups(teamIds: string[]): Promise<Map<string, S
   return result;
 }
 
-/**
- * Seleciona 11 titulares a partir do elenco usando a escalação do SolaraHub como prioridade.
- *
- * Regras:
- * 1. Para cada slot do `pitchIds`, busca o jogador no elenco via `masterPlayerId`.
- * 2. Se o jogador estiver suspenso, indisponível ou ausente do elenco, substitui por outro
- *    jogador do elenco com a mesma posição que não esteja suspenso nem já escalado.
- * 3. Se nenhum jogador da mesma posição estiver disponível, usa qualquer jogador livre.
- * 4. Se não houver escalação no SolaraHub, cai no fallback dos 11 primeiros.
- */
 export function pickStartingXIWithSubs(
   squad: Player[],
   suspendedIds: Set<string>,
@@ -146,7 +123,6 @@ export function pickStartingXIWithSubs(
     }
   }
 
-  // Top-up até 11 caso a escalação tenha menos slots
   if (starters.length < 11) {
     for (const p of fallbackPool) {
       if (starters.length >= 11) break;
