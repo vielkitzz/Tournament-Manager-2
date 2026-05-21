@@ -691,8 +691,6 @@ export function generateMinuteByMinuteEvents(
     away: { goals: 0, fouls: 0, yellow: 0, red: 0, offsides: 0, shots: 0, shotsOnTarget: 0 },
   };
 
-  const homeStarters = homePlayers.slice(0, 11);
-  const awayStarters = awayPlayers.slice(0, 11);
   const starterIds = new Set([...homeStarters.map((p) => p.id), ...awayStarters.map((p) => p.id)]);
   const homeBench = homeBenchPlayers ?? homePlayers.filter((p) => !starterIds.has(p.id));
   const awayBench = awayBenchPlayers ?? awayPlayers.filter((p) => !starterIds.has(p.id));
