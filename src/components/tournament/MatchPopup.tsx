@@ -1481,7 +1481,7 @@ export default function MatchPopup({
                               <p className="text-[10px] text-muted-foreground truncate">{p.position || ""}</p>
                             </div>
                             <span
-                              className={`text-xs font-bold tabular-nums px-2 py-0.5 rounded border-2 ${
+                              className={`text-xs font-bold tabular-nums px-2 py-0.5 rounded border-2 text-center min-w-[28px] inline-block ${
                                 r == null
                                   ? "text-[#A4A9B3] border-[#A4A9B3] bg-transparent"
                                   : displayRating >= 9.0
