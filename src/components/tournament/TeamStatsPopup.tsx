@@ -893,16 +893,20 @@ function IndividualStatsTab({
                   {reds}
                 </td>
                 <td
-                  className={`py-2 px-2 text-center font-bold ${
+                  className={`py-2 px-2 text-center font-bold text-white border ${
                     rating == null
-                      ? "text-muted-foreground"
-                      : rating >= 8
-                        ? "text-emerald-500"
-                        : rating >= 7
-                          ? "text-primary"
-                          : rating >= 6
-                            ? "text-foreground"
-                            : "text-destructive"
+                      ? "bg-[#A4A9B3] border-[#A4A9B3]"
+                      : rating >= 9.0
+                        ? "bg-[#374DF5] border-[#374DF5]"
+                        : rating >= 8.0
+                          ? "bg-[#00ADC4] border-[#00ADC4]"
+                          : rating >= 7.0
+                            ? "bg-[#00C424] border-[#00C424]"
+                            : rating >= 6.5
+                              ? "bg-[#D9AF00] border-[#D9AF00]"
+                              : rating >= 6.0
+                                ? "bg-[#ED7E07] border-[#ED7E07]"
+                                : "bg-[#DC0C00] border-[#DC0C00]"
                   }`}
                 >
                   {formatAverageRating(rating)}
