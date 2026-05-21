@@ -686,6 +686,11 @@ export function generateMinuteByMinuteEvents(
   let eventId = 0;
   const genId = () => `evt-${++eventId}`;
 
+  const produced = {
+    home: { goals: 0, fouls: 0, yellow: 0, red: 0, offsides: 0, shots: 0, shotsOnTarget: 0 },
+    away: { goals: 0, fouls: 0, yellow: 0, red: 0, offsides: 0, shots: 0, shotsOnTarget: 0 },
+  };
+
   // Use os parâmetros diretamente
   const homeBench = homeBenchPlayers;
   const awayBench = awayBenchPlayers;
