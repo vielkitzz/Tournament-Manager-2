@@ -1468,7 +1468,9 @@ export default function MatchPopup({
                             (ratings[b.id] ?? 0) - (ratings[a.id] ?? 0),
                         );
                       const renderRow = (p: Player) => {
-                        const r = ratings[p.id] ?? 6.5;
+                        const r = ratings[p.id] ?? null; // Mantemos null se não houver nota
+                        const displayRating = r ?? 6.5; // Para a lógica de cores e exibição
+
                         return (
                           <div key={p.id} className="flex items-center gap-2 py-1">
                             <span className="text-[10px] text-muted-foreground w-5 text-right tabular-nums shrink-0">
@@ -1480,23 +1482,22 @@ export default function MatchPopup({
                             </div>
                             <span
                               className={`text-xs font-bold tabular-nums px-2 py-0.5 rounded border-2 ${
-                                rating == null
+                                r == null
                                   ? "text-[#A4A9B3] border-[#A4A9B3] bg-transparent"
-                                  : rating >= 9.0
+                                  : displayRating >= 9.0
                                     ? "text-[#374DF5] border-[#374DF5] bg-transparent"
-                                    : rating >= 8.0
+                                    : displayRating >= 8.0
                                       ? "text-[#00ADC4] border-[#00ADC4] bg-transparent"
-                                      : rating >= 7.0
+                                      : displayRating >= 7.0
                                         ? "text-[#00C424] border-[#00C424] bg-transparent"
-                                        : rating >= 6.5
+                                        : displayRating >= 6.5
                                           ? "text-[#D9AF00] border-[#D9AF00] bg-transparent"
-                                          : rating >= 6.0
+                                          : displayRating >= 6.0
                                             ? "text-[#ED7E07] border-[#ED7E07] bg-transparent"
                                             : "text-[#DC0C00] border-[#DC0C00] bg-transparent"
                               }`}
                             >
-                              {/* Ajuste: se o valor for 10 ou 10.0, exibe 10 */}
-                              {rating !== null && rating >= 10 ? "10" : (rating?.toFixed(1) ?? "-")}
+                              {r !== null && displayRating >= 10 ? "10" : (r?.toFixed(1) ?? "-")}
                             </span>
                           </div>
                         );
