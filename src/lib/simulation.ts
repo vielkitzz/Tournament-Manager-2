@@ -691,14 +691,17 @@ export function generateMinuteByMinuteEvents(
 
   const starterIds = new Set([...homeStarters.map((p) => p.id), ...awayStarters.map((p) => p.id)]);
 
-  // 1. Identifique quem são os titulares com base nos IDs (você já tem a lista de starterIds)
-  // Se o jogador estiver na lista de starterIds, ele é titular, senão é banco.
-  const homeStarters = homePlayers.filter((p) => starterIds.has(p.id));
-  const homeBench = homePlayers.filter((p) => !starterIds.has(p.id));
+  const homeStartersList = homePlayers.slice(0, 11);
+  const awayStartersList = awayPlayers.slice(0, 11);
 
-  const awayStarters = awayPlayers.filter((p) => starterIds.has(p.id));
+  // 2. Crie o set de IDs de forma isolada
+  const starterIds = new Set([...homeStartersList.map((p) => p.id), ...awayStartersList.map((p) => p.id)]);
+
+  // 3. Defina os bancos usando o Set criado
+  const homeBench = homePlayers.filter((p) => !starterIds.has(p.id));
   const awayBench = awayPlayers.filter((p) => !starterIds.has(p.id));
 
+  // 4. Mapeamento de eventos e substituições
   const subOutAt = new Map<string, number>();
   const subInAt = new Map<string, number>();
   const redCardAt = new Map<string, number>();
