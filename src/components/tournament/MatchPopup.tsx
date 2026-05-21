@@ -1440,10 +1440,13 @@ export default function MatchPopup({
                     );
 
                     const ratingColor = (r: number) => {
-                      if (r >= 8) return "bg-emerald-500/15 text-emerald-500 border-emerald-500/30";
-                      if (r >= 7) return "bg-primary/15 text-primary border-primary/30";
-                      if (r >= 6) return "bg-muted-foreground/15 text-muted-foreground border-border";
-                      return "bg-destructive/15 text-destructive border-destructive/30";
+                      if (r >= 9.0) return "bg-[#374DF5] text-white border-[#374DF5]"; // Excellent
+                      if (r >= 8.0) return "bg-[#00ADC4] text-white border-[#00ADC4]"; // Very good
+                      if (r >= 7.0) return "bg-[#00C424] text-white border-[#00C424]"; // Good
+                      if (r >= 6.5) return "bg-[#D9AF00] text-white border-[#D9AF00]"; // Average
+                      if (r >= 6.0) return "bg-[#ED7E07] text-white border-[#ED7E07]"; // Below average
+                      if (r >= 3.0) return "bg-[#DC0C00] text-white border-[#DC0C00]"; // Poor
+                      return "bg-[#A4A9B3] text-white border-[#A4A9B3]"; // No rating
                     };
 
                     const renderTeamColumn = (team: Team | undefined, participants: Player[]) => {
