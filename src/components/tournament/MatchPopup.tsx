@@ -799,25 +799,22 @@ export default function MatchPopup({
 
     const starterIds = new Set(homeStarters.map((p) => p.id));
 
-    const homeList = [
-      ...homeStarters, // Os 11 que você já definiu como titulares
-      ...homePlayers.filter((p) => !starterIds.has(p.id)), // Todo o resto do elenco (os reservas!)
-    ];
+    const homeFullList = [...homeStarters, ...homePlayers.filter((p) => !homeStarters.some((s) => s.id === p.id))];
+    const awayFullList = [...awayStarters, ...awayPlayers.filter((p) => !awayStarters.some((s) => s.id === p.id))];
 
-    const awayList = [...awayStarters, ...awayPlayers.filter((p) => !starterIds.has(p.id))];
+    // 2. DEBUG: Logar o tamanho da lista que VAI para o simulador
+    console.log("SIMULADOR - Enviando lista Home com tamanho:", homeFullList.length);
 
-    console.log("Lista enviada - Home (deve ter >11):", homeList.length);
-
-    // MUDANÇA AQUI: use homeList e awayList em vez de availableHome/availableAway
+    // 3. Chamada correta
     const events = generateMinuteByMinuteEvents(
       homeTeam,
       awayTeam,
-      homeList, // <--- Aqui agora terá 20+ jogadores
-      awayList,
+      homeFullList, // <--- LISTA COM 22
+      awayFullList, // <--- LISTA COM 22
       stats,
       totalH,
       totalA,
-      { h1: [h1h, h1a], h2: [h2h, h2a] },
+      { h1: [scores.h1[0], scores.h1[1]], h2: [scores.h2[0], scores.h2[1]] },
     );
 
     const at1 = Math.floor(Math.random() * 4) + 1;
