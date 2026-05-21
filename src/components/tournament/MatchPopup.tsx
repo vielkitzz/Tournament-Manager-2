@@ -328,13 +328,12 @@ export default function MatchPopup({
   useEffect(() => {
     let cancelled = false;
     async function fetchClubLineup(teamId: string) {
-      const { data, error } = await supabase.from("clubs").select("lineup").eq("id", teamId).maybeSingle();
+      const { data, error } = await supabase.from("clubs_public").select("lineup").eq("id", teamId).maybeSingle();
 
       console.log("lineup data:", data, "error:", error);
 
       if (!data?.lineup) return null;
 
-      // lineup pode ser { pitchIds: {...} } ou diretamente { "0-2": "uuid", ... }
       const raw = data.lineup as any;
       const pitchIds = raw.pitchIds ?? raw;
       return { pitchIds: pitchIds as Record<string, string> };
