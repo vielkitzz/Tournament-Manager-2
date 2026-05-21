@@ -672,12 +672,14 @@ function foulMinute(): number {
 export function generateMinuteByMinuteEvents(
   homeTeam: Team,
   awayTeam: Team,
-  homePlayers: Player[],
-  awayPlayers: Player[],
+  homePlayers: Player[], // os 11 titulares (índices 0-10)
+  awayPlayers: Player[], // os 11 titulares (índices 0-10)
   matchStats: { homeStats: TeamMatchStats; awayStats: TeamMatchStats },
   homeGoals: number,
   awayGoals: number,
   halfGoals?: { h1: [number, number]; h2: [number, number] },
+  homeBenchPlayers?: Player[], // ← NOVO parâmetro opcional
+  awayBenchPlayers?: Player[], // ← NOVO parâmetro opcional
 ): MatchEvent[] {
   const events: MatchEvent[] = [];
   const matchGoalCounts = new Map<string, number>();
@@ -689,16 +691,11 @@ export function generateMinuteByMinuteEvents(
     away: { goals: 0, fouls: 0, yellow: 0, red: 0, offsides: 0, shots: 0, shotsOnTarget: 0 },
   };
 
-  // 1. Identifique os titulares (os 11 primeiros da lista, conforme sua lógica de entrada)
   const homeStarters = homePlayers.slice(0, 11);
   const awayStarters = awayPlayers.slice(0, 11);
-
-  // 2. Crie o set de IDs APENAS UMA VEZ
   const starterIds = new Set([...homeStarters.map((p) => p.id), ...awayStarters.map((p) => p.id)]);
-
-  // 3. Defina os bancos (quem NÃO está no starterIds)
-  const homeBench = homePlayers.filter((p) => !starterIds.has(p.id));
-  const awayBench = awayPlayers.filter((p) => !starterIds.has(p.id));
+  const homeBench = homeBenchPlayers ?? homePlayers.filter((p) => !starterIds.has(p.id));
+  const awayBench = awayBenchPlayers ?? awayPlayers.filter((p) => !starterIds.has(p.id));
 
   // 4. Mapeamento de eventos
   const subOutAt = new Map<string, number>();
@@ -727,6 +724,7 @@ export function generateMinuteByMinuteEvents(
 
   // 1. Substituições
   const generateSubstitutions = (team: Team, starters: Player[], bench: Player[]) => {
+    console.log(`[${team.name}] Titulares: ${starters.length}, Banco: ${bench.length}`);
     console.log("Simulador - Jogadores totais:", starters.length + bench.length);
     console.log("Simulador - Tamanho do banco:", bench.length);
     const subCount = Math.min(3, Math.max(0, Math.floor((starters.length + bench.length) / 2) - 1));

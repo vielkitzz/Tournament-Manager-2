@@ -736,12 +736,9 @@ export default function MatchPopup({
   };
 
   const getAvailablePlayers = () => {
-    // Retorna o elenco completo (starters + quem sobrou no banco)
-    // O motor de simulação precisa de todos para realizar substituições
-    return {
-      availableHome: homePlayers, // <--- MUDE DE homeStarters PARA homePlayers
-      availableAway: awayPlayers, // <--- MUDE DE awayStarters PARA awayPlayers
-    };
+    const homeFullList = [...homeStarters, ...homePlayers.filter((p) => !homeStarters.some((s) => s.id === p.id))];
+    const awayFullList = [...awayStarters, ...awayPlayers.filter((p) => !awayStarters.some((s) => s.id === p.id))];
+    return { availableHome: homeFullList, availableAway: awayFullList };
   };
 
   const handleLiveSimulate = () => {
@@ -805,16 +802,20 @@ export default function MatchPopup({
     // 2. DEBUG: Logar o tamanho da lista que VAI para o simulador
     console.log("SIMULADOR - Enviando lista Home com tamanho:", homeFullList.length);
 
-    // 3. Chamada correta
+    const homeBench = homePlayers.filter((p) => !homeStarters.some((s) => s.id === p.id));
+    const awayBench = awayPlayers.filter((p) => !awayStarters.some((s) => s.id === p.id));
+
     const events = generateMinuteByMinuteEvents(
       homeTeam,
       awayTeam,
-      homeFullList, // <--- LISTA COM 22
-      awayFullList, // <--- LISTA COM 22
+      homeStarters, // ← só os 11 titulares
+      awayStarters, // ← só os 11 titulares
       stats,
       totalH,
       totalA,
-      { h1: [scores.h1[0], scores.h1[1]], h2: [scores.h2[0], scores.h2[1]] },
+      { h1: [h1h, h1a], h2: [h2h, h2a] },
+      homeBench, // ← banco explícito (4 jogadores)
+      awayBench, // ← banco explícito
     );
 
     const at1 = Math.floor(Math.random() * 4) + 1;
@@ -864,6 +865,9 @@ export default function MatchPopup({
     if (showPenalties && penaltyScore("home") === penaltyScore("away")) return;
 
     const stats = ensureStats();
+    const { availableHome, availableAway } = getAvailablePlayers();
+    const homeBenchForFinish = homePlayers.filter((p) => !homeStarters.some((s) => s.id === p.id));
+    const awayBenchForFinish = awayPlayers.filter((p) => !awayStarters.some((s) => s.id === p.id));
 
     let finalEvents = liveEvents.length > 0 ? liveEvents : undefined;
     if (!finalEvents && canLiveSimulate && homeTeam && awayTeam) {
@@ -871,12 +875,14 @@ export default function MatchPopup({
       finalEvents = generateMinuteByMinuteEvents(
         homeTeam,
         awayTeam,
-        availableHome,
-        availableAway,
+        homeStarters,
+        awayStarters,
         stats,
         totalHome,
         totalAway,
         { h1: [scores.h1[0], scores.h1[1]], h2: [scores.h2[0], scores.h2[1]] },
+        homeBenchForFinish,
+        awayBenchForFinish,
       );
     }
 
