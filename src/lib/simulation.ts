@@ -696,7 +696,8 @@ export function generateMinuteByMinuteEvents(
   // 2. Criar set de IDs de titulares
   const starterIds = new Set([...homeStarters.map((p) => p.id), ...awayStarters.map((p) => p.id)]);
 
-  // Agora filtre o elenco de 24 jogadores corretamente
+  // 2. Agora filtre o elenco de 24 jogadores (Titulares e Bancos)
+  // Use nomes diferentes se necessário, ou apenas filtre diretamente
   const homeStartersList = homePlayers.filter((p) => starterIds.has(p.id));
   const awayStartersList = awayPlayers.filter((p) => starterIds.has(p.id));
 
