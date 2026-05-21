@@ -799,24 +799,25 @@ export default function MatchPopup({
     const homeFullList = [...homeStarters, ...homePlayers.filter((p) => !homeStarters.some((s) => s.id === p.id))];
     const awayFullList = [...awayStarters, ...awayPlayers.filter((p) => !awayStarters.some((s) => s.id === p.id))];
 
-    (allPlayers || []).filter((p) => p.teamId === homeTeam.id && !homeStarters.some((s) => s.id === p.id)),
-    (allPlayers || []).filter((p) => p.teamId === awayTeam.id && !awayStarters.some((s) => s.id === p.id)),
-    
-    console.log("DEBUG: Enviando para o simulador ->", homeBench.length, "reservas."));
+    // 1. Defina as variáveis de forma limpa antes da chamada
+    const hBench = allPlayers.filter((p) => p.teamId === homeTeam.id && !homeStarters.some((s) => s.id === p.id));
+    const aBench = allPlayers.filter((p) => p.teamId === awayTeam.id && !awayStarters.some((s) => s.id === p.id));
 
+    // 2. Log de segurança (sem erros de parênteses)
+    console.log("DEBUG: Enviando para o simulador ->", hBench.length, "reservas.");
+
+    // 3. Chamada limpa da função
     const events = generateMinuteByMinuteEvents(
       homeTeam,
       awayTeam,
-      homeStarters, // os 11
-      awayStarters, // os 11
+      homeStarters,
+      awayStarters,
       stats,
       totalH,
       totalA,
       { h1: [scores.h1[0], scores.h1[1]], h2: [scores.h2[0], scores.h2[1]] },
-
-      // AQUI É ONDE VOCÊ DEVE FILTRAR O BANCO REAL:
-      allPlayers.filter((p) => p.teamId === homeTeam.id && !homeStarters.some((s) => s.id === p.id)),
-      allPlayers.filter((p) => p.teamId === awayTeam.id && !awayStarters.some((s) => s.id === p.id)),
+      hBench,
+      aBench,
     );
 
     const at1 = Math.floor(Math.random() * 4) + 1;
