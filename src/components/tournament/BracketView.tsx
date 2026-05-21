@@ -4,7 +4,13 @@ import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { Shield, Play, Trophy, Medal, UserPlus, Shuffle, Plus, Trash2, RotateCcw, UserMinus } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { simulateFullMatch, simulateHalf, generateMatchStats, generateMinuteByMinuteEvents, getSuspendedPlayerIds } from "@/lib/simulation";
+import {
+  simulateFullMatch,
+  simulateHalf,
+  generateMatchStats,
+  generateMinuteByMinuteEvents,
+  getSuspendedPlayerIds,
+} from "@/lib/simulation";
 import { effectiveMatchRate } from "@/lib/playerSkill";
 import { fetchTeamLineups, pickStartingXIWithSubs, type SolaraLineup } from "@/lib/solaraLineups";
 import MatchPopup from "./MatchPopup";
@@ -185,11 +191,7 @@ export default function BracketView({
   const finalPairs = getPairs(finalMatchesList);
   const allFinalResolved = finalPairs.length > 0 && finalPairs.every((p) => getTieResult(p) !== null);
 
-  const simulateMatch = (
-    match: Match,
-    isLeg1OfPair = false,
-    lineupMap?: Map<string, SolaraLineup | null>,
-  ): Match => {
+  const simulateMatch = (match: Match, isLeg1OfPair = false, lineupMap?: Map<string, SolaraLineup | null>): Match => {
     const home = getTeam(match.homeTeamId);
     const away = getTeam(match.awayTeamId);
     const allPlayersList = players || [];
@@ -226,10 +228,18 @@ export default function BracketView({
         const suspAway = getSuspendedPlayerIds(tournament.matches, match.round, away.id, tournament.settings);
         const availHome = pickStartingXIWithSubs(homePl, suspHome, lineupMap?.get(home.id) ?? null);
         const availAway = pickStartingXIWithSubs(awayPl, suspAway, lineupMap?.get(away.id) ?? null);
-        events = generateMinuteByMinuteEvents(home, away, availHome, availAway, stats, homeScore, awayScore, {
-          h1: result.h1,
-          h2: result.h2,
-        });
+        events = generateMinuteByMinuteEvents(
+          home,
+          away,
+          availHome,
+          availAway,
+          stats,
+          totalH,
+          totalA,
+          { h1: result.h1, h2: result.h2 },
+          homePl.filter((p) => !availHome.some((s) => s.id === p.id)), // homeBench
+          awayPl.filter((p) => !availAway.some((s) => s.id === p.id)), // awayBench
+        );
         homeLineupIds = availHome.map((p) => p.id);
         awayLineupIds = availAway.map((p) => p.id);
       }
@@ -260,10 +270,16 @@ export default function BracketView({
     const homeBase = tournament.settings.rateInfluence ? (home?.rate ?? 5) : 5;
     const awayBase = tournament.settings.rateInfluence ? (away?.rate ?? 5) : 5;
     const homeRate = tournament.settings.rateInfluence
-      ? effectiveMatchRate(homeBase, allPlayersList.filter((p) => p.teamId === leg2.homeTeamId))
+      ? effectiveMatchRate(
+          homeBase,
+          allPlayersList.filter((p) => p.teamId === leg2.homeTeamId),
+        )
       : homeBase;
     const awayRate = tournament.settings.rateInfluence
-      ? effectiveMatchRate(awayBase, allPlayersList.filter((p) => p.teamId === leg2.awayTeamId))
+      ? effectiveMatchRate(
+          awayBase,
+          allPlayersList.filter((p) => p.teamId === leg2.awayTeamId),
+        )
       : awayBase;
     const result = simulateFullMatch(homeRate, awayRate);
     let homeScore = result.total[0];
@@ -337,7 +353,14 @@ export default function BracketView({
       homeScoreH2: result.h2[0],
       awayScoreH2: result.h2[1],
       played: true,
-      ...(homeExtraTime !== undefined && { homeExtraTime, awayExtraTime, homeScoreET1, awayScoreET1, homeScoreET2, awayScoreET2 }),
+      ...(homeExtraTime !== undefined && {
+        homeExtraTime,
+        awayExtraTime,
+        homeScoreET1,
+        awayScoreET1,
+        homeScoreET2,
+        awayScoreET2,
+      }),
       ...(homePenalties !== undefined && { homePenalties, awayPenalties }),
     };
   };
@@ -376,9 +399,7 @@ export default function BracketView({
     const stageMatches = matchesByStage[stage]?.filter((m) => !m.played && m.homeTeamId && m.awayTeamId) || [];
     if (stageMatches.length === 0) return;
     const teamIdsInStage = Array.from(
-      new Set(
-        stageMatches.flatMap((m) => [m.homeTeamId, m.awayTeamId]).filter(Boolean) as string[],
-      ),
+      new Set(stageMatches.flatMap((m) => [m.homeTeamId, m.awayTeamId]).filter(Boolean) as string[]),
     );
     const lineupMap = await fetchTeamLineups(teamIdsInStage);
     const firstPass = stageMatches.map((match) => {

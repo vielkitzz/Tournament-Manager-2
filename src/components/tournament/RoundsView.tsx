@@ -2,7 +2,12 @@ import { useState, useEffect, useRef } from "react";
 import { Match, Team, Tournament, Player } from "@/types/tournament";
 import { Shield, ChevronLeft, ChevronRight, Trophy, CheckCircle, Play, Shuffle } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { simulateFullMatch, generateMatchStats, generateMinuteByMinuteEvents, getSuspendedPlayerIds } from "@/lib/simulation";
+import {
+  simulateFullMatch,
+  generateMatchStats,
+  generateMinuteByMinuteEvents,
+  getSuspendedPlayerIds,
+} from "@/lib/simulation";
 import { effectiveMatchRate } from "@/lib/playerSkill";
 import { fetchTeamLineups, pickStartingXIWithSubs } from "@/lib/solaraLineups";
 import MatchPopup from "./MatchPopup";
@@ -58,9 +63,7 @@ export default function RoundsView({
     if (unplayedInRound.length === 0) return;
     const allPlayersList = players || [];
     const teamIdsInRound = Array.from(
-      new Set(
-        unplayedInRound.flatMap((m) => [m.homeTeamId, m.awayTeamId]).filter(Boolean) as string[],
-      ),
+      new Set(unplayedInRound.flatMap((m) => [m.homeTeamId, m.awayTeamId]).filter(Boolean) as string[]),
     );
     const lineupMap = await fetchTeamLineups(teamIdsInRound);
     const updated = unplayedInRound.map((match) => {
@@ -70,12 +73,8 @@ export default function RoundsView({
       const awayBase = tournament.settings.rateInfluence ? (away?.rate ?? 5) : 5;
       const homeSquad = allPlayersList.filter((p) => p.teamId === match.homeTeamId);
       const awaySquad = allPlayersList.filter((p) => p.teamId === match.awayTeamId);
-      const homeRate = tournament.settings.rateInfluence
-        ? effectiveMatchRate(homeBase, homeSquad)
-        : homeBase;
-      const awayRate = tournament.settings.rateInfluence
-        ? effectiveMatchRate(awayBase, awaySquad)
-        : awayBase;
+      const homeRate = tournament.settings.rateInfluence ? effectiveMatchRate(homeBase, homeSquad) : homeBase;
+      const awayRate = tournament.settings.rateInfluence ? effectiveMatchRate(awayBase, awaySquad) : awayBase;
       const result = simulateFullMatch(homeRate, awayRate);
       const totalH = result.total[0];
       const totalA = result.total[1];
@@ -96,10 +95,18 @@ export default function RoundsView({
           const suspAway = getSuspendedPlayerIds(tournament.matches, match.round, away.id, tournament.settings);
           const availHome = pickStartingXIWithSubs(homePl, suspHome, lineupMap.get(home.id) ?? null);
           const availAway = pickStartingXIWithSubs(awayPl, suspAway, lineupMap.get(away.id) ?? null);
-          events = generateMinuteByMinuteEvents(home, away, availHome, availAway, stats, totalH, totalA, {
-            h1: result.h1,
-            h2: result.h2,
-          });
+          events = generateMinuteByMinuteEvents(
+            home,
+            away,
+            availHome,
+            availAway,
+            stats,
+            totalH,
+            totalA,
+            { h1: result.h1, h2: result.h2 },
+            homePl.filter((p) => !availHome.some((s) => s.id === p.id)), // homeBench
+            awayPl.filter((p) => !availAway.some((s) => s.id === p.id)), // awayBench
+          );
           homeLineupIds = availHome.map((p) => p.id);
           awayLineupIds = availAway.map((p) => p.id);
         }
