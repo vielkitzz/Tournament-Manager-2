@@ -9,6 +9,8 @@ export interface Player {
   skill: number; // 45-99, replaces legacy rating
   photoUrl?: string;
   seasonYear?: number;
+  /** UUID do master_player_id sincronizado com o SolaraHub (opcional). */
+  masterPlayerId?: string;
 }
 
 export type TournamentFormat = "liga" | "grupos" | "mata-mata" | "suico";

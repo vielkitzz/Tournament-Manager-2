@@ -98,6 +98,7 @@ function dbToPlayer(row: any): Player {
     skill: row.skill != null ? Number(row.skill) : 70,
     photoUrl: row.photo_url || undefined,
     seasonYear: row.season_year != null ? Number(row.season_year) : undefined,
+    masterPlayerId: row.master_player_id || undefined,
   };
 }
 
