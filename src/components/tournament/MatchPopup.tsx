@@ -799,9 +799,10 @@ export default function MatchPopup({
     const homeFullList = [...homeStarters, ...homePlayers.filter((p) => !homeStarters.some((s) => s.id === p.id))];
     const awayFullList = [...awayStarters, ...awayPlayers.filter((p) => !awayStarters.some((s) => s.id === p.id))];
 
-    ((allPlayers || []).filter((p) => p.teamId === homeTeam.id && !homeStarters.some((s) => s.id === p.id)),
-      (allPlayers || []).filter((p) => p.teamId === awayTeam.id && !awayStarters.some((s) => s.id === p.id)),
-      console.log("DEBUG: Enviando para o simulador ->", homeBench.length, "reservas."));
+    (allPlayers || []).filter((p) => p.teamId === homeTeam.id && !homeStarters.some((s) => s.id === p.id)),
+    (allPlayers || []).filter((p) => p.teamId === awayTeam.id && !awayStarters.some((s) => s.id === p.id)),
+    
+    console.log("DEBUG: Enviando para o simulador ->", homeBench.length, "reservas."));
 
     const events = generateMinuteByMinuteEvents(
       homeTeam,
