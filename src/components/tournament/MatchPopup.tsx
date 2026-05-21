@@ -312,6 +312,8 @@ export default function MatchPopup({
   const awayPlayers = (allPlayers || []).filter((p) => p.teamId === match.awayTeamId);
   const canLiveSimulate = homePlayers.length >= 11 && awayPlayers.length >= 11;
 
+  console.log("Total de jogadores carregados para o time:", homePlayers.length);
+
   // ---------------------------------------------------------------------------
   // SolaraHub lineup loading (background, non-blocking)
   // ---------------------------------------------------------------------------
@@ -791,14 +793,19 @@ export default function MatchPopup({
     setMatchStats(stats);
 
     const { availableHome, availableAway } = {
-      // homePlayers e awayPlayers são definidos no início do MatchPopup
-      // usando (allPlayers || []).filter(...)
       availableHome: homePlayers,
       availableAway: awayPlayers,
     };
 
-    const homeList = [...homeStarters, ...homePlayers.filter((p) => !homeStarters.find((s) => s.id === p.id))];
-    const awayList = [...awayStarters, ...awayPlayers.filter((p) => !awayStarters.find((s) => s.id === p.id))];
+    const starterIds = new Set(homeStarters.map(p => p.id));
+
+    const homeList = [
+      ...homeStarters, // Os 11 que você já definiu como titulares
+      ...homePlayers.filter(p => !starterIds.has(p.id)) // Todo o resto do elenco (os reservas!)
+    ];
+    const awayList = [
+      ...awayStarters,
+      ...awayPlayers.filter(p => !starterIds.has(p.id))
 
     console.log("Lista enviada - Home (deve ter >11):", homeList.length);
 
@@ -806,8 +813,8 @@ export default function MatchPopup({
     const events = generateMinuteByMinuteEvents(
       homeTeam,
       awayTeam,
-      homeList, // <--- LISTA COMPLETA
-      awayList, // <--- LISTA COMPLETA
+      homeList, // <--- Aqui agora terá 20+ jogadores
+      awayList,
       stats,
       totalH,
       totalA,
