@@ -807,15 +807,14 @@ export default function MatchPopup({
     const events = generateMinuteByMinuteEvents(
       homeTeam,
       awayTeam,
-      homeStarters, // O simulador precisa saber quem começa
-      awayStarters, // O simulador precisa saber quem começa
+      homeStarters, // Titulares
+      awayStarters, // Titulares
       stats,
       totalH,
       totalA,
-      { h1: [...], h2: [...] },
-      // PASSE A LISTA COMPLETA DOS 22 JOGADORES AQUI:
-      homePlayers, // O simulador usará isso para filtrar o banco
-      awayPlayers  // O simulador usará isso para filtrar o banco
+      { h1: [scores.h1[0], scores.h1[1]], h2: [scores.h2[0], scores.h2[1]] },
+      homePlayers, // A lista completa de 22 jogadores da casa
+      awayPlayers, // A lista completa de 22 jogadores de fora
     );
 
     const at1 = Math.floor(Math.random() * 4) + 1;
