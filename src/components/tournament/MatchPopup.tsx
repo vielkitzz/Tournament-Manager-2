@@ -1496,9 +1496,7 @@ export default function MatchPopup({
                               }`}
                             >
                               {/* Ajuste: se o valor for 10 ou 10.0, exibe 10 */}
-                              {rating !== null && rating >= 10 ? "10" : rating?.toFixed(1) ?? "-"}
-                            </span>
-                              {r.toFixed(1)}
+                              {rating !== null && rating >= 10 ? "10" : (rating?.toFixed(1) ?? "-")}
                             </span>
                           </div>
                         );
