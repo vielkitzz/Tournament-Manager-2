@@ -690,6 +690,9 @@ export function generateMinuteByMinuteEvents(
   const homeBench = homeBenchPlayers;
   const awayBench = awayBenchPlayers;
 
+  const homePlayers = [...homeStarters, ...homeBench];
+  const awayPlayers = [...awayStarters, ...awayBench];
+
   // starterIds agora usa os parâmetros que já chegam prontos
   const starterIds = new Set([...homeStarters.map((p) => p.id), ...awayStarters.map((p) => p.id)]);
 
