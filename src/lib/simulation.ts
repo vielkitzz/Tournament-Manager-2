@@ -672,8 +672,8 @@ function foulMinute(): number {
 export function generateMinuteByMinuteEvents(
   homeTeam: Team,
   awayTeam: Team,
-  homePlayers: Player[],
-  awayPlayers: Player[],
+  homeStarters: Player[],
+  awayStarters: Player[],
   matchStats: { homeStats: TeamMatchStats; awayStats: TeamMatchStats },
   homeGoals: number,
   awayGoals: number,
@@ -699,8 +699,10 @@ export function generateMinuteByMinuteEvents(
   const starterIds = new Set([...homeStarters.map((p) => p.id), ...awayStarters.map((p) => p.id)]);
 
   // O BANCO: Todo mundo que não está no conjunto de IDs dos titulares
-  const homeBench = homeBenchPlayers ?? homePlayers.filter((p) => !starterIds.has(p.id));
-  const awayBench = awayBenchPlayers ?? awayPlayers.filter((p) => !starterIds.has(p.id));
+  const homeBench = homeBenchPlayers || [];
+  const awayBench = awayBenchPlayers || [];
+
+  console.log(`[SIMULADOR] ${homeTeam.name} - Recebeu ${homeStarters.length} titulares e ${homeBench.length} reservas`);
 
   const subOutAt = new Map<string, number>();
   const subInAt = new Map<string, number>();

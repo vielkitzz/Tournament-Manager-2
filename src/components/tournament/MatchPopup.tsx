@@ -799,22 +799,23 @@ export default function MatchPopup({
     const homeFullList = [...homeStarters, ...homePlayers.filter((p) => !homeStarters.some((s) => s.id === p.id))];
     const awayFullList = [...awayStarters, ...awayPlayers.filter((p) => !awayStarters.some((s) => s.id === p.id))];
 
-    console.log("DEBUG - Tamanho do Banco enviado:", homeBench.length);
+    const homeBench = allPlayers.filter((p) => p.teamId === homeTeam.id && !homeStarters.some((s) => s.id === p.id));
 
-    const homeBench = homePlayers.filter((p) => !homeStarters.some((s) => s.id === p.id));
-    const awayBench = awayPlayers.filter((p) => !awayStarters.some((s) => s.id === p.id));
+    const awayBench = allPlayers.filter((p) => p.teamId === awayTeam.id && !awayStarters.some((s) => s.id === p.id));
+
+    console.log("DEBUG: Enviando para o simulador ->", homeBench.length, "reservas.");
 
     const events = generateMinuteByMinuteEvents(
       homeTeam,
       awayTeam,
-      homeStarters, // Titulares
-      awayStarters, // Titulares
+      homeStarters,
+      awayStarters,
       stats,
       totalH,
       totalA,
       { h1: [scores.h1[0], scores.h1[1]], h2: [scores.h2[0], scores.h2[1]] },
-      homePlayers, // A lista completa de 22 jogadores da casa
-      awayPlayers, // A lista completa de 22 jogadores de fora
+      homeBench, // Passando aqui
+      awayBench, // Passando aqui
     );
 
     const at1 = Math.floor(Math.random() * 4) + 1;
