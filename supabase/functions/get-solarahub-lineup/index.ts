@@ -42,14 +42,13 @@ Deno.serve(async (req) => {
       .maybeSingle();
 
     if (error) {
-      console.error("Erro na consulta ao SolaraHub:", error);
-      return new Response(JSON.stringify({ error: error.message }), {
-        status: 500,
+      console.error("Erro técnico no banco do SolaraHub:", error);
+      return new Response(JSON.stringify({ lineup: null }), {
+        status: 200,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
-    // Retorna o lineup ou um objeto vazio caso o lineup seja null
     return new Response(JSON.stringify({ lineup: data?.lineup ?? null }), {
       status: 200,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
