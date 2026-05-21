@@ -734,10 +734,11 @@ export default function MatchPopup({
   };
 
   const getAvailablePlayers = () => {
-    // Sempre prioriza titulares da escalação do SolaraHub, com substituições por posição.
+    // Retorna o elenco completo (starters + quem sobrou no banco)
+    // O motor de simulação precisa de todos para realizar substituições
     return {
-      availableHome: homeStarters,
-      availableAway: awayStarters,
+      availableHome: homePlayers, // <--- MUDE DE homeStarters PARA homePlayers
+      availableAway: awayPlayers, // <--- MUDE DE awayStarters PARA awayPlayers
     };
   };
 
@@ -791,11 +792,14 @@ export default function MatchPopup({
 
     const { availableHome, availableAway } = getAvailablePlayers();
 
+    const homeList = [...homeStarters, ...homePlayers.filter((p) => !homeStarters.find((s) => s.id === p.id))];
+    const awayList = [...awayStarters, ...awayPlayers.filter((p) => !awayStarters.find((s) => s.id === p.id))];
+
     const events = generateMinuteByMinuteEvents(
       homeTeam,
       awayTeam,
-      availableHome,
-      availableAway,
+      homeList, // <--- Passe a lista ordenada
+      awayList, // <--- Passe a lista ordenada
       stats,
       totalH,
       totalA,
