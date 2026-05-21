@@ -689,18 +689,14 @@ export function generateMinuteByMinuteEvents(
     away: { goals: 0, fouls: 0, yellow: 0, red: 0, offsides: 0, shots: 0, shotsOnTarget: 0 },
   };
 
-  // 1. Identificar titulares (baseado no slice conforme lógica original do simulador)
-  const homeStartersList = homePlayers.slice(0, 11);
-  const awayStartersList = awayPlayers.slice(0, 11);
+  // 1. Identifique os titulares (os 11 primeiros da lista, conforme sua lógica de entrada)
+  const homeStarters = homePlayers.slice(0, 11);
+  const awayStarters = awayPlayers.slice(0, 11);
 
-  // 2. Criar set de IDs de titulares
+  // 2. Crie o set de IDs APENAS UMA VEZ
   const starterIds = new Set([...homeStarters.map((p) => p.id), ...awayStarters.map((p) => p.id)]);
 
-  // 2. Agora filtre o elenco de 24 jogadores (Titulares e Bancos)
-  // Use nomes diferentes se necessário, ou apenas filtre diretamente
-  const homeStartersList = homePlayers.filter((p) => starterIds.has(p.id));
-  const awayStartersList = awayPlayers.filter((p) => starterIds.has(p.id));
-
+  // 3. Defina os bancos (quem NÃO está no starterIds)
   const homeBench = homePlayers.filter((p) => !starterIds.has(p.id));
   const awayBench = awayPlayers.filter((p) => !starterIds.has(p.id));
 
