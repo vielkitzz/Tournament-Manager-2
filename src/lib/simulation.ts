@@ -694,7 +694,7 @@ export function generateMinuteByMinuteEvents(
   const homeStarters = homePlayers.slice(0, 11);
   const awayStarters = awayPlayers.slice(0, 11);
 
-  const starterIds = new Set([...hStarters.map((p) => p.id), ...aStarters.map((p) => p.id)]);
+  const starterIds = new Set([...homeStarters.map((p) => p.id), ...awayStarters.map((p) => p.id)]);
 
   const homeBench = homeBenchPlayers ?? homePlayers.filter((p) => !starterIds.has(p.id));
   const awayBench = awayBenchPlayers ?? awayPlayers.filter((p) => !starterIds.has(p.id));
