@@ -691,10 +691,6 @@ export function generateMinuteByMinuteEvents(
     away: { goals: 0, fouls: 0, yellow: 0, red: 0, offsides: 0, shots: 0, shotsOnTarget: 0 },
   };
 
-  // Identifica titulares (os 11 que você escalou via lineup/startingXI)
-  const homeStarters = homePlayers.slice(0, 11);
-  const awayStarters = awayPlayers.slice(0, 11);
-
   // Cria o conjunto de IDs para busca rápida
   const starterIds = new Set([...homeStarters.map((p) => p.id), ...awayStarters.map((p) => p.id)]);
 
