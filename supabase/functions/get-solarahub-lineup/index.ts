@@ -34,7 +34,12 @@ Deno.serve(async (req) => {
     // Cria o cliente Supabase apontando para o banco do Solara Hub
     const solara = createClient(url, key);
 
-    const { data, error } = await solara.from("clubs").select("lineup").eq("id", solarahub_club_id).maybeSingle();
+    const { data, error } = await solara
+      .schema("public")
+      .from("clubs")
+      .select("lineup")
+      .eq("id", solarahub_club_id)
+      .maybeSingle();
 
     if (error) {
       console.error("Erro na consulta ao SolaraHub:", error);
