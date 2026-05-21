@@ -691,8 +691,8 @@ export function generateMinuteByMinuteEvents(
     away: { goals: 0, fouls: 0, yellow: 0, red: 0, offsides: 0, shots: 0, shotsOnTarget: 0 },
   };
 
-  const hStarters = homePlayers.slice(0, 11);
-  const aStarters = awayPlayers.slice(0, 11);
+  const homeStarters = homePlayers.slice(0, 11);
+  const awayStarters = awayPlayers.slice(0, 11);
 
   const starterIds = new Set([...hStarters.map((p) => p.id), ...aStarters.map((p) => p.id)]);
 
@@ -780,8 +780,8 @@ export function generateMinuteByMinuteEvents(
       });
     }
   };
-  generateSubstitutions(homeTeam, hStarters, homeBench);
-  generateSubstitutions(awayTeam, aStarters, awayBench);
+  generateSubstitutions(homeTeam, homeStarters, homeBench);
+  generateSubstitutions(awayTeam, awayStarters, awayBench);
 
   // 2. Cartões e faltas
   // Faltas NÃO geram evento narrativo próprio — só cartões aparecem no feed

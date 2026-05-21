@@ -820,9 +820,9 @@ export default function MatchPopup({
       totalH,
       totalA,
       { h1: [scores.h1[0], scores.h1[1]], h2: [scores.h2[0], scores.h2[1]] },
-      // AQUI É O PULO DO GATO:
-      homePlayers.filter((p) => !homeStarters.some((s) => s.id === p.id)), // Banco explícito
-      awayPlayers.filter((p) => !awayStarters.some((s) => s.id === p.id)), // Banco explícito
+      // ENVIE O BANCO AQUI:
+      homePlayers.filter((p) => !homeStarters.some((s) => s.id === p.id)),
+      awayPlayers.filter((p) => !awayStarters.some((s) => s.id === p.id)),
     );
 
     const at1 = Math.floor(Math.random() * 4) + 1;
