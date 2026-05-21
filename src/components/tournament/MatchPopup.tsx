@@ -312,7 +312,9 @@ export default function MatchPopup({
   const awayPlayers = (allPlayers || []).filter((p) => p.teamId === match.awayTeamId);
   const canLiveSimulate = homePlayers.length >= 11 && awayPlayers.length >= 11;
 
-  console.log("Total de jogadores carregados para o time:", homePlayers.length);
+  console.log("DEBUG TOTAL - AllPlayers total:", allPlayers?.length);
+  console.log("DEBUG TOTAL - Jogadores filtrados p/ casa:", homePlayers.length);
+  console.log("DEBUG TOTAL - Jogadores filtrados p/ fora:", awayPlayers.length);
 
   // ---------------------------------------------------------------------------
   // SolaraHub lineup loading (background, non-blocking)
