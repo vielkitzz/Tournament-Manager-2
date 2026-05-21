@@ -94,7 +94,10 @@ export function pickStartingXIWithSubs(
   const fallbackPool = available.length >= 11 ? available : squad;
 
   if (!lineup?.pitchIds || Object.keys(lineup.pitchIds).length === 0) {
-    return fallbackPool.slice(0, 11);
+    // Escalação inteligente baseada na posição (padrão 4-4-2 ou similar)
+    const sorted = [...available].sort((a, b) => b.rating - a.rating);
+    // Aqui você poderia forçar 1 GK, 4 DEF, 4 MID, 2 ATT se quisesse
+    return sorted.slice(0, 11);
   }
 
   const byMaster = new Map<string, Player>();
