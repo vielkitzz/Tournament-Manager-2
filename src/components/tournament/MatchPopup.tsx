@@ -802,11 +802,12 @@ export default function MatchPopup({
 
     console.log("Lista enviada - Home (deve ter >11):", homeList.length);
 
+    // MUDANÇA AQUI: use homeList e awayList em vez de availableHome/availableAway
     const events = generateMinuteByMinuteEvents(
       homeTeam,
       awayTeam,
-      availableHome, // Lista com 20+ jogadores
-      availableAway, // Lista com 20+ jogadores
+      homeList, // <--- LISTA COMPLETA
+      awayList, // <--- LISTA COMPLETA
       stats,
       totalH,
       totalA,
