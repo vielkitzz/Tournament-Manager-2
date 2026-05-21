@@ -780,8 +780,8 @@ export function generateMinuteByMinuteEvents(
       });
     }
   };
-  generateSubstitutions(homeTeam, homeStarters, homeBench);
-  generateSubstitutions(awayTeam, awayStarters, awayBench);
+  generateSubstitutions(homeTeam, hStarters, homeBench);
+  generateSubstitutions(awayTeam, aStarters, awayBench);
 
   // 2. Cartões e faltas
   // Faltas NÃO geram evento narrativo próprio — só cartões aparecem no feed
