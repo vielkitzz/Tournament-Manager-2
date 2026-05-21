@@ -49,14 +49,14 @@ export async function fetchTeamLineups(teamIds: string[]): Promise<Map<string, S
         return;
       }
       try {
-        // Invoca a Edge Function existente no seu projeto
+        // Invoca de forma limpa a Edge Function do seu próprio Supabase
         const { data, error } = await supabase.functions.invoke("get-solarahub-lineup", {
           body: { solarahub_club_id: solaraId },
         });
 
         const raw = data?.lineup;
         if (error || !raw) {
-          if (error) console.error("Erro na Edge Function:", error);
+          if (error) console.error("Erro retornado da Edge Function:", error);
           lineupCache.set(teamId, null);
           result.set(teamId, null);
           return;
@@ -69,7 +69,7 @@ export async function fetchTeamLineups(teamIds: string[]): Promise<Map<string, S
         lineupCache.set(teamId, lineup);
         result.set(teamId, lineup);
       } catch (err) {
-        console.error("Falha ao buscar escalação via Edge Function:", err);
+        console.error("Falha ao invocar a Edge Function get-solarahub-lineup:", err);
         lineupCache.set(teamId, null);
         result.set(teamId, null);
       }
