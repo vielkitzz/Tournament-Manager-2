@@ -789,21 +789,11 @@ export default function MatchPopup({
     });
     setMatchStats(stats);
 
-    const { availableHome, availableAway } = {
-      availableHome: homePlayers,
-      availableAway: awayPlayers,
-    };
-
-    const starterIds = new Set(homeStarters.map((p) => p.id));
-
-    const homeFullList = [...homeStarters, ...homePlayers.filter((p) => !homeStarters.some((s) => s.id === p.id))];
-    const awayFullList = [...awayStarters, ...awayPlayers.filter((p) => !awayStarters.some((s) => s.id === p.id))];
-
-    // 1. Defina as variáveis de forma limpa antes da chamada
+    // 1. Filtramos apenas o necessário para o simulador
     const hBench = allPlayers.filter((p) => p.teamId === homeTeam.id && !homeStarters.some((s) => s.id === p.id));
     const aBench = allPlayers.filter((p) => p.teamId === awayTeam.id && !awayStarters.some((s) => s.id === p.id));
 
-    // 2. Log de segurança (sem erros de parênteses)
+    // 2. Log de segurança
     console.log("DEBUG: Enviando para o simulador ->", hBench.length, "reservas.");
 
     // 3. Chamada limpa da função
