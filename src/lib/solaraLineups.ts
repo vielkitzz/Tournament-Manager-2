@@ -99,7 +99,7 @@ export function pickStartingXIWithSubs(
     const usedIds = new Set<string>();
 
     // Definição do 4-3-3 (1 GR, 4 DEF, 3 MID, 3 ATT)
-    const formation = ["GK", "DEF", "DEF", "DEF", "DEF", "MID", "MID", "MID", "ATT", "ATT", "ATT"];
+    const formation = ["GOL", "LD", "LE", "ZAG", "ZAG", "VOL", "MEI", "MEI", "PE", "PD", "ATA"];
 
     for (const pos of formation) {
       // Tenta encontrar o melhor jogador disponível para aquela posição
