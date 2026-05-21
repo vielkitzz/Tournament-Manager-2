@@ -40,36 +40,36 @@ export async function fetchTeamLineups(teamIds: string[]): Promise<Map<string, S
   const tm2ToSolara = new Map<string, string>();
   (links || []).forEach((l: any) => tm2ToSolara.set(l.tm2_team_id, l.solarahub_club_id));
 
-  const solaraUrl = (import.meta as any).env.VITE_SOLARAHUB_URL;
-  const solaraKey = (import.meta as any).env.VITE_SOLARAHUB_ANON_KEY;
-
   await Promise.all(
     toFetch.map(async (teamId) => {
       const solaraId = tm2ToSolara.get(teamId);
-      if (!solaraId || !solaraUrl || !solaraKey) {
+      if (!solaraId) {
         lineupCache.set(teamId, null);
         result.set(teamId, null);
         return;
       }
       try {
-        const res = await fetch(
-          `${solaraUrl}/rest/v1/clubs?select=lineup&id=eq.${solaraId}`,
-          { headers: { apikey: solaraKey, Authorization: `Bearer ${solaraKey}` } },
-        );
-        const data = await res.json();
-        const raw = data?.[0]?.lineup;
-        if (!raw) {
+        // Invoca a Edge Function existente no seu projeto
+        const { data, error } = await supabase.functions.invoke("get-solarahub-lineup", {
+          body: { solarahub_club_id: solaraId },
+        });
+
+        const raw = data?.lineup;
+        if (error || !raw) {
+          if (error) console.error("Erro na Edge Function:", error);
           lineupCache.set(teamId, null);
           result.set(teamId, null);
           return;
         }
+
         const lineup: SolaraLineup = {
           pitchIds: (raw.pitchIds ?? raw) as Record<string, string>,
           benchIds: raw.benchIds,
         };
         lineupCache.set(teamId, lineup);
         result.set(teamId, lineup);
-      } catch {
+      } catch (err) {
+        console.error("Falha ao buscar escalação via Edge Function:", err);
         lineupCache.set(teamId, null);
         result.set(teamId, null);
       }
