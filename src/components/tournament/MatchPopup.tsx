@@ -805,7 +805,8 @@ export default function MatchPopup({
       stats,
       totalH,
       totalA,
-      { h1: [scores.h1[0], scores.h1[1]], h2: [scores.h2[0], scores.h2[1]] },
+      // Usa os placares acabados de simular (setScores ainda não foi aplicado neste tick)
+      { h1: [h1h, h1a], h2: [h2h, h2a] },
       hBench,
       aBench,
     );
