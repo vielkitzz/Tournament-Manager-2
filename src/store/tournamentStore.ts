@@ -1,5 +1,15 @@
 import { create } from "zustand";
-import { Tournament, Team, TeamFolder, TournamentFolder, TournamentSettings, Match, SeasonRecord, PreliminaryPhase, Player } from "@/types/tournament";
+import {
+  Tournament,
+  Team,
+  TeamFolder,
+  TournamentFolder,
+  TournamentSettings,
+  Match,
+  SeasonRecord,
+  PreliminaryPhase,
+  Player,
+} from "@/types/tournament";
 import { supabase } from "@/integrations/supabase/client";
 import { Json } from "@/integrations/supabase/types";
 import { TeamHistory } from "@/lib/teamHistoryUtils";
@@ -27,7 +37,11 @@ function parseJsonField<T>(raw: any, fallback: T): T {
   if (raw === null || raw === undefined) return fallback;
   if (typeof raw === "object") return raw as T;
   if (typeof raw === "string") {
-    try { return JSON.parse(raw) as T; } catch { return fallback; }
+    try {
+      return JSON.parse(raw) as T;
+    } catch {
+      return fallback;
+    }
   }
   return fallback;
 }
@@ -66,7 +80,9 @@ function parseColors(raw: any): string[] {
     try {
       const parsed = JSON.parse(raw);
       if (Array.isArray(parsed)) return parsed;
-    } catch { /* ignore */ }
+    } catch {
+      /* ignore */
+    }
   }
   return ["#333333", "#cccccc"];
 }
@@ -152,9 +168,12 @@ function updatesToDb(updates: Partial<Tournament>): Record<string, any> {
   if (updates.gruposMataMataInicio !== undefined) dbUpdates.grupos_mata_mata_inicio = updates.gruposMataMataInicio;
   if (updates.mataMataInicio !== undefined) dbUpdates.mata_mata_inicio = updates.mataMataInicio;
   if ((updates as any).suicoJogosLiga !== undefined) dbUpdates.suico_jogos_liga = (updates as any).suicoJogosLiga;
-  if ((updates as any).suicoMataMataInicio !== undefined) dbUpdates.suico_mata_mata_inicio = (updates as any).suicoMataMataInicio;
-  if ((updates as any).suicoPlayoffVagas !== undefined) dbUpdates.suico_playoff_vagas = (updates as any).suicoPlayoffVagas;
-  if (updates.preliminaryPhases !== undefined) dbUpdates.preliminary_phases = updates.preliminaryPhases as unknown as Json;
+  if ((updates as any).suicoMataMataInicio !== undefined)
+    dbUpdates.suico_mata_mata_inicio = (updates as any).suicoMataMataInicio;
+  if ((updates as any).suicoPlayoffVagas !== undefined)
+    dbUpdates.suico_playoff_vagas = (updates as any).suicoPlayoffVagas;
+  if (updates.preliminaryPhases !== undefined)
+    dbUpdates.preliminary_phases = updates.preliminaryPhases as unknown as Json;
   return dbUpdates;
 }
 
@@ -217,7 +236,16 @@ export const useTournamentStore = create<TournamentState>((set, get) => ({
 
   initialize: async (userId) => {
     if (!userId) {
-      set({ tournaments: [], teams: [], players: [], folders: [], tournamentFolders: [], teamHistories: [], loading: false, _userId: null });
+      set({
+        tournaments: [],
+        teams: [],
+        players: [],
+        folders: [],
+        tournamentFolders: [],
+        teamHistories: [],
+        loading: false,
+        _userId: null,
+      });
       return;
     }
     if (userId === get()._userId && !get().loading) return;
@@ -231,32 +259,36 @@ export const useTournamentStore = create<TournamentState>((set, get) => ({
       loading: true,
       _userId: userId,
     });
-    const [tRes, teRes, fRes, tfRes, hRes, pRes] = await Promise.all([
+    const [tRes, teRes, fRes, tfRes, hRes, pRes] = (await Promise.all([
       db.from("tournaments").select("*").eq("user_id", userId),
       db.from("teams").select("*").eq("user_id", userId),
       db.from("team_folders").select("*").eq("user_id", userId),
       db.from("tournament_folders").select("*").eq("user_id", userId),
       db.from("team_histories").select("*").eq("user_id", userId),
       db.from("players").select("*").eq("user_id", userId),
-    ]) as any[];
+    ])) as any[];
     set({
       tournaments: tRes.data ? tRes.data.map(dbToTournament) : [],
       teams: teRes.data ? teRes.data.map(dbToTeam) : [],
       folders: fRes.data ? fRes.data.map((f: any) => ({ id: f.id, name: f.name, parentId: f.parent_id || null })) : [],
-      tournamentFolders: tfRes.data ? tfRes.data.map((f: any) => ({ id: f.id, name: f.name, parentId: f.parent_id || null })) : [],
-      teamHistories: hRes.data ? hRes.data.map((h: any) => ({
-        id: h.id,
-        teamId: h.team_id,
-        startYear: h.start_year,
-        endYear: h.end_year,
-        fieldType: h.field_type || 'legacy',
-        logo: h.logo || undefined,
-        rating: h.rating != null ? Number(h.rating) : undefined,
-        name: h.name || undefined,
-        shortName: h.short_name || undefined,
-        abbreviation: h.abbreviation || undefined,
-        colors: h.colors ? parseColors(h.colors) : undefined,
-      })) : [],
+      tournamentFolders: tfRes.data
+        ? tfRes.data.map((f: any) => ({ id: f.id, name: f.name, parentId: f.parent_id || null }))
+        : [],
+      teamHistories: hRes.data
+        ? hRes.data.map((h: any) => ({
+            id: h.id,
+            teamId: h.team_id,
+            startYear: h.start_year,
+            endYear: h.end_year,
+            fieldType: h.field_type || "legacy",
+            logo: h.logo || undefined,
+            rating: h.rating != null ? Number(h.rating) : undefined,
+            name: h.name || undefined,
+            shortName: h.short_name || undefined,
+            abbreviation: h.abbreviation || undefined,
+            colors: h.colors ? parseColors(h.colors) : undefined,
+          }))
+        : [],
       players: pRes.data ? pRes.data.map(dbToPlayer) : [],
       loading: false,
     });
@@ -313,18 +345,22 @@ export const useTournamentStore = create<TournamentState>((set, get) => ({
 
   addTeam: async (team) => {
     const userId = await getAuthenticatedUserId(get()._userId);
-    const { data, error } = await db.from("teams").insert({
-      id: team.id,
-      user_id: userId,
-      name: team.name,
-      short_name: team.shortName,
-      abbreviation: team.abbreviation,
-      logo: team.logo || null,
-      founding_year: team.foundingYear != null ? String(team.foundingYear) : null,
-      colors: team.colors?.length ? JSON.stringify(team.colors) : null,
-      rate: team.rate,
-      folder_id: team.folderId || null,
-    }).select().single();
+    const { data, error } = await db
+      .from("teams")
+      .insert({
+        id: team.id,
+        user_id: userId,
+        name: team.name,
+        short_name: team.shortName,
+        abbreviation: team.abbreviation,
+        logo: team.logo || null,
+        founding_year: team.foundingYear != null ? String(team.foundingYear) : null,
+        colors: team.colors?.length ? JSON.stringify(team.colors) : null,
+        rate: team.rate,
+        folder_id: team.folderId || null,
+      })
+      .select()
+      .single();
     if (error) {
       console.error("[addTeam] insert error:", error);
       throw error;
@@ -339,7 +375,8 @@ export const useTournamentStore = create<TournamentState>((set, get) => ({
     if (updates.shortName !== undefined) dbUpdates.short_name = updates.shortName;
     if (updates.abbreviation !== undefined) dbUpdates.abbreviation = updates.abbreviation;
     if (updates.logo !== undefined) dbUpdates.logo = updates.logo;
-    if (updates.foundingYear !== undefined) dbUpdates.founding_year = updates.foundingYear != null ? String(updates.foundingYear) : null;
+    if (updates.foundingYear !== undefined)
+      dbUpdates.founding_year = updates.foundingYear != null ? String(updates.foundingYear) : null;
     if (updates.colors !== undefined) dbUpdates.colors = updates.colors?.length ? JSON.stringify(updates.colors) : null;
     if (updates.rate !== undefined) dbUpdates.rate = updates.rate;
     if (updates.folderId !== undefined) dbUpdates.folder_id = updates.folderId;
@@ -417,7 +454,9 @@ export const useTournamentStore = create<TournamentState>((set, get) => ({
     if (!userId) return;
     const { data } = await db.from("tournament_folders").insert({ user_id: userId, name }).select().single();
     if (data) {
-      set((s) => ({ tournamentFolders: [...s.tournamentFolders, { id: data.id, name: data.name, parentId: data.parent_id || null }] }));
+      set((s) => ({
+        tournamentFolders: [...s.tournamentFolders, { id: data.id, name: data.name, parentId: data.parent_id || null }],
+      }));
       return data.id;
     }
   },
@@ -466,34 +505,43 @@ export const useTournamentStore = create<TournamentState>((set, get) => ({
   addTeamHistory: async (history) => {
     const userId = get()._userId;
     if (!userId) return;
-    const { data } = await db.from("team_histories").insert({
-      id: history.id,
-      team_id: history.teamId,
-      user_id: userId,
-      start_year: history.startYear,
-      end_year: history.endYear,
-      field_type: history.fieldType || 'legacy',
-      logo: history.logo || null,
-      rating: history.rating != null ? history.rating : null,
-      name: history.name || null,
-      short_name: history.shortName || null,
-      abbreviation: history.abbreviation || null,
-      colors: history.colors?.length ? JSON.stringify(history.colors) : null,
-    }).select().single();
+    const { data } = await db
+      .from("team_histories")
+      .insert({
+        id: history.id,
+        team_id: history.teamId,
+        user_id: userId,
+        start_year: history.startYear,
+        end_year: history.endYear,
+        field_type: history.fieldType || "legacy",
+        logo: history.logo || null,
+        rating: history.rating != null ? history.rating : null,
+        name: history.name || null,
+        short_name: history.shortName || null,
+        abbreviation: history.abbreviation || null,
+        colors: history.colors?.length ? JSON.stringify(history.colors) : null,
+      })
+      .select()
+      .single();
     if (data) {
-      set((s) => ({ teamHistories: [...s.teamHistories, {
-        id: data.id,
-        teamId: data.team_id,
-        startYear: data.start_year,
-        endYear: data.end_year,
-        fieldType: data.field_type || 'legacy',
-        logo: data.logo || undefined,
-        rating: data.rating != null ? Number(data.rating) : undefined,
-        name: data.name || undefined,
-        shortName: data.short_name || undefined,
-        abbreviation: data.abbreviation || undefined,
-        colors: parseColors(data.colors),
-      } as TeamHistory] }));
+      set((s) => ({
+        teamHistories: [
+          ...s.teamHistories,
+          {
+            id: data.id,
+            teamId: data.team_id,
+            startYear: data.start_year,
+            endYear: data.end_year,
+            fieldType: data.field_type || "legacy",
+            logo: data.logo || undefined,
+            rating: data.rating != null ? Number(data.rating) : undefined,
+            name: data.name || undefined,
+            shortName: data.short_name || undefined,
+            abbreviation: data.abbreviation || undefined,
+            colors: parseColors(data.colors),
+          } as TeamHistory,
+        ],
+      }));
     }
   },
 
@@ -529,19 +577,24 @@ export const useTournamentStore = create<TournamentState>((set, get) => ({
   addPlayer: async (player) => {
     const userId = get()._userId;
     if (!userId) return;
-    const { data } = await db.from("players").insert({
-      id: player.id,
-      user_id: userId,
-      name: player.name,
-      team_id: player.teamId || null,
-      nationality: player.nationality || null,
-      position: player.position || null,
-      age: player.age ?? null,
-      shirt_number: player.shirtNumber ?? null,
-      skill: player.skill ?? 70,
-      photo_url: player.photoUrl || null,
-      season_year: player.seasonYear ?? null,
-    }).select().single();
+    const { data } = await db
+      .from("players")
+      .insert({
+        id: player.id,
+        user_id: userId,
+        name: player.name,
+        team_id: player.teamId || null,
+        nationality: player.nationality || null,
+        position: player.position || null,
+        age: player.age ?? null,
+        shirt_number: player.shirtNumber ?? null,
+        skill: player.skill ?? 70,
+        photo_url: player.photoUrl || null,
+        season_year: player.seasonYear ?? null,
+        master_player_id: player.masterPlayerId || null,
+      })
+      .select()
+      .single();
     if (data) set((s) => ({ players: [...s.players, dbToPlayer(data)] }));
   },
 
@@ -581,9 +634,7 @@ export const useTournamentStore = create<TournamentState>((set, get) => ({
     set((s) => {
       const exists = s.players.some((p) => p.id === player.id);
       return {
-        players: exists
-          ? s.players.map((p) => (p.id === player.id ? { ...p, ...player } : p))
-          : [...s.players, player],
+        players: exists ? s.players.map((p) => (p.id === player.id ? { ...p, ...player } : p)) : [...s.players, player],
       };
     });
   },
