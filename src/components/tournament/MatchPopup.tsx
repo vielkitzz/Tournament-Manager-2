@@ -565,6 +565,7 @@ export default function MatchPopup({
     (showExtraTime ? etAway : undefined) !== match.awayExtraTime;
 
   useEffect(() => {
+    if (isLiveSimulating && !liveFinished) return; // ← ADICIONAR
     if (!isKnockout) return;
     if (!simulatedHalves.has("h2")) return;
     if (!requiresDeciderAfterRegular) return;
@@ -574,14 +575,32 @@ export default function MatchPopup({
     } else if (!extraTimeEnabled && !showPenalties) {
       setShowPenalties(true);
     }
-  }, [simulatedHalves, isKnockout, requiresDeciderAfterRegular, extraTimeEnabled, showExtraTime, showPenalties]);
+  }, [
+    simulatedHalves,
+    isKnockout,
+    requiresDeciderAfterRegular,
+    extraTimeEnabled,
+    showExtraTime,
+    showPenalties,
+    isLiveSimulating,
+    liveFinished,
+  ]);
 
   useEffect(() => {
+    if (isLiveSimulating && !liveFinished) return; // ← ADICIONAR
     if (!isKnockout || !showExtraTime) return;
     if (!simulatedHalves.has("et2")) return;
     if (!requiresPenaltiesAfterExtraTime) return;
     if (!showPenalties) setShowPenalties(true);
-  }, [simulatedHalves, isKnockout, showExtraTime, requiresPenaltiesAfterExtraTime, showPenalties]);
+  }, [
+    simulatedHalves,
+    isKnockout,
+    showExtraTime,
+    requiresPenaltiesAfterExtraTime,
+    showPenalties,
+    isLiveSimulating,
+    liveFinished,
+  ]);
 
   useEffect(() => {
     if (!isKnockout) return;
