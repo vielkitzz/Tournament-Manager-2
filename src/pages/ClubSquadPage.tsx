@@ -18,6 +18,7 @@ import {
   Link2,
   LinkIcon,
   Unlink,
+  RefreshCw,
 } from "lucide-react";
 import TeamLogo from "@/components/TeamLogo";
 import CountryFlag from "@/components/CountryFlag";
@@ -106,6 +107,39 @@ function SolaraSyncButton({ tm2TeamId }: SolaraSyncButtonProps) {
   const [linking, setLinking] = useState(false);
   const [unlinking, setUnlinking] = useState(false);
   const [showUnlinkConfirm, setShowUnlinkConfirm] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
+  const initialize = useTournamentStore((s) => s.initialize);
+
+  async function handleRefresh() {
+    if (!currentLink || refreshing) return;
+    setRefreshing(true);
+    try {
+      const { data: importData, error: importError } = await (supabase as any).functions.invoke(
+        "import-solarahub-squad",
+        {
+          body: {
+            teamId: tm2TeamId,
+            solarahub_club_id: currentLink.solarahub_club_id,
+          },
+        },
+      );
+      if (importError || (importData && importData.error)) {
+        toast.error("Falha ao sincronizar elenco com o SolaraHub.");
+        console.error(importError || importData?.error);
+      } else {
+        await (supabase as any)
+          .from("club_sync_links")
+          .update({ last_synced_at: new Date().toISOString() })
+          .eq("tm2_team_id", tm2TeamId);
+        clearLineupCache(tm2TeamId);
+        const { data: { user } } = await supabase.auth.getUser();
+        await initialize(user?.id ?? null);
+        toast.success(`Elenco sincronizado (${importData?.imported ?? 0} jogadores).`);
+      }
+    } finally {
+      setRefreshing(false);
+    }
+  }
 
   async function handleLink() {
     let finalId = solaraClubId.trim();
@@ -186,6 +220,14 @@ function SolaraSyncButton({ tm2TeamId }: SolaraSyncButtonProps) {
         <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-green-500/10 border border-green-500/30 text-sm">
           <Link2 className="w-3.5 h-3.5 text-green-500" />
           <span className="text-green-600 dark:text-green-400 font-medium">{currentLink.solarahub_club_name}</span>
+          <button
+            onClick={handleRefresh}
+            disabled={refreshing}
+            className="ml-1 text-muted-foreground hover:text-primary transition-colors disabled:opacity-50"
+            title="Atualizar sincronização"
+          >
+            <RefreshCw className={`w-3.5 h-3.5 ${refreshing ? "animate-spin" : ""}`} />
+          </button>
           <button
             onClick={() => setShowUnlinkConfirm(true)}
             className="ml-1 text-muted-foreground hover:text-destructive transition-colors"
