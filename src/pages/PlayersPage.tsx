@@ -2,18 +2,68 @@ import { useMemo, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import { useTournamentStore } from "@/store/tournamentStore";
-import { Users, Search, Shield } from "lucide-react";
+import { Users, Search, Shield, RefreshCw } from "lucide-react";
 import TeamLogo from "@/components/TeamLogo";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
+import { supabase } from "@/integrations/supabase/client";
+import { clearLineupCache } from "@/lib/solaraLineups";
+import { toast } from "sonner";
+import { useAuth } from "@/hooks/useAuth";
 
 type SortMode = "name" | "rate";
 
 export default function PlayersPage() {
-  const { teams, players, loading } = useTournamentStore();
+  const { teams, players, loading, initialize } = useTournamentStore();
+  const { user } = useAuth();
   const navigate = useNavigate();
   const [search, setSearch] = useState("");
   const [sortMode, setSortMode] = useState<SortMode>("name");
+  const [syncing, setSyncing] = useState(false);
+
+  async function handleSyncAll() {
+    if (syncing) return;
+    setSyncing(true);
+    try {
+      const { data: links, error } = await (supabase as any)
+        .from("club_sync_links")
+        .select("tm2_team_id, solarahub_club_id, sync_enabled");
+      if (error) throw error;
+      const enabled = (links || []).filter((l: any) => l.sync_enabled !== false);
+      if (enabled.length === 0) {
+        toast.info("Nenhum elenco vinculado ao SolaraHub.");
+        return;
+      }
+      toast.info(`Sincronizando ${enabled.length} elenco(s)...`);
+      let ok = 0;
+      let fail = 0;
+      await Promise.all(
+        enabled.map(async (l: any) => {
+          const { data, error: err } = await (supabase as any).functions.invoke("import-solarahub-squad", {
+            body: { teamId: l.tm2_team_id, solarahub_club_id: l.solarahub_club_id },
+          });
+          if (err || (data && data.error)) {
+            fail++;
+          } else {
+            ok++;
+            await (supabase as any)
+              .from("club_sync_links")
+              .update({ last_synced_at: new Date().toISOString() })
+              .eq("tm2_team_id", l.tm2_team_id);
+            clearLineupCache(l.tm2_team_id);
+          }
+        }),
+      );
+      await initialize(user?.id ?? null);
+      if (fail === 0) toast.success(`${ok} elenco(s) sincronizado(s).`);
+      else toast.warning(`${ok} sincronizado(s), ${fail} falharam.`);
+    } catch (e: any) {
+      toast.error("Erro ao sincronizar: " + (e?.message || "desconhecido"));
+    } finally {
+      setSyncing(false);
+    }
+  }
 
   const activeTeams = useMemo(() => teams.filter((t) => !t.isArchived), [teams]);
 
@@ -53,6 +103,17 @@ export default function PlayersPage() {
           </p>
         </div>
         <div className="flex items-center gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleSyncAll}
+            disabled={syncing}
+            className="gap-2 h-9"
+            title="Atualizar sincronização com SolaraHub"
+          >
+            <RefreshCw className={`w-3.5 h-3.5 ${syncing ? "animate-spin" : ""}`} />
+            {syncing ? "Sincronizando..." : "Sincronizar"}
+          </Button>
           {activeTeams.length > 0 && (
             <div className="relative w-full sm:w-56">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
