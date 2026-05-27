@@ -28,6 +28,7 @@ import { Player } from "@/types/tournament";
 import PlayerStars from "@/components/PlayerStars";
 import { SKILL_DEFAULT, clampSkill } from "@/lib/playerSkill";
 import { supabase } from "@/integrations/supabase/client";
+import { clearLineupCache } from "@/lib/solaraLineups";
 
 const MAX_PLAYERS = 30;
 
