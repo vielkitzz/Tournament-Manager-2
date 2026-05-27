@@ -678,8 +678,8 @@ export function generateMinuteByMinuteEvents(
   homeGoals: number,
   awayGoals: number,
   halfGoals?: { h1: [number, number]; h2: [number, number] },
-  homeBenchPlayers: Player[], // Garantir que nunca seja undefined
-  awayBenchPlayers: Player[],
+  homeBenchPlayers: Player[] = [],
+  awayBenchPlayers: Player[] = [],
 ): MatchEvent[] {
   const events: MatchEvent[] = [];
   const matchGoalCounts = new Map<string, number>();
