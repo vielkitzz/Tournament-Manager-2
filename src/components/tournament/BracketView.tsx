@@ -234,8 +234,8 @@ export default function BracketView({
           availHome,
           availAway,
           stats,
-          totalH,
-          totalA,
+          homeScore,
+          awayScore,
           { h1: result.h1, h2: result.h2 },
           homePl.filter((p) => !availHome.some((s) => s.id === p.id)), // homeBench
           awayPl.filter((p) => !availAway.some((s) => s.id === p.id)), // awayBench
