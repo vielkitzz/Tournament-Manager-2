@@ -59,8 +59,8 @@ export default function AppSidebar({ onNavigate }: AppSidebarProps) {
   const { user, signOut } = useAuth();
   const { theme, toggleTheme } = useTheme();
   const navigate = useNavigate();
-  const { logoUrl } = useCustomLogo();
-  const appLogo = logoUrl ?? (theme === "light" ? appLogoLight : appLogoDark);
+  const { activeSkin } = useSkin();
+  const appLogo = activeSkin.logoUrl ?? (theme === "light" ? appLogoLight : appLogoDark);
 
   const handleSignOut = async () => {
     await signOut();
