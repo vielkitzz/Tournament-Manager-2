@@ -73,7 +73,7 @@ export default function PlayersPage() {
       (t) =>
         (t.name || "").toLowerCase().includes(q) ||
         (t.shortName || "").toLowerCase().includes(q) ||
-        (t.abbreviation || "").toLowerCase().includes(q)
+        (t.abbreviation || "").toLowerCase().includes(q),
     );
     if (sortMode === "rate") {
       filtered.sort((a, b) => (b.rate ?? 0) - (a.rate ?? 0));
@@ -193,7 +193,7 @@ export default function PlayersPage() {
               >
                 <div
                   onClick={() => navigate(`/squads/team/${team.id}`)}
-                  className="p-3 rounded-xl card-gradient border border-border hover:border-primary/40 transition-all relative overflow-hidden group cursor-pointer active:scale-[0.98]"
+                  className="p-3 rounded-xl bg-card text-card-foreground border border-border hover:border-primary/40 transition-all relative overflow-hidden group cursor-pointer active:scale-[0.98]"
                 >
                   <div className="absolute left-0 top-0 bottom-0 w-1.5 rounded-l-xl overflow-hidden flex flex-col">
                     {(team.colors && team.colors.length > 0
