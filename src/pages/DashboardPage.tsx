@@ -35,9 +35,10 @@ export default function DashboardPage() {
   const champCounts: Record<string, { name: string; logo?: string; count: number }> = {};
   tournaments.forEach((t) =>
     t.seasons?.forEach((s) => {
-      if (!champCounts[s.championId]) champCounts[s.championId] = { name: s.championName, logo: s.championLogo, count: 0 };
+      if (!champCounts[s.championId])
+        champCounts[s.championId] = { name: s.championName, logo: s.championLogo, count: 0 };
       champCounts[s.championId].count++;
-    })
+    }),
   );
   const topChamp = Object.values(champCounts).sort((a, b) => b.count - a.count)[0];
 
@@ -59,12 +60,8 @@ export default function DashboardPage() {
     <div className="p-6 lg:p-10 max-w-7xl mx-auto space-y-8">
       {/* Greeting */}
       <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }}>
-        <h1 className="text-2xl font-display font-bold text-foreground tracking-tight">
-          {greeting()} 👋
-        </h1>
-        <p className="text-sm text-muted-foreground mt-1">
-          Aqui está um resumo do seu universo esportivo
-        </p>
+        <h1 className="text-2xl font-display font-bold text-foreground tracking-tight">{greeting()} 👋</h1>
+        <p className="text-sm text-muted-foreground mt-1">Aqui está um resumo do seu universo esportivo</p>
       </motion.div>
 
       {/* Stats Grid */}
@@ -75,7 +72,7 @@ export default function DashboardPage() {
             initial={{ opacity: 0, y: 12 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: i * 0.06 }}
-            className="p-4 rounded-xl card-gradient border border-border"
+            className="p-4 rounded-xl bg-card text-card-foreground border border-border"
           >
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 rounded-lg bg-secondary/60 flex items-center justify-center shrink-0">
@@ -98,7 +95,7 @@ export default function DashboardPage() {
           initial={{ opacity: 0, y: 12 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.25 }}
-          className="lg:col-span-2 rounded-xl card-gradient border border-border p-5"
+          className="lg:col-span-2 rounded-xl bg-card text-card-foreground border border-border p-5"
         >
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-sm font-display font-bold text-foreground">Competições Recentes</h2>
@@ -164,7 +161,7 @@ export default function DashboardPage() {
             initial={{ opacity: 0, y: 12 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.35 }}
-            className="rounded-xl card-gradient border border-border p-5"
+            className="rounded-xl bg-card text-card-foreground border border-border p-5"
           >
             <h2 className="text-sm font-display font-bold text-foreground mb-3 flex items-center gap-2">
               <Star className="w-4 h-4 text-primary" /> Maior Campeão
@@ -180,7 +177,9 @@ export default function DashboardPage() {
                 </div>
                 <div>
                   <p className="text-sm font-bold text-foreground">{topChamp.name}</p>
-                  <p className="text-xs text-primary">{topChamp.count} título{topChamp.count > 1 ? "s" : ""}</p>
+                  <p className="text-xs text-primary">
+                    {topChamp.count} título{topChamp.count > 1 ? "s" : ""}
+                  </p>
                 </div>
               </div>
             ) : (
@@ -193,7 +192,7 @@ export default function DashboardPage() {
             initial={{ opacity: 0, y: 12 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.45 }}
-            className="rounded-xl card-gradient border border-border p-5"
+            className="rounded-xl bg-card text-card-foreground border border-border p-5"
           >
             <h2 className="text-sm font-display font-bold text-foreground mb-3 flex items-center gap-2">
               <TrendingUp className="w-4 h-4 text-primary" /> Ações Rápidas
