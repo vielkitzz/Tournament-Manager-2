@@ -127,9 +127,9 @@ export default function SettingsPage() {
                   Atualmente em modo {theme === "dark" ? "escuro" : "claro"}
                 </p>
               </div>
-              <Button onClick={toggleTheme} variant="outline" size="sm" className="gap-2">
-                {theme === "dark" ? <Sun className="w-3.5 h-3.5" /> : <Moon className="w-3.5 h-3.5" />}
-                {theme === "dark" ? "Modo Claro" : "Modo Escuro"}
+              <Button onClick={() => setActiveSkin(activeSkin.base === "dark" ? "default-light" : "default-dark")} ...>
+                {activeSkin.base === "dark" ? <Sun .../> : <Moon .../>}
+                {activeSkin.base === "dark" ? "Modo Claro" : "Modo Escuro"}
               </Button>
             </div>
 
