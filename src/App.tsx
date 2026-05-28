@@ -5,7 +5,6 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AuthProvider } from "@/hooks/useAuth";
-import { ThemeProvider } from "@/hooks/useTheme";
 import { SkinProvider } from "@/hooks/useSkin";
 import ProtectedRoute from "@/components/ProtectedRoute";
 import AppLayout from "@/components/AppLayout";
@@ -59,9 +58,8 @@ const queryClient = new QueryClient({
 
 const App = () => (
   <ErrorBoundary>
-    <ThemeProvider>
-      <SkinProvider>
-        <QueryClientProvider client={queryClient}>
+    <SkinProvider>
+      <QueryClientProvider client={queryClient}>
         <AuthProvider>
           <StoreInitializer />
           <TooltipProvider>
@@ -104,9 +102,8 @@ const App = () => (
             </BrowserRouter>
           </TooltipProvider>
         </AuthProvider>
-        </QueryClientProvider>
-      </SkinProvider>
-    </ThemeProvider>
+      </QueryClientProvider>
+    </SkinProvider>
   </ErrorBoundary>
 );
 

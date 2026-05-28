@@ -57,10 +57,10 @@ interface AppSidebarProps {
 
 export default function AppSidebar({ onNavigate }: AppSidebarProps) {
   const { user, signOut } = useAuth();
-  const { theme, toggleTheme } = useTheme();
   const navigate = useNavigate();
-  const { activeSkin } = useSkin();
-  const appLogo = activeSkin.logoUrl ?? (theme === "light" ? appLogoLight : appLogoDark);
+  const { activeSkin, setActiveSkin } = useSkin();
+  const isDark = activeSkin.base === "dark";
+  const appLogo = activeSkin.logoUrl ?? (isDark ? appLogoDark : appLogoLight);
 
   const handleSignOut = async () => {
     await signOut();
@@ -147,17 +147,17 @@ export default function AppSidebar({ onNavigate }: AppSidebarProps) {
       <div className="p-3 mx-3 mb-3 rounded-lg bg-secondary/40 space-y-2">
         {/* Theme toggle */}
         <button
-          onClick={toggleTheme}
+          onClick={() => setActiveSkin(isDark ? "default-light" : "default-dark")}
           className="w-full flex items-center justify-center gap-2 px-3 py-2 rounded-md text-[11px] font-medium text-muted-foreground hover:text-foreground hover:bg-secondary/60 transition-colors"
         >
-          {theme === "dark" ? <Sun className="w-3.5 h-3.5" /> : <Moon className="w-3.5 h-3.5" />}
-          {theme === "dark" ? "Modo Claro" : "Modo Escuro"}
+          {isDark ? <Sun className="w-3.5 h-3.5" /> : <Moon className="w-3.5 h-3.5" />}
+          {isDark ? "Modo Claro" : "Modo Escuro"}
         </button>
         {user && (
           <p className="text-[11px] text-muted-foreground text-center truncate px-1">{user.email || "Conta anônima"}</p>
         )}
         <button
-          onClick={handleSignOut}
+          onClick={() => setActiveSkin(isDark ? "default-light" : "default-dark")}
           className="w-full flex items-center justify-center gap-2 px-3 py-2 rounded-md text-[11px] font-medium text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
         >
           <LogOut className="w-3.5 h-3.5" />
