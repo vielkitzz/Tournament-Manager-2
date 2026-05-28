@@ -10,7 +10,6 @@ import { toast } from "sonner";
 import appLogoDark from "@/assets/logo.svg";
 import appLogoLight from "@/assets/logo-light.png";
 import { useTheme } from "@/hooks/useTheme";
-import { useCustomLogo } from "@/hooks/useCustomLogo";
 import { useSkin } from "@/hooks/useSkin";
 
 export default function AuthPage() {

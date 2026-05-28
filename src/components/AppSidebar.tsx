@@ -21,7 +21,7 @@ import appLogoDark from "@/assets/logo.svg";
 import appLogoLight from "@/assets/logo-light.png";
 import ExportDialog from "@/components/ExportDialog";
 import ImportDialog from "@/components/ImportDialog";
-import { useCustomLogo } from "@/hooks/useCustomLogo";
+import { useSkin } from "@/hooks/useSkin";
 
 const navSections = [
   {
