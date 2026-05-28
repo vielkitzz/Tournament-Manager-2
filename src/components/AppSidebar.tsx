@@ -147,11 +147,11 @@ export default function AppSidebar({ onNavigate }: AppSidebarProps) {
       <div className="p-3 mx-3 mb-3 rounded-lg bg-secondary/40 space-y-2">
         {/* Theme toggle */}
         <button
-          onClick={() => setActiveSkin(isDark ? "default-light" : "default-dark")}
-          className="w-full flex items-center justify-center gap-2 px-3 py-2 rounded-md text-[11px] font-medium text-muted-foreground hover:text-foreground hover:bg-secondary/60 transition-colors"
+          variant="ghost"
+          onClick={() => setActiveSkin(activeSkin.base === "dark" ? "default-light" : "default-dark")}
         >
-          {isDark ? <Sun className="w-3.5 h-3.5" /> : <Moon className="w-3.5 h-3.5" />}
-          {isDark ? "Modo Claro" : "Modo Escuro"}
+          {activeSkin.base === "dark" ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
+          <span>{activeSkin.base === "dark" ? "Modo Claro" : "Modo Escuro"}</span>
         </button>
         {user && (
           <p className="text-[11px] text-muted-foreground text-center truncate px-1">{user.email || "Conta anônima"}</p>
