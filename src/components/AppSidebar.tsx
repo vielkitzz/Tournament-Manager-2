@@ -59,7 +59,6 @@ export default function AppSidebar({ onNavigate }: AppSidebarProps) {
   const { user, signOut } = useAuth();
   const { theme, toggleTheme } = useTheme();
   const navigate = useNavigate();
-  const appLogo = theme === "light" ? appLogoLight : appLogoDark;
   const { logoUrl } = useCustomLogo();
   const appLogo = logoUrl ?? (theme === "light" ? appLogoLight : appLogoDark);
 
