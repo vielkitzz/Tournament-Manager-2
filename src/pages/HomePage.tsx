@@ -37,12 +37,8 @@ export default function HomePage() {
       {/* Header */}
       <div className="mb-8 flex items-end justify-between">
         <div>
-          <h1 className="text-2xl font-display font-bold text-foreground tracking-tight">
-            Minhas Competições
-          </h1>
-          <p className="text-sm text-muted-foreground mt-1">
-            Gerencie suas competições
-          </p>
+          <h1 className="text-2xl font-display font-bold text-foreground tracking-tight">Minhas Competições</h1>
+          <p className="text-sm text-muted-foreground mt-1">Gerencie suas competições</p>
         </div>
         {tournaments.length > 0 && (
           <motion.button
@@ -60,7 +56,7 @@ export default function HomePage() {
       {loading ? (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {Array.from({ length: 3 }).map((_, i) => (
-            <div key={i} className="h-[120px] p-5 rounded-xl border border-border card-gradient">
+            <div key={i} className="h-[120px] p-5 rounded-xl border border-border bg-card text-card-foreground">
               <div className="flex items-start gap-4">
                 <Skeleton className="w-11 h-11 rounded-lg shrink-0" />
                 <div className="flex-1 space-y-2.5 pt-0.5">
@@ -86,7 +82,7 @@ export default function HomePage() {
               >
                 <motion.div
                   whileHover={{ y: -2, boxShadow: "0 8px 30px hsl(217 91% 60% / 0.12)" }}
-                  className="h-[120px] p-5 rounded-xl card-gradient border border-border hover:border-primary/30 transition-all relative"
+                  className="h-[120px] p-5 rounded-xl bg-card text-card-foreground border border-border hover:border-primary/30 transition-all relative"
                 >
                   <div className="flex items-start gap-4 h-full">
                     <div className="w-11 h-11 rounded-lg bg-secondary/60 flex items-center justify-center shrink-0">
@@ -177,9 +173,7 @@ export default function HomePage() {
               >
                 <Trophy className="w-8 h-8 text-primary/60" />
               </motion.div>
-              <h3 className="text-lg font-display font-bold text-foreground mb-2">
-                Nenhuma competição ainda
-              </h3>
+              <h3 className="text-lg font-display font-bold text-foreground mb-2">Nenhuma competição ainda</h3>
               <p className="text-sm text-muted-foreground max-w-xs mx-auto mb-6">
                 Crie sua primeira competição para começar a organizar torneios, ligas e campeonatos.
               </p>
