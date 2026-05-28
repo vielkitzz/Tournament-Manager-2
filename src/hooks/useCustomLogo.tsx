@@ -1,23 +1,21 @@
-import { useState, useEffect } from "react";
-
-const STORAGE_KEY = "tm2-custom-logo";
+import { useCallback } from "react";
+import { useSkin } from "@/hooks/useSkin";
 
 export function useCustomLogo() {
-  const [logoUrl, setLogoUrl] = useState<string | null>(() => {
-    if (typeof window === "undefined") return null;
-    return localStorage.getItem(STORAGE_KEY);
-  });
+  const { activeSkin, setCustomLogo } = useSkin();
+  const logoUrl = activeSkin.logoUrl ?? null;
 
-  const saveLogo = async (file: File): Promise<void> => {
-    const webpUrl = await convertToWebp(file);
-    localStorage.setItem(STORAGE_KEY, webpUrl);
-    setLogoUrl(webpUrl);
-  };
+  const saveLogo = useCallback(
+    async (file: File): Promise<void> => {
+      const webpUrl = await convertToWebp(file);
+      setCustomLogo(activeSkin.id, webpUrl);
+    },
+    [activeSkin.id, setCustomLogo],
+  );
 
-  const removeLogo = () => {
-    localStorage.removeItem(STORAGE_KEY);
-    setLogoUrl(null);
-  };
+  const removeLogo = useCallback(() => {
+    setCustomLogo(activeSkin.id, null);
+  }, [activeSkin.id, setCustomLogo]);
 
   return { logoUrl, saveLogo, removeLogo };
 }
@@ -32,10 +30,12 @@ async function convertToWebp(file: File): Promise<string> {
       canvas.height = img.naturalHeight;
       canvas.getContext("2d")!.drawImage(img, 0, 0);
       URL.revokeObjectURL(objectUrl);
-      const webpDataUrl = canvas.toDataURL("image/webp", 0.9);
-      resolve(webpDataUrl);
+      resolve(canvas.toDataURL("image/webp", 0.9));
     };
-    img.onerror = () => { URL.revokeObjectURL(objectUrl); reject(new Error("Falha ao carregar imagem")); };
+    img.onerror = () => {
+      URL.revokeObjectURL(objectUrl);
+      reject(new Error("Falha ao carregar imagem"));
+    };
     img.src = objectUrl;
   });
 }
