@@ -77,15 +77,10 @@ const CompetitionCard = memo(function CompetitionCard({
   return (
     <ContextMenu>
       <ContextMenuTrigger asChild>
-        <div
-          draggable
-          onDragStart={handleDragStart}
-          onClick={onNavigate}
-          className="group cursor-pointer"
-        >
+        <div draggable onDragStart={handleDragStart} onClick={onNavigate} className="group cursor-pointer">
           <motion.div
             whileHover={{ y: -2, boxShadow: "0 8px 30px hsl(var(--primary) / 0.12)" }}
-            className="h-[120px] p-5 rounded-xl card-gradient border border-border hover:border-primary/30 transition-all relative cursor-grab active:cursor-grabbing"
+            className="h-[120px] p-5 rounded-xl bg-card text-card-foreground border border-border hover:border-primary/30 transition-all relative cursor-grab active:cursor-grabbing"
           >
             <div className="flex items-start gap-4 h-full">
               <GripVertical className="w-3.5 h-3.5 text-muted-foreground/50 shrink-0 mt-3" />
@@ -109,14 +104,20 @@ const CompetitionCard = memo(function CompetitionCard({
               </div>
               <div className="flex flex-col gap-1 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
                 <button
-                  onClick={(e) => { e.stopPropagation(); onNavigate(); }}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onNavigate();
+                  }}
                   className="p-1.5 rounded-md hover:bg-secondary text-muted-foreground hover:text-foreground transition-colors"
                   title="Editar"
                 >
                   <Pencil className="w-3.5 h-3.5" />
                 </button>
                 <button
-                  onClick={(e) => { e.stopPropagation(); onDuplicate(); }}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onDuplicate();
+                  }}
                   className="p-1.5 rounded-md hover:bg-secondary text-muted-foreground hover:text-foreground transition-colors"
                   title="Duplicar"
                 >
@@ -292,8 +293,13 @@ const CompetitionFolderNode = memo(function CompetitionFolderNode({
         ) : (
           <span
             className="font-display font-bold text-foreground text-xs flex-1 truncate cursor-pointer hover:text-primary transition-colors"
-            onDoubleClick={(e) => { e.stopPropagation(); onNavigateInto(folder.id); }}
-          >{folder.name}</span>
+            onDoubleClick={(e) => {
+              e.stopPropagation();
+              onNavigateInto(folder.id);
+            }}
+          >
+            {folder.name}
+          </span>
         )}
 
         <span className="text-[10px] text-muted-foreground">{folderTournaments.length}</span>
@@ -442,10 +448,7 @@ export default function CompetitionsPage() {
     const q = search.toLowerCase();
     if (!q) return tournaments;
     return tournaments.filter(
-      (t) =>
-        t.name.toLowerCase().includes(q) ||
-        t.sport.toLowerCase().includes(q) ||
-        String(t.year).includes(q)
+      (t) => t.name.toLowerCase().includes(q) || t.sport.toLowerCase().includes(q) || String(t.year).includes(q),
     );
   }, [tournaments, search]);
 
@@ -512,7 +515,7 @@ export default function CompetitionsPage() {
       removeTournament(id);
       toast.success(`"${name}" excluído`);
     },
-    [removeTournament]
+    [removeTournament],
   );
 
   const handleDuplicate = useCallback(
@@ -520,7 +523,7 @@ export default function CompetitionsPage() {
       const newId = await duplicateTournament(id);
       if (newId) toast.success("Competição duplicada!");
     },
-    [duplicateTournament]
+    [duplicateTournament],
   );
 
   const handleAddFolder = async () => {
@@ -543,7 +546,7 @@ export default function CompetitionsPage() {
       }
       setEditingFolderId(null);
     },
-    [editingFolderId, editingFolderName, renameTournamentFolder]
+    [editingFolderId, editingFolderName, renameTournamentFolder],
   );
 
   const handleDeleteFolder = useCallback(
@@ -551,7 +554,7 @@ export default function CompetitionsPage() {
       removeTournamentFolder(id);
       toast.success(`Pasta "${name}" excluída`);
     },
-    [removeTournamentFolder]
+    [removeTournamentFolder],
   );
 
   const handleDragOver = useCallback((e: DragEvent, folderId: string) => {
@@ -595,7 +598,7 @@ export default function CompetitionsPage() {
         toast.success("Pasta movida!");
       }
     },
-    [moveTournamentToFolder, moveTournamentFolderToFolder, tournamentFolders]
+    [moveTournamentToFolder, moveTournamentFolderToFolder, tournamentFolders],
   );
 
   const handleFolderDragStart = useCallback((e: DragEvent, folderId: string) => {
@@ -603,10 +606,13 @@ export default function CompetitionsPage() {
     e.dataTransfer.effectAllowed = "move";
   }, []);
 
-  const handleMoveToFolder = useCallback((tournamentId: string, folderId: string | null) => {
-    moveTournamentToFolder(tournamentId, folderId);
-    toast.success(folderId ? "Competição movida para a pasta!" : "Competição removida da pasta!");
-  }, [moveTournamentToFolder]);
+  const handleMoveToFolder = useCallback(
+    (tournamentId: string, folderId: string | null) => {
+      moveTournamentToFolder(tournamentId, folderId);
+      toast.success(folderId ? "Competição movida para a pasta!" : "Competição removida da pasta!");
+    },
+    [moveTournamentToFolder],
+  );
 
   const handleMoveFolder = useCallback((folderId: string, direction: "up" | "down") => {
     const { tournamentFolders: currentFolders } = useTournamentStore.getState();
@@ -637,30 +643,28 @@ export default function CompetitionsPage() {
         toast.success("Pasta movida para raiz!");
       }
     },
-    [moveTournamentToFolder, moveTournamentFolderToFolder]
+    [moveTournamentToFolder, moveTournamentFolderToFolder],
   );
 
   return (
-    <div
-      className="p-6 lg:p-10 max-w-7xl mx-auto"
-      onDragOver={(e) => e.preventDefault()}
-      onDrop={handleRootDrop}
-    >
+    <div className="p-6 lg:p-10 max-w-7xl mx-auto" onDragOver={(e) => e.preventDefault()} onDrop={handleRootDrop}>
       <div className="mb-6 flex items-end justify-between">
         <div>
-          <h1 className="text-2xl font-display font-bold text-foreground tracking-tight">
-            Minhas Competições
-          </h1>
+          <h1 className="text-2xl font-display font-bold text-foreground tracking-tight">Minhas Competições</h1>
           <p className="text-sm text-muted-foreground mt-1">Gerencie suas competições</p>
         </div>
         <div className="flex items-center gap-2">
           {tournamentFolders.length > 0 && (
             <button
               onClick={() => {
-                const allOpen = tournamentFolders.every(f => openFolders.has(f.id));
-                setOpenFolders(allOpen ? new Set() : new Set(tournamentFolders.map(f => f.id)));
+                const allOpen = tournamentFolders.every((f) => openFolders.has(f.id));
+                setOpenFolders(allOpen ? new Set() : new Set(tournamentFolders.map((f) => f.id)));
               }}
-              title={tournamentFolders.every(f => openFolders.has(f.id)) ? "Fechar todas as pastas" : "Abrir todas as pastas"}
+              title={
+                tournamentFolders.every((f) => openFolders.has(f.id))
+                  ? "Fechar todas as pastas"
+                  : "Abrir todas as pastas"
+              }
               className="p-2 rounded-lg border border-border hover:bg-secondary text-muted-foreground hover:text-foreground transition-colors shrink-0"
             >
               <ChevronsDownUp className="w-4 h-4" />
@@ -713,7 +717,7 @@ export default function CompetitionsPage() {
       {loading ? (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {Array.from({ length: 3 }).map((_, i) => (
-            <div key={i} className="h-[120px] p-5 rounded-xl border border-border card-gradient">
+            <div key={i} className="h-[120px] p-5 rounded-xl border border-border bg-card text-card-foreground">
               <div className="flex items-start gap-4">
                 <Skeleton className="w-11 h-11 rounded-lg shrink-0" />
                 <div className="flex-1 space-y-2.5 pt-0.5">
@@ -813,9 +817,7 @@ export default function CompetitionsPage() {
               >
                 <Trophy className="w-8 h-8 text-primary/60" />
               </motion.div>
-              <h3 className="text-lg font-display font-bold text-foreground mb-2">
-                Nenhuma competição ainda
-              </h3>
+              <h3 className="text-lg font-display font-bold text-foreground mb-2">Nenhuma competição ainda</h3>
               <p className="text-sm text-muted-foreground max-w-xs mx-auto mb-6">
                 Crie sua primeira competição para começar a organizar torneios, ligas e campeonatos.
               </p>
