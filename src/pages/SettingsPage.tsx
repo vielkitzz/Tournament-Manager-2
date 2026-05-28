@@ -6,6 +6,7 @@ import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import ExportDialog from "@/components/ExportDialog";
 import ImportDialog from "@/components/ImportDialog";
+import SkinSelector from "@/components/SkinSelector";
 import { Button } from "@/components/ui/button";
 
 export default function SettingsPage() {
@@ -70,6 +71,13 @@ export default function SettingsPage() {
                 {theme === "dark" ? <Sun className="w-3.5 h-3.5" /> : <Moon className="w-3.5 h-3.5" />}
                 {theme === "dark" ? "Modo Claro" : "Modo Escuro"}
               </Button>
+            </div>
+            <div className="mt-5 pt-5 border-t border-border">
+              <p className="text-sm text-foreground mb-1">Skin</p>
+              <p className="text-xs text-muted-foreground mb-3">
+                Escolha uma paleta visual completa para a interface
+              </p>
+              <SkinSelector />
             </div>
           </section>
 
