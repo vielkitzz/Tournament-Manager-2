@@ -82,7 +82,12 @@ const BUILTIN_SKINS: Skin[] = [
     description: "Tema noturno padrão do app",
     builtin: true,
     base: "dark",
-    tokens: {},
+    tokens: {
+      success: "142 71% 45%",
+      warning: "38 92% 50%",
+      info: "199 89% 48%",
+      highlight: "48 96% 53%",
+    },
   },
   {
     id: "default-light",
@@ -90,7 +95,12 @@ const BUILTIN_SKINS: Skin[] = [
     description: "Tema claro padrão do app",
     builtin: true,
     base: "light",
-    tokens: {},
+    tokens: {
+      success: "142 71% 35%",
+      warning: "32 95% 44%",
+      info: "199 89% 38%",
+      highlight: "45 93% 47%",
+    },
   },
   {
     id: "midnight",
