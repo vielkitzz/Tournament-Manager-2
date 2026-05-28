@@ -74,7 +74,7 @@ const TeamCard = memo(function TeamCard({
           draggable
           onDragStart={handleDragStart}
           onClick={onEdit}
-          className="p-3 rounded-xl card-gradient border border-border hover:border-primary/40 transition-all relative overflow-hidden group cursor-pointer active:scale-[0.98]"
+          className="p-3 rounded-xl bg-card text-card-foreground border border-border hover:border-primary/40 transition-all relative overflow-hidden group cursor-pointer active:scale-[0.98]"
         >
           <div className="absolute left-0 top-0 bottom-0 w-1.5 rounded-l-xl overflow-hidden flex flex-col">
             {(team.colors.length > 0 ? team.colors : ["hsl(var(--primary))", "hsl(var(--secondary))"]).map((c, i) => (
@@ -284,8 +284,13 @@ const FolderNode = memo(function FolderNode({
         ) : (
           <span
             className="font-display font-bold text-foreground text-xs flex-1 truncate cursor-pointer hover:text-primary transition-colors"
-            onDoubleClick={(e) => { e.stopPropagation(); onNavigateInto(folder.id); }}
-          >{folder.name}</span>
+            onDoubleClick={(e) => {
+              e.stopPropagation();
+              onNavigateInto(folder.id);
+            }}
+          >
+            {folder.name}
+          </span>
         )}
 
         <span className="text-[10px] text-muted-foreground">{folderTeams.length}</span>
@@ -702,10 +707,10 @@ export default function TeamsPage() {
           {folders.length > 0 && (
             <button
               onClick={() => {
-                const allOpen = folders.every(f => openFolders.has(f.id));
-                setOpenFolders(allOpen ? new Set() : new Set(folders.map(f => f.id)));
+                const allOpen = folders.every((f) => openFolders.has(f.id));
+                setOpenFolders(allOpen ? new Set() : new Set(folders.map((f) => f.id)));
               }}
-              title={folders.every(f => openFolders.has(f.id)) ? "Fechar todas as pastas" : "Abrir todas as pastas"}
+              title={folders.every((f) => openFolders.has(f.id)) ? "Fechar todas as pastas" : "Abrir todas as pastas"}
               className="p-2 rounded-lg border border-border hover:bg-secondary text-muted-foreground hover:text-foreground transition-colors shrink-0"
             >
               <ChevronsDownUp className="w-4 h-4" />
