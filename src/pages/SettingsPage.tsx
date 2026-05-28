@@ -137,7 +137,9 @@ export default function SettingsPage() {
             <div className="mt-5 pt-5 border-t border-border">
               <p className="text-sm text-foreground mb-1">Logo do TM2</p>
               <p className="text-xs text-muted-foreground mb-3">
-                Substitua o logo padrão por uma imagem personalizada (salvo como WebP)
+                {activeSkin.builtin
+                  ? "Duplique a skin ativa para poder definir um logo personalizado"
+                  : "Logo vinculado à skin ativa — exportado e importado junto com ela"}
               </p>
               <div className="flex items-center gap-3">
                 {logoUrl ? (
@@ -152,11 +154,17 @@ export default function SettingsPage() {
                   </div>
                 )}
                 <input ref={logoInputRef} type="file" accept="image/*" className="hidden" onChange={handleLogoUpload} />
-                <Button variant="outline" size="sm" className="gap-2" onClick={() => logoInputRef.current?.click()}>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="gap-2"
+                  disabled={!!activeSkin.builtin}
+                  onClick={() => logoInputRef.current?.click()}
+                >
                   <Upload className="w-3.5 h-3.5" />
                   {logoUrl ? "Trocar logo" : "Enviar logo"}
                 </Button>
-                {logoUrl && (
+                {logoUrl && !activeSkin.builtin && (
                   <Button
                     variant="ghost"
                     size="sm"

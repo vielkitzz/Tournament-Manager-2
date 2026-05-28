@@ -16,9 +16,9 @@ export interface Skin {
   label: string;
   description?: string;
   builtin?: boolean;
-  /** Base mode to fall back to for any unspecified token. */
   base: "light" | "dark";
   tokens: SkinTokens;
+  logoUrl?: string; // ← adicionar esta linha
 }
 
 /** Semantic tokens the user can customize. Must match variables in index.css. */
@@ -187,6 +187,7 @@ interface SkinContextValue {
   deleteCustomSkin: (id: string) => void;
   duplicateSkin: (id: string, label?: string) => Skin | null;
   importSkins: (skins: Skin[]) => void;
+  setCustomLogo: (id: string, logoUrl: string | null) => void;
 }
 
 const SkinContext = createContext<SkinContextValue | null>(null);
@@ -312,6 +313,10 @@ export function SkinProvider({ children }: { children: ReactNode }) {
     [customSkins, createCustomSkin],
   );
 
+  const setCustomLogo: SkinContextValue["setCustomLogo"] = useCallback((id, logoUrl) => {
+    setCustomSkins((prev) => prev.map((s) => (s.id === id ? { ...s, logoUrl: logoUrl ?? undefined } : s)));
+  }, []);
+
   const value: SkinContextValue = {
     skins,
     activeSkin,
@@ -323,6 +328,7 @@ export function SkinProvider({ children }: { children: ReactNode }) {
     deleteCustomSkin,
     duplicateSkin,
     importSkins,
+    setCustomLogo,
   };
 
   return <SkinContext.Provider value={value}>{children}</SkinContext.Provider>;
