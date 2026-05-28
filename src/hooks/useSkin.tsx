@@ -186,6 +186,7 @@ interface SkinContextValue {
   resetCustomSkin: (id: string) => void;
   deleteCustomSkin: (id: string) => void;
   duplicateSkin: (id: string, label?: string) => Skin | null;
+  importSkins: (skins: Skin[]) => void;
 }
 
 const SkinContext = createContext<SkinContextValue | null>(null);
@@ -228,13 +229,13 @@ export function SkinProvider({ children }: { children: ReactNode }) {
     if (typeof window === "undefined") return "default-dark";
     return localStorage.getItem(STORAGE_KEY_ACTIVE) || "default-dark";
   });
+  const importSkins: SkinContextValue["importSkins"] = useCallback((incoming) => {
+    setCustomSkins((prev) => [...prev, ...incoming]);
+  }, []);
 
   const skins = useMemo<Skin[]>(() => [...BUILTIN_SKINS, ...customSkins], [customSkins]);
 
-  const activeSkin = useMemo<Skin>(
-    () => skins.find((s) => s.id === activeId) || BUILTIN_SKINS[0],
-    [skins, activeId],
-  );
+  const activeSkin = useMemo<Skin>(() => skins.find((s) => s.id === activeId) || BUILTIN_SKINS[0], [skins, activeId]);
 
   // Persist custom skins
   useEffect(() => {
@@ -274,9 +275,7 @@ export function SkinProvider({ children }: { children: ReactNode }) {
   );
 
   const updateCustomSkin: SkinContextValue["updateCustomSkin"] = useCallback((id, patch) => {
-    setCustomSkins((prev) =>
-      prev.map((s) => (s.id === id ? { ...s, ...patch, tokens: patch.tokens ?? s.tokens } : s)),
-    );
+    setCustomSkins((prev) => prev.map((s) => (s.id === id ? { ...s, ...patch, tokens: patch.tokens ?? s.tokens } : s)));
   }, []);
 
   const setCustomToken: SkinContextValue["setCustomToken"] = useCallback((id, tokenKey, value) => {
@@ -323,6 +322,7 @@ export function SkinProvider({ children }: { children: ReactNode }) {
     resetCustomSkin,
     deleteCustomSkin,
     duplicateSkin,
+    importSkins,
   };
 
   return <SkinContext.Provider value={value}>{children}</SkinContext.Provider>;
@@ -422,4 +422,22 @@ function rgbToHsl(r: number, g: number, b: number): { h: number; s: number; l: n
     h *= 60;
   }
   return { h, s: s * 100, l: l * 100 };
+}
+
+/** Exporta skins customizadas como JSON string */
+export function exportSkinsJson(skins: Skin[]): string {
+  return JSON.stringify(skins, null, 2);
+}
+
+/** Valida e parseia um JSON de skins importado */
+export function parseImportedSkins(raw: string): Skin[] {
+  const parsed = JSON.parse(raw);
+  const arr = Array.isArray(parsed) ? parsed : [parsed];
+  return arr
+    .filter((s) => s && typeof s.id === "string" && typeof s.label === "string" && typeof s.tokens === "object")
+    .map((s, i) => ({
+      ...s,
+      id: `custom-${(Date.now() + i).toString(36)}-${Math.random().toString(36).slice(2, 6)}`,
+      builtin: false,
+    }));
 }
