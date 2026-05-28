@@ -21,6 +21,7 @@ import appLogoDark from "@/assets/logo.svg";
 import appLogoLight from "@/assets/logo-light.png";
 import ExportDialog from "@/components/ExportDialog";
 import ImportDialog from "@/components/ImportDialog";
+import { useCustomLogo } from "@/hooks/useCustomLogo";
 
 const navSections = [
   {
@@ -46,9 +47,7 @@ const navSections = [
   },
   {
     label: "SISTEMA",
-    items: [
-      { to: "/settings", icon: Settings, label: "Configurações", end: false },
-    ],
+    items: [{ to: "/settings", icon: Settings, label: "Configurações", end: false }],
   },
 ];
 
@@ -61,6 +60,8 @@ export default function AppSidebar({ onNavigate }: AppSidebarProps) {
   const { theme, toggleTheme } = useTheme();
   const navigate = useNavigate();
   const appLogo = theme === "light" ? appLogoLight : appLogoDark;
+  const { logoUrl } = useCustomLogo();
+  const appLogo = logoUrl ?? (theme === "light" ? appLogoLight : appLogoDark);
 
   const handleSignOut = async () => {
     await signOut();
