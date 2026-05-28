@@ -12,7 +12,7 @@ const ThemeContext = createContext<ThemeContextType>({ theme: "dark", toggleThem
 export function ThemeProvider({ children }: { children: ReactNode }) {
   const [theme, setTheme] = useState<Theme>(() => {
     const stored = localStorage.getItem("tm2-theme");
-    return (stored === "light" || stored === "dark") ? stored : "dark";
+    return stored === "light" || stored === "dark" ? stored : "dark";
   });
 
   useEffect(() => {
@@ -22,13 +22,12 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     localStorage.setItem("tm2-theme", theme);
   }, [theme]);
 
-  const toggleTheme = () => setTheme((t) => (t === "dark" ? "light" : "dark"));
+  const toggleTheme = () => {
+    const newBase = activeSkin.base === "dark" ? "light" : "dark";
+    updateCustomSkin(activeSkin.id, { base: newBase });
+  };
 
-  return (
-    <ThemeContext.Provider value={{ theme, toggleTheme }}>
-      {children}
-    </ThemeContext.Provider>
-  );
+  return <ThemeContext.Provider value={{ theme, toggleTheme }}>{children}</ThemeContext.Provider>;
 }
 
 export const useTheme = () => useContext(ThemeContext);
