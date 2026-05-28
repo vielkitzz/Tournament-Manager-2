@@ -133,9 +133,7 @@ function SolaraSyncButton({ tm2TeamId }: SolaraSyncButtonProps) {
           .update({ last_synced_at: new Date().toISOString() })
           .eq("tm2_team_id", tm2TeamId);
         clearLineupCache(tm2TeamId);
-        const {
-          data: { user },
-        } = await supabase.auth.getUser();
+        const { data: { user } } = await supabase.auth.getUser();
         await initialize(user?.id ?? null);
         toast.success(`Elenco sincronizado (${importData?.imported ?? 0} jogadores).`);
       }
@@ -220,9 +218,9 @@ function SolaraSyncButton({ tm2TeamId }: SolaraSyncButtonProps) {
   if (currentLink) {
     return (
       <>
-        <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-success/10 border border-success/30 text-sm">
+        <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-green-500/10 border border-green-500/30 text-sm">
           <Link2 className="w-3.5 h-3.5 text-green-500" />
-          <span className="text-success font-medium">{currentLink.solarahub_club_name}</span>
+          <span className="text-green-600 dark:text-green-400 font-medium">{currentLink.solarahub_club_name}</span>
           <button
             onClick={handleRefresh}
             disabled={refreshing}
@@ -267,7 +265,7 @@ function SolaraSyncButton({ tm2TeamId }: SolaraSyncButtonProps) {
       <Button
         variant="outline"
         size="sm"
-        className="gap-2 h-9 border-dashed border-primary/50 text-primary hover:bg-primary/10"
+        className="gap-2 h-9 border-dashed border-blue-400 text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-950"
         onClick={() => setOpen(true)}
       >
         <LinkIcon className="w-3.5 h-3.5" />

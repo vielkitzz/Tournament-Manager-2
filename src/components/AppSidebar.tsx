@@ -57,10 +57,10 @@ interface AppSidebarProps {
 
 export default function AppSidebar({ onNavigate }: AppSidebarProps) {
   const { user, signOut } = useAuth();
+  const { theme, toggleTheme } = useTheme();
   const navigate = useNavigate();
-  const { activeSkin, setActiveSkin } = useSkin();
-  const isDark = activeSkin.base === "dark";
-  const appLogo = activeSkin.logoUrl ?? (isDark ? appLogoDark : appLogoLight);
+  const { activeSkin } = useSkin();
+  const appLogo = activeSkin.logoUrl ?? (theme === "light" ? appLogoLight : appLogoDark);
 
   const handleSignOut = async () => {
     await signOut();
@@ -77,6 +77,8 @@ export default function AppSidebar({ onNavigate }: AppSidebarProps) {
 
   const actionBtnClasses =
     "w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-[13px] font-medium text-muted-foreground hover:text-foreground hover:bg-secondary/60 transition-all duration-150";
+
+  const dashboardItem = navSections[0].items[0];
 
   return (
     <aside className="w-60 h-screen bg-sidebar border-r border-sidebar-border flex flex-col overflow-y-auto">
@@ -143,20 +145,17 @@ export default function AppSidebar({ onNavigate }: AppSidebarProps) {
 
       {/* Footer */}
       <div className="p-3 mx-3 mb-3 rounded-lg bg-secondary/40 space-y-2">
-        {/* Theme toggle - Corrigido variant e adicionado classes */}
+        {/* Theme toggle */}
         <button
-          onClick={() => setActiveSkin(activeSkin.base === "dark" ? "default-light" : "default-dark")}
-          className="w-full flex items-center gap-3 px-3 py-2 rounded-md text-[11px] font-medium text-muted-foreground hover:text-foreground hover:bg-secondary/60 transition-colors"
+          onClick={toggleTheme}
+          className="w-full flex items-center justify-center gap-2 px-3 py-2 rounded-md text-[11px] font-medium text-muted-foreground hover:text-foreground hover:bg-secondary/60 transition-colors"
         >
-          {activeSkin.base === "dark" ? <Sun className="h-3.5 w-3.5" /> : <Moon className="h-3.5 w-3.5" />}
-          <span>{activeSkin.base === "dark" ? "Modo Claro" : "Modo Escuro"}</span>
+          {theme === "dark" ? <Sun className="w-3.5 h-3.5" /> : <Moon className="w-3.5 h-3.5" />}
+          {theme === "dark" ? "Modo Claro" : "Modo Escuro"}
         </button>
-
         {user && (
           <p className="text-[11px] text-muted-foreground text-center truncate px-1">{user.email || "Conta anônima"}</p>
         )}
-
-        {/* Botão Sair - Corrigido para chamar handleSignOut */}
         <button
           onClick={handleSignOut}
           className="w-full flex items-center justify-center gap-2 px-3 py-2 rounded-md text-[11px] font-medium text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
