@@ -129,7 +129,6 @@ const BUILTIN_SKINS: Skin[] = [
       "accent-foreground": "270 60% 5%",
       border: "275 70% 25%",
       ring: "315 100% 60%",
-      sidebar: undefined as unknown as string,
       "sidebar-background": "270 55% 7%",
       "sidebar-foreground": "180 100% 95%",
       "sidebar-primary": "315 100% 60%",
