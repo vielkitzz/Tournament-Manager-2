@@ -117,7 +117,9 @@ export default function TournamentDetailPage() {
 
   const activeYear = viewingYear || tournament.year;
   const isViewingPastSeason = viewingYear !== null && viewingYear !== tournament.year;
-  const seasonData = isViewingPastSeason ? tournament.seasons?.find((s) => s.year === viewingYear && !(s as any).manual) : null;
+  const seasonData = isViewingPastSeason
+    ? tournament.seasons?.find((s) => s.year === viewingYear && !(s as any).manual)
+    : null;
 
   const isLiga = tournament.format === "liga";
   const isMataMata = tournament.format === "mata-mata";
@@ -652,7 +654,15 @@ export default function TournamentDetailPage() {
     const existingSeasons = (tournament.seasons || []).filter((s) => s.year !== tournament.year);
     updateTournament(tournament.id, {
       finalized: true,
-      seasons: [...existingSeasons, { ...seasonRecord, preliminaryPhases: tournament.preliminaryPhases ? JSON.parse(JSON.stringify(tournament.preliminaryPhases)) : undefined }],
+      seasons: [
+        ...existingSeasons,
+        {
+          ...seasonRecord,
+          preliminaryPhases: tournament.preliminaryPhases
+            ? JSON.parse(JSON.stringify(tournament.preliminaryPhases))
+            : undefined,
+        },
+      ],
     });
 
     toast.success(`Temporada ${tournament.year} finalizada! ${championName} é o campeão!`);
@@ -866,7 +876,12 @@ export default function TournamentDetailPage() {
           })),
           matches: [...(tournament.matches || [])],
         };
-        existingSeasons.push({ ...snapshotRecord, preliminaryPhases: tournament.preliminaryPhases ? JSON.parse(JSON.stringify(tournament.preliminaryPhases)) : undefined });
+        existingSeasons.push({
+          ...snapshotRecord,
+          preliminaryPhases: tournament.preliminaryPhases
+            ? JSON.parse(JSON.stringify(tournament.preliminaryPhases))
+            : undefined,
+        });
       }
     }
 
@@ -1083,23 +1098,45 @@ export default function TournamentDetailPage() {
       if (legMode === "home-away" && homeId && awayId) {
         const pairId = crypto.randomUUID();
         newMatches.push({
-          id: crypto.randomUUID(), tournamentId: tournament.id, round: 1,
-          homeTeamId: homeId, awayTeamId: awayId, homeScore: 0, awayScore: 0,
-          played: false, leg: 1, pairId, stage: "knockout",
+          id: crypto.randomUUID(),
+          tournamentId: tournament.id,
+          round: 1,
+          homeTeamId: homeId,
+          awayTeamId: awayId,
+          homeScore: 0,
+          awayScore: 0,
+          played: false,
+          leg: 1,
+          pairId,
+          stage: "knockout",
         });
         newMatches.push({
-          id: crypto.randomUUID(), tournamentId: tournament.id, round: 1,
-          homeTeamId: awayId, awayTeamId: homeId, homeScore: 0, awayScore: 0,
-          played: false, leg: 2, pairId, stage: "knockout",
+          id: crypto.randomUUID(),
+          tournamentId: tournament.id,
+          round: 1,
+          homeTeamId: awayId,
+          awayTeamId: homeId,
+          homeScore: 0,
+          awayScore: 0,
+          played: false,
+          leg: 2,
+          pairId,
+          stage: "knockout",
         });
       } else {
         const matchHomeId = homeId || awayId!;
         const matchAwayId = homeId && awayId ? awayId : "";
         const isBye = !homeId || !awayId;
         newMatches.push({
-          id: crypto.randomUUID(), tournamentId: tournament.id, round: 1,
-          homeTeamId: matchHomeId, awayTeamId: matchAwayId,
-          homeScore: isBye ? 1 : 0, awayScore: 0, played: isBye, stage: "knockout",
+          id: crypto.randomUUID(),
+          tournamentId: tournament.id,
+          round: 1,
+          homeTeamId: matchHomeId,
+          awayTeamId: matchAwayId,
+          homeScore: isBye ? 1 : 0,
+          awayScore: 0,
+          played: isBye,
+          stage: "knockout",
         });
       }
     }
@@ -1489,7 +1526,7 @@ export default function TournamentDetailPage() {
                               matches={groupMatches.filter((m) => m.group === groupNum)}
                               allTeams={resolvedTeams}
                               allPlayers={players}
-                            year={activeYear}
+                              year={activeYear}
                               hideScreenshot
                             />
                           </div>
@@ -1650,9 +1687,7 @@ export default function TournamentDetailPage() {
                     onGenerateBracket={() => {
                       if (!isViewingPastSeason) autoGenerate();
                     }}
-                    onResetDraw={
-                      isMataMata && !isViewingPastSeason ? () => regenerateDraw("bracket") : undefined
-                    }
+                    onResetDraw={isMataMata && !isViewingPastSeason ? () => regenerateDraw("bracket") : undefined}
                     onFinalize={isViewingPastSeason ? undefined : handleFinalizeSeason}
                     onAddMatch={(match) => {
                       if (isViewingPastSeason) return;
