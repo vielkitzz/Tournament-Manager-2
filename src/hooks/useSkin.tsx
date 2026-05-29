@@ -11,6 +11,48 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useState, R
 
 export type SkinTokens = Partial<Record<string, string>>;
 
+export type GradientTarget =
+  | "background"
+  | "card"
+  | "primary"
+  | "accent"
+  | "sidebar"
+  | "button";
+
+export interface SkinGradient {
+  enabled: boolean;
+  from: string; // hex
+  to: string; // hex
+  angle: number; // degrees
+}
+
+export interface SkinExtras {
+  /** Border radius in rem (overrides --radius). */
+  radius?: number;
+  /** Optional data URL of a background image applied to body. */
+  backgroundImage?: string | null;
+  backgroundSize?: "cover" | "contain" | "auto";
+  backgroundPosition?: string;
+  backgroundBlur?: number; // px
+  backgroundOpacity?: number; // 0..1 overlay strength
+  /** Per-element gradient overrides. */
+  gradients?: Partial<Record<GradientTarget, SkinGradient>>;
+  /** Custom font import (CSS @import URL, e.g. Google Fonts). */
+  fontUrl?: string;
+  /** Font family for body / UI. */
+  fontSans?: string;
+  /** Font family for headings. */
+  fontHeading?: string;
+  /** Font scale multiplier (1 = base). */
+  fontScale?: number;
+  /** Letter spacing in em. */
+  letterSpacing?: number;
+  /** Shadow intensity multiplier (0 = flat, 1 = base, 2 = dramatic). */
+  shadowIntensity?: number;
+  /** Global UI density: 0.85=compact, 1=normal, 1.15=cozy. */
+  density?: number;
+}
+
 export interface Skin {
   id: string;
   label: string;
@@ -19,6 +61,7 @@ export interface Skin {
   base: "light" | "dark";
   tokens: SkinTokens;
   logoUrl?: string; // ← adicionar esta linha
+  extras?: SkinExtras;
 }
 
 /** Semantic tokens the user can customize. Must match variables in index.css. */
@@ -181,8 +224,13 @@ interface SkinContextValue {
   activeSkin: Skin;
   setActiveSkin: (id: string) => void;
   createCustomSkin: (input: { label: string; base?: "light" | "dark"; from?: Skin }) => Skin;
-  updateCustomSkin: (id: string, patch: Partial<Pick<Skin, "label" | "description" | "base" | "tokens">>) => void;
+  updateCustomSkin: (
+    id: string,
+    patch: Partial<Pick<Skin, "label" | "description" | "base" | "tokens" | "extras">>,
+  ) => void;
   setCustomToken: (id: string, tokenKey: string, value: string | null) => void;
+  updateExtras: (id: string, patch: Partial<SkinExtras>) => void;
+  setGradient: (id: string, target: GradientTarget, value: SkinGradient | null) => void;
   resetCustomSkin: (id: string) => void;
   deleteCustomSkin: (id: string) => void;
   duplicateSkin: (id: string, label?: string) => Skin | null;
@@ -216,12 +264,155 @@ function applySkinToDocument(skin: Skin) {
   ALL_TOKEN_KEYS.forEach((key) => {
     root.style.removeProperty(`--${key}`);
   });
+  // Clear extras-managed vars
+  ["radius", "font-sans", "font-heading", "font-scale", "letter-spacing", "shadow-strength"].forEach(
+    (k) => root.style.removeProperty(`--${k}`),
+  );
   // Apply new overrides
   Object.entries(skin.tokens).forEach(([key, value]) => {
     if (typeof value === "string" && value.trim()) {
       root.style.setProperty(`--${key}`, value);
     }
   });
+
+  applySkinExtrasToDocument(skin);
+}
+
+const EXTRAS_STYLE_ID = "tm2-skin-extras-style";
+const FONT_LINK_ID = "tm2-skin-font-link";
+
+function buildGradientCss(g: SkinGradient): string {
+  return `linear-gradient(${g.angle}deg, ${g.from}, ${g.to})`;
+}
+
+function applySkinExtrasToDocument(skin: Skin) {
+  const root = document.documentElement;
+  const extras = skin.extras || {};
+
+  // Radius
+  if (typeof extras.radius === "number") {
+    root.style.setProperty("--radius", `${extras.radius}rem`);
+  }
+
+  // Font URL (Google Fonts etc.)
+  let link = document.getElementById(FONT_LINK_ID) as HTMLLinkElement | null;
+  if (extras.fontUrl && extras.fontUrl.trim()) {
+    if (!link) {
+      link = document.createElement("link");
+      link.id = FONT_LINK_ID;
+      link.rel = "stylesheet";
+      document.head.appendChild(link);
+    }
+    if (link.href !== extras.fontUrl) link.href = extras.fontUrl;
+  } else if (link) {
+    link.remove();
+  }
+
+  if (extras.fontSans && extras.fontSans.trim()) {
+    root.style.setProperty(
+      "--font-sans",
+      `${extras.fontSans}, ui-sans-serif, system-ui, sans-serif`,
+    );
+  }
+  if (typeof extras.fontScale === "number") {
+    root.style.fontSize = `${Math.round(extras.fontScale * 100)}%`;
+  } else {
+    root.style.fontSize = "";
+  }
+
+  // Build dynamic stylesheet
+  let style = document.getElementById(EXTRAS_STYLE_ID) as HTMLStyleElement | null;
+  if (!style) {
+    style = document.createElement("style");
+    style.id = EXTRAS_STYLE_ID;
+    document.head.appendChild(style);
+  }
+
+  const rules: string[] = [];
+
+  // Headings font
+  if (extras.fontHeading && extras.fontHeading.trim()) {
+    rules.push(
+      `h1,h2,h3,h4,h5,h6,.font-display{font-family:${extras.fontHeading},'Space Grotesk',sans-serif !important;}`,
+    );
+  }
+
+  // Letter spacing
+  if (typeof extras.letterSpacing === "number") {
+    rules.push(`body{letter-spacing:${extras.letterSpacing}em;}`);
+  }
+
+  // Shadow intensity
+  if (typeof extras.shadowIntensity === "number") {
+    const k = Math.max(0, extras.shadowIntensity);
+    rules.push(
+      `:root{--shadow-card:0 ${4 * k}px ${24 * k}px hsl(0 0% 0% / ${0.3 * k});` +
+        `--shadow-glow:0 0 ${30 * k}px hsl(var(--primary) / ${0.12 * k});}`,
+    );
+  }
+
+  // Background image / gradient on body
+  const gradients = extras.gradients || {};
+  const bgGrad = gradients.background;
+  const bgImage = extras.backgroundImage;
+  const bgLayers: string[] = [];
+  if (bgImage) {
+    const overlay = extras.backgroundOpacity ?? 0;
+    if (overlay > 0) {
+      bgLayers.push(
+        `linear-gradient(hsl(var(--background) / ${overlay}), hsl(var(--background) / ${overlay}))`,
+      );
+    }
+    bgLayers.push(`url("${bgImage}")`);
+  } else if (bgGrad?.enabled) {
+    bgLayers.push(buildGradientCss(bgGrad));
+  }
+  if (bgLayers.length) {
+    const size = bgImage ? extras.backgroundSize || "cover" : "auto";
+    const pos = bgImage ? extras.backgroundPosition || "center" : "0 0";
+    const blur = extras.backgroundBlur || 0;
+    rules.push(
+      `body{background-image:${bgLayers.join(",")} !important;` +
+        `background-size:${size};background-position:${pos};background-attachment:fixed;background-repeat:no-repeat;}`,
+    );
+    if (blur > 0) {
+      rules.push(
+        `body::before{content:'';position:fixed;inset:0;backdrop-filter:blur(${blur}px);pointer-events:none;z-index:-1;}`,
+      );
+    }
+  }
+
+  // Card gradient (used by .card-gradient util) + apply to all .bg-card
+  if (gradients.card?.enabled) {
+    const css = buildGradientCss(gradients.card);
+    rules.push(`:root{--gradient-card:${css};}`);
+    rules.push(`.bg-card{background-image:${css} !important;}`);
+  }
+
+  // Primary gradient
+  if (gradients.primary?.enabled) {
+    const css = buildGradientCss(gradients.primary);
+    rules.push(`.bg-primary{background-image:${css} !important;}`);
+  }
+  // Accent gradient
+  if (gradients.accent?.enabled) {
+    const css = buildGradientCss(gradients.accent);
+    rules.push(`.bg-accent{background-image:${css} !important;}`);
+  }
+  // Sidebar gradient
+  if (gradients.sidebar?.enabled) {
+    const css = buildGradientCss(gradients.sidebar);
+    rules.push(
+      `[data-sidebar="sidebar"],aside.app-sidebar{background-image:${css} !important;}`,
+    );
+  }
+  // Button gradient (default variant)
+  if (gradients.button?.enabled) {
+    const css = buildGradientCss(gradients.button);
+    rules.push(`button.bg-primary,.btn-primary,[data-variant="default"]{background-image:${css} !important;}`);
+  }
+
+  style.textContent = rules.join("\n");
 }
 
 export function SkinProvider({ children }: { children: ReactNode }) {
@@ -317,6 +508,24 @@ export function SkinProvider({ children }: { children: ReactNode }) {
     setCustomSkins((prev) => prev.map((s) => (s.id === id ? { ...s, logoUrl: logoUrl ?? undefined } : s)));
   }, []);
 
+  const updateExtras: SkinContextValue["updateExtras"] = useCallback((id, patch) => {
+    setCustomSkins((prev) =>
+      prev.map((s) => (s.id === id ? { ...s, extras: { ...(s.extras || {}), ...patch } } : s)),
+    );
+  }, []);
+
+  const setGradient: SkinContextValue["setGradient"] = useCallback((id, target, value) => {
+    setCustomSkins((prev) =>
+      prev.map((s) => {
+        if (s.id !== id) return s;
+        const gradients = { ...(s.extras?.gradients || {}) };
+        if (value === null) delete gradients[target];
+        else gradients[target] = value;
+        return { ...s, extras: { ...(s.extras || {}), gradients } };
+      }),
+    );
+  }, []);
+
   const value: SkinContextValue = {
     skins,
     activeSkin,
@@ -324,6 +533,8 @@ export function SkinProvider({ children }: { children: ReactNode }) {
     createCustomSkin,
     updateCustomSkin,
     setCustomToken,
+    updateExtras,
+    setGradient,
     resetCustomSkin,
     deleteCustomSkin,
     duplicateSkin,

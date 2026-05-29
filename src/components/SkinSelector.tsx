@@ -1,5 +1,5 @@
-import { useEffect, useState } from "react";
-import { Check, Copy, Pencil, Plus, RotateCcw, Trash2 } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
+import { Check, Copy, ImageIcon, Pencil, Plus, RotateCcw, Trash2, Upload, X } from "lucide-react";
 import {
   SKIN_TOKEN_GROUPS,
   hexToHslToken,
@@ -7,9 +7,12 @@ import {
   resolveTokenValue,
   useSkin,
   type Skin,
+  type GradientTarget,
+  type SkinGradient,
 } from "@/hooks/useSkin";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Slider } from "@/components/ui/slider";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
@@ -94,10 +97,48 @@ function SkinEditor({
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }) {
-  const { updateCustomSkin, setCustomToken, resetCustomSkin } = useSkin();
+  const { updateCustomSkin, setCustomToken, resetCustomSkin, updateExtras, setGradient } = useSkin();
   const [label, setLabel] = useState(skin.label);
+  const bgInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => setLabel(skin.label), [skin.id, skin.label]);
+
+  const extras = skin.extras || {};
+  const radius = extras.radius ?? 0.75;
+  const fontScale = extras.fontScale ?? 1;
+  const letterSpacing = extras.letterSpacing ?? 0;
+  const shadowIntensity = extras.shadowIntensity ?? 1;
+
+  const handleBgUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (!file.type.startsWith("image/")) {
+      toast.error("Selecione uma imagem");
+      return;
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error("Imagem deve ter menos de 5MB");
+      return;
+    }
+    const dataUrl = await new Promise<string>((resolve, reject) => {
+      const r = new FileReader();
+      r.onload = () => resolve(r.result as string);
+      r.onerror = () => reject(r.error);
+      r.readAsDataURL(file);
+    });
+    updateExtras(skin.id, { backgroundImage: dataUrl });
+    toast.success("Fundo aplicado");
+    e.target.value = "";
+  };
+
+  const gradientTargets: { key: GradientTarget; label: string }[] = [
+    { key: "background", label: "Fundo geral" },
+    { key: "card", label: "Cards" },
+    { key: "primary", label: "Botões primários" },
+    { key: "accent", label: "Acentos" },
+    { key: "sidebar", label: "Sidebar" },
+    { key: "button", label: "Botões" },
+  ];
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -167,6 +208,284 @@ function SkinEditor({
               </div>
             </section>
           ))}
+
+          {/* Bordas */}
+          <section className="rounded-lg border border-border bg-card/50 p-3 space-y-3">
+            <h4 className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Bordas</h4>
+            <div>
+              <div className="flex items-center justify-between mb-1.5">
+                <span className="text-xs text-foreground">Curvatura (border-radius)</span>
+                <span className="text-xs font-mono text-muted-foreground">{radius.toFixed(2)}rem</span>
+              </div>
+              <Slider
+                value={[radius]}
+                min={0}
+                max={2}
+                step={0.05}
+                onValueChange={([v]) => updateExtras(skin.id, { radius: v })}
+              />
+            </div>
+          </section>
+
+          {/* Tipografia */}
+          <section className="rounded-lg border border-border bg-card/50 p-3 space-y-3">
+            <h4 className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Tipografia</h4>
+            <div>
+              <label className="text-xs text-muted-foreground">URL de importação (Google Fonts ou @font-face)</label>
+              <Input
+                placeholder="https://fonts.googleapis.com/css2?family=Inter&display=swap"
+                defaultValue={extras.fontUrl || ""}
+                onBlur={(e) => updateExtras(skin.id, { fontUrl: e.target.value.trim() || undefined })}
+              />
+              <p className="text-[10px] text-muted-foreground mt-1">
+                Cole a URL de qualquer fonte (Google Fonts, Bunny Fonts, etc.).
+              </p>
+            </div>
+            <div className="grid grid-cols-2 gap-2">
+              <div>
+                <label className="text-xs text-muted-foreground">Família corpo</label>
+                <Input
+                  placeholder="Inter"
+                  defaultValue={extras.fontSans || ""}
+                  onBlur={(e) => updateExtras(skin.id, { fontSans: e.target.value.trim() || undefined })}
+                />
+              </div>
+              <div>
+                <label className="text-xs text-muted-foreground">Família títulos</label>
+                <Input
+                  placeholder="Space Grotesk"
+                  defaultValue={extras.fontHeading || ""}
+                  onBlur={(e) => updateExtras(skin.id, { fontHeading: e.target.value.trim() || undefined })}
+                />
+              </div>
+            </div>
+            <div>
+              <div className="flex items-center justify-between mb-1.5">
+                <span className="text-xs text-foreground">Escala da fonte</span>
+                <span className="text-xs font-mono text-muted-foreground">{Math.round(fontScale * 100)}%</span>
+              </div>
+              <Slider
+                value={[fontScale]}
+                min={0.8}
+                max={1.3}
+                step={0.02}
+                onValueChange={([v]) => updateExtras(skin.id, { fontScale: v })}
+              />
+            </div>
+            <div>
+              <div className="flex items-center justify-between mb-1.5">
+                <span className="text-xs text-foreground">Espaçamento entre letras</span>
+                <span className="text-xs font-mono text-muted-foreground">{letterSpacing.toFixed(3)}em</span>
+              </div>
+              <Slider
+                value={[letterSpacing]}
+                min={-0.05}
+                max={0.15}
+                step={0.005}
+                onValueChange={([v]) => updateExtras(skin.id, { letterSpacing: v })}
+              />
+            </div>
+          </section>
+
+          {/* Plano de fundo */}
+          <section className="rounded-lg border border-border bg-card/50 p-3 space-y-3">
+            <h4 className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
+              Plano de fundo
+            </h4>
+            <div className="flex items-center gap-3">
+              {extras.backgroundImage ? (
+                <img
+                  src={extras.backgroundImage}
+                  alt="Fundo"
+                  className="h-14 w-20 object-cover rounded border border-border"
+                />
+              ) : (
+                <div className="h-14 w-20 rounded border border-dashed border-border bg-muted flex items-center justify-center text-muted-foreground">
+                  <ImageIcon className="w-5 h-5" />
+                </div>
+              )}
+              <input ref={bgInputRef} type="file" accept="image/*" className="hidden" onChange={handleBgUpload} />
+              <Button variant="outline" size="sm" className="gap-1.5" onClick={() => bgInputRef.current?.click()}>
+                <Upload className="w-3.5 h-3.5" />
+                {extras.backgroundImage ? "Trocar imagem" : "Enviar imagem"}
+              </Button>
+              {extras.backgroundImage && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="gap-1.5 text-destructive"
+                  onClick={() => updateExtras(skin.id, { backgroundImage: null })}
+                >
+                  <X className="w-3.5 h-3.5" />
+                  Remover
+                </Button>
+              )}
+            </div>
+            {extras.backgroundImage && (
+              <>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="text-xs text-muted-foreground block mb-1">Ajuste</label>
+                    <div className="inline-flex rounded-md border border-border overflow-hidden">
+                      {(["cover", "contain", "auto"] as const).map((s) => (
+                        <button
+                          key={s}
+                          type="button"
+                          onClick={() => updateExtras(skin.id, { backgroundSize: s })}
+                          className={cn(
+                            "px-2.5 py-1 text-[11px] transition-colors",
+                            (extras.backgroundSize || "cover") === s
+                              ? "bg-primary text-primary-foreground"
+                              : "bg-card text-muted-foreground hover:text-foreground",
+                          )}
+                        >
+                          {s}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                  <div>
+                    <label className="text-xs text-muted-foreground block mb-1">Posição</label>
+                    <Input
+                      placeholder="center"
+                      defaultValue={extras.backgroundPosition || "center"}
+                      onBlur={(e) =>
+                        updateExtras(skin.id, { backgroundPosition: e.target.value.trim() || "center" })
+                      }
+                    />
+                  </div>
+                </div>
+                <div>
+                  <div className="flex items-center justify-between mb-1.5">
+                    <span className="text-xs text-foreground">Desfoque do fundo</span>
+                    <span className="text-xs font-mono text-muted-foreground">
+                      {extras.backgroundBlur || 0}px
+                    </span>
+                  </div>
+                  <Slider
+                    value={[extras.backgroundBlur || 0]}
+                    min={0}
+                    max={40}
+                    step={1}
+                    onValueChange={([v]) => updateExtras(skin.id, { backgroundBlur: v })}
+                  />
+                </div>
+                <div>
+                  <div className="flex items-center justify-between mb-1.5">
+                    <span className="text-xs text-foreground">Camada de cor (legibilidade)</span>
+                    <span className="text-xs font-mono text-muted-foreground">
+                      {Math.round((extras.backgroundOpacity || 0) * 100)}%
+                    </span>
+                  </div>
+                  <Slider
+                    value={[extras.backgroundOpacity || 0]}
+                    min={0}
+                    max={1}
+                    step={0.05}
+                    onValueChange={([v]) => updateExtras(skin.id, { backgroundOpacity: v })}
+                  />
+                </div>
+              </>
+            )}
+          </section>
+
+          {/* Gradientes */}
+          <section className="rounded-lg border border-border bg-card/50 p-3 space-y-2">
+            <h4 className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Gradientes</h4>
+            <p className="text-[11px] text-muted-foreground">
+              Aplique gradientes coloridos a elementos específicos da interface.
+            </p>
+            {gradientTargets.map((g) => {
+              const current: SkinGradient = extras.gradients?.[g.key] || {
+                enabled: false,
+                from: hslTokenToHex(resolveTokenValue(skin, "primary")) || "#3b82f6",
+                to: hslTokenToHex(resolveTokenValue(skin, "accent")) || "#9333ea",
+                angle: 135,
+              };
+              const enabled = !!extras.gradients?.[g.key]?.enabled;
+              return (
+                <div key={g.key} className="rounded-md border border-border bg-background/40 p-2.5">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <span
+                        className="h-6 w-12 rounded border border-border"
+                        style={{ background: `linear-gradient(${current.angle}deg, ${current.from}, ${current.to})` }}
+                      />
+                      <span className="text-xs font-medium">{g.label}</span>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setGradient(skin.id, g.key, enabled ? null : { ...current, enabled: true })
+                      }
+                      className={cn(
+                        "text-[11px] px-2 py-0.5 rounded border transition-colors",
+                        enabled
+                          ? "bg-primary text-primary-foreground border-primary"
+                          : "bg-card text-muted-foreground border-border hover:text-foreground",
+                      )}
+                    >
+                      {enabled ? "Ativo" : "Desligado"}
+                    </button>
+                  </div>
+                  {enabled && (
+                    <div className="mt-2 grid grid-cols-[auto_auto_1fr] gap-2 items-center">
+                      <input
+                        type="color"
+                        value={current.from}
+                        onChange={(e) =>
+                          setGradient(skin.id, g.key, { ...current, from: e.target.value, enabled: true })
+                        }
+                        className="h-7 w-9 rounded border border-border bg-transparent cursor-pointer"
+                      />
+                      <input
+                        type="color"
+                        value={current.to}
+                        onChange={(e) =>
+                          setGradient(skin.id, g.key, { ...current, to: e.target.value, enabled: true })
+                        }
+                        className="h-7 w-9 rounded border border-border bg-transparent cursor-pointer"
+                      />
+                      <div className="flex items-center gap-2">
+                        <Slider
+                          value={[current.angle]}
+                          min={0}
+                          max={360}
+                          step={5}
+                          onValueChange={([v]) =>
+                            setGradient(skin.id, g.key, { ...current, angle: v, enabled: true })
+                          }
+                        />
+                        <span className="text-[10px] font-mono text-muted-foreground w-10 text-right">
+                          {current.angle}°
+                        </span>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </section>
+
+          {/* Sombras */}
+          <section className="rounded-lg border border-border bg-card/50 p-3 space-y-3">
+            <h4 className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Sombras</h4>
+            <div>
+              <div className="flex items-center justify-between mb-1.5">
+                <span className="text-xs text-foreground">Intensidade</span>
+                <span className="text-xs font-mono text-muted-foreground">
+                  {Math.round(shadowIntensity * 100)}%
+                </span>
+              </div>
+              <Slider
+                value={[shadowIntensity]}
+                min={0}
+                max={2}
+                step={0.05}
+                onValueChange={([v]) => updateExtras(skin.id, { shadowIntensity: v })}
+              />
+            </div>
+          </section>
         </div>
 
         <DialogFooter className="flex flex-row justify-between items-center gap-2 sm:justify-between">
