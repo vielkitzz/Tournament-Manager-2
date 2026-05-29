@@ -53,13 +53,19 @@ export async function captureScreenshot(element: HTMLElement, filename: string =
     const padding = 32; // breathing room in CSS pixels
 
     const dataUrl = await toPng(element, {
-      backgroundColor: bgColor,
+      backgroundColor: bgColor, // Considere mudar para 'transparent' ou anular se a skin for externa ao elemento
       cacheBust: true,
       pixelRatio: 2,
       width: captureWidth + padding * 2,
       height: captureHeight + padding * 2,
       skipFonts: true,
-      // Skip nodes that commonly break html-to-image (cross-origin images without CORS, etc.)
+
+      // ADICIONE ISTO PARA FORÇAR O CORS NAS IMAGENS DE FUNDO:
+      fetchRequestInit: {
+        mode: "cors",
+        cache: "no-cache",
+      },
+
       filter: (node) => {
         if (!(node instanceof HTMLElement)) return true;
         // Skip the screenshot button itself if present inside the captured area
