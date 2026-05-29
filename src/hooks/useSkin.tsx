@@ -308,7 +308,7 @@ function applySkinExtrasToDocument(skin: Skin) {
   }
 
   if (extras.fontSans && extras.fontSans.trim()) {
-    root.style.setProperty("--font-sans", `${extras.fontSans}, ui-sans-serif, system-ui, sans-serif`);
+    rules.push(`body, * { font-family: ${extras.fontSans}, ui-sans-serif, system-ui, sans-serif !important; }`);
   }
   if (typeof extras.fontScale === "number") {
     root.style.fontSize = `${Math.round(extras.fontScale * 100)}%`;
@@ -336,6 +336,11 @@ function applySkinExtrasToDocument(skin: Skin) {
   // Letter spacing
   if (typeof extras.letterSpacing === "number") {
     rules.push(`body{letter-spacing:${extras.letterSpacing}em;}`);
+  }
+
+  // Font sans no body
+  if (extras.fontSans && extras.fontSans.trim()) {
+    rules.push(`body, * { font-family: ${extras.fontSans}, ui-sans-serif, system-ui, sans-serif !important; }`);
   }
 
   // Shadow intensity
