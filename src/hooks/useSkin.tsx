@@ -431,9 +431,22 @@ export function SkinProvider({ children }: { children: ReactNode }) {
     return localStorage.getItem(STORAGE_KEY_ACTIVE) || "default-dark";
   });
   const importSkins: SkinContextValue["importSkins"] = useCallback((incoming) => {
+    // Migra backgroundImages para IndexedDB antes de adicionar ao estado
+    const processed = incoming.map((s) => {
+      const bgImage = s.extras?.backgroundImage;
+      if (bgImage && bgImage.startsWith("data:")) {
+        saveImage(s.id, "backgroundImage", bgImage).catch(console.error);
+        return {
+          ...s,
+          extras: { ...(s.extras || {}), backgroundImage: `idb:${s.id}:backgroundImage` },
+        };
+      }
+      return s;
+    });
+
     setCustomSkins((prev) => {
       const existingIds = new Set(prev.map((s) => s.id));
-      const toAdd = incoming.map((s) =>
+      const toAdd = processed.map((s) =>
         existingIds.has(s.id)
           ? { ...s, id: `custom-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 6)}` }
           : s,
