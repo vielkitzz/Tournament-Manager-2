@@ -252,6 +252,29 @@ function loadCustomSkins(): Skin[] {
   }
 }
 
+function applySkinToDocument(skin: Skin) {
+  const root = document.documentElement;
+  root.classList.toggle("light", skin.base === "light");
+  root.classList.toggle("dark", skin.base === "dark");
+  root.setAttribute("data-skin", skin.id);
+
+  ALL_TOKEN_KEYS.forEach((key) => {
+    root.style.removeProperty(`--${key}`);
+  });
+
+  ["radius", "font-sans", "font-heading", "font-scale", "letter-spacing", "shadow-strength"].forEach((k) =>
+    root.style.removeProperty(`--${k}`),
+  );
+
+  Object.entries(skin.tokens).forEach(([key, value]) => {
+    if (typeof value === "string" && value.trim()) {
+      root.style.setProperty(`--${key}`, value);
+    }
+  });
+
+  applySkinExtrasToDocument(skin);
+}
+
 function applySkinExtrasToDocument(skin: Skin) {
   const root = document.documentElement;
   const extras = skin.extras || {};
