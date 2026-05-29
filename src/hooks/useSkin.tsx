@@ -277,6 +277,10 @@ function applySkinToDocument(skin: Skin) {
   applySkinExtrasToDocument(skin);
 }
 
+function buildGradientCss(g: SkinGradient): string {
+  return `linear-gradient(${g.angle}deg, ${g.from}, ${g.to})`;
+}
+
 function applySkinExtrasToDocument(skin: Skin) {
   const root = document.documentElement;
   const extras = skin.extras || {};
