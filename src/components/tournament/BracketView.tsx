@@ -23,7 +23,9 @@ import {
   ContextMenuTrigger,
   ContextMenuSeparator,
 } from "@/components/ui/context-menu";
-import { useSkinImageStore } from "@/hooks/useSkinImageStore";
+import { useSkin } from "@/hooks/useSkin";
+import { loadImage } from "@/hooks/useSkinImageStore";
+import { useEffect } from "react";
 
 interface BracketViewProps {
   tournament: Tournament;
@@ -103,7 +105,18 @@ export default function BracketView({
   const [editingTeam, setEditingTeam] = useState<{ match: Match; side: "home" | "away" } | null>(null);
   const bracketRef = useRef<HTMLDivElement>(null);
   const matches = tournament.matches || []; // Deixamos apenas uma declaração
-  const skinImage = useSkinImageStore((state) => state.skinImage);
+  const { activeSkin } = useSkin();
+  const [skinImage, setSkinImage] = useState<string | null>(null);
+
+  useEffect(() => {
+    const bg = activeSkin?.extras?.backgroundImage;
+    if (bg?.startsWith("idb:")) {
+      const [, skinId, key] = bg.split(":");
+      loadImage(skinId, key).then((url) => setSkinImage(url));
+    } else {
+      setSkinImage(bg || null);
+    }
+  }, [activeSkin]);
 
   const getTeam = (id: string) => teams.find((t) => t.id === id);
 
