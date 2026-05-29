@@ -59,6 +59,37 @@ export function revokeImagePreview(url: string) {
   }
 }
 
+export function compressImageToWebpBlob(file: File, quality = 0.8): Promise<Blob> {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    const objectUrl = URL.createObjectURL(file);
+
+    img.onload = () => {
+      URL.revokeObjectURL(objectUrl);
+      const canvas = document.createElement("canvas");
+      canvas.width = img.width;
+      canvas.height = img.height;
+
+      const ctx = canvas.getContext("2d");
+      if (!ctx) return reject(new Error("Contexto 2D indisponível"));
+
+      ctx.drawImage(img, 0, 0, img.width, img.height);
+
+      canvas.toBlob(
+        (blob) => {
+          if (blob) resolve(blob);
+          else reject(new Error("Falha ao criar o arquivo binário."));
+        },
+        "image/webp",
+        quality,
+      );
+    };
+
+    img.onerror = reject;
+    img.src = objectUrl;
+  });
+}
+
 /** Convert canvas to WebP Blob. Falls back to PNG if WebP isn't supported. */
 function canvasToWebP(canvas: HTMLCanvasElement, quality: number): Promise<Blob> {
   return new Promise((resolve, reject) => {
@@ -71,7 +102,7 @@ function canvasToWebP(canvas: HTMLCanvasElement, quality: number): Promise<Blob>
         }
       },
       "image/webp",
-      quality
+      quality,
     );
   });
 }

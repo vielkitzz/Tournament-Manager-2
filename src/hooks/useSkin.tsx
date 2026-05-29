@@ -440,8 +440,11 @@ export function SkinProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     try {
       localStorage.setItem(STORAGE_KEY_CUSTOM, JSON.stringify(customSkins));
-    } catch {
-      /* ignore quota errors */
+    } catch (error) {
+      console.error("Erro ao guardar skins", error);
+      toast.error(
+        "Erro: A skin é muito pesada (mais de 5MB). Reduza o tamanho da imagem de fundo num site como o TinyPNG antes de a adicionar.",
+      );
     }
   }, [customSkins]);
 
