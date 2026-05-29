@@ -429,7 +429,15 @@ export function SkinProvider({ children }: { children: ReactNode }) {
     return localStorage.getItem(STORAGE_KEY_ACTIVE) || "default-dark";
   });
   const importSkins: SkinContextValue["importSkins"] = useCallback((incoming) => {
-    setCustomSkins((prev) => [...prev, ...incoming]);
+    setCustomSkins((prev) => {
+      const existingIds = new Set(prev.map((s) => s.id));
+      const toAdd = incoming.map((s) =>
+        existingIds.has(s.id)
+          ? { ...s, id: `custom-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 6)}` }
+          : s,
+      );
+      return [...prev, ...toAdd];
+    });
   }, []);
 
   const skins = useMemo<Skin[]>(() => [...BUILTIN_SKINS, ...customSkins], [customSkins]);
@@ -440,8 +448,11 @@ export function SkinProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     try {
       localStorage.setItem(STORAGE_KEY_CUSTOM, JSON.stringify(customSkins));
-    } catch {
-      /* ignore quota errors */
+    } catch (error) {
+      console.error("Erro ao guardar skins", error);
+      toast.error(
+        "Erro: A skin é muito pesada (mais de 5MB). Reduza o tamanho da imagem de fundo num site como o TinyPNG antes de a adicionar.",
+      );
     }
   }, [customSkins]);
 
@@ -652,14 +663,14 @@ export function exportSkinsJson(skins: Skin[]): string {
 }
 
 /** Valida e parseia um JSON de skins importado */
+/** Valida e parseia um JSON de skins importado */
 export function parseImportedSkins(raw: string): Skin[] {
   const parsed = JSON.parse(raw);
   const arr = Array.isArray(parsed) ? parsed : [parsed];
   return arr
     .filter((s) => s && typeof s.id === "string" && typeof s.label === "string" && typeof s.tokens === "object")
-    .map((s, i) => ({
+    .map((s) => ({
       ...s,
-      id: `custom-${(Date.now() + i).toString(36)}-${Math.random().toString(36).slice(2, 6)}`,
-      builtin: false,
+      builtin: false, // só isso — preserva o ID original
     }));
 }
