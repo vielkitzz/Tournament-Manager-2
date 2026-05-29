@@ -5,14 +5,13 @@ export async function captureScreenshot(element: HTMLElement, filename: string =
   try {
     toast.info("Capturando imagem...");
 
-    // Save and override styles to prevent scrollbars and clipping
+    // Salva e altera os estilos originais para evitar barras de rolagem
     const originalOverflow = element.style.overflow;
     const originalMaxHeight = element.style.maxHeight;
     const originalMaxWidth = element.style.maxWidth;
     const originalWidth = element.style.width;
     const originalHeight = element.style.height;
 
-    // Also fix all scrollable children
     const scrollableChildren: { el: HTMLElement; overflow: string; maxHeight: string }[] = [];
     element.querySelectorAll("*").forEach((child) => {
       const el = child as HTMLElement;
@@ -25,11 +24,7 @@ export async function captureScreenshot(element: HTMLElement, filename: string =
         style.overflowY === "auto" ||
         style.overflowY === "scroll"
       ) {
-        scrollableChildren.push({
-          el,
-          overflow: el.style.overflow,
-          maxHeight: el.style.maxHeight,
-        });
+        scrollableChildren.push({ el, overflow: el.style.overflow, maxHeight: el.style.maxHeight });
         el.style.overflow = "visible";
         el.style.maxHeight = "none";
       }
@@ -39,36 +34,28 @@ export async function captureScreenshot(element: HTMLElement, filename: string =
     element.style.maxHeight = "none";
     element.style.maxWidth = "none";
 
-    // Wait a frame for layout recalc
     await new Promise((r) => requestAnimationFrame(r));
 
     const captureWidth = element.scrollWidth;
     const captureHeight = element.scrollHeight;
 
     const rawBg = getComputedStyle(document.documentElement).getPropertyValue("--background").trim();
-
-    // Transforma "222.2 84.9% 6.6%" em "222.2, 84.9%, 6.6%"
     const bgColor = rawBg ? `hsl(${rawBg.replace(/\s+/g, ", ")})` : "#0a0a0a";
+    const padding = 32;
 
-    const padding = 32; // breathing room in CSS pixels
+    // 🔥 A MÁGICA ESTÁ AQUI: Capturamos os estilos de background que estão no Body
+    const bodyStyle = getComputedStyle(document.body);
+    const hasBgImage = bodyStyle.backgroundImage && bodyStyle.backgroundImage !== "none";
 
     const dataUrl = await toPng(element, {
-      backgroundColor: bgColor, // Considere mudar para 'transparent' ou anular se a skin for externa ao elemento
+      backgroundColor: hasBgImage ? "transparent" : bgColor, // Transparente se houver imagem
       cacheBust: true,
       pixelRatio: 2,
       width: captureWidth + padding * 2,
       height: captureHeight + padding * 2,
       skipFonts: true,
-
-      // ADICIONE ISTO PARA FORÇAR O CORS NAS IMAGENS DE FUNDO:
-      fetchRequestInit: {
-        mode: "cors",
-        cache: "no-cache",
-      },
-
       filter: (node) => {
         if (!(node instanceof HTMLElement)) return true;
-        // Skip the screenshot button itself if present inside the captured area
         if (node.dataset?.screenshotIgnore === "true") return false;
         return true;
       },
@@ -77,10 +64,18 @@ export async function captureScreenshot(element: HTMLElement, filename: string =
         maxHeight: "none",
         maxWidth: "none",
         padding: `${padding}px`,
+        // 🔥 APLICA O BACKGROUND GLOBAL NESTE ELEMENTO APENAS PARA O PRINT
+        ...(hasBgImage && {
+          backgroundImage: bodyStyle.backgroundImage,
+          backgroundSize: bodyStyle.backgroundSize,
+          backgroundPosition: bodyStyle.backgroundPosition,
+          backgroundRepeat: bodyStyle.backgroundRepeat,
+          backgroundColor: bgColor, // Cor de fundo sólida atrás da imagem
+        }),
       },
     });
 
-    // Restore original styles
+    // Restaura os estilos
     element.style.overflow = originalOverflow;
     element.style.maxHeight = originalMaxHeight;
     element.style.maxWidth = originalMaxWidth;
@@ -91,10 +86,8 @@ export async function captureScreenshot(element: HTMLElement, filename: string =
       el.style.maxHeight = maxHeight;
     });
 
-    // Copy to clipboard
+    // Copia para a área de transferência / Download
     try {
-      // Use the Promise form so Safari keeps the user-gesture context
-      // through the async toPng() above. Chromium also accepts this form.
       const blobPromise = fetch(dataUrl).then((r) => r.blob());
       if (typeof ClipboardItem !== "undefined" && navigator.clipboard?.write) {
         await navigator.clipboard.write([new ClipboardItem({ "image/png": blobPromise })]);
@@ -108,7 +101,7 @@ export async function captureScreenshot(element: HTMLElement, filename: string =
       link.download = filename;
       link.href = dataUrl;
       link.click();
-      toast.success("Imagem salva (cópia indisponível neste navegador)");
+      toast.success("Imagem salva com sucesso!");
     }
   } catch (err) {
     console.error("Screenshot error:", err);

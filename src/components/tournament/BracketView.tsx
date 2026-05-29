@@ -1069,7 +1069,7 @@ export default function BracketView({
       </div>
 
       <div
-        className="relative overflow-x-auto overflow-y-hidden pb-2 will-change-transform min-h-[500px]"
+        className="overflow-x-auto overflow-y-hidden pb-2 will-change-transform"
         ref={bracketRef}
         style={{ transform: "translateZ(0)" }}
       >
