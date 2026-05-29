@@ -636,7 +636,7 @@ export default function BracketView({
     return (
       <div
         key={pair.leg1.id}
-        className="relative group/pair w-[220px] rounded-lg bg-secondary/30 border border-border overflow-visible"
+        className="relative group/pair w-[220px] rounded-lg bg-card shadow-sm border border-border overflow-visible"
       >
         {onRemoveMatch && !tournament.finalized && (
           <button
@@ -772,7 +772,7 @@ export default function BracketView({
         <ContextMenuTrigger>
           <button
             onClick={() => setSelectedMatch(match)}
-            className="w-[220px] rounded-lg bg-secondary/30 border border-warning/30 hover:border-warning/60 transition-all text-left overflow-hidden block"
+            className="w-[220px] rounded-lg bg-card shadow-sm border border-warning/30 hover:border-warning/60 transition-all text-left overflow-hidden block"
           >
             <TeamRow
               team={home}
