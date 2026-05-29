@@ -99,10 +99,10 @@ export default function BracketView({
   onRemoveMatch,
   onResetDraw,
 }: BracketViewProps) {
-  const matches = tournament.matches || [];
   const [selectedMatch, setSelectedMatch] = useState<Match | null>(null);
   const [editingTeam, setEditingTeam] = useState<{ match: Match; side: "home" | "away" } | null>(null);
   const bracketRef = useRef<HTMLDivElement>(null);
+  const matches = tournament.matches || []; // Deixamos apenas uma declaração
   const skinImage = useSkinImageStore((state) => state.skinImage);
 
   const getTeam = (id: string) => teams.find((t) => t.id === id);
