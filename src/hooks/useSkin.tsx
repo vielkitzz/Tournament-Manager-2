@@ -1,4 +1,5 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, ReactNode } from "react";
+import { toast } from "sonner";
 
 /**
  * Skin system
@@ -450,9 +451,18 @@ export function SkinProvider({ children }: { children: ReactNode }) {
       localStorage.setItem(STORAGE_KEY_CUSTOM, JSON.stringify(customSkins));
     } catch (error) {
       console.error("Erro ao guardar skins", error);
-      toast.error(
-        "Erro: A skin é muito pesada (mais de 5MB). Reduza o tamanho da imagem de fundo num site como o TinyPNG antes de a adicionar.",
-      );
+      // Tenta salvar sem as imagens de fundo para não travar o app
+      try {
+        const skinsWithoutImages = customSkins.map((s) => ({
+          ...s,
+          extras: s.extras ? { ...s.extras, backgroundImage: null, uploadedFonts: [] } : s.extras,
+          logoUrl: undefined,
+        }));
+        localStorage.setItem(STORAGE_KEY_CUSTOM, JSON.stringify(skinsWithoutImages));
+        console.warn("Skins salvas sem imagens (quota excedida)");
+      } catch {
+        console.error("Não foi possível salvar skins nem sem imagens");
+      }
     }
   }, [customSkins]);
 
