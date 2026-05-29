@@ -1444,15 +1444,20 @@ export default function TournamentDetailPage() {
                 return (
                   <>
                     <div className="flex justify-end">
-                      <ScreenshotButton targetRef={groupsRef as any} filename="fase-de-grupos.png" discrete />
-                    </div>
-                    <div ref={groupsRef} className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                      {Array.from({ length: groupCount }, (_, i) => i + 1).map((groupNum) => (
-                        <div key={groupNum} className="space-y-3">
-                          <div className="flex items-center justify-between px-1">
-                            <h3 className="font-display font-bold text-lg text-foreground">
-                              Grupo {String.fromCharCode(64 + groupNum)}
-                            </h3>
+    <ScreenshotButton targetRef={groupsRef as any} filename="fase-de-grupos.png" discrete />
+  </div>
+  
+  {/* 1. MUDANÇA: A ref agora fica numa div "comum" por fora, e colocamos pb-6 para garantir que o fundo não corte */}
+  <div ref={groupsRef} className="pb-6 pt-2 px-2 -mx-2">
+    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      {Array.from({ length: groupCount }, (_, i) => i + 1).map((groupNum) => (
+        <div key={groupNum} className="space-y-3">
+          <div className="flex items-center justify-between px-1">
+            
+            {/* 2. MUDANÇA: Adicionamos whitespace-nowrap aqui no h3 */}
+            <h3 className="font-display font-bold text-lg text-foreground whitespace-nowrap">
+              Grupo {String.fromCharCode(64 + groupNum)}
+            </h3>
                             {!isViewingPastSeason && !tournament.finalized && (
                               <Popover>
                                 <PopoverTrigger asChild>
