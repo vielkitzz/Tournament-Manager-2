@@ -1,5 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, ReactNode } from "react";
 import { toast } from "sonner";
+import { saveImage, loadImage, deleteImages } from "./useSkinImageStore";
 
 /**
  * Skin system
@@ -466,9 +467,18 @@ export function SkinProvider({ children }: { children: ReactNode }) {
     }
   }, [customSkins]);
 
-  // Apply active skin
+  // Apply active skin — resolve imagens do IndexedDB antes de aplicar
   useEffect(() => {
-    applySkinToDocument(activeSkin);
+    async function apply() {
+      let skin = activeSkin;
+      if (skin.extras?.backgroundImage?.startsWith("idb:")) {
+        const [, skinId, key] = skin.extras.backgroundImage.split(":");
+        const dataUrl = await loadImage(skinId, key);
+        skin = { ...skin, extras: { ...skin.extras, backgroundImage: dataUrl } };
+      }
+      applySkinToDocument(skin);
+    }
+    apply();
     try {
       localStorage.setItem(STORAGE_KEY_ACTIVE, activeSkin.id);
     } catch {
@@ -517,6 +527,7 @@ export function SkinProvider({ children }: { children: ReactNode }) {
   const deleteCustomSkin: SkinContextValue["deleteCustomSkin"] = useCallback((id) => {
     setCustomSkins((prev) => prev.filter((s) => s.id !== id));
     setActiveId((current) => (current === id ? "default-dark" : current));
+    deleteImages(id).catch(console.error);
   }, []);
 
   const duplicateSkin: SkinContextValue["duplicateSkin"] = useCallback(
@@ -537,6 +548,10 @@ export function SkinProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const updateExtras: SkinContextValue["updateExtras"] = useCallback((id, patch) => {
+    if (patch.backgroundImage && patch.backgroundImage.startsWith("data:")) {
+      saveImage(id, "backgroundImage", patch.backgroundImage).catch(console.error);
+      patch = { ...patch, backgroundImage: `idb:${id}:backgroundImage` };
+    }
     setCustomSkins((prev) => prev.map((s) => (s.id === id ? { ...s, extras: { ...(s.extras || {}), ...patch } } : s)));
   }, []);
 
