@@ -365,6 +365,7 @@ function applySkinExtrasToDocument(skin: Skin) {
     const blur = extras.backgroundBlur || 0;
     rules.push(
       `body{background-image:${bgLayers.join(",")} !important;` +
+        `background-color: transparent !important;` +
         `background-size:${size};background-position:${pos};background-attachment:fixed;background-repeat:no-repeat;}`,
     );
     if (blur > 0) {
