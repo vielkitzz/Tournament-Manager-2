@@ -252,38 +252,6 @@ function loadCustomSkins(): Skin[] {
   }
 }
 
-function applySkinToDocument(skin: Skin) {
-  const root = document.documentElement;
-  // Base mode (controls index.css :root vs .light)
-  root.classList.toggle("light", skin.base === "light");
-  root.classList.toggle("dark", skin.base === "dark");
-  root.setAttribute("data-skin", skin.id);
-
-  // Clear previously injected token overrides
-  ALL_TOKEN_KEYS.forEach((key) => {
-    root.style.removeProperty(`--${key}`);
-  });
-  // Clear extras-managed vars
-  ["radius", "font-sans", "font-heading", "font-scale", "letter-spacing", "shadow-strength"].forEach((k) =>
-    root.style.removeProperty(`--${k}`),
-  );
-  // Apply new overrides
-  Object.entries(skin.tokens).forEach(([key, value]) => {
-    if (typeof value === "string" && value.trim()) {
-      root.style.setProperty(`--${key}`, value);
-    }
-  });
-
-  applySkinExtrasToDocument(skin);
-}
-
-const EXTRAS_STYLE_ID = "tm2-skin-extras-style";
-const FONT_LINK_ID = "tm2-skin-font-link";
-
-function buildGradientCss(g: SkinGradient): string {
-  return `linear-gradient(${g.angle}deg, ${g.from}, ${g.to})`;
-}
-
 function applySkinExtrasToDocument(skin: Skin) {
   const root = document.documentElement;
   const extras = skin.extras || {};
@@ -308,7 +276,7 @@ function applySkinExtrasToDocument(skin: Skin) {
   }
 
   if (extras.fontSans && extras.fontSans.trim()) {
-    rules.push(`body, * { font-family: ${extras.fontSans}, ui-sans-serif, system-ui, sans-serif !important; }`);
+    root.style.setProperty("--font-sans", `${extras.fontSans}, ui-sans-serif, system-ui, sans-serif`);
   }
   if (typeof extras.fontScale === "number") {
     root.style.fontSize = `${Math.round(extras.fontScale * 100)}%`;
@@ -333,14 +301,14 @@ function applySkinExtrasToDocument(skin: Skin) {
     );
   }
 
-  // Letter spacing
-  if (typeof extras.letterSpacing === "number") {
-    rules.push(`body{letter-spacing:${extras.letterSpacing}em;}`);
-  }
-
   // Font sans no body
   if (extras.fontSans && extras.fontSans.trim()) {
     rules.push(`body, * { font-family: ${extras.fontSans}, ui-sans-serif, system-ui, sans-serif !important; }`);
+  }
+
+  // Letter spacing
+  if (typeof extras.letterSpacing === "number") {
+    rules.push(`body{letter-spacing:${extras.letterSpacing}em;}`);
   }
 
   // Shadow intensity
@@ -381,7 +349,7 @@ function applySkinExtrasToDocument(skin: Skin) {
     }
   }
 
-  // Card gradient (used by .card-gradient util) + apply to all .bg-card
+  // Card gradient
   if (gradients.card?.enabled) {
     const css = buildGradientCss(gradients.card);
     rules.push(`:root{--gradient-card:${css};}`);
@@ -393,22 +361,26 @@ function applySkinExtrasToDocument(skin: Skin) {
     const css = buildGradientCss(gradients.primary);
     rules.push(`.bg-primary{background-image:${css} !important;}`);
   }
+
   // Accent gradient
   if (gradients.accent?.enabled) {
     const css = buildGradientCss(gradients.accent);
     rules.push(`.bg-accent{background-image:${css} !important;}`);
   }
+
   // Sidebar gradient
   if (gradients.sidebar?.enabled) {
     const css = buildGradientCss(gradients.sidebar);
     rules.push(`[data-sidebar="sidebar"],aside.app-sidebar{background-image:${css} !important;}`);
   }
-  // Button gradient (default variant)
+
+  // Button gradient
   if (gradients.button?.enabled) {
     const css = buildGradientCss(gradients.button);
     rules.push(`button.bg-primary,.btn-primary,[data-variant="default"]{background-image:${css} !important;}`);
   }
 
+  // Uploaded fonts (@font-face)
   if (extras.uploadedFonts?.length) {
     const faces = extras.uploadedFonts.map(
       (f) => `@font-face { font-family: '${f.name}'; src: url('${f.url}') format('${f.format}'); font-display: swap; }`,
