@@ -17,9 +17,14 @@ export async function captureScreenshot(element: HTMLElement, filename: string =
     element.querySelectorAll("*").forEach((child) => {
       const el = child as HTMLElement;
       const style = getComputedStyle(el);
-      if (style.overflow === "auto" || style.overflow === "scroll" ||
-          style.overflowX === "auto" || style.overflowX === "scroll" ||
-          style.overflowY === "auto" || style.overflowY === "scroll") {
+      if (
+        style.overflow === "auto" ||
+        style.overflow === "scroll" ||
+        style.overflowX === "auto" ||
+        style.overflowX === "scroll" ||
+        style.overflowY === "auto" ||
+        style.overflowY === "scroll"
+      ) {
         scrollableChildren.push({
           el,
           overflow: el.style.overflow,
@@ -40,9 +45,10 @@ export async function captureScreenshot(element: HTMLElement, filename: string =
     const captureWidth = element.scrollWidth;
     const captureHeight = element.scrollHeight;
 
-    const bgColor = getComputedStyle(document.documentElement).getPropertyValue("--background")
-      ? `hsl(${getComputedStyle(document.documentElement).getPropertyValue("--background").trim()})`
-      : "#0a0a0a";
+    const rawBg = getComputedStyle(document.documentElement).getPropertyValue("--background").trim();
+
+    // Transforma "222.2 84.9% 6.6%" em "222.2, 84.9%, 6.6%"
+    const bgColor = rawBg ? `hsl(${rawBg.replace(/\s+/g, ", ")})` : "#0a0a0a";
 
     const padding = 32; // breathing room in CSS pixels
 
@@ -85,9 +91,7 @@ export async function captureScreenshot(element: HTMLElement, filename: string =
       // through the async toPng() above. Chromium also accepts this form.
       const blobPromise = fetch(dataUrl).then((r) => r.blob());
       if (typeof ClipboardItem !== "undefined" && navigator.clipboard?.write) {
-        await navigator.clipboard.write([
-          new ClipboardItem({ "image/png": blobPromise }),
-        ]);
+        await navigator.clipboard.write([new ClipboardItem({ "image/png": blobPromise })]);
         toast.success("Imagem copiada para a área de transferência!");
       } else {
         throw new Error("Clipboard API indisponível");
