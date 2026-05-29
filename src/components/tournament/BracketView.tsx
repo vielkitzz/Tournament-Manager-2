@@ -1042,7 +1042,7 @@ export default function BracketView({
         const canFinalize = allFinalResolved && allMatchesPlayed;
         if (!canFinalize || tournament.finalized || !onFinalize) return null;
         return (
-          <div className="flex items-center justify-start gap-3 p-3 rounded-xl bg-primary/5 border border-primary/20">
+          <div className="flex items-center justify-start gap-3 p-3 rounded-xl bg-primary/70 border border-primary/20">
             <Trophy className="w-4 h-4 text-primary" />
             <span className="text-sm font-medium text-foreground">Chaveamento concluído!</span>
             <Button onClick={onFinalize} size="sm" className="gap-1.5 bg-primary text-primary-foreground">
