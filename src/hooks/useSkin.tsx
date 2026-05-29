@@ -217,6 +217,8 @@ const BUILTIN_SKINS: Skin[] = [
 
 const STORAGE_KEY_ACTIVE = "tm2-skin-active";
 const STORAGE_KEY_CUSTOM = "tm2-skin-custom";
+const EXTRAS_STYLE_ID = "tm2-skin-extras-style";
+const FONT_LINK_ID = "tm2-skin-font-link";
 
 interface SkinContextValue {
   skins: Skin[];
