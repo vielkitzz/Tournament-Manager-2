@@ -1065,28 +1065,17 @@ export default function BracketView({
             <Shuffle className="w-3.5 h-3.5" />
           </button>
         )}
-        <ScreenshotButton targetRef={bracketRef as any} filename="chaveamento.png" discrete />
+        <ScreenshotButton targetRef={bracketRef as any} filename="chaveamento.png" discrete skinImage={skinImage}/>
       </div>
 
+      {/* Removemos a tag <img> daqui de dentro! */}
       <div
-        className="overflow-x-auto overflow-y-hidden pb-2 will-change-transform"
+        className="overflow-x-auto overflow-y-hidden pb-2 will-change-transform min-h-[500px]"
         ref={bracketRef}
         style={{ transform: "translateZ(0)" }}
       >
-        {/* A IMAGEM DE FUNDO ENTRA AQUI (DENTRO DA REF) */}
-        {skinImage && (
-          <img
-            src={skinImage}
-            alt="Skin"
-            crossOrigin="anonymous"
-            className="absolute inset-0 w-full h-full object-cover -z-10 opacity-30" // Ajuste a opacidade (opacity-30, opacity-50) se precisar
-          />
-        )}
-
-        {/* O CONTEÚDO DO CHAVEAMENTO VEM AQUI DENTRO (envolto numa div z-10) */}
-        <div className="relative z-10">
-          {(() => {
-            const stagesBeforeFinal = stages.slice(0, -1);
+        {(() => {
+          const stagesBeforeFinal = stages.slice(0, -1);
             const finalStageKey = stages[stages.length - 1];
             const finalStagePairs = getPairs(matchesByStage[finalStageKey] || []);
 
