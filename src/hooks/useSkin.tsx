@@ -11,13 +11,7 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useState, R
 
 export type SkinTokens = Partial<Record<string, string>>;
 
-export type GradientTarget =
-  | "background"
-  | "card"
-  | "primary"
-  | "accent"
-  | "sidebar"
-  | "button";
+export type GradientTarget = "background" | "card" | "primary" | "accent" | "sidebar" | "button";
 
 export interface SkinGradient {
   enabled: boolean;
@@ -51,6 +45,11 @@ export interface SkinExtras {
   shadowIntensity?: number;
   /** Global UI density: 0.85=compact, 1=normal, 1.15=cozy. */
   density?: number;
+  uploadedFonts?: Array<{
+    name: string;
+    url: string;
+    format: string;
+  }>;
 }
 
 export interface Skin {
@@ -265,8 +264,8 @@ function applySkinToDocument(skin: Skin) {
     root.style.removeProperty(`--${key}`);
   });
   // Clear extras-managed vars
-  ["radius", "font-sans", "font-heading", "font-scale", "letter-spacing", "shadow-strength"].forEach(
-    (k) => root.style.removeProperty(`--${k}`),
+  ["radius", "font-sans", "font-heading", "font-scale", "letter-spacing", "shadow-strength"].forEach((k) =>
+    root.style.removeProperty(`--${k}`),
   );
   // Apply new overrides
   Object.entries(skin.tokens).forEach(([key, value]) => {
@@ -309,10 +308,7 @@ function applySkinExtrasToDocument(skin: Skin) {
   }
 
   if (extras.fontSans && extras.fontSans.trim()) {
-    root.style.setProperty(
-      "--font-sans",
-      `${extras.fontSans}, ui-sans-serif, system-ui, sans-serif`,
-    );
+    root.style.setProperty("--font-sans", `${extras.fontSans}, ui-sans-serif, system-ui, sans-serif`);
   }
   if (typeof extras.fontScale === "number") {
     root.style.fontSize = `${Math.round(extras.fontScale * 100)}%`;
@@ -359,9 +355,7 @@ function applySkinExtrasToDocument(skin: Skin) {
   if (bgImage) {
     const overlay = extras.backgroundOpacity ?? 0;
     if (overlay > 0) {
-      bgLayers.push(
-        `linear-gradient(hsl(var(--background) / ${overlay}), hsl(var(--background) / ${overlay}))`,
-      );
+      bgLayers.push(`linear-gradient(hsl(var(--background) / ${overlay}), hsl(var(--background) / ${overlay}))`);
     }
     bgLayers.push(`url("${bgImage}")`);
   } else if (bgGrad?.enabled) {
@@ -402,14 +396,19 @@ function applySkinExtrasToDocument(skin: Skin) {
   // Sidebar gradient
   if (gradients.sidebar?.enabled) {
     const css = buildGradientCss(gradients.sidebar);
-    rules.push(
-      `[data-sidebar="sidebar"],aside.app-sidebar{background-image:${css} !important;}`,
-    );
+    rules.push(`[data-sidebar="sidebar"],aside.app-sidebar{background-image:${css} !important;}`);
   }
   // Button gradient (default variant)
   if (gradients.button?.enabled) {
     const css = buildGradientCss(gradients.button);
     rules.push(`button.bg-primary,.btn-primary,[data-variant="default"]{background-image:${css} !important;}`);
+  }
+
+  if (extras.uploadedFonts?.length) {
+    const faces = extras.uploadedFonts.map(
+      (f) => `@font-face { font-family: '${f.name}'; src: url('${f.url}') format('${f.format}'); font-display: swap; }`,
+    );
+    rules.push(faces.join("\n"));
   }
 
   style.textContent = rules.join("\n");
@@ -509,9 +508,7 @@ export function SkinProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const updateExtras: SkinContextValue["updateExtras"] = useCallback((id, patch) => {
-    setCustomSkins((prev) =>
-      prev.map((s) => (s.id === id ? { ...s, extras: { ...(s.extras || {}), ...patch } } : s)),
-    );
+    setCustomSkins((prev) => prev.map((s) => (s.id === id ? { ...s, extras: { ...(s.extras || {}), ...patch } } : s)));
   }, []);
 
   const setGradient: SkinContextValue["setGradient"] = useCallback((id, target, value) => {

@@ -16,6 +16,7 @@ import { Slider } from "@/components/ui/slider";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
+import { useCustomFonts } from "@/hooks/useCustomFonts";
 
 function PreviewSwatches({ skin }: { skin: Skin }) {
   const keys = ["background", "card", "primary", "accent", "border"] as const;
@@ -100,6 +101,9 @@ function SkinEditor({
   const { updateCustomSkin, setCustomToken, resetCustomSkin, updateExtras, setGradient } = useSkin();
   const [label, setLabel] = useState(skin.label);
   const bgInputRef = useRef<HTMLInputElement>(null);
+  const { uploadFont, deleteFont, uploading } = useCustomFonts(skin.id);
+  const fontInputRef = useRef<HTMLInputElement>(null);
+  const [newFontName, setNewFontName] = useState("");
 
   useEffect(() => setLabel(skin.label), [skin.id, skin.label]);
 
@@ -182,9 +186,7 @@ function SkinEditor({
           {SKIN_TOKEN_GROUPS.map((group) => (
             <section key={group.label} className="rounded-lg border border-border bg-card/50">
               <header className="px-3 py-2 border-b border-border">
-                <h4 className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
-                  {group.label}
-                </h4>
+                <h4 className="text-xs font-bold uppercase tracking-wider text-muted-foreground">{group.label}</h4>
               </header>
               <div className="px-3 divide-y divide-border/50">
                 {group.tokens.map((t) => {
@@ -285,13 +287,82 @@ function SkinEditor({
                 onValueChange={([v]) => updateExtras(skin.id, { letterSpacing: v })}
               />
             </div>
+            <div>
+              <label className="text-xs text-muted-foreground">Fontes locais (upload)</label>
+              <div className="flex gap-2 mt-1">
+                <Input
+                  placeholder="Nome da fonte (ex: MinhaFonte)"
+                  value={newFontName}
+                  onChange={(e) => setNewFontName(e.target.value)}
+                />
+                <Button
+                  variant="outline"
+                  size="sm"
+                  disabled={!newFontName.trim() || uploading}
+                  onClick={() => fontInputRef.current?.click()}
+                >
+                  {uploading ? (
+                    "Enviando…"
+                  ) : (
+                    <>
+                      <Upload className="w-3.5 h-3.5 mr-1" />
+                      Enviar
+                    </>
+                  )}
+                </Button>
+              </div>
+              <input
+                ref={fontInputRef}
+                type="file"
+                accept=".ttf,.woff,.woff2"
+                className="hidden"
+                onChange={async (e) => {
+                  const file = e.target.files?.[0];
+                  if (!file || !newFontName.trim()) return;
+                  const uploaded = await uploadFont(file, newFontName.trim());
+                  if (uploaded) {
+                    updateExtras(skin.id, {
+                      uploadedFonts: [...(extras.uploadedFonts || []), uploaded],
+                    });
+                    toast.success(`Fonte "${uploaded.name}" enviada — use o nome no campo acima`);
+                    setNewFontName("");
+                  }
+                  e.target.value = "";
+                }}
+              />
+              {(extras.uploadedFonts || []).length > 0 && (
+                <div className="mt-2 space-y-1">
+                  {extras.uploadedFonts!.map((f, i) => (
+                    <div key={i} className="flex items-center justify-between text-xs bg-muted rounded px-2 py-1">
+                      <span className="font-mono">
+                        {f.name} <span className="text-muted-foreground">({f.format})</span>
+                      </span>
+                      <button
+                        type="button"
+                        onClick={async () => {
+                          await deleteFont(f.url);
+                          updateExtras(skin.id, {
+                            uploadedFonts: extras.uploadedFonts!.filter((_, j) => j !== i),
+                          });
+                          toast.success("Fonte removida");
+                        }}
+                        className="text-destructive hover:text-destructive/80"
+                      >
+                        <X className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+              <p className="text-[10px] text-muted-foreground mt-1">
+                Suporta .ttf, .woff, .woff2 · Após enviar, use o nome nos campos "Família corpo" ou "Família títulos"
+              </p>
+            </div>
           </section>
 
           {/* Plano de fundo */}
           <section className="rounded-lg border border-border bg-card/50 p-3 space-y-3">
-            <h4 className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
-              Plano de fundo
-            </h4>
+            <h4 className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Plano de fundo</h4>
             <div className="flex items-center gap-3">
               {extras.backgroundImage ? (
                 <img
@@ -349,18 +420,14 @@ function SkinEditor({
                     <Input
                       placeholder="center"
                       defaultValue={extras.backgroundPosition || "center"}
-                      onBlur={(e) =>
-                        updateExtras(skin.id, { backgroundPosition: e.target.value.trim() || "center" })
-                      }
+                      onBlur={(e) => updateExtras(skin.id, { backgroundPosition: e.target.value.trim() || "center" })}
                     />
                   </div>
                 </div>
                 <div>
                   <div className="flex items-center justify-between mb-1.5">
                     <span className="text-xs text-foreground">Desfoque do fundo</span>
-                    <span className="text-xs font-mono text-muted-foreground">
-                      {extras.backgroundBlur || 0}px
-                    </span>
+                    <span className="text-xs font-mono text-muted-foreground">{extras.backgroundBlur || 0}px</span>
                   </div>
                   <Slider
                     value={[extras.backgroundBlur || 0]}
@@ -415,9 +482,7 @@ function SkinEditor({
                     </div>
                     <button
                       type="button"
-                      onClick={() =>
-                        setGradient(skin.id, g.key, enabled ? null : { ...current, enabled: true })
-                      }
+                      onClick={() => setGradient(skin.id, g.key, enabled ? null : { ...current, enabled: true })}
                       className={cn(
                         "text-[11px] px-2 py-0.5 rounded border transition-colors",
                         enabled
@@ -441,9 +506,7 @@ function SkinEditor({
                       <input
                         type="color"
                         value={current.to}
-                        onChange={(e) =>
-                          setGradient(skin.id, g.key, { ...current, to: e.target.value, enabled: true })
-                        }
+                        onChange={(e) => setGradient(skin.id, g.key, { ...current, to: e.target.value, enabled: true })}
                         className="h-7 w-9 rounded border border-border bg-transparent cursor-pointer"
                       />
                       <div className="flex items-center gap-2">
@@ -452,9 +515,7 @@ function SkinEditor({
                           min={0}
                           max={360}
                           step={5}
-                          onValueChange={([v]) =>
-                            setGradient(skin.id, g.key, { ...current, angle: v, enabled: true })
-                          }
+                          onValueChange={([v]) => setGradient(skin.id, g.key, { ...current, angle: v, enabled: true })}
                         />
                         <span className="text-[10px] font-mono text-muted-foreground w-10 text-right">
                           {current.angle}°
@@ -473,9 +534,7 @@ function SkinEditor({
             <div>
               <div className="flex items-center justify-between mb-1.5">
                 <span className="text-xs text-foreground">Intensidade</span>
-                <span className="text-xs font-mono text-muted-foreground">
-                  {Math.round(shadowIntensity * 100)}%
-                </span>
+                <span className="text-xs font-mono text-muted-foreground">{Math.round(shadowIntensity * 100)}%</span>
               </div>
               <Slider
                 value={[shadowIntensity]}
@@ -511,17 +570,10 @@ function SkinEditor({
 }
 
 export default function SkinSelector() {
-  const {
-    skins,
-    activeSkin,
-    setActiveSkin,
-    createCustomSkin,
-    duplicateSkin,
-    deleteCustomSkin,
-  } = useSkin();
+  const { skins, activeSkin, setActiveSkin, createCustomSkin, duplicateSkin, deleteCustomSkin } = useSkin();
   const [editingId, setEditingId] = useState<string | null>(null);
 
-  const editing = editingId ? skins.find((s) => s.id === editingId) ?? null : null;
+  const editing = editingId ? (skins.find((s) => s.id === editingId) ?? null) : null;
 
   return (
     <div className="space-y-3">
@@ -547,8 +599,7 @@ export default function SkinSelector() {
                   <div className="min-w-0">
                     <p className="text-sm font-semibold truncate">{skin.label}</p>
                     <p className="text-[11px] text-muted-foreground mt-0.5 truncate">
-                      {skin.builtin ? "Padrão" : "Personalizada"} ·{" "}
-                      {skin.base === "light" ? "Claro" : "Escuro"}
+                      {skin.builtin ? "Padrão" : "Personalizada"} · {skin.base === "light" ? "Claro" : "Escuro"}
                     </p>
                   </div>
                   {isActive && (
@@ -625,17 +676,11 @@ export default function SkinSelector() {
         </button>
       </div>
 
-      {editing && (
-        <SkinEditor
-          skin={editing}
-          open={!!editingId}
-          onOpenChange={(o) => !o && setEditingId(null)}
-        />
-      )}
+      {editing && <SkinEditor skin={editing} open={!!editingId} onOpenChange={(o) => !o && setEditingId(null)} />}
 
       <p className="text-[11px] text-muted-foreground">
-        Dica: duplique uma skin padrão para começar e ajuste cada token via seletor de cor. Suas
-        skins ficam salvas neste navegador.
+        Dica: duplique uma skin padrão para começar e ajuste cada token via seletor de cor. Suas skins ficam salvas
+        neste navegador.
       </p>
     </div>
   );
