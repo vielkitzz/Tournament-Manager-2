@@ -223,7 +223,7 @@ function StatCard({ icon: Icon, title, items, valueAccessor }: StatCardProps) {
   const canExpand = items.length > INITIAL_COUNT;
 
   return (
-    <div className="rounded-xl border border-border overflow-hidden">
+    <div className="rounded-xl border border-border bg-card/70 overflow-hidden">
       <div className="flex items-center gap-2 px-3 py-2 bg-secondary/70 border-b border-border">
         <Icon className="w-3.5 h-3.5 text-primary" />
         <h3 className="text-xs font-bold text-foreground">{title}</h3>
