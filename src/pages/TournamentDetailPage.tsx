@@ -907,15 +907,21 @@ export default function TournamentDetailPage() {
     toast.success(`Temporada ${targetYear} criada! Edite as configurações.`);
   };
 
-  const handleLogoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleLogoChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (file) {
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        updateTournament(tournament.id, { logo: reader.result as string });
-        toast.success("Logo atualizada!");
-      };
-      reader.readAsDataURL(file);
+    if (!file) return;
+
+    try {
+      toast.info("Enviando logo...");
+      const { compressToWebP } = await import("@/lib/imageUtils");
+      const blob = await compressToWebP(file);
+      const path = `tournaments/${tournament.id}_${Date.now()}.webp`;
+      const { uploadLogo } = await import("@/lib/storageUtils");
+      const url = await uploadLogo(blob, path, { upsert: true, retries: 2 });
+      updateTournament(tournament.id, { logo: url });
+      toast.success("Logo atualizada!");
+    } catch (err: any) {
+      toast.error("Erro ao enviar logo: " + (err?.message || "desconhecido"));
     }
   };
 
