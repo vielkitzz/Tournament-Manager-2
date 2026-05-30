@@ -224,7 +224,7 @@ function StatCard({ icon: Icon, title, items, valueAccessor }: StatCardProps) {
 
   return (
     <div className="rounded-xl border border-border overflow-hidden">
-      <div className="flex items-center gap-2 px-3 py-2 bg-secondary/30 border-b border-border">
+      <div className="flex items-center gap-2 px-3 py-2 bg-secondary/70 border-b border-border">
         <Icon className="w-3.5 h-3.5 text-primary" />
         <h3 className="text-xs font-bold text-foreground">{title}</h3>
       </div>
@@ -236,7 +236,7 @@ function StatCard({ icon: Icon, title, items, valueAccessor }: StatCardProps) {
       {canExpand && (
         <button
           onClick={() => setExpanded(!expanded)}
-          className="w-full flex items-center justify-center gap-1 py-1.5 text-[11px] font-medium text-primary hover:bg-secondary/40 transition-colors border-t border-border/30"
+          className="w-full flex items-center justify-center gap-1 py-1.5 text-[11px] font-medium text-primary hover:bg-secondary transition-colors border-t border-border/30"
         >
           {expanded ? (
             <>
@@ -269,7 +269,7 @@ function PlayerStatCard({ icon: Icon, title, items, valueAccessor }: PlayerStatC
 
   return (
     <div className="rounded-xl border border-border overflow-hidden">
-      <div className="flex items-center gap-2 px-3 py-2 bg-secondary/30 border-b border-border">
+      <div className="flex items-center gap-2 px-3 py-2 bg-secondary/70 border-b border-border">
         <Icon className="w-3.5 h-3.5 text-primary" />
         <h3 className="text-xs font-bold text-foreground">{title}</h3>
       </div>
@@ -281,7 +281,7 @@ function PlayerStatCard({ icon: Icon, title, items, valueAccessor }: PlayerStatC
       {canExpand && (
         <button
           onClick={() => setExpanded(!expanded)}
-          className="w-full flex items-center justify-center gap-1 py-1.5 text-[11px] font-medium text-primary hover:bg-secondary/40 transition-colors border-t border-border/30"
+          className="w-full flex items-center justify-center gap-1 py-1.5 text-[11px] font-medium text-primary hover:bg-secondary transition-colors border-t border-border/30"
         >
           {expanded ? (
             <>
