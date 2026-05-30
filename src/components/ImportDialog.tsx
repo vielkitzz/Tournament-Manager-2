@@ -1,6 +1,13 @@
 import { useState, useRef } from "react";
 import { Upload, Shield, Trophy, FileJson } from "lucide-react";
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { useTournamentStore } from "@/store/tournamentStore";
 import { toast } from "sonner";
@@ -48,7 +55,7 @@ export default function ImportDialog({ trigger }: Props) {
             id: newId,
             name: team.name || "Time importado",
             shortName: team.shortName || team.name?.substring(0, 10) || "",
-            abbreviation: team.abbreviation || team.name?.substring(0, 3)?.toUpperCase() || "IMP",
+            abbreviation: team.abbreviation || team.name?.substring(0, 4)?.toUpperCase() || "IMP",
             logo: team.logo,
             foundingYear: team.foundingYear,
             colors: team.colors || ["#1e40af", "#ffffff"],
@@ -69,7 +76,7 @@ export default function ImportDialog({ trigger }: Props) {
               teamId: newTeamId,
               startYear: h.startYear,
               endYear: h.endYear,
-              fieldType: h.fieldType || 'legacy',
+              fieldType: h.fieldType || "legacy",
               logo: h.logo || undefined,
               rating: h.rating != null ? Number(h.rating) : undefined,
               name: h.name || undefined,
@@ -116,10 +123,12 @@ export default function ImportDialog({ trigger }: Props) {
           teamIds: season.teamIds ? remapIds(season.teamIds) : undefined,
           championId: season.championId ? remapId(season.championId) : undefined,
           matches: season.matches ? season.matches.map(remapMatch) : undefined,
-          standings: season.standings ? season.standings.map((st: any) => ({
-            ...st,
-            teamId: remapId(st.teamId),
-          })) : undefined,
+          standings: season.standings
+            ? season.standings.map((st: any) => ({
+                ...st,
+                teamId: remapId(st.teamId),
+              }))
+            : undefined,
         });
 
         for (const t of data.tournaments) {
@@ -132,7 +141,17 @@ export default function ImportDialog({ trigger }: Props) {
             numberOfTeams: t.numberOfTeams || 0,
             logo: t.logo,
             teamIds: t.teamIds ? remapIds(t.teamIds) : [],
-            settings: remapSettings(t.settings) || { pointsWin: 3, pointsDraw: 1, pointsLoss: 0, tiebreakers: [], awayGoalsRule: false, extraTime: true, goldenGoal: false, rateInfluence: true, promotions: [] },
+            settings: remapSettings(t.settings) || {
+              pointsWin: 3,
+              pointsDraw: 1,
+              pointsLoss: 0,
+              tiebreakers: [],
+              awayGoalsRule: false,
+              extraTime: true,
+              goldenGoal: false,
+              rateInfluence: true,
+              promotions: [],
+            },
             matches: t.matches ? t.matches.map(remapMatch) : [],
             finalized: false,
             seasons: t.seasons ? t.seasons.map(remapSeason) : [],
@@ -175,20 +194,10 @@ export default function ImportDialog({ trigger }: Props) {
           <DialogDescription>Selecione o que deseja importar do arquivo</DialogDescription>
         </DialogHeader>
 
-        <input
-          ref={fileInputRef}
-          type="file"
-          accept=".json"
-          onChange={processImport}
-          className="hidden"
-        />
+        <input ref={fileInputRef} type="file" accept=".json" onChange={processImport} className="hidden" />
 
         <div className="space-y-2 pt-2">
-          <Button
-            variant="outline"
-            className="w-full justify-start gap-3 h-11"
-            onClick={() => handleSelect("teams")}
-          >
+          <Button variant="outline" className="w-full justify-start gap-3 h-11" onClick={() => handleSelect("teams")}>
             <Shield className="w-4 h-4 text-primary" />
             <span>Apenas Times (inclui versões históricas)</span>
             <Upload className="w-3.5 h-3.5 ml-auto text-muted-foreground" />
@@ -202,11 +211,7 @@ export default function ImportDialog({ trigger }: Props) {
             <span>Apenas Competições</span>
             <Upload className="w-3.5 h-3.5 ml-auto text-muted-foreground" />
           </Button>
-          <Button
-            variant="outline"
-            className="w-full justify-start gap-3 h-11"
-            onClick={() => handleSelect("all")}
-          >
+          <Button variant="outline" className="w-full justify-start gap-3 h-11" onClick={() => handleSelect("all")}>
             <FileJson className="w-4 h-4 text-primary" />
             <span>Tudo</span>
             <Upload className="w-3.5 h-3.5 ml-auto text-muted-foreground" />

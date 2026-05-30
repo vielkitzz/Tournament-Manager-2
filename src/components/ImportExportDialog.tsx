@@ -1,6 +1,13 @@
 import { useState, useRef } from "react";
 import { Download, Upload, Shield, Trophy } from "lucide-react";
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { useTournamentStore } from "@/store/tournamentStore";
 import { toast } from "sonner";
@@ -57,7 +64,7 @@ export default function ImportExportDialog({ trigger }: Props) {
             id: crypto.randomUUID(),
             name: team.name || "Time importado",
             shortName: team.shortName || team.name?.substring(0, 10) || "",
-            abbreviation: team.abbreviation || team.name?.substring(0, 3)?.toUpperCase() || "IMP",
+            abbreviation: team.abbreviation || team.name?.substring(0, 4)?.toUpperCase() || "IMP",
             logo: team.logo,
             foundingYear: team.foundingYear,
             colors: team.colors || ["#1e40af", "#ffffff"],
@@ -79,7 +86,17 @@ export default function ImportExportDialog({ trigger }: Props) {
             numberOfTeams: t.numberOfTeams || 0,
             logo: t.logo,
             teamIds: [], // teams need to be re-linked
-            settings: t.settings || { pointsWin: 3, pointsDraw: 1, pointsLoss: 0, tiebreakers: [], awayGoalsRule: false, extraTime: true, goldenGoal: false, rateInfluence: true, promotions: [] },
+            settings: t.settings || {
+              pointsWin: 3,
+              pointsDraw: 1,
+              pointsLoss: 0,
+              tiebreakers: [],
+              awayGoalsRule: false,
+              extraTime: true,
+              goldenGoal: false,
+              rateInfluence: true,
+              promotions: [],
+            },
             matches: [],
             finalized: false,
             seasons: t.seasons || [],
@@ -120,13 +137,7 @@ export default function ImportExportDialog({ trigger }: Props) {
           <DialogDescription>Gerencie seus dados de times e competições</DialogDescription>
         </DialogHeader>
 
-        <input
-          ref={fileInputRef}
-          type="file"
-          accept=".json"
-          onChange={processImport}
-          className="hidden"
-        />
+        <input ref={fileInputRef} type="file" accept=".json" onChange={processImport} className="hidden" />
 
         <div className="space-y-4 pt-2">
           {/* Export section */}
@@ -169,17 +180,11 @@ export default function ImportExportDialog({ trigger }: Props) {
           {/* Import section */}
           <div className="space-y-2">
             <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Importar</p>
-            <Button
-              variant="outline"
-              className="w-full justify-start gap-3 h-11"
-              onClick={handleImport}
-            >
+            <Button variant="outline" className="w-full justify-start gap-3 h-11" onClick={handleImport}>
               <Upload className="w-4 h-4 text-primary" />
               <span>Importar arquivo JSON</span>
             </Button>
-            <p className="text-[11px] text-muted-foreground">
-              Aceita arquivos exportados pelo TM2 (.json)
-            </p>
+            <p className="text-[11px] text-muted-foreground">Aceita arquivos exportados pelo TM2 (.json)</p>
           </div>
         </div>
       </DialogContent>

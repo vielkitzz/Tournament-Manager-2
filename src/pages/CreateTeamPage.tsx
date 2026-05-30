@@ -117,7 +117,7 @@ export default function CreateTeamPage() {
       const teamData = {
         name: name.trim(),
         shortName: shortName.trim() || name.trim().substring(0, 10),
-        abbreviation: abbreviation.trim() || name.trim().substring(0, 3).toUpperCase(),
+        abbreviation: abbreviation.trim() || name.trim().substring(0, 4).toUpperCase(),
         foundingYear: foundingYear ? parseInt(foundingYear) : undefined,
         colors: colorItems.map((c) => c.value),
         rate: Math.min(9.99, Math.max(0.01, parseFloat(rate) || 3)),
@@ -258,7 +258,7 @@ export default function CreateTeamPage() {
               <Label className="text-sm font-medium text-foreground">Abreviação</Label>
               <Input
                 value={abbreviation}
-                onChange={(e) => setAbbreviation(e.target.value.toUpperCase().slice(0, 3))}
+                onChange={(e) => setAbbreviation(e.target.value.toUpperCase().slice(0, 4))}
                 placeholder="BAR"
                 maxLength={4}
                 className="bg-secondary border-border uppercase"
