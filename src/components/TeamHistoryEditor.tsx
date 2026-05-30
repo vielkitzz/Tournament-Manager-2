@@ -25,7 +25,7 @@ interface TeamHistoryEditorProps {
   teamId: string;
 }
 
-const FIELD_ICONS: Record<Exclude<HistoryFieldType, 'legacy'>, React.ReactNode> = {
+const FIELD_ICONS: Record<Exclude<HistoryFieldType, "legacy">, React.ReactNode> = {
   logo: <Image className="w-3.5 h-3.5" />,
   name: <FileText className="w-3.5 h-3.5" />,
   short_name: <Type className="w-3.5 h-3.5" />,
@@ -34,10 +34,17 @@ const FIELD_ICONS: Record<Exclude<HistoryFieldType, 'legacy'>, React.ReactNode> 
   rating: <Star className="w-3.5 h-3.5" />,
 };
 
-const FIELD_TYPES: Exclude<HistoryFieldType, 'legacy'>[] = ['logo', 'name', 'short_name', 'abbreviation', 'colors', 'rating'];
+const FIELD_TYPES: Exclude<HistoryFieldType, "legacy">[] = [
+  "logo",
+  "name",
+  "short_name",
+  "abbreviation",
+  "colors",
+  "rating",
+];
 
 interface AddingState {
-  fieldType: Exclude<HistoryFieldType, 'legacy'>;
+  fieldType: Exclude<HistoryFieldType, "legacy">;
   singleYear: boolean;
   startYear: string;
   endYear: string;
@@ -48,7 +55,7 @@ interface AddingState {
   pendingBlob: { blob: Blob; filename: string } | null;
 }
 
-const emptyAdding = (ft: Exclude<HistoryFieldType, 'legacy'>): AddingState => ({
+const emptyAdding = (ft: Exclude<HistoryFieldType, "legacy">): AddingState => ({
   fieldType: ft,
   singleYear: false,
   startYear: "",
@@ -69,45 +76,65 @@ export default function TeamHistoryEditor({ teamId }: TeamHistoryEditorProps) {
   const [uploading, setUploading] = useState(false);
   const [deleteId, setDeleteId] = useState<string | null>(null);
 
-  const getEntriesForType = (ft: Exclude<HistoryFieldType, 'legacy'>) =>
+  const getEntriesForType = (ft: Exclude<HistoryFieldType, "legacy">) =>
     histories
-      .filter((h) => h.fieldType === ft || (h.fieldType === 'legacy' && hasFieldValue(h, ft)))
+      .filter((h) => h.fieldType === ft || (h.fieldType === "legacy" && hasFieldValue(h, ft)))
       .sort((a, b) => a.startYear - b.startYear);
 
-  const hasFieldValue = (h: TeamHistory, ft: Exclude<HistoryFieldType, 'legacy'>): boolean => {
+  const hasFieldValue = (h: TeamHistory, ft: Exclude<HistoryFieldType, "legacy">): boolean => {
     switch (ft) {
-      case 'logo': return !!h.logo;
-      case 'name': return !!h.name;
-      case 'short_name': return !!h.shortName;
-      case 'abbreviation': return !!h.abbreviation;
-      case 'colors': return !!(h.colors && h.colors.length > 0);
-      case 'rating': return h.rating !== undefined && h.rating !== null;
+      case "logo":
+        return !!h.logo;
+      case "name":
+        return !!h.name;
+      case "short_name":
+        return !!h.shortName;
+      case "abbreviation":
+        return !!h.abbreviation;
+      case "colors":
+        return !!(h.colors && h.colors.length > 0);
+      case "rating":
+        return h.rating !== undefined && h.rating !== null;
     }
   };
 
-  const getDisplayValue = (h: TeamHistory, ft: Exclude<HistoryFieldType, 'legacy'>): string => {
+  const getDisplayValue = (h: TeamHistory, ft: Exclude<HistoryFieldType, "legacy">): string => {
     switch (ft) {
-      case 'logo': return h.logo ? '🛡️ Escudo definido' : '—';
-      case 'name': return h.name || '—';
-      case 'short_name': return h.shortName || '—';
-      case 'abbreviation': return h.abbreviation || '—';
-      case 'colors': return h.colors?.length ? `${h.colors.length} cor(es)` : '—';
-      case 'rating': return h.rating != null ? Number(h.rating).toFixed(2) : '—';
+      case "logo":
+        return h.logo ? "🛡️ Escudo definido" : "—";
+      case "name":
+        return h.name || "—";
+      case "short_name":
+        return h.shortName || "—";
+      case "abbreviation":
+        return h.abbreviation || "—";
+      case "colors":
+        return h.colors?.length ? `${h.colors.length} cor(es)` : "—";
+      case "rating":
+        return h.rating != null ? Number(h.rating).toFixed(2) : "—";
     }
   };
 
   const formatPeriod = (h: TeamHistory) =>
     h.startYear === h.endYear ? `${h.startYear}` : `${h.startYear} – ${h.endYear}`;
 
-  const historyToEditState = (h: TeamHistory, ft: Exclude<HistoryFieldType, 'legacy'>): AddingState => ({
+  const historyToEditState = (h: TeamHistory, ft: Exclude<HistoryFieldType, "legacy">): AddingState => ({
     fieldType: ft,
     singleYear: h.startYear === h.endYear,
     startYear: h.startYear.toString(),
     endYear: h.endYear.toString(),
-    value: ft === 'name' ? (h.name || '') :
-           ft === 'short_name' ? (h.shortName || '') :
-           ft === 'abbreviation' ? (h.abbreviation || '') :
-           ft === 'rating' ? (h.rating != null ? Number(h.rating).toFixed(2) : '') : '',
+    value:
+      ft === "name"
+        ? h.name || ""
+        : ft === "short_name"
+          ? h.shortName || ""
+          : ft === "abbreviation"
+            ? h.abbreviation || ""
+            : ft === "rating"
+              ? h.rating != null
+                ? Number(h.rating).toFixed(2)
+                : ""
+              : "",
     colors: h.colors ? [...h.colors] : [],
     logoPreview: h.logo,
     pendingBlob: null,
@@ -117,8 +144,8 @@ export default function TeamHistoryEditor({ teamId }: TeamHistoryEditorProps) {
     const state = isEdit ? editState : adding;
     if (state?.logoPreview?.startsWith("blob:")) revokeImagePreview(state.logoPreview);
     const patch = { logoPreview: result.previewUrl, pendingBlob: { blob: result.blob, filename: result.filename } };
-    if (isEdit) setEditState((p) => p ? { ...p, ...patch } : p);
-    else setAdding((p) => p ? { ...p, ...patch } : p);
+    if (isEdit) setEditState((p) => (p ? { ...p, ...patch } : p));
+    else setAdding((p) => (p ? { ...p, ...patch } : p));
   };
 
   const validatePeriod = (state: AddingState): { startYear: number; endYear: number } | null => {
@@ -133,10 +160,14 @@ export default function TeamHistoryEditor({ teamId }: TeamHistoryEditorProps) {
 
   const validateValue = (state: AddingState): boolean => {
     switch (state.fieldType) {
-      case 'logo': return !!(state.pendingBlob || state.logoPreview);
-      case 'colors': return state.colors.length > 0;
-      case 'rating': return state.value.trim() !== '';
-      default: return state.value.trim() !== '';
+      case "logo":
+        return !!(state.pendingBlob || state.logoPreview);
+      case "colors":
+        return state.colors.length > 0;
+      case "rating":
+        return state.value.trim() !== "";
+      default:
+        return state.value.trim() !== "";
     }
   };
 
@@ -158,15 +189,26 @@ export default function TeamHistoryEditor({ teamId }: TeamHistoryEditorProps) {
     return state.logoPreview;
   };
 
-  const buildHistoryData = (state: AddingState, startYear: number, endYear: number, logoUrl?: string): Omit<TeamHistory, 'id'> => {
+  const buildHistoryData = (
+    state: AddingState,
+    startYear: number,
+    endYear: number,
+    logoUrl?: string,
+  ): Omit<TeamHistory, "id"> => {
     const base = { teamId, startYear, endYear, fieldType: state.fieldType as HistoryFieldType };
     switch (state.fieldType) {
-      case 'logo': return { ...base, logo: logoUrl };
-      case 'name': return { ...base, name: state.value.trim() };
-      case 'short_name': return { ...base, shortName: state.value.trim() };
-      case 'abbreviation': return { ...base, abbreviation: state.value.trim().toUpperCase() };
-      case 'colors': return { ...base, colors: state.colors };
-      case 'rating': return { ...base, rating: Math.min(9.99, Math.max(0.01, parseFloat(state.value) || 0)) };
+      case "logo":
+        return { ...base, logo: logoUrl };
+      case "name":
+        return { ...base, name: state.value.trim() };
+      case "short_name":
+        return { ...base, shortName: state.value.trim() };
+      case "abbreviation":
+        return { ...base, abbreviation: state.value.trim().toUpperCase() };
+      case "colors":
+        return { ...base, colors: state.colors };
+      case "rating":
+        return { ...base, rating: Math.min(9.99, Math.max(0.01, parseFloat(state.value) || 0)) };
     }
   };
 
@@ -174,12 +216,15 @@ export default function TeamHistoryEditor({ teamId }: TeamHistoryEditorProps) {
     if (!adding) return;
     const period = validatePeriod(adding);
     if (!period) return;
-    if (!validateValue(adding)) { toast.error("Preencha o valor"); return; }
+    if (!validateValue(adding)) {
+      toast.error("Preencha o valor");
+      return;
+    }
     if (checkOverlap(adding, period.startYear, period.endYear)) return;
 
     setUploading(true);
     try {
-      const logoUrl = adding.fieldType === 'logo' ? await uploadLogoIfNeeded(adding) : undefined;
+      const logoUrl = adding.fieldType === "logo" ? await uploadLogoIfNeeded(adding) : undefined;
       const data = buildHistoryData(adding, period.startYear, period.endYear, logoUrl);
       await addTeamHistory({ id: crypto.randomUUID(), ...data });
       if (adding.logoPreview?.startsWith("blob:")) revokeImagePreview(adding.logoPreview);
@@ -192,7 +237,7 @@ export default function TeamHistoryEditor({ teamId }: TeamHistoryEditorProps) {
     }
   };
 
-  const handleStartEdit = (h: TeamHistory, ft: Exclude<HistoryFieldType, 'legacy'>) => {
+  const handleStartEdit = (h: TeamHistory, ft: Exclude<HistoryFieldType, "legacy">) => {
     setEditingId(h.id);
     setEditState(historyToEditState(h, ft));
     setAdding(null);
@@ -202,12 +247,15 @@ export default function TeamHistoryEditor({ teamId }: TeamHistoryEditorProps) {
     if (!editingId || !editState) return;
     const period = validatePeriod(editState);
     if (!period) return;
-    if (!validateValue(editState)) { toast.error("Preencha o valor"); return; }
+    if (!validateValue(editState)) {
+      toast.error("Preencha o valor");
+      return;
+    }
     if (checkOverlap(editState, period.startYear, period.endYear, editingId)) return;
 
     setUploading(true);
     try {
-      const logoUrl = editState.fieldType === 'logo' ? await uploadLogoIfNeeded(editState) : undefined;
+      const logoUrl = editState.fieldType === "logo" ? await uploadLogoIfNeeded(editState) : undefined;
       const data = buildHistoryData(editState, period.startYear, period.endYear, logoUrl);
       await updateTeamHistory(editingId, { ...data, fieldType: editState.fieldType });
       if (editState.logoPreview?.startsWith("blob:")) revokeImagePreview(editState.logoPreview);
@@ -224,7 +272,10 @@ export default function TeamHistoryEditor({ teamId }: TeamHistoryEditorProps) {
   const handleConfirmDelete = async () => {
     if (!deleteId) return;
     await removeTeamHistory(deleteId);
-    if (editingId === deleteId) { setEditingId(null); setEditState(null); }
+    if (editingId === deleteId) {
+      setEditingId(null);
+      setEditState(null);
+    }
     setDeleteId(null);
     toast.success("Versão histórica removida");
   };
@@ -246,18 +297,40 @@ export default function TeamHistoryEditor({ teamId }: TeamHistoryEditorProps) {
         <Label className="text-xs font-bold text-foreground">Período</Label>
         <div className="flex items-center gap-2">
           <span className="text-[10px] text-muted-foreground">Ano único</span>
-          <Switch checked={state.singleYear} onCheckedChange={(v) => { setState({ singleYear: v }); if (v) setState({ endYear: "" }); }} />
+          <Switch
+            checked={state.singleYear}
+            onCheckedChange={(v) => {
+              setState({ singleYear: v });
+              if (v) setState({ endYear: "" });
+            }}
+          />
         </div>
       </div>
       <div className={state.singleYear ? "" : "grid grid-cols-2 gap-3"}>
         <div className="space-y-1">
           <Label className="text-[10px] text-muted-foreground">{state.singleYear ? "Ano" : "Início"}</Label>
-          <Input type="number" value={state.startYear} onChange={(e) => setState({ startYear: e.target.value })} placeholder={state.singleYear ? "1970" : "1968"} className="bg-secondary border-border h-8 text-sm" min={1800} max={2100} />
+          <Input
+            type="number"
+            value={state.startYear}
+            onChange={(e) => setState({ startYear: e.target.value })}
+            placeholder={state.singleYear ? "1970" : "1968"}
+            className="bg-secondary border-border h-8 text-sm"
+            min={1800}
+            max={2100}
+          />
         </div>
         {!state.singleYear && (
           <div className="space-y-1">
             <Label className="text-[10px] text-muted-foreground">Fim</Label>
-            <Input type="number" value={state.endYear} onChange={(e) => setState({ endYear: e.target.value })} placeholder="1974" className="bg-secondary border-border h-8 text-sm" min={1800} max={2100} />
+            <Input
+              type="number"
+              value={state.endYear}
+              onChange={(e) => setState({ endYear: e.target.value })}
+              placeholder="1974"
+              className="bg-secondary border-border h-8 text-sm"
+              min={1800}
+              max={2100}
+            />
           </div>
         )}
       </div>
@@ -266,7 +339,7 @@ export default function TeamHistoryEditor({ teamId }: TeamHistoryEditorProps) {
 
   const renderValueField = (state: AddingState, setState: (patch: Partial<AddingState>) => void, isEdit: boolean) => {
     switch (state.fieldType) {
-      case 'logo':
+      case "logo":
         return (
           <div className="space-y-1">
             <Label className="text-xs text-foreground">Escudo da Época</Label>
@@ -278,28 +351,44 @@ export default function TeamHistoryEditor({ teamId }: TeamHistoryEditorProps) {
             />
           </div>
         );
-      case 'name':
+      case "name":
         return (
           <div className="space-y-1">
             <Label className="text-xs text-foreground">Nome Completo</Label>
-            <Input value={state.value} onChange={(e) => setState({ value: e.target.value })} placeholder="Ex: Futbol Club Barcelona" className="bg-secondary border-border h-8 text-sm" />
+            <Input
+              value={state.value}
+              onChange={(e) => setState({ value: e.target.value })}
+              placeholder="Ex: Futbol Club Barcelona"
+              className="bg-secondary border-border h-8 text-sm"
+            />
           </div>
         );
-      case 'short_name':
+      case "short_name":
         return (
           <div className="space-y-1">
             <Label className="text-xs text-foreground">Nome Curto</Label>
-            <Input value={state.value} onChange={(e) => setState({ value: e.target.value })} placeholder="Ex: Barcelona" className="bg-secondary border-border h-8 text-sm" />
+            <Input
+              value={state.value}
+              onChange={(e) => setState({ value: e.target.value })}
+              placeholder="Ex: Barcelona"
+              className="bg-secondary border-border h-8 text-sm"
+            />
           </div>
         );
-      case 'abbreviation':
+      case "abbreviation":
         return (
           <div className="space-y-1">
-            <Label className="text-xs text-foreground">Abreviação (3 letras)</Label>
-            <Input value={state.value} onChange={(e) => setState({ value: e.target.value.toUpperCase().slice(0, 3) })} placeholder="BAR" maxLength={3} className="bg-secondary border-border h-8 text-sm uppercase" />
+            <Label className="text-xs text-foreground">Abreviação</Label>
+            <Input
+              value={state.value}
+              onChange={(e) => setState({ value: e.target.value.toUpperCase().slice(0, 4) })}
+              placeholder="BAR"
+              maxLength={3}
+              className="bg-secondary border-border h-8 text-sm uppercase"
+            />
           </div>
         );
-      case 'colors':
+      case "colors":
         return (
           <div className="space-y-1">
             <Label className="text-xs text-foreground">
@@ -308,31 +397,57 @@ export default function TeamHistoryEditor({ teamId }: TeamHistoryEditorProps) {
             <div className="flex flex-wrap items-center gap-2">
               {state.colors.map((color, i) => (
                 <div key={i} className="flex items-center gap-1">
-                  <input type="color" value={color} onChange={(e) => { const next = [...state.colors]; next[i] = e.target.value; setState({ colors: next }); }} className="w-8 h-8 rounded cursor-pointer border border-border bg-transparent" />
-                  <button type="button" onClick={() => setState({ colors: state.colors.filter((_, j) => j !== i) })} className="p-0.5 text-muted-foreground hover:text-destructive transition-colors">
+                  <input
+                    type="color"
+                    value={color}
+                    onChange={(e) => {
+                      const next = [...state.colors];
+                      next[i] = e.target.value;
+                      setState({ colors: next });
+                    }}
+                    className="w-8 h-8 rounded cursor-pointer border border-border bg-transparent"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setState({ colors: state.colors.filter((_, j) => j !== i) })}
+                    className="p-0.5 text-muted-foreground hover:text-destructive transition-colors"
+                  >
                     <Trash2 className="w-3 h-3" />
                   </button>
                 </div>
               ))}
               {state.colors.length < 5 && (
-                <button type="button" onClick={() => setState({ colors: [...state.colors, "#888888"] })} className="w-8 h-8 rounded border-2 border-dashed border-border flex items-center justify-center text-muted-foreground hover:border-primary hover:text-primary transition-colors">
+                <button
+                  type="button"
+                  onClick={() => setState({ colors: [...state.colors, "#888888"] })}
+                  className="w-8 h-8 rounded border-2 border-dashed border-border flex items-center justify-center text-muted-foreground hover:border-primary hover:text-primary transition-colors"
+                >
                   <Plus className="w-3 h-3" />
                 </button>
               )}
             </div>
           </div>
         );
-      case 'rating':
+      case "rating":
         return (
           <div className="space-y-1">
             <Label className="text-xs text-foreground">Rate (0.01 – 9.99)</Label>
-            <Input type="number" value={state.value} onChange={(e) => setState({ value: e.target.value })} step="0.01" min="0.01" max="9.99" placeholder="Ex: 5.50" className="bg-secondary border-border h-8 text-sm font-mono" />
+            <Input
+              type="number"
+              value={state.value}
+              onChange={(e) => setState({ value: e.target.value })}
+              step="0.01"
+              min="0.01"
+              max="9.99"
+              placeholder="Ex: 5.50"
+              className="bg-secondary border-border h-8 text-sm font-mono"
+            />
           </div>
         );
     }
   };
 
-  const renderSection = (ft: Exclude<HistoryFieldType, 'legacy'>) => {
+  const renderSection = (ft: Exclude<HistoryFieldType, "legacy">) => {
     const entries = getEntriesForType(ft);
     const isAddingThis = adding?.fieldType === ft;
 
@@ -346,7 +461,9 @@ export default function TeamHistoryEditor({ teamId }: TeamHistoryEditorProps) {
           {!isAddingThis && editingId === null && (
             <button
               type="button"
-              onClick={() => { setAdding(emptyAdding(ft)); }}
+              onClick={() => {
+                setAdding(emptyAdding(ft));
+              }}
               className="flex items-center gap-1 text-[10px] text-primary hover:underline"
             >
               <Plus className="w-3 h-3" /> Adicionar
@@ -361,10 +478,16 @@ export default function TeamHistoryEditor({ teamId }: TeamHistoryEditorProps) {
             <div key={h.id} className="rounded-md bg-secondary/30 border border-border overflow-hidden">
               {isEditing && editState ? (
                 <div className="p-3 space-y-3">
-                  {renderPeriodFields(editState, (patch) => setEditState((p) => p ? { ...p, ...patch } : p))}
-                  {renderValueField(editState, (patch) => setEditState((p) => p ? { ...p, ...patch } : p), true)}
+                  {renderPeriodFields(editState, (patch) => setEditState((p) => (p ? { ...p, ...patch } : p)))}
+                  {renderValueField(editState, (patch) => setEditState((p) => (p ? { ...p, ...patch } : p)), true)}
                   <div className="flex gap-2 pt-1">
-                    <Button type="button" size="sm" onClick={handleSaveEdit} disabled={uploading} className="gap-1.5 bg-primary text-primary-foreground h-7 text-xs">
+                    <Button
+                      type="button"
+                      size="sm"
+                      onClick={handleSaveEdit}
+                      disabled={uploading}
+                      className="gap-1.5 bg-primary text-primary-foreground h-7 text-xs"
+                    >
                       {uploading ? <Loader2 className="w-3 h-3 animate-spin" /> : <Check className="w-3 h-3" />} Salvar
                     </Button>
                     <Button type="button" variant="ghost" size="sm" onClick={cancelEdit} className="h-7 text-xs gap-1">
@@ -375,28 +498,42 @@ export default function TeamHistoryEditor({ teamId }: TeamHistoryEditorProps) {
               ) : (
                 <div className="flex items-center justify-between p-2.5 px-3">
                   <div className="flex items-center gap-2 min-w-0">
-                    {ft === 'logo' && h.logo && (
-                      <img src={h.logo} alt="" className="w-7 h-7 rounded object-contain border border-border shrink-0" />
+                    {ft === "logo" && h.logo && (
+                      <img
+                        src={h.logo}
+                        alt=""
+                        className="w-7 h-7 rounded object-contain border border-border shrink-0"
+                      />
                     )}
-                    {ft === 'colors' && h.colors && h.colors.length > 0 && (
+                    {ft === "colors" && h.colors && h.colors.length > 0 && (
                       <div className="flex gap-1 shrink-0">
                         {h.colors.map((c, i) => (
-                          <div key={i} className="w-4 h-4 rounded border border-border" style={{ backgroundColor: c }} />
+                          <div
+                            key={i}
+                            className="w-4 h-4 rounded border border-border"
+                            style={{ backgroundColor: c }}
+                          />
                         ))}
                       </div>
                     )}
                     <div className="min-w-0">
                       <p className="text-[11px] font-medium text-foreground truncate">
-                        {ft !== 'logo' && ft !== 'colors' ? getDisplayValue(h, ft) : null}
+                        {ft !== "logo" && ft !== "colors" ? getDisplayValue(h, ft) : null}
                       </p>
                       <p className="text-[10px] text-muted-foreground">{formatPeriod(h)}</p>
                     </div>
                   </div>
                   <div className="flex items-center gap-2 shrink-0 ml-2">
-                    <button onClick={() => handleStartEdit(h, ft)} className="p-1 text-muted-foreground hover:text-primary transition-colors">
+                    <button
+                      onClick={() => handleStartEdit(h, ft)}
+                      className="p-1 text-muted-foreground hover:text-primary transition-colors"
+                    >
                       <Pencil className="w-3 h-3" />
                     </button>
-                    <button onClick={() => setDeleteId(h.id)} className="p-1 text-muted-foreground hover:text-destructive transition-colors">
+                    <button
+                      onClick={() => setDeleteId(h.id)}
+                      className="p-1 text-muted-foreground hover:text-destructive transition-colors"
+                    >
                       <Trash2 className="w-3 h-3" />
                     </button>
                   </div>
@@ -409,10 +546,16 @@ export default function TeamHistoryEditor({ teamId }: TeamHistoryEditorProps) {
         {/* Add form */}
         {isAddingThis && adding && (
           <div className="p-3 rounded-md border border-primary/30 bg-primary/5 space-y-3">
-            {renderPeriodFields(adding, (patch) => setAdding((p) => p ? { ...p, ...patch } : p))}
-            {renderValueField(adding, (patch) => setAdding((p) => p ? { ...p, ...patch } : p), false)}
+            {renderPeriodFields(adding, (patch) => setAdding((p) => (p ? { ...p, ...patch } : p)))}
+            {renderValueField(adding, (patch) => setAdding((p) => (p ? { ...p, ...patch } : p)), false)}
             <div className="flex gap-2 pt-1">
-              <Button type="button" size="sm" onClick={handleAdd} disabled={uploading} className="gap-1.5 bg-primary text-primary-foreground h-7 text-xs">
+              <Button
+                type="button"
+                size="sm"
+                onClick={handleAdd}
+                disabled={uploading}
+                className="gap-1.5 bg-primary text-primary-foreground h-7 text-xs"
+              >
                 {uploading ? <Loader2 className="w-3 h-3 animate-spin" /> : <Plus className="w-3 h-3" />} Salvar
               </Button>
               <Button type="button" variant="ghost" size="sm" onClick={cancelAdd} className="h-7 text-xs">
@@ -434,16 +577,20 @@ export default function TeamHistoryEditor({ teamId }: TeamHistoryEditorProps) {
       <div>
         <h3 className="text-sm font-bold text-foreground">Versões Históricas</h3>
         <p className="text-xs text-muted-foreground mt-0.5">
-          Defina escudos, nomes, cores e rates por período. Cada atributo é independente e possui seu próprio intervalo de anos.
+          Defina escudos, nomes, cores e rates por período. Cada atributo é independente e possui seu próprio intervalo
+          de anos.
         </p>
       </div>
 
-      <div className="space-y-4">
-        {FIELD_TYPES.map(renderSection)}
-      </div>
+      <div className="space-y-4">{FIELD_TYPES.map(renderSection)}</div>
 
       {/* Delete confirmation */}
-      <AlertDialog open={!!deleteId} onOpenChange={(open) => { if (!open) setDeleteId(null); }}>
+      <AlertDialog
+        open={!!deleteId}
+        onOpenChange={(open) => {
+          if (!open) setDeleteId(null);
+        }}
+      >
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Excluir versão histórica?</AlertDialogTitle>
@@ -451,7 +598,10 @@ export default function TeamHistoryEditor({ teamId }: TeamHistoryEditorProps) {
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancelar</AlertDialogCancel>
-            <AlertDialogAction onClick={handleConfirmDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+            <AlertDialogAction
+              onClick={handleConfirmDelete}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
               Excluir
             </AlertDialogAction>
           </AlertDialogFooter>

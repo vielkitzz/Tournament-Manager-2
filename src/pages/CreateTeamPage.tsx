@@ -61,7 +61,12 @@ export default function CreateTeamPage() {
       setShortName(existingTeam.shortName || "");
       setAbbreviation(existingTeam.abbreviation || "");
       setFoundingYear(existingTeam.foundingYear?.toString() || "");
-      setColorItems((existingTeam.colors?.length ? [...existingTeam.colors] : ["#333333", "#cccccc"]).map(c => ({ id: crypto.randomUUID(), value: c })));
+      setColorItems(
+        (existingTeam.colors?.length ? [...existingTeam.colors] : ["#333333", "#cccccc"]).map((c) => ({
+          id: crypto.randomUUID(),
+          value: c,
+        })),
+      );
       setRate(existingTeam.rate?.toString() || "3.00");
       setLogoUrl(existingTeam.logo);
       setPreviewUrl(existingTeam.logo); // show existing logo (Storage URL)
@@ -69,11 +74,14 @@ export default function CreateTeamPage() {
     }
   }, [existingTeam, initialized]);
 
-  const handleImageSelected = useCallback((result: { previewUrl: string; blob: Blob; filename: string }) => {
-    if (previewUrl?.startsWith("blob:")) revokeImagePreview(previewUrl);
-    setPreviewUrl(result.previewUrl);
-    setPendingBlob({ blob: result.blob, filename: result.filename });
-  }, [previewUrl]);
+  const handleImageSelected = useCallback(
+    (result: { previewUrl: string; blob: Blob; filename: string }) => {
+      if (previewUrl?.startsWith("blob:")) revokeImagePreview(previewUrl);
+      setPreviewUrl(result.previewUrl);
+      setPendingBlob({ blob: result.blob, filename: result.filename });
+    },
+    [previewUrl],
+  );
 
   const handleRemoveLogo = () => {
     if (previewUrl?.startsWith("blob:")) revokeImagePreview(previewUrl);
@@ -111,7 +119,7 @@ export default function CreateTeamPage() {
         shortName: shortName.trim() || name.trim().substring(0, 10),
         abbreviation: abbreviation.trim() || name.trim().substring(0, 3).toUpperCase(),
         foundingYear: foundingYear ? parseInt(foundingYear) : undefined,
-        colors: colorItems.map(c => c.value),
+        colors: colorItems.map((c) => c.value),
         rate: Math.min(9.99, Math.max(0.01, parseFloat(rate) || 3)),
         logo: logoUrl, // temporariamente mantém a URL antiga
       };
@@ -220,11 +228,7 @@ export default function CreateTeamPage() {
           {/* Logo Upload */}
           <div className="space-y-2">
             <Label className="text-sm font-medium text-foreground">Escudo</Label>
-            <ImageUpload
-              previewUrl={displayLogo}
-              onImageSelected={handleImageSelected}
-              onRemove={handleRemoveLogo}
-            />
+            <ImageUpload previewUrl={displayLogo} onImageSelected={handleImageSelected} onRemove={handleRemoveLogo} />
           </div>
 
           {/* Name */}
@@ -251,12 +255,12 @@ export default function CreateTeamPage() {
               />
             </div>
             <div className="space-y-2">
-              <Label className="text-sm font-medium text-foreground">Abreviação (3 letras)</Label>
+              <Label className="text-sm font-medium text-foreground">Abreviação</Label>
               <Input
                 value={abbreviation}
                 onChange={(e) => setAbbreviation(e.target.value.toUpperCase().slice(0, 3))}
                 placeholder="BAR"
-                maxLength={3}
+                maxLength={4}
                 className="bg-secondary border-border uppercase"
               />
             </div>
@@ -278,66 +282,66 @@ export default function CreateTeamPage() {
 
           {/* Colors */}
           <div className="space-y-2">
-             <Label className="text-sm font-medium text-foreground">
-               Cores <span className="text-muted-foreground font-normal">({colorItems.length}/5)</span>
-             </Label>
-             <Reorder.Group
-               axis="x"
-               values={colorItems}
-               onReorder={setColorItems}
-               className="flex flex-wrap items-center gap-3"
-               as="div"
-             >
-               {colorItems.map((item, i) => (
-                 <Reorder.Item
-                   key={item.id}
-                   value={item}
-                   as="div"
-                   className="flex items-center gap-1.5 cursor-grab active:cursor-grabbing"
-                   whileDrag={{ scale: 1.05, zIndex: 10 }}
-                 >
-                   <GripVertical className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
-                   <input
-                     type="color"
-                     value={item.value}
-                     onChange={(e) => {
-                       const next = [...colorItems];
-                       next[i] = { ...next[i], value: e.target.value };
-                       setColorItems(next);
-                     }}
-                     className="w-10 h-10 rounded-lg cursor-pointer border border-border bg-transparent"
-                   />
-                   <Input
-                     value={item.value}
-                     onChange={(e) => {
-                       const next = [...colorItems];
-                       next[i] = { ...next[i], value: e.target.value };
-                       setColorItems(next);
-                     }}
-                     placeholder="#000000"
-                     className="bg-secondary border-border w-24 text-xs font-mono"
-                   />
-                   {colorItems.length > 1 && (
-                     <button
-                       type="button"
-                       onClick={() => setColorItems(colorItems.filter((_, j) => j !== i))}
-                       className="p-1 text-muted-foreground hover:text-destructive transition-colors"
-                     >
-                       <Trash2 className="w-3.5 h-3.5" />
-                     </button>
-                   )}
-                 </Reorder.Item>
-               ))}
-               {colorItems.length < 5 && (
-                 <button
-                   type="button"
-                   onClick={() => setColorItems([...colorItems, { id: crypto.randomUUID(), value: "#888888" }])}
-                   className="w-10 h-10 rounded-lg border-2 border-dashed border-border flex items-center justify-center text-muted-foreground hover:border-primary hover:text-primary transition-colors"
-                 >
-                   <Plus className="w-4 h-4" />
-                 </button>
-               )}
-             </Reorder.Group>
+            <Label className="text-sm font-medium text-foreground">
+              Cores <span className="text-muted-foreground font-normal">({colorItems.length}/5)</span>
+            </Label>
+            <Reorder.Group
+              axis="x"
+              values={colorItems}
+              onReorder={setColorItems}
+              className="flex flex-wrap items-center gap-3"
+              as="div"
+            >
+              {colorItems.map((item, i) => (
+                <Reorder.Item
+                  key={item.id}
+                  value={item}
+                  as="div"
+                  className="flex items-center gap-1.5 cursor-grab active:cursor-grabbing"
+                  whileDrag={{ scale: 1.05, zIndex: 10 }}
+                >
+                  <GripVertical className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
+                  <input
+                    type="color"
+                    value={item.value}
+                    onChange={(e) => {
+                      const next = [...colorItems];
+                      next[i] = { ...next[i], value: e.target.value };
+                      setColorItems(next);
+                    }}
+                    className="w-10 h-10 rounded-lg cursor-pointer border border-border bg-transparent"
+                  />
+                  <Input
+                    value={item.value}
+                    onChange={(e) => {
+                      const next = [...colorItems];
+                      next[i] = { ...next[i], value: e.target.value };
+                      setColorItems(next);
+                    }}
+                    placeholder="#000000"
+                    className="bg-secondary border-border w-24 text-xs font-mono"
+                  />
+                  {colorItems.length > 1 && (
+                    <button
+                      type="button"
+                      onClick={() => setColorItems(colorItems.filter((_, j) => j !== i))}
+                      className="p-1 text-muted-foreground hover:text-destructive transition-colors"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </button>
+                  )}
+                </Reorder.Item>
+              ))}
+              {colorItems.length < 5 && (
+                <button
+                  type="button"
+                  onClick={() => setColorItems([...colorItems, { id: crypto.randomUUID(), value: "#888888" }])}
+                  className="w-10 h-10 rounded-lg border-2 border-dashed border-border flex items-center justify-center text-muted-foreground hover:border-primary hover:text-primary transition-colors"
+                >
+                  <Plus className="w-4 h-4" />
+                </button>
+              )}
+            </Reorder.Group>
           </div>
 
           {/* Rate */}
