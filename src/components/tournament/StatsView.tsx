@@ -228,7 +228,7 @@ function StatCard({ icon: Icon, title, items, valueAccessor }: StatCardProps) {
         <Icon className="w-3.5 h-3.5 text-primary" />
         <h3 className="text-xs font-bold text-foreground">{title}</h3>
       </div>
-      <div className="divide-y divide-border/30">
+      <div className="divide-y divide-border/70">
         {displayItems.map((s, i) => (
           <CompactRow key={s.teamId} stat={s} rank={i + 1} value={valueAccessor(s)} />
         ))}
