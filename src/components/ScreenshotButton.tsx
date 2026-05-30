@@ -8,9 +8,10 @@ interface ScreenshotButtonProps {
   filename?: string;
   className?: string;
   discrete?: boolean;
+  skinImage?: string | null;
 }
 
-export default function ScreenshotButton({ targetRef, filename = "screenshot.png", className, discrete }: ScreenshotButtonProps) {
+export default function ScreenshotButton({ targetRef, filename = "screenshot.png", className, discrete, skinImage: _skinImage }: ScreenshotButtonProps) {
   const handleCapture = useCallback(() => {
     if (targetRef.current) {
       captureScreenshot(targetRef.current, filename);
