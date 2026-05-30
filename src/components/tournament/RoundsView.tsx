@@ -138,7 +138,7 @@ export default function RoundsView({
   return (
     <div className="space-y-4" ref={roundsRef}>
       {tournament.finalized && (
-        <div className="flex items-center justify-center gap-2 p-3 rounded-xl bg-primary/5 border border-primary/20">
+        <div className="flex items-center justify-center gap-2 p-3 rounded-xl bg-primary/30 border border-primary/20">
           <Trophy className="w-4 h-4 text-primary" />
           <span className="text-sm font-medium text-foreground">Temporada {tournament.year} finalizada</span>
         </div>
@@ -200,7 +200,7 @@ export default function RoundsView({
             <button
               key={match.id}
               onClick={() => setSelectedMatch(match)}
-              className="w-full p-3 rounded-xl bg-secondary/70 border border-border hover:border-primary/40 transition-all text-left"
+              className="w-full p-3 rounded-xl bg-card/70 border border-border hover:border-primary/40 transition-all text-left"
             >
               <div className="flex items-center gap-3">
                 <div className="flex-1 flex items-center gap-2 justify-end">
