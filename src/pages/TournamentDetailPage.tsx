@@ -50,6 +50,8 @@ import { trackTournamentOpen } from "@/lib/recentTournaments";
 import ScreenshotButton from "@/components/ScreenshotButton";
 import { generateSwissLeagueMatches } from "@/lib/swissRounds";
 import { downloadTournamentResults } from "@/lib/exportResults";
+import { processImage } from "@/lib/imageUtils";
+import { uploadLogo } from "@/lib/storageUtils";
 
 const formatLabels: Record<string, string> = {
   liga: "Pontos Corridos",
@@ -910,13 +912,10 @@ export default function TournamentDetailPage() {
   const handleLogoChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-
     try {
       toast.info("Enviando logo...");
-      const { compressToWebP } = await import("@/lib/imageUtils");
-      const blob = await compressToWebP(file);
+      const { blob } = await processImage(file);
       const path = `tournaments/${tournament.id}_${Date.now()}.webp`;
-      const { uploadLogo } = await import("@/lib/storageUtils");
       const url = await uploadLogo(blob, path, { upsert: true, retries: 2 });
       updateTournament(tournament.id, { logo: url });
       toast.success("Logo atualizada!");
