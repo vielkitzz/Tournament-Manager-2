@@ -1386,7 +1386,7 @@ export default function TournamentDetailPage() {
                     teams: resolvedTeams,
                     standings: isViewingPastSeason ? seasonStandings : standings,
                     standingsByGroup: isViewingPastSeason ? seasonStandingsByGroup : standingsByGroup,
-                    knockoutMatches,
+                    knockoutMatches: isMataMata ? activeMatches : knockoutMatches,
                     knockoutStartStage: activeKnockoutStart || defaultKnockoutStart,
                     season: activeYear,
                   })
