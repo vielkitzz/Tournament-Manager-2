@@ -14,6 +14,7 @@ export default function StoreInitializer() {
   const initialize = useTournamentStore((s) => s.initialize);
   const upsertPlayerLocal = useTournamentStore((s) => s.upsertPlayerLocal);
   const removePlayerLocal = useTournamentStore((s) => s.removePlayerLocal);
+  const lastUserIdRef = useRef<string | null>(null);
 
   useEffect(() => {
     // Só (re)inicializa quando há um usuário real. Se o user ficar
