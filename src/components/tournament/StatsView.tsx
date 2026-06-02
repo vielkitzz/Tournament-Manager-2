@@ -1,10 +1,11 @@
 import { useState, useRef } from "react";
 import { Match, Team, Tournament, Player, MatchEvent } from "@/types/tournament";
-import { Shield, Swords, ShieldCheck, TrendingUp, ChevronDown, ChevronUp, Award, Handshake } from "lucide-react";
+import { Shield, Swords, ShieldCheck, TrendingUp, ChevronDown, ChevronUp, Award, Handshake, Star } from "lucide-react";
 import SoccerBallIcon from "@/components/icons/SoccerBallIcon";
 import YellowCardIcon from "@/components/icons/YellowCardIcon";
 import RedCardIcon from "@/components/icons/RedCardIcon";
 import ScreenshotButton from "@/components/ScreenshotButton";
+import { calculatePlayerRatings } from "@/lib/simulation";
 
 const POSITION_ORDER: [RegExp, number][] = [
   [/gol|gk/i, 0],
@@ -57,6 +58,8 @@ interface PlayerStat {
   yellowCards: number;
   redCards: number;
   position?: string | null;
+  averageRating?: number | null;
+  matchesWithRating?: number;
 }
 
 function computeStats(tournament: Tournament, teams: Team[]): TeamStats[] {
@@ -124,7 +127,7 @@ function computePlayerStats(tournament: Tournament, teams: Team[], players?: Pla
         const player = players?.find((p) => p.id === evt.playerId);
         map.set(evt.playerId, {
           playerId: evt.playerId,
-          playerName: player?.name || "Desconhecido",
+          playerName: player?.name || evt.playerName || "Desconhecido",
           teamId: evt.teamId,
           team: teams.find((t) => t.id === evt.teamId),
           goals: 0,
@@ -137,6 +140,11 @@ function computePlayerStats(tournament: Tournament, teams: Team[], players?: Pla
       }
 
       const stat = map.get(evt.playerId)!;
+      // Atualiza nome se descobrirmos um melhor (player ainda existe ou outro evento traz playerName)
+      if (stat.playerName === "Desconhecido") {
+        const player = players?.find((p) => p.id === evt.playerId);
+        stat.playerName = player?.name || evt.playerName || stat.playerName;
+      }
       if (evt.type === "goal") stat.goals++;
       if (evt.type === "yellow_card") stat.yellowCards++;
       if (evt.type === "red_card") stat.redCards++;
@@ -147,7 +155,7 @@ function computePlayerStats(tournament: Tournament, teams: Team[], players?: Pla
           const assistPlayer = players?.find((p) => p.id === evt.assistId);
           map.set(evt.assistId, {
             playerId: evt.assistId,
-            playerName: assistPlayer?.name || "Desconhecido",
+            playerName: assistPlayer?.name || evt.assistName || "Desconhecido",
             teamId: evt.teamId,
             team: teams.find((t) => t.id === evt.teamId),
             goals: 0,
@@ -157,7 +165,12 @@ function computePlayerStats(tournament: Tournament, teams: Team[], players?: Pla
             redCards: 0,
           });
         }
-        map.get(evt.assistId)!.assists++;
+        const assistStat = map.get(evt.assistId)!;
+        if (assistStat.playerName === "Desconhecido") {
+          const assistPlayer = players?.find((p) => p.id === evt.assistId);
+          assistStat.playerName = assistPlayer?.name || evt.assistName || assistStat.playerName;
+        }
+        assistStat.assists++;
       }
     }
   }
@@ -167,6 +180,96 @@ function computePlayerStats(tournament: Tournament, teams: Team[], players?: Pla
   }
 
   return Array.from(map.values());
+}
+
+/**
+ * Calcula a nota média de cada jogador participante do torneio.
+ * Ignora jogadores sem registro atual (sem skill/posição) pois a fórmula
+ * de rating depende desses dados.
+ */
+function attachAverageRatings(
+  playerStats: PlayerStat[],
+  tournament: Tournament,
+  teams: Team[],
+  players?: Player[],
+): void {
+  if (!players || players.length === 0) return;
+  const sums = new Map<string, { total: number; count: number }>();
+
+  for (const m of tournament.matches) {
+    if (!m.played) continue;
+    const homeTeam = teams.find((t) => t.id === m.homeTeamId);
+    const awayTeam = teams.find((t) => t.id === m.awayTeamId);
+    if (!homeTeam || !awayTeam) continue;
+
+    const buildParticipants = (teamId: string, lineup?: string[]): Player[] => {
+      const ids = new Set<string>(lineup || []);
+      if (m.events) {
+        for (const e of m.events) {
+          if (e.type === "substitution" && e.teamId === teamId && e.playerId) ids.add(e.playerId);
+        }
+      }
+      return players.filter((p) => ids.has(p.id));
+    };
+
+    const homeParticipants = buildParticipants(m.homeTeamId, m.homeLineup);
+    const awayParticipants = buildParticipants(m.awayTeamId, m.awayLineup);
+    if (homeParticipants.length === 0 && awayParticipants.length === 0) continue;
+
+    const ratings = calculatePlayerRatings(
+      homeParticipants,
+      awayParticipants,
+      m.homeTeamId,
+      m.awayTeamId,
+      m.events || [],
+      { home: m.awayScore ?? 0, away: m.homeScore ?? 0 },
+    );
+
+    for (const [pid, r] of Object.entries(ratings)) {
+      if (typeof r !== "number") continue;
+      let s = sums.get(pid);
+      if (!s) {
+        s = { total: 0, count: 0 };
+        sums.set(pid, s);
+      }
+      s.total += r;
+      s.count += 1;
+    }
+  }
+
+  for (const stat of playerStats) {
+    const s = sums.get(stat.playerId);
+    if (s && s.count > 0) {
+      stat.averageRating = Math.round((s.total / s.count) * 10) / 10;
+      stat.matchesWithRating = s.count;
+    } else {
+      stat.averageRating = null;
+      stat.matchesWithRating = 0;
+    }
+  }
+
+  // Inclui jogadores que jogaram mas não tiveram eventos (não estão em playerStats)
+  for (const [pid, s] of sums) {
+    if (s.count === 0) continue;
+    if (playerStats.find((ps) => ps.playerId === pid)) continue;
+    const player = players.find((p) => p.id === pid);
+    if (!player) continue;
+    const teamId = player.teamId || "";
+    playerStats.push({
+      playerId: pid,
+      playerName: player.name,
+      teamId,
+      team: teams.find((t) => t.id === teamId),
+      goals: 0,
+      assists: 0,
+      goalsAndAssists: 0,
+      yellowCards: 0,
+      redCards: 0,
+      position: player.position ?? null,
+      averageRating: Math.round((s.total / s.count) * 10) / 10,
+      matchesWithRating: s.count,
+    });
+  }
 }
 
 const INITIAL_COUNT = 5;
@@ -303,6 +406,7 @@ export default function StatsView({ tournament, teams, players }: StatsViewProps
   const hasMatches = tournament.matches.some((m) => m.played);
   const hasEvents = tournament.matches.some((m) => m.played && m.events && m.events.length > 0);
   const playerStats = hasEvents ? computePlayerStats(tournament, teams, players) : [];
+  if (hasEvents) attachAverageRatings(playerStats, tournament, teams, players);
   const statsRef = useRef<HTMLDivElement>(null);
 
   if (!hasMatches) {
@@ -338,6 +442,14 @@ export default function StatsView({ tournament, teams, players }: StatsViewProps
   const topRed = [...playerStats]
     .filter((s) => s.redCards > 0)
     .sort((a, b) => b.redCards - a.redCards || positionRank(a.position) - positionRank(b.position))
+    .slice(0, 20);
+  const topAvgRating = [...playerStats]
+    .filter((s) => s.averageRating != null && (s.matchesWithRating ?? 0) > 0)
+    .sort(
+      (a, b) =>
+        (b.averageRating ?? 0) - (a.averageRating ?? 0) ||
+        (b.matchesWithRating ?? 0) - (a.matchesWithRating ?? 0),
+    )
     .slice(0, 20);
 
   return (
@@ -397,6 +509,14 @@ export default function StatsView({ tournament, teams, players }: StatsViewProps
                 title="Cartões Vermelhos"
                 items={topRed}
                 valueAccessor={(s) => `${s.redCards}`}
+              />
+            )}
+            {topAvgRating.length > 0 && (
+              <PlayerStatCard
+                icon={Star}
+                title="Nota Média"
+                items={topAvgRating}
+                valueAccessor={(s) => (s.averageRating ?? 0).toFixed(1)}
               />
             )}
           </div>

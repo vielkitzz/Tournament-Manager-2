@@ -1,4 +1,4 @@
-import { useState, useCallback, DragEvent, useMemo, memo, useEffect } from "react";
+import { useState, useCallback, DragEvent, useMemo, memo, useEffect, useDeferredValue } from "react";
 import { motion } from "framer-motion";
 import FolderBreadcrumb from "@/components/FolderBreadcrumb";
 import {
@@ -17,9 +17,12 @@ import {
   ArrowUp,
   ArrowDown,
   ChevronsDownUp,
+  CheckSquare,
+  X,
 } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Input } from "@/components/ui/input";
+import { Checkbox } from "@/components/ui/checkbox";
 import { useNavigate } from "react-router-dom";
 import { useTournamentStore } from "@/store/tournamentStore";
 import { toast } from "sonner";
@@ -54,6 +57,9 @@ const TeamCard = memo(function TeamCard({
   onDelete,
   folders,
   onMoveToFolder,
+  selectionMode = false,
+  selected = false,
+  onToggleSelect,
 }: {
   team: Team;
   onEdit: () => void;
@@ -61,20 +67,36 @@ const TeamCard = memo(function TeamCard({
   onDelete: () => void;
   folders: TeamFolder[];
   onMoveToFolder: (teamId: string, folderId: string | null) => void;
+  selectionMode?: boolean;
+  selected?: boolean;
+  onToggleSelect?: (teamId: string) => void;
 }) {
   const handleDragStart = (e: DragEvent) => {
     e.dataTransfer.setData("team-id", team.id);
     e.dataTransfer.effectAllowed = "move";
   };
 
+  const handleCardClick = (e: React.MouseEvent) => {
+    if (selectionMode) {
+      e.preventDefault();
+      onToggleSelect?.(team.id);
+    } else {
+      onEdit();
+    }
+  };
+
+  const stop = (e: React.MouseEvent) => e.stopPropagation();
+
   return (
     <ContextMenu>
       <ContextMenuTrigger asChild>
         <div
-          draggable
+          draggable={!selectionMode}
           onDragStart={handleDragStart}
-          onClick={onEdit}
-          className="p-3 rounded-xl bg-card text-card-foreground border border-border hover:border-primary/40 transition-all relative overflow-hidden group cursor-pointer active:scale-[0.98]"
+          onClick={handleCardClick}
+          className={`p-3 rounded-xl bg-card text-card-foreground border transition-all relative overflow-hidden group cursor-pointer active:scale-[0.98] ${
+            selected ? "border-primary ring-2 ring-primary/40" : "border-border hover:border-primary/40"
+          }`}
         >
           <div className="absolute left-0 top-0 bottom-0 w-1.5 rounded-l-xl overflow-hidden flex flex-col">
             {(team.colors.length > 0 ? team.colors : ["hsl(var(--primary))", "hsl(var(--secondary))"]).map((c, i) => (
@@ -82,7 +104,16 @@ const TeamCard = memo(function TeamCard({
             ))}
           </div>
           <div className="flex items-center gap-2 pl-2">
-            <GripVertical className="w-3.5 h-3.5 text-muted-foreground/50 shrink-0" />
+            {selectionMode ? (
+              <Checkbox
+                checked={selected}
+                onCheckedChange={() => onToggleSelect?.(team.id)}
+                onClick={stop}
+                className="shrink-0"
+              />
+            ) : (
+              <GripVertical className="w-3.5 h-3.5 text-muted-foreground/50 shrink-0" />
+            )}
             <div className="w-10 h-10 flex items-center justify-center shrink-0">
               {team.logo ? (
                 <img
@@ -101,26 +132,36 @@ const TeamCard = memo(function TeamCard({
               <h3 className="font-display font-bold text-foreground text-sm truncate">{team.name}</h3>
               <p className="text-xs text-primary font-mono">{(team.rate ?? 0).toFixed(2)}</p>
             </div>
-            <div className="flex flex-col gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+            {!selectionMode && (
+            <div className="flex flex-col gap-1 opacity-0 group-hover:opacity-100 transition-opacity" onClick={stop}>
               <button
-                onClick={onEdit}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onEdit();
+                }}
                 className="p-1.5 rounded-md hover:bg-secondary text-muted-foreground hover:text-foreground"
               >
                 <Pencil className="w-3.5 h-3.5" />
               </button>
               <button
-                onClick={onDuplicate}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onDuplicate(e);
+                }}
                 className="p-1.5 rounded-md hover:bg-secondary text-muted-foreground hover:text-foreground"
               >
                 <Copy className="w-3.5 h-3.5" />
               </button>
               <AlertDialog>
                 <AlertDialogTrigger asChild>
-                  <button className="p-1.5 rounded-md hover:bg-destructive/20 text-muted-foreground hover:text-destructive">
+                  <button
+                    onClick={stop}
+                    className="p-1.5 rounded-md hover:bg-destructive/20 text-muted-foreground hover:text-destructive"
+                  >
                     <Trash2 className="w-3.5 h-3.5" />
                   </button>
                 </AlertDialogTrigger>
-                <AlertDialogContent>
+                <AlertDialogContent onClick={stop}>
                   <AlertDialogHeader>
                     <AlertDialogTitle>Excluir "{team.name}"?</AlertDialogTitle>
                     <AlertDialogDescription>
@@ -140,6 +181,7 @@ const TeamCard = memo(function TeamCard({
                 </AlertDialogContent>
               </AlertDialog>
             </div>
+            )}
           </div>
         </div>
       </ContextMenuTrigger>
@@ -427,15 +469,24 @@ export default function TeamsPage() {
 
   const navigate = useNavigate();
   const [search, setSearch] = useState("");
+  const deferredSearch = useDeferredValue(search);
   const [sortBy, setSortBy] = useState<"name" | "rate">("name");
   const [currentFolderId, setCurrentFolderId] = useState<string | null>(null);
   const [openFolders, setOpenFolders] = useState<Set<string>>(() => new Set(folders.map((f) => f.id)));
   const [editingFolderId, setEditingFolderId] = useState<string | null>(null);
   const [editingFolderName, setEditingFolderName] = useState("");
   const [dragOverFolder, setDragOverFolder] = useState<string | null>(null);
+  const [selectionMode, setSelectionMode] = useState(false);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [showBulkConfirm, setShowBulkConfirm] = useState(false);
 
   const filteredTeams = useMemo(() => {
-    const q = search.toLowerCase();
+    const q = deferredSearch.trim().toLowerCase();
+    if (!q && sortBy === "name") {
+      // Already sorted? Avoid sorting massive arrays unless needed.
+      const sorted = [...teams].sort((a, b) => (a.name || "").localeCompare(b.name || ""));
+      return sorted;
+    }
     const filtered = teams.filter(
       (t) =>
         (t.name || "").toLowerCase().includes(q) ||
@@ -448,20 +499,20 @@ export default function TeamsPage() {
       filtered.sort((a, b) => (a.name || "").localeCompare(b.name || ""));
     }
     return filtered;
-  }, [teams, search, sortBy]);
+  }, [teams, deferredSearch, sortBy]);
 
   // Auto-open folders containing search results
   useEffect(() => {
-    if (search.trim()) {
+    if (deferredSearch.trim()) {
+      const folderById = new Map(folders.map((f) => [f.id, f]));
       const foldersWithMatches = new Set<string>();
       filteredTeams.forEach((t) => {
         if (t.folderId) {
           foldersWithMatches.add(t.folderId);
-          // Also open parent folders
-          let parentId = folders.find((f) => f.id === t.folderId)?.parentId;
+          let parentId = folderById.get(t.folderId)?.parentId;
           while (parentId) {
             foldersWithMatches.add(parentId);
-            parentId = folders.find((f) => f.id === parentId)?.parentId;
+            parentId = folderById.get(parentId)?.parentId;
           }
         }
       });
@@ -473,7 +524,7 @@ export default function TeamsPage() {
         });
       }
     }
-  }, [search, filteredTeams, folders]);
+  }, [deferredSearch, filteredTeams, folders]);
 
   // 4. Agrupamento para uso otimizado de pastar e times
   const teamsByFolder = useMemo(() => {
@@ -535,11 +586,67 @@ export default function TeamsPage() {
   const handleDuplicate = useCallback(
     (e: React.MouseEvent, team: Team) => {
       e.stopPropagation();
-      addTeam({ ...team, id: crypto.randomUUID(), name: `${team.name} (cópia)` });
-      toast.success(`"${team.name}" duplicado!`);
+      addTeam({ ...team, id: crypto.randomUUID(), name: `${team.name} (cópia)` })
+        .then(() => toast.success(`"${team.name}" duplicado!`))
+        .catch((err: any) => {
+          if (err?.code === "TEAM_LIMIT_EXCEEDED") toast.error(err.message);
+          else toast.error("Erro ao duplicar time");
+        });
     },
     [addTeam],
   );
+
+  const toggleSelect = useCallback((id: string) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      next.has(id) ? next.delete(id) : next.add(id);
+      return next;
+    });
+  }, []);
+
+  const exitSelectionMode = useCallback(() => {
+    setSelectionMode(false);
+    setSelectedIds(new Set());
+  }, []);
+
+  const handleSelectAllVisible = useCallback(() => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      filteredTeams.forEach((t) => next.add(t.id));
+      return next;
+    });
+  }, [filteredTeams]);
+
+  const handleBulkDelete = useCallback(() => {
+    const ids = Array.from(selectedIds);
+    if (ids.length === 0) return;
+    let archived = 0;
+    let removed = 0;
+    ids.forEach((id) => {
+      const team = allTeams.find((t) => t.id === id);
+      if (!team) return;
+      const inActive = (tournaments || []).some((t) => t.teamIds && t.teamIds.includes(id));
+      const hasHistory = (tournaments || []).some((t) =>
+        (t.seasons || []).some((s) => s.teamIds?.includes(id) || s.standings.some((st) => st.teamId === id)),
+      );
+      if (inActive || hasHistory) {
+        archiveTeam(id);
+        archived++;
+      } else {
+        removeTeam(id);
+        removed++;
+      }
+    });
+    setShowBulkConfirm(false);
+    exitSelectionMode();
+    if (removed > 0 && archived > 0) {
+      toast.success(`${removed} time(s) excluído(s), ${archived} arquivado(s)`);
+    } else if (removed > 0) {
+      toast.success(`${removed} time(s) excluído(s)`);
+    } else if (archived > 0) {
+      toast.warning(`${archived} time(s) arquivado(s) (mantidos no histórico)`);
+    }
+  }, [selectedIds, allTeams, tournaments, archiveTeam, removeTeam, exitSelectionMode]);
 
   const handleAddFolder = async () => {
     const id = await addFolder("Nova Pasta");
@@ -723,8 +830,70 @@ export default function TeamsPage() {
           >
             <FolderPlus className="w-4 h-4" />
           </button>
+          {teams.length > 0 && (
+            <button
+              onClick={() => (selectionMode ? exitSelectionMode() : setSelectionMode(true))}
+              title={selectionMode ? "Sair do modo seleção" : "Selecionar times"}
+              className={`p-2 rounded-lg border transition-colors shrink-0 ${
+                selectionMode
+                  ? "border-primary bg-primary/10 text-primary"
+                  : "border-border hover:bg-secondary text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              {selectionMode ? <X className="w-4 h-4" /> : <CheckSquare className="w-4 h-4" />}
+            </button>
+          )}
         </div>
       </div>
+
+      {selectionMode && (
+        <div className="mb-4 flex items-center gap-3 p-3 rounded-xl border border-primary/40 bg-primary/5">
+          <span className="text-sm font-medium text-foreground">
+            {selectedIds.size} time{selectedIds.size === 1 ? "" : "s"} selecionado{selectedIds.size === 1 ? "" : "s"}
+          </span>
+          <button
+            onClick={handleSelectAllVisible}
+            className="text-xs text-primary hover:underline"
+          >
+            Selecionar todos visíveis ({filteredTeams.length})
+          </button>
+          <button
+            onClick={() => setSelectedIds(new Set())}
+            className="text-xs text-muted-foreground hover:text-foreground"
+          >
+            Limpar seleção
+          </button>
+          <div className="flex-1" />
+          <AlertDialog open={showBulkConfirm} onOpenChange={setShowBulkConfirm}>
+            <AlertDialogTrigger asChild>
+              <button
+                disabled={selectedIds.size === 0}
+                className="px-3 py-1.5 text-xs font-medium rounded-lg bg-destructive text-destructive-foreground hover:bg-destructive/90 disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-1.5"
+              >
+                <Trash2 className="w-3.5 h-3.5" /> Excluir selecionados
+              </button>
+            </AlertDialogTrigger>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>Excluir {selectedIds.size} time(s)?</AlertDialogTitle>
+                <AlertDialogDescription>
+                  Times com histórico em competições serão arquivados (mantidos no histórico). Os demais serão excluídos
+                  permanentemente. Esta ação não pode ser desfeita.
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                <AlertDialogAction
+                  onClick={handleBulkDelete}
+                  className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                >
+                  Excluir / Arquivar
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
+        </div>
+      )}
 
       {/* Breadcrumb */}
       <FolderBreadcrumb
@@ -754,15 +923,15 @@ export default function TeamsPage() {
           onDragOver={(e) => e.preventDefault()}
           onDrop={(e) => handleRootDrop(e as unknown as DragEvent)}
         >
-          {/* When searching, show all results flat (outside folders) */}
-          {search.trim() ? (
+          {/* When searching or selecting, show all results flat (outside folders) */}
+          {deferredSearch.trim() || selectionMode ? (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
               {filteredTeams.map((team, index) => (
                 <motion.div
                   key={team.id}
                   initial={{ opacity: 0, y: 10 }}
                   animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: index * 0.03 }}
+                  transition={{ delay: Math.min(index, 20) * 0.02 }}
                 >
                   <TeamCard
                     team={team}
@@ -771,6 +940,9 @@ export default function TeamsPage() {
                     onDelete={() => handleDelete(team.id, team.name)}
                     folders={folders}
                     onMoveToFolder={handleMoveToFolder}
+                    selectionMode={selectionMode}
+                    selected={selectedIds.has(team.id)}
+                    onToggleSelect={toggleSelect}
                   />
                 </motion.div>
               ))}
@@ -819,7 +991,7 @@ export default function TeamsPage() {
                     key={team.id}
                     initial={{ opacity: 0, y: 10 }}
                     animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: index * 0.03 }}
+                    transition={{ delay: Math.min(index, 20) * 0.02 }}
                   >
                     <TeamCard
                       team={team}
@@ -854,10 +1026,10 @@ export default function TeamsPage() {
                 </motion.div>
               )}
 
-              {teams.length > 0 && filteredTeams.length === 0 && search && (
+              {teams.length > 0 && filteredTeams.length === 0 && deferredSearch && (
                 <div className="text-center py-12">
                   <Search className="w-10 h-10 text-muted-foreground/30 mx-auto mb-3" />
-                  <p className="text-muted-foreground text-sm">Nenhum time encontrado para "{search}"</p>
+                  <p className="text-muted-foreground text-sm">Nenhum time encontrado para "{deferredSearch}"</p>
                 </div>
               )}
             </>

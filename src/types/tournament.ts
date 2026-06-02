@@ -66,6 +66,10 @@ export interface MatchEvent {
   /** ID do jogador alvo da ação (ex: goleiro que defendeu um chute) */
   targetId?: string;
   text: string;
+  /** Nome do jogador no momento do evento — preserva o histórico mesmo se o jogador for excluído */
+  playerName?: string;
+  /** Nome do jogador da assistência (ou alvo) no momento do evento */
+  assistName?: string;
 }
 
 export interface PromotionRule {
