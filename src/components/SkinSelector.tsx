@@ -393,9 +393,9 @@ function SkinEditor({
           <section className="rounded-lg border border-border bg-card/50 p-3 space-y-3">
             <h4 className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Plano de fundo</h4>
             <div className="flex items-center gap-3">
-              {extras.backgroundImage ? (
+              {bgPreview ? (
                 <img
-                  src={extras.backgroundImage}
+                  src={bgPreview}
                   alt="Fundo"
                   className="h-14 w-20 object-cover rounded border border-border"
                 />
