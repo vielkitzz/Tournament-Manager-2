@@ -1,4 +1,4 @@
-import { useState, useCallback, DragEvent, useMemo, memo, useEffect } from "react";
+import { useState, useCallback, DragEvent, useMemo, memo, useEffect, useDeferredValue } from "react";
 import { motion } from "framer-motion";
 import FolderBreadcrumb from "@/components/FolderBreadcrumb";
 import {
@@ -17,9 +17,12 @@ import {
   ArrowUp,
   ArrowDown,
   ChevronsDownUp,
+  CheckSquare,
+  X,
 } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Input } from "@/components/ui/input";
+import { Checkbox } from "@/components/ui/checkbox";
 import { useNavigate } from "react-router-dom";
 import { useTournamentStore } from "@/store/tournamentStore";
 import { toast } from "sonner";
@@ -54,6 +57,9 @@ const TeamCard = memo(function TeamCard({
   onDelete,
   folders,
   onMoveToFolder,
+  selectionMode = false,
+  selected = false,
+  onToggleSelect,
 }: {
   team: Team;
   onEdit: () => void;
@@ -61,20 +67,36 @@ const TeamCard = memo(function TeamCard({
   onDelete: () => void;
   folders: TeamFolder[];
   onMoveToFolder: (teamId: string, folderId: string | null) => void;
+  selectionMode?: boolean;
+  selected?: boolean;
+  onToggleSelect?: (teamId: string) => void;
 }) {
   const handleDragStart = (e: DragEvent) => {
     e.dataTransfer.setData("team-id", team.id);
     e.dataTransfer.effectAllowed = "move";
   };
 
+  const handleCardClick = (e: React.MouseEvent) => {
+    if (selectionMode) {
+      e.preventDefault();
+      onToggleSelect?.(team.id);
+    } else {
+      onEdit();
+    }
+  };
+
+  const stop = (e: React.MouseEvent) => e.stopPropagation();
+
   return (
     <ContextMenu>
       <ContextMenuTrigger asChild>
         <div
-          draggable
+          draggable={!selectionMode}
           onDragStart={handleDragStart}
-          onClick={onEdit}
-          className="p-3 rounded-xl bg-card text-card-foreground border border-border hover:border-primary/40 transition-all relative overflow-hidden group cursor-pointer active:scale-[0.98]"
+          onClick={handleCardClick}
+          className={`p-3 rounded-xl bg-card text-card-foreground border transition-all relative overflow-hidden group cursor-pointer active:scale-[0.98] ${
+            selected ? "border-primary ring-2 ring-primary/40" : "border-border hover:border-primary/40"
+          }`}
         >
           <div className="absolute left-0 top-0 bottom-0 w-1.5 rounded-l-xl overflow-hidden flex flex-col">
             {(team.colors.length > 0 ? team.colors : ["hsl(var(--primary))", "hsl(var(--secondary))"]).map((c, i) => (
@@ -82,7 +104,16 @@ const TeamCard = memo(function TeamCard({
             ))}
           </div>
           <div className="flex items-center gap-2 pl-2">
-            <GripVertical className="w-3.5 h-3.5 text-muted-foreground/50 shrink-0" />
+            {selectionMode ? (
+              <Checkbox
+                checked={selected}
+                onCheckedChange={() => onToggleSelect?.(team.id)}
+                onClick={stop}
+                className="shrink-0"
+              />
+            ) : (
+              <GripVertical className="w-3.5 h-3.5 text-muted-foreground/50 shrink-0" />
+            )}
             <div className="w-10 h-10 flex items-center justify-center shrink-0">
               {team.logo ? (
                 <img
@@ -101,26 +132,36 @@ const TeamCard = memo(function TeamCard({
               <h3 className="font-display font-bold text-foreground text-sm truncate">{team.name}</h3>
               <p className="text-xs text-primary font-mono">{(team.rate ?? 0).toFixed(2)}</p>
             </div>
-            <div className="flex flex-col gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+            {!selectionMode && (
+            <div className="flex flex-col gap-1 opacity-0 group-hover:opacity-100 transition-opacity" onClick={stop}>
               <button
-                onClick={onEdit}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onEdit();
+                }}
                 className="p-1.5 rounded-md hover:bg-secondary text-muted-foreground hover:text-foreground"
               >
                 <Pencil className="w-3.5 h-3.5" />
               </button>
               <button
-                onClick={onDuplicate}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onDuplicate(e);
+                }}
                 className="p-1.5 rounded-md hover:bg-secondary text-muted-foreground hover:text-foreground"
               >
                 <Copy className="w-3.5 h-3.5" />
               </button>
               <AlertDialog>
                 <AlertDialogTrigger asChild>
-                  <button className="p-1.5 rounded-md hover:bg-destructive/20 text-muted-foreground hover:text-destructive">
+                  <button
+                    onClick={stop}
+                    className="p-1.5 rounded-md hover:bg-destructive/20 text-muted-foreground hover:text-destructive"
+                  >
                     <Trash2 className="w-3.5 h-3.5" />
                   </button>
                 </AlertDialogTrigger>
-                <AlertDialogContent>
+                <AlertDialogContent onClick={stop}>
                   <AlertDialogHeader>
                     <AlertDialogTitle>Excluir "{team.name}"?</AlertDialogTitle>
                     <AlertDialogDescription>
@@ -140,6 +181,7 @@ const TeamCard = memo(function TeamCard({
                 </AlertDialogContent>
               </AlertDialog>
             </div>
+            )}
           </div>
         </div>
       </ContextMenuTrigger>
