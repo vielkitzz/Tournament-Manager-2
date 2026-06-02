@@ -1,4 +1,4 @@
-import { createContext, useCallback, useContext, useEffect, useMemo, useState, ReactNode } from "react";
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, ReactNode } from "react";
 import { saveImage, loadImage, deleteImages } from "./useSkinImageStore";
 
 /**
@@ -255,6 +255,48 @@ function loadCustomSkins(): Skin[] {
   }
 }
 
+/** Returns true when localStorage has a non-empty value for STORAGE_KEY_CUSTOM
+ * but loadCustomSkins() couldn't successfully parse it. We use this signal
+ * to AVOID overwriting potentially recoverable data with an empty array on
+ * the very first persistence effect run. */
+function detectCorruptedStorage(): boolean {
+  if (typeof window === "undefined") return false;
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY_CUSTOM);
+    if (!raw) return false;
+    const parsed = JSON.parse(raw);
+    return !Array.isArray(parsed);
+  } catch {
+    return true;
+  }
+}
+
+/** IndexedDB backup helpers — provide a redundant copy of the skins JSON so
+ * a localStorage wipe (private mode eviction, browser cleanup, quota purge,
+ * accidental clear) doesn't destroy the user's custom skins. */
+const BACKUP_SKIN_ID = "__skin-backup__";
+const BACKUP_KEY = "skins-json";
+
+async function backupSkinsToIdb(skins: Skin[]): Promise<void> {
+  try {
+    await saveImage(BACKUP_SKIN_ID, BACKUP_KEY, JSON.stringify(skins));
+  } catch {
+    /* ignore — backup is best-effort */
+  }
+}
+
+async function restoreSkinsFromIdb(): Promise<Skin[] | null> {
+  try {
+    const raw = await loadImage(BACKUP_SKIN_ID, BACKUP_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    if (!Array.isArray(parsed)) return null;
+    return parsed.filter((s: any) => s && typeof s.id === "string" && typeof s.label === "string");
+  } catch {
+    return null;
+  }
+}
+
 function applySkinToDocument(skin: Skin) {
   const root = document.documentElement;
   root.classList.toggle("light", skin.base === "light");
@@ -429,6 +471,15 @@ export function SkinProvider({ children }: { children: ReactNode }) {
     if (typeof window === "undefined") return "default-dark";
     return localStorage.getItem(STORAGE_KEY_ACTIVE) || "default-dark";
   });
+  // Guards contra perda silenciosa de skins:
+  // - Se o localStorage estava corrompido (parse falhou) NÃO sobrescrevemos
+  //   com [] — preferimos manter os bytes originais para recuperação manual
+  //   e tentamos restaurar do backup IndexedDB.
+  // - Só persistimos depois que confirmamos que a leitura inicial foi bem-
+  //   sucedida, para evitar que um render inicial vazio apague dados.
+  const storageCorruptedRef = useRef<boolean>(detectCorruptedStorage());
+  const restoreAttemptedRef = useRef(false);
+  const hasMutatedRef = useRef(false);
   const importSkins: SkinContextValue["importSkins"] = useCallback((incoming) => {
     // Migra backgroundImages para IndexedDB antes de adicionar ao estado
     const processed = incoming.map((s) => {
@@ -450,6 +501,7 @@ export function SkinProvider({ children }: { children: ReactNode }) {
           ? { ...s, id: `custom-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 6)}` }
           : s,
       );
+      hasMutatedRef.current = true;
       return [...prev, ...toAdd];
     });
   }, []);
@@ -458,8 +510,32 @@ export function SkinProvider({ children }: { children: ReactNode }) {
 
   const activeSkin = useMemo<Skin>(() => skins.find((s) => s.id === activeId) || BUILTIN_SKINS[0], [skins, activeId]);
 
+  // Recupera skins do backup IndexedDB caso o localStorage esteja vazio ou
+  // corrompido (acontece em modo privado, limpeza de cache, quota purge ou
+  // bug de migração). Isso protege contra "sumiço" das skins ao mesmo tempo
+  // em que mantém o localStorage como fonte primária rápida e síncrona.
+  useEffect(() => {
+    if (restoreAttemptedRef.current) return;
+    restoreAttemptedRef.current = true;
+    if (customSkins.length > 0 && !storageCorruptedRef.current) return;
+    (async () => {
+      const restored = await restoreSkinsFromIdb();
+      if (restored && restored.length > 0) {
+        console.warn(`[skins] Restauradas ${restored.length} skins do backup IndexedDB`);
+        setCustomSkins(restored);
+        // Marca como mutação para forçar re-persistência no localStorage
+        hasMutatedRef.current = true;
+      }
+    })();
+  }, [customSkins.length]);
+
   // Persist custom skins
   useEffect(() => {
+    // Se a leitura inicial detectou storage corrompido e ainda não houve
+    // nenhuma mutação real do usuário, NÃO sobrescrevemos — preservamos os
+    // bytes originais para o backup do IndexedDB poder restaurá-los.
+    if (storageCorruptedRef.current && !hasMutatedRef.current) return;
+
     try {
       localStorage.setItem(STORAGE_KEY_CUSTOM, JSON.stringify(customSkins));
     } catch (error) {
@@ -477,6 +553,8 @@ export function SkinProvider({ children }: { children: ReactNode }) {
         console.error("Não foi possível salvar skins nem sem imagens");
       }
     }
+    // Backup redundante no IndexedDB (assíncrono, best-effort).
+    backupSkinsToIdb(customSkins);
   }, [customSkins]);
 
   // Apply active skin — resolve imagens do IndexedDB antes de aplicar
@@ -509,6 +587,7 @@ export function SkinProvider({ children }: { children: ReactNode }) {
         base: base ?? from?.base ?? "dark",
         tokens: from ? { ...from.tokens } : {},
       };
+      hasMutatedRef.current = true;
       setCustomSkins((prev) => [...prev, skin]);
       setActiveId(id);
       return skin;
@@ -517,10 +596,12 @@ export function SkinProvider({ children }: { children: ReactNode }) {
   );
 
   const updateCustomSkin: SkinContextValue["updateCustomSkin"] = useCallback((id, patch) => {
+    hasMutatedRef.current = true;
     setCustomSkins((prev) => prev.map((s) => (s.id === id ? { ...s, ...patch, tokens: patch.tokens ?? s.tokens } : s)));
   }, []);
 
   const setCustomToken: SkinContextValue["setCustomToken"] = useCallback((id, tokenKey, value) => {
+    hasMutatedRef.current = true;
     setCustomSkins((prev) =>
       prev.map((s) => {
         if (s.id !== id) return s;
@@ -533,10 +614,12 @@ export function SkinProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const resetCustomSkin: SkinContextValue["resetCustomSkin"] = useCallback((id) => {
+    hasMutatedRef.current = true;
     setCustomSkins((prev) => prev.map((s) => (s.id === id ? { ...s, tokens: {} } : s)));
   }, []);
 
   const deleteCustomSkin: SkinContextValue["deleteCustomSkin"] = useCallback((id) => {
+    hasMutatedRef.current = true;
     setCustomSkins((prev) => prev.filter((s) => s.id !== id));
     setActiveId((current) => (current === id ? "default-dark" : current));
     deleteImages(id).catch(console.error);
@@ -556,10 +639,12 @@ export function SkinProvider({ children }: { children: ReactNode }) {
   );
 
   const setCustomLogo: SkinContextValue["setCustomLogo"] = useCallback((id, logoUrl) => {
+    hasMutatedRef.current = true;
     setCustomSkins((prev) => prev.map((s) => (s.id === id ? { ...s, logoUrl: logoUrl ?? undefined } : s)));
   }, []);
 
   const updateExtras: SkinContextValue["updateExtras"] = useCallback((id, patch) => {
+    hasMutatedRef.current = true;
     if (patch.backgroundImage && patch.backgroundImage.startsWith("data:")) {
       saveImage(id, "backgroundImage", patch.backgroundImage).catch(console.error);
       patch = { ...patch, backgroundImage: `idb:${id}:backgroundImage` };
@@ -568,6 +653,7 @@ export function SkinProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const setGradient: SkinContextValue["setGradient"] = useCallback((id, target, value) => {
+    hasMutatedRef.current = true;
     setCustomSkins((prev) =>
       prev.map((s) => {
         if (s.id !== id) return s;
