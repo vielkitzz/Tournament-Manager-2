@@ -588,6 +588,7 @@ export function SkinProvider({ children }: { children: ReactNode }) {
         base: base ?? from?.base ?? "dark",
         tokens: from ? { ...from.tokens } : {},
       };
+      hasMutatedRef.current = true;
       setCustomSkins((prev) => [...prev, skin]);
       setActiveId(id);
       return skin;
@@ -596,10 +597,12 @@ export function SkinProvider({ children }: { children: ReactNode }) {
   );
 
   const updateCustomSkin: SkinContextValue["updateCustomSkin"] = useCallback((id, patch) => {
+    hasMutatedRef.current = true;
     setCustomSkins((prev) => prev.map((s) => (s.id === id ? { ...s, ...patch, tokens: patch.tokens ?? s.tokens } : s)));
   }, []);
 
   const setCustomToken: SkinContextValue["setCustomToken"] = useCallback((id, tokenKey, value) => {
+    hasMutatedRef.current = true;
     setCustomSkins((prev) =>
       prev.map((s) => {
         if (s.id !== id) return s;
@@ -612,10 +615,12 @@ export function SkinProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const resetCustomSkin: SkinContextValue["resetCustomSkin"] = useCallback((id) => {
+    hasMutatedRef.current = true;
     setCustomSkins((prev) => prev.map((s) => (s.id === id ? { ...s, tokens: {} } : s)));
   }, []);
 
   const deleteCustomSkin: SkinContextValue["deleteCustomSkin"] = useCallback((id) => {
+    hasMutatedRef.current = true;
     setCustomSkins((prev) => prev.filter((s) => s.id !== id));
     setActiveId((current) => (current === id ? "default-dark" : current));
     deleteImages(id).catch(console.error);
@@ -635,10 +640,12 @@ export function SkinProvider({ children }: { children: ReactNode }) {
   );
 
   const setCustomLogo: SkinContextValue["setCustomLogo"] = useCallback((id, logoUrl) => {
+    hasMutatedRef.current = true;
     setCustomSkins((prev) => prev.map((s) => (s.id === id ? { ...s, logoUrl: logoUrl ?? undefined } : s)));
   }, []);
 
   const updateExtras: SkinContextValue["updateExtras"] = useCallback((id, patch) => {
+    hasMutatedRef.current = true;
     if (patch.backgroundImage && patch.backgroundImage.startsWith("data:")) {
       saveImage(id, "backgroundImage", patch.backgroundImage).catch(console.error);
       patch = { ...patch, backgroundImage: `idb:${id}:backgroundImage` };
@@ -647,6 +654,7 @@ export function SkinProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const setGradient: SkinContextValue["setGradient"] = useCallback((id, target, value) => {
+    hasMutatedRef.current = true;
     setCustomSkins((prev) =>
       prev.map((s) => {
         if (s.id !== id) return s;
