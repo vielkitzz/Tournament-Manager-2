@@ -830,8 +830,70 @@ export default function TeamsPage() {
           >
             <FolderPlus className="w-4 h-4" />
           </button>
+          {teams.length > 0 && (
+            <button
+              onClick={() => (selectionMode ? exitSelectionMode() : setSelectionMode(true))}
+              title={selectionMode ? "Sair do modo seleção" : "Selecionar times"}
+              className={`p-2 rounded-lg border transition-colors shrink-0 ${
+                selectionMode
+                  ? "border-primary bg-primary/10 text-primary"
+                  : "border-border hover:bg-secondary text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              {selectionMode ? <X className="w-4 h-4" /> : <CheckSquare className="w-4 h-4" />}
+            </button>
+          )}
         </div>
       </div>
+
+      {selectionMode && (
+        <div className="mb-4 flex items-center gap-3 p-3 rounded-xl border border-primary/40 bg-primary/5">
+          <span className="text-sm font-medium text-foreground">
+            {selectedIds.size} time{selectedIds.size === 1 ? "" : "s"} selecionado{selectedIds.size === 1 ? "" : "s"}
+          </span>
+          <button
+            onClick={handleSelectAllVisible}
+            className="text-xs text-primary hover:underline"
+          >
+            Selecionar todos visíveis ({filteredTeams.length})
+          </button>
+          <button
+            onClick={() => setSelectedIds(new Set())}
+            className="text-xs text-muted-foreground hover:text-foreground"
+          >
+            Limpar seleção
+          </button>
+          <div className="flex-1" />
+          <AlertDialog open={showBulkConfirm} onOpenChange={setShowBulkConfirm}>
+            <AlertDialogTrigger asChild>
+              <button
+                disabled={selectedIds.size === 0}
+                className="px-3 py-1.5 text-xs font-medium rounded-lg bg-destructive text-destructive-foreground hover:bg-destructive/90 disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-1.5"
+              >
+                <Trash2 className="w-3.5 h-3.5" /> Excluir selecionados
+              </button>
+            </AlertDialogTrigger>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>Excluir {selectedIds.size} time(s)?</AlertDialogTitle>
+                <AlertDialogDescription>
+                  Times com histórico em competições serão arquivados (mantidos no histórico). Os demais serão excluídos
+                  permanentemente. Esta ação não pode ser desfeita.
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                <AlertDialogAction
+                  onClick={handleBulkDelete}
+                  className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                >
+                  Excluir / Arquivar
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
+        </div>
+      )}
 
       {/* Breadcrumb */}
       <FolderBreadcrumb
