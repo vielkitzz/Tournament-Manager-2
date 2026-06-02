@@ -347,14 +347,6 @@ export const useTournamentStore = create<TournamentState>((set, get) => ({
 
   addTeam: async (team) => {
     const userId = await getAuthenticatedUserId(get()._userId);
-    const currentCount = get().teams.length;
-    if (currentCount >= MAX_TEAMS_PER_USER) {
-      const err = new Error(
-        `Limite de ${MAX_TEAMS_PER_USER} times atingido. Exclua ou arquive times antigos para criar novos.`,
-      );
-      (err as any).code = "TEAM_LIMIT_EXCEEDED";
-      throw err;
-    }
     const { data, error } = await db
       .from("teams")
       .insert({
