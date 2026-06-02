@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { useTournamentStore } from "@/store/tournamentStore";
 import { supabase } from "@/integrations/supabase/client";
@@ -14,10 +14,22 @@ export default function StoreInitializer() {
   const initialize = useTournamentStore((s) => s.initialize);
   const upsertPlayerLocal = useTournamentStore((s) => s.upsertPlayerLocal);
   const removePlayerLocal = useTournamentStore((s) => s.removePlayerLocal);
+  const lastUserIdRef = useRef<string | null>(null);
 
   useEffect(() => {
-    initialize(user?.id ?? null);
-  }, [user?.id, initialize]);
+    // Só (re)inicializa quando há um usuário real. Se o user ficar
+    // transientemente null (ex: token refresh falhando), preservamos o
+    // store em memória ao invés de apagar tudo, evitando que a UI suma
+    // no meio de uma simulação. Apenas em logout explícito (transição de
+    // userId definido para null) limpamos o store.
+    if (user?.id) {
+      initialize(user.id);
+      lastUserIdRef.current = user.id;
+    } else if (lastUserIdRef.current && !user) {
+      initialize(null);
+      lastUserIdRef.current = null;
+    }
+  }, [user?.id, user, initialize]);
 
   useEffect(() => {
     if (!user?.id) return;

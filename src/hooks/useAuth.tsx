@@ -24,10 +24,26 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     let isMounted = true;
 
     // Set up listener FIRST
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
       if (!isMounted) return;
-      setSession(session);
-      setUser(session?.user ?? null);
+      // Only treat the user as logged out on an explicit SIGNED_OUT event.
+      // Transient null sessions during TOKEN_REFRESHED / network blips would
+      // otherwise wipe the in-memory store and force the user to re-login.
+      if (event === "SIGNED_OUT") {
+        setSession(null);
+        setUser(null);
+        setLoading(false);
+        return;
+      }
+      if (session) {
+        setSession(session);
+        setUser(session.user ?? null);
+        setLoading(false);
+        return;
+      }
+      // Null session on a non-SIGNED_OUT event (e.g. failed TOKEN_REFRESHED):
+      // keep the previous user/session so the UI does not blank out. The SDK
+      // will retry the refresh automatically.
       setLoading(false);
     });
 
