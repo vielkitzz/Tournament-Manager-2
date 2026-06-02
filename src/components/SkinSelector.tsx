@@ -17,6 +17,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { useCustomFonts } from "@/hooks/useCustomFonts";
+import { loadImage } from "@/hooks/useSkinImageStore";
 
 function PreviewSwatches({ skin }: { skin: Skin }) {
   const keys = ["background", "card", "primary", "accent", "border"] as const;
@@ -112,6 +113,34 @@ function SkinEditor({
   const fontScale = extras.fontScale ?? 1;
   const letterSpacing = extras.letterSpacing ?? 0;
   const shadowIntensity = extras.shadowIntensity ?? 1;
+
+  // Resolve a referência `idb:<id>:<key>` para um data URL exibível, já que
+  // o estado guarda apenas o ponteiro do IndexedDB para evitar estourar a
+  // quota do localStorage. Sem isso, o <img> do preview ficava quebrado.
+  const [bgPreview, setBgPreview] = useState<string | null>(null);
+  useEffect(() => {
+    let cancelled = false;
+    const value = extras.backgroundImage;
+    if (!value) {
+      setBgPreview(null);
+      return;
+    }
+    if (value.startsWith("idb:")) {
+      const [, skinId, key] = value.split(":");
+      loadImage(skinId, key)
+        .then((url) => {
+          if (!cancelled) setBgPreview(url);
+        })
+        .catch(() => {
+          if (!cancelled) setBgPreview(null);
+        });
+    } else {
+      setBgPreview(value);
+    }
+    return () => {
+      cancelled = true;
+    };
+  }, [extras.backgroundImage]);
 
   const handleBgUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
