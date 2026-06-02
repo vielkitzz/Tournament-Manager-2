@@ -469,15 +469,24 @@ export default function TeamsPage() {
 
   const navigate = useNavigate();
   const [search, setSearch] = useState("");
+  const deferredSearch = useDeferredValue(search);
   const [sortBy, setSortBy] = useState<"name" | "rate">("name");
   const [currentFolderId, setCurrentFolderId] = useState<string | null>(null);
   const [openFolders, setOpenFolders] = useState<Set<string>>(() => new Set(folders.map((f) => f.id)));
   const [editingFolderId, setEditingFolderId] = useState<string | null>(null);
   const [editingFolderName, setEditingFolderName] = useState("");
   const [dragOverFolder, setDragOverFolder] = useState<string | null>(null);
+  const [selectionMode, setSelectionMode] = useState(false);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [showBulkConfirm, setShowBulkConfirm] = useState(false);
 
   const filteredTeams = useMemo(() => {
-    const q = search.toLowerCase();
+    const q = deferredSearch.trim().toLowerCase();
+    if (!q && sortBy === "name") {
+      // Already sorted? Avoid sorting massive arrays unless needed.
+      const sorted = [...teams].sort((a, b) => (a.name || "").localeCompare(b.name || ""));
+      return sorted;
+    }
     const filtered = teams.filter(
       (t) =>
         (t.name || "").toLowerCase().includes(q) ||
@@ -490,20 +499,20 @@ export default function TeamsPage() {
       filtered.sort((a, b) => (a.name || "").localeCompare(b.name || ""));
     }
     return filtered;
-  }, [teams, search, sortBy]);
+  }, [teams, deferredSearch, sortBy]);
 
   // Auto-open folders containing search results
   useEffect(() => {
-    if (search.trim()) {
+    if (deferredSearch.trim()) {
+      const folderById = new Map(folders.map((f) => [f.id, f]));
       const foldersWithMatches = new Set<string>();
       filteredTeams.forEach((t) => {
         if (t.folderId) {
           foldersWithMatches.add(t.folderId);
-          // Also open parent folders
-          let parentId = folders.find((f) => f.id === t.folderId)?.parentId;
+          let parentId = folderById.get(t.folderId)?.parentId;
           while (parentId) {
             foldersWithMatches.add(parentId);
-            parentId = folders.find((f) => f.id === parentId)?.parentId;
+            parentId = folderById.get(parentId)?.parentId;
           }
         }
       });
@@ -515,7 +524,7 @@ export default function TeamsPage() {
         });
       }
     }
-  }, [search, filteredTeams, folders]);
+  }, [deferredSearch, filteredTeams, folders]);
 
   // 4. Agrupamento para uso otimizado de pastar e times
   const teamsByFolder = useMemo(() => {
@@ -577,11 +586,67 @@ export default function TeamsPage() {
   const handleDuplicate = useCallback(
     (e: React.MouseEvent, team: Team) => {
       e.stopPropagation();
-      addTeam({ ...team, id: crypto.randomUUID(), name: `${team.name} (cópia)` });
-      toast.success(`"${team.name}" duplicado!`);
+      addTeam({ ...team, id: crypto.randomUUID(), name: `${team.name} (cópia)` })
+        .then(() => toast.success(`"${team.name}" duplicado!`))
+        .catch((err: any) => {
+          if (err?.code === "TEAM_LIMIT_EXCEEDED") toast.error(err.message);
+          else toast.error("Erro ao duplicar time");
+        });
     },
     [addTeam],
   );
+
+  const toggleSelect = useCallback((id: string) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      next.has(id) ? next.delete(id) : next.add(id);
+      return next;
+    });
+  }, []);
+
+  const exitSelectionMode = useCallback(() => {
+    setSelectionMode(false);
+    setSelectedIds(new Set());
+  }, []);
+
+  const handleSelectAllVisible = useCallback(() => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      filteredTeams.forEach((t) => next.add(t.id));
+      return next;
+    });
+  }, [filteredTeams]);
+
+  const handleBulkDelete = useCallback(() => {
+    const ids = Array.from(selectedIds);
+    if (ids.length === 0) return;
+    let archived = 0;
+    let removed = 0;
+    ids.forEach((id) => {
+      const team = allTeams.find((t) => t.id === id);
+      if (!team) return;
+      const inActive = (tournaments || []).some((t) => t.teamIds && t.teamIds.includes(id));
+      const hasHistory = (tournaments || []).some((t) =>
+        (t.seasons || []).some((s) => s.teamIds?.includes(id) || s.standings.some((st) => st.teamId === id)),
+      );
+      if (inActive || hasHistory) {
+        archiveTeam(id);
+        archived++;
+      } else {
+        removeTeam(id);
+        removed++;
+      }
+    });
+    setShowBulkConfirm(false);
+    exitSelectionMode();
+    if (removed > 0 && archived > 0) {
+      toast.success(`${removed} time(s) excluído(s), ${archived} arquivado(s)`);
+    } else if (removed > 0) {
+      toast.success(`${removed} time(s) excluído(s)`);
+    } else if (archived > 0) {
+      toast.warning(`${archived} time(s) arquivado(s) (mantidos no histórico)`);
+    }
+  }, [selectedIds, allTeams, tournaments, archiveTeam, removeTeam, exitSelectionMode]);
 
   const handleAddFolder = async () => {
     const id = await addFolder("Nova Pasta");
