@@ -1,4 +1,5 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, ReactNode } from "react";
+import { useRef } from "react";
 import { saveImage, loadImage, deleteImages } from "./useSkinImageStore";
 
 /**
@@ -252,6 +253,48 @@ function loadCustomSkins(): Skin[] {
     return parsed.filter((s) => s && typeof s.id === "string" && typeof s.label === "string");
   } catch {
     return [];
+  }
+}
+
+/** Returns true when localStorage has a non-empty value for STORAGE_KEY_CUSTOM
+ * but loadCustomSkins() couldn't successfully parse it. We use this signal
+ * to AVOID overwriting potentially recoverable data with an empty array on
+ * the very first persistence effect run. */
+function detectCorruptedStorage(): boolean {
+  if (typeof window === "undefined") return false;
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY_CUSTOM);
+    if (!raw) return false;
+    const parsed = JSON.parse(raw);
+    return !Array.isArray(parsed);
+  } catch {
+    return true;
+  }
+}
+
+/** IndexedDB backup helpers — provide a redundant copy of the skins JSON so
+ * a localStorage wipe (private mode eviction, browser cleanup, quota purge,
+ * accidental clear) doesn't destroy the user's custom skins. */
+const BACKUP_SKIN_ID = "__skin-backup__";
+const BACKUP_KEY = "skins-json";
+
+async function backupSkinsToIdb(skins: Skin[]): Promise<void> {
+  try {
+    await saveImage(BACKUP_SKIN_ID, BACKUP_KEY, JSON.stringify(skins));
+  } catch {
+    /* ignore — backup is best-effort */
+  }
+}
+
+async function restoreSkinsFromIdb(): Promise<Skin[] | null> {
+  try {
+    const raw = await loadImage(BACKUP_SKIN_ID, BACKUP_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    if (!Array.isArray(parsed)) return null;
+    return parsed.filter((s: any) => s && typeof s.id === "string" && typeof s.label === "string");
+  } catch {
+    return null;
   }
 }
 
