@@ -779,6 +779,8 @@ export function generateMinuteByMinuteEvents(
         teamId: team.id,
         playerId: inPlayer.id,
         assistId: outPlayer.id,
+        playerName: inPlayer.name,
+        assistName: outPlayer.name,
         text: `Substituição no **${team.shortName || team.name}**. Sai **${outPlayer.name}** para a entrada de **${inPlayer.name}**`,
       });
     }
@@ -821,6 +823,7 @@ export function generateMinuteByMinuteEvents(
         type: "red_card",
         teamId: team.id,
         playerId: p.id,
+        playerName: p.name,
         text: `Cartão vermelho direto para **${p.name}** após entrada violenta!`,
       });
       bucket.fouls++;
@@ -856,6 +859,7 @@ export function generateMinuteByMinuteEvents(
           type: "yellow_card",
           teamId: team.id,
           playerId: p.id,
+          playerName: p.name,
           text: `SEGUNDO AMARELO! **${p.name}** recebe mais um cartão e é expulso de campo!`,
         });
       } else {
@@ -867,6 +871,7 @@ export function generateMinuteByMinuteEvents(
           type: "yellow_card",
           teamId: team.id,
           playerId: p.id,
+          playerName: p.name,
           text: `Cartão amarelo para **${p.name}** por falta dura`,
         });
       }
@@ -927,6 +932,8 @@ export function generateMinuteByMinuteEvents(
         teamId: team.id,
         playerId: scorer.id,
         assistId: assister?.id,
+        playerName: scorer.name,
+        assistName: assister?.name,
         text: descs[randInt(0, descs.length - 1)],
       });
       bucket.goals++;
@@ -959,6 +966,7 @@ export function generateMinuteByMinuteEvents(
         type: "offside",
         teamId: team.id,
         playerId: p.id,
+        playerName: p.name,
         text: `O bandeirinha assinala impedimento de **${p.name}**`,
       });
       bucket.offsides++;
@@ -1003,6 +1011,7 @@ export function generateMinuteByMinuteEvents(
         type: "shot",
         teamId: team.id,
         playerId: p.id,
+        playerName: p.name,
         text,
       });
       bucket.shots++;
@@ -1028,6 +1037,8 @@ export function generateMinuteByMinuteEvents(
         teamId: team.id,
         playerId: shooter.id,
         targetId: gk.id,
+        playerName: shooter.name,
+        assistName: gk.name,
         text,
       });
       bucket.shots++;
@@ -1074,6 +1085,7 @@ export function generateMinuteByMinuteEvents(
       type: "highlight",
       teamId: team.id,
       playerId: p.id,
+      playerName: p.name,
       text: highlights[randInt(0, highlights.length - 1)],
     });
   }
