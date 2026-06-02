@@ -923,15 +923,15 @@ export default function TeamsPage() {
           onDragOver={(e) => e.preventDefault()}
           onDrop={(e) => handleRootDrop(e as unknown as DragEvent)}
         >
-          {/* When searching, show all results flat (outside folders) */}
-          {search.trim() ? (
+          {/* When searching or selecting, show all results flat (outside folders) */}
+          {deferredSearch.trim() || selectionMode ? (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
               {filteredTeams.map((team, index) => (
                 <motion.div
                   key={team.id}
                   initial={{ opacity: 0, y: 10 }}
                   animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: index * 0.03 }}
+                  transition={{ delay: Math.min(index, 20) * 0.02 }}
                 >
                   <TeamCard
                     team={team}
@@ -940,6 +940,9 @@ export default function TeamsPage() {
                     onDelete={() => handleDelete(team.id, team.name)}
                     folders={folders}
                     onMoveToFolder={handleMoveToFolder}
+                    selectionMode={selectionMode}
+                    selected={selectedIds.has(team.id)}
+                    onToggleSelect={toggleSelect}
                   />
                 </motion.div>
               ))}
@@ -988,7 +991,7 @@ export default function TeamsPage() {
                     key={team.id}
                     initial={{ opacity: 0, y: 10 }}
                     animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: index * 0.03 }}
+                    transition={{ delay: Math.min(index, 20) * 0.02 }}
                   >
                     <TeamCard
                       team={team}
@@ -1023,10 +1026,10 @@ export default function TeamsPage() {
                 </motion.div>
               )}
 
-              {teams.length > 0 && filteredTeams.length === 0 && search && (
+              {teams.length > 0 && filteredTeams.length === 0 && deferredSearch && (
                 <div className="text-center py-12">
                   <Search className="w-10 h-10 text-muted-foreground/30 mx-auto mb-3" />
-                  <p className="text-muted-foreground text-sm">Nenhum time encontrado para "{search}"</p>
+                  <p className="text-muted-foreground text-sm">Nenhum time encontrado para "{deferredSearch}"</p>
                 </div>
               )}
             </>
