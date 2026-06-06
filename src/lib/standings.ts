@@ -13,6 +13,7 @@ export interface StandingRow {
   points: number;
   yellowCards: number;
   redCards: number;
+  pointAdjustment?: number;
 }
 
 export function calculateStandings(
@@ -92,6 +93,18 @@ export function calculateStandings(
 
   for (const row of map.values()) {
     row.goalDifference = row.goalsFor - row.goalsAgainst;
+  }
+
+  // Apply manual point adjustments
+  const adjustments = (settings as any)?.pointAdjustments as Record<string, number> | undefined;
+  if (adjustments) {
+    for (const row of map.values()) {
+      const adj = adjustments[row.teamId];
+      if (adj && typeof adj === "number") {
+        row.points += adj;
+        row.pointAdjustment = adj;
+      }
+    }
   }
 
   const rows = Array.from(map.values());
