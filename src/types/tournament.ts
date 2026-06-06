@@ -43,6 +43,8 @@ export interface TournamentSettings {
   yellowCardsToSuspend?: number;
   yellowSuspensionDuration?: number;
   redSuspensionDuration?: number;
+  // Manual point adjustments per team (positive = bonus, negative = deduction)
+  pointAdjustments?: Record<string, number>;
 }
 
 export type EventType =

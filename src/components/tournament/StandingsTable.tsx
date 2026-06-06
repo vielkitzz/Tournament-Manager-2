@@ -139,6 +139,28 @@ export default function StandingsTable({ standings, promotions = [], qualifyUnti
                       )}>
                         {row.team?.shortName || row.team?.name || "—"}
                       </span>
+                      {row.pointAdjustment ? (
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <span
+                              className={cn(
+                                "text-xs font-bold cursor-help shrink-0",
+                                row.pointAdjustment > 0 ? "text-emerald-400" : "text-destructive"
+                              )}
+                              onClick={(e) => e.stopPropagation()}
+                            >
+                              *
+                            </span>
+                          </TooltipTrigger>
+                          <TooltipContent side="top">
+                            <p className="text-[11px]">
+                              {row.pointAdjustment > 0
+                                ? `+${row.pointAdjustment} ponto(s) bonificado(s)`
+                                : `${row.pointAdjustment} ponto(s) deduzido(s)`}
+                            </p>
+                          </TooltipContent>
+                        </Tooltip>
+                      ) : null}
                       {isEliminated && (
                         <span className="text-[10px] text-destructive/70 font-medium shrink-0">Eliminado</span>
                       )}

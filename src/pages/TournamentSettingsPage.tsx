@@ -10,6 +10,8 @@ import {
   ArrowUpDown,
   ListOrdered,
   AlertTriangle,
+  Plus,
+  Minus,
 } from "lucide-react";
 import { useTournamentStore } from "@/store/tournamentStore";
 import { Label } from "@/components/ui/label";
@@ -19,6 +21,7 @@ import { Button } from "@/components/ui/button";
 import { calculateStandings } from "@/lib/standings";
 import PromotionEditor from "@/components/tournament/PromotionEditor";
 import { STAGE_TEAM_COUNTS, KnockoutStage } from "@/types/tournament";
+import { Shield } from "lucide-react";
 
 function SectionCard({
   icon: Icon,
@@ -140,6 +143,17 @@ export default function TournamentSettingsPage() {
   const isMataMata = tournament.format === "mata-mata" || tournament.format === "grupos";
   const hasLeaguePhase =
     tournament.format === "liga" || tournament.format === "grupos" || tournament.format === "suico";
+
+  const pointAdjustments: Record<string, number> = (settings as any).pointAdjustments || {};
+  const setAdjustment = (teamId: string, value: number) => {
+    const next = { ...pointAdjustments };
+    if (!value) delete next[teamId];
+    else next[teamId] = value;
+    update({ pointAdjustments: next } as any);
+  };
+  const participantTeams = tournament.teamIds
+    .map((id) => teams.find((t) => t.id === id))
+    .filter((t): t is NonNullable<typeof t> => !!t);
 
   const formatLabel =
     {
@@ -420,6 +434,60 @@ export default function TournamentSettingsPage() {
               onUpdate={(promotions) => update({ promotions })}
               standingsByGroup={isGrupos ? standingsByGroup : undefined}
             />
+          </SectionCard>
+        )}
+
+        {/* Manual point adjustments */}
+        {hasLeaguePhase && (
+          <SectionCard icon={Scale} title="Dedução / Adição de Pontos" className="lg:col-span-2">
+            <p className="text-[11px] text-muted-foreground">
+              Aplique penalidades ou bonificações em pontos para times específicos. Times ajustados aparecem com um asterisco (*) na classificação.
+            </p>
+            {participantTeams.length === 0 ? (
+              <p className="text-xs text-muted-foreground py-4 text-center">Adicione times à competição para ajustar pontos.</p>
+            ) : (
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-[360px] overflow-y-auto pr-1">
+                {participantTeams.map((team) => {
+                  const value = pointAdjustments[team.id] ?? 0;
+                  return (
+                    <div key={team.id} className="flex items-center gap-2 p-2 rounded-lg bg-secondary/40">
+                      <div className="w-6 h-6 flex items-center justify-center shrink-0">
+                        {team.logo ? (
+                          <img src={team.logo} alt="" className="w-6 h-6 object-contain" />
+                        ) : (
+                          <Shield className="w-4 h-4 text-muted-foreground" />
+                        )}
+                      </div>
+                      <span className="flex-1 text-xs text-foreground truncate">{team.shortName || team.name}</span>
+                      <div className="flex items-center gap-1">
+                        <button
+                          type="button"
+                          onClick={() => setAdjustment(team.id, value - 1)}
+                          className="w-6 h-6 rounded bg-background hover:bg-destructive/20 text-destructive flex items-center justify-center transition-colors"
+                          title="Deduzir 1 ponto"
+                        >
+                          <Minus className="w-3 h-3" />
+                        </button>
+                        <Input
+                          type="number"
+                          value={value}
+                          onChange={(e) => setAdjustment(team.id, parseInt(e.target.value) || 0)}
+                          className={`h-7 w-16 text-center text-xs bg-background border-border ${value > 0 ? "text-emerald-400" : value < 0 ? "text-destructive" : ""}`}
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setAdjustment(team.id, value + 1)}
+                          className="w-6 h-6 rounded bg-background hover:bg-emerald-500/20 text-emerald-400 flex items-center justify-center transition-colors"
+                          title="Adicionar 1 ponto"
+                        >
+                          <Plus className="w-3 h-3" />
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
           </SectionCard>
         )}
       </div>
