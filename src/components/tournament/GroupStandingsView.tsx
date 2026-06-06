@@ -3,6 +3,12 @@ import { StandingRow } from "@/lib/standings";
 import { Shield } from "lucide-react";
 import { cn } from "@/lib/utils";
 import ScreenshotButton from "@/components/ScreenshotButton";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 
 interface GroupStandingsViewProps {
   groupCount: number;
@@ -32,6 +38,7 @@ export default function GroupStandingsView({
       : "grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4";
 
   return (
+    <TooltipProvider delayDuration={200}>
     <div>
       <div className="flex justify-end mb-2">
         <ScreenshotButton targetRef={groupsRef as any} filename="fase-de-grupos.png" />
@@ -75,6 +82,27 @@ export default function GroupStandingsView({
                         <span className="font-medium truncate text-[11px] text-foreground">
                           {row.team?.abbreviation || row.team?.shortName || row.team?.name || "—"}
                         </span>
+                        {row.pointAdjustment ? (
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <span
+                                className={cn(
+                                  "text-[11px] font-bold cursor-help shrink-0",
+                                  row.pointAdjustment > 0 ? "text-emerald-400" : "text-destructive"
+                                )}
+                              >
+                                *
+                              </span>
+                            </TooltipTrigger>
+                            <TooltipContent side="top">
+                              <p className="text-[11px]">
+                                {row.pointAdjustment > 0
+                                  ? `+${row.pointAdjustment} ponto(s) bonificado(s)`
+                                  : `${row.pointAdjustment} ponto(s) deduzido(s)`}
+                              </p>
+                            </TooltipContent>
+                          </Tooltip>
+                        ) : null}
                       </div>
                     </td>
                     <td className="text-center py-2 px-0.5 font-bold tabular-nums text-foreground">{row.points}</td>
@@ -100,5 +128,6 @@ export default function GroupStandingsView({
       })}
       </div>
     </div>
+    </TooltipProvider>
   );
 }
