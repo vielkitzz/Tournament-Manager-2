@@ -1,0 +1,1 @@
+DROP POLICY IF EXISTS "Permitir que usuários atualizem seus próprios links" ON public.team_roster_player_links;
