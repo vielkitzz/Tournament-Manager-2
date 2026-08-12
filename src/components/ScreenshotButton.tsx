@@ -1,6 +1,8 @@
 import { Camera } from "lucide-react";
-import { RefObject, useCallback } from "react";
-import { captureScreenshot } from "@/lib/screenshotUtils";
+import { RefObject, useCallback, useState } from "react";
+import { captureScreenshotDataUrl } from "@/lib/screenshotUtils";
+import ScreenshotPreviewDialog from "@/components/ScreenshotPreviewDialog";
+import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 
 interface ScreenshotButtonProps {
@@ -12,24 +14,50 @@ interface ScreenshotButtonProps {
 }
 
 export default function ScreenshotButton({ targetRef, filename = "screenshot.png", className, discrete, skinImage: _skinImage }: ScreenshotButtonProps) {
-  const handleCapture = useCallback(() => {
-    if (targetRef.current) {
-      captureScreenshot(targetRef.current, filename);
+  const [open, setOpen] = useState(false);
+  const [dataUrl, setDataUrl] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
+
+  const handleCapture = useCallback(async () => {
+    if (!targetRef.current) return;
+    setDataUrl(null);
+    setLoading(true);
+    setOpen(true);
+    try {
+      const url = await captureScreenshotDataUrl(targetRef.current);
+      setDataUrl(url);
+    } catch (err) {
+      console.error("Screenshot error:", err);
+      const message = err instanceof Error ? err.message : String(err);
+      toast.error(`Erro ao capturar imagem: ${message.slice(0, 120)}`);
+      setOpen(false);
+    } finally {
+      setLoading(false);
     }
-  }, [targetRef, filename]);
+  }, [targetRef]);
 
   return (
-    <button
-      onClick={handleCapture}
-      title="Capturar imagem"
-      className={className || cn(
-        "rounded-lg transition-colors",
-        discrete
-          ? "p-1 text-muted-foreground/40 hover:text-muted-foreground hover:bg-secondary/50"
-          : "p-1.5 hover:bg-secondary text-muted-foreground hover:text-foreground"
-      )}
-    >
-      <Camera className={discrete ? "w-3.5 h-3.5" : "w-4 h-4"} />
-    </button>
+    <>
+      <button
+        onClick={handleCapture}
+        title="Capturar imagem"
+        data-screenshot-ignore="true"
+        className={className || cn(
+          "rounded-lg transition-colors",
+          discrete
+            ? "p-1 text-muted-foreground/40 hover:text-muted-foreground hover:bg-secondary/50"
+            : "p-1.5 hover:bg-secondary text-muted-foreground hover:text-foreground"
+        )}
+      >
+        <Camera className={discrete ? "w-3.5 h-3.5" : "w-4 h-4"} />
+      </button>
+      <ScreenshotPreviewDialog
+        open={open}
+        onOpenChange={setOpen}
+        dataUrl={dataUrl}
+        filename={filename}
+        loading={loading}
+      />
+    </>
   );
 }

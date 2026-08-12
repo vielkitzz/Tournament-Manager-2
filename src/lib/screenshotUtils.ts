@@ -49,6 +49,45 @@ async function waitForAssets(doc: Document, timeout = 4000) {
 }
 
 /**
+ * Converts every remote <img> inside the capture clone into a data URL.
+ * Without this, cross-origin logos (Supabase Storage) are dropped by
+ * html-to-image on mobile Safari/Chrome and shields render empty.
+ */
+const inlineCache = new Map<string, string>();
+
+async function toDataUrl(url: string): Promise<string | null> {
+  if (inlineCache.has(url)) return inlineCache.get(url)!;
+  try {
+    const res = await fetch(url, { mode: "cors", cache: "force-cache" });
+    if (!res.ok) return null;
+    const blob = await res.blob();
+    const dataUrl = await new Promise<string>((resolve, reject) => {
+      const fr = new FileReader();
+      fr.onload = () => resolve(String(fr.result));
+      fr.onerror = () => reject(fr.error);
+      fr.readAsDataURL(blob);
+    });
+    inlineCache.set(url, dataUrl);
+    return dataUrl;
+  } catch {
+    return null;
+  }
+}
+
+async function inlineImages(root: HTMLElement) {
+  const imgs = Array.from(root.querySelectorAll("img"));
+  await Promise.all(
+    imgs.map(async (img) => {
+      const src = img.getAttribute("src") || "";
+      if (!src || src.startsWith("data:")) return;
+      img.setAttribute("crossorigin", "anonymous");
+      const dataUrl = await toDataUrl(src);
+      if (dataUrl) img.setAttribute("src", dataUrl);
+    })
+  );
+}
+
+/**
  * Renders a clone of the element inside an off-screen iframe with a desktop-sized
  * viewport, so responsive (mobile) layouts don't clip or hide content in the export.
  */
@@ -91,6 +130,9 @@ html,body{margin:0;padding:0;background:transparent;width:${width}px;}
     clone.style.width = "100%";
     root.appendChild(clone);
 
+    // Embed remote logos before rasterizing (fixes missing shields on mobile)
+    await inlineImages(clone);
+
     // Mirror scroll positions away and let layout settle
     await waitForAssets(doc);
 
@@ -99,10 +141,13 @@ html,body{margin:0;padding:0;background:transparent;width:${width}px;}
     iframe.style.height = `${h + 40}px`;
     await new Promise((r) => requestAnimationFrame(r));
 
+    // Keep Discord uploads comfortable: cap total pixels (~8MP) while staying sharp
+    const ratio = Math.min(2, Math.max(1, Math.sqrt(8_000_000 / Math.max(1, w * h))));
+
     return await toPng(root as HTMLElement, {
       backgroundColor: hasBgImage ? undefined : bgColor,
-      cacheBust: true,
-      pixelRatio: 2,
+      cacheBust: false,
+      pixelRatio: ratio,
       width: w,
       height: h,
       skipFonts: true,
@@ -112,39 +157,50 @@ html,body{margin:0;padding:0;background:transparent;width:${width}px;}
   }
 }
 
-export async function captureScreenshot(element: HTMLElement, filename: string = "screenshot.png") {
-  try {
-    toast.info("Capturando imagem...");
-
+/** Renders the element and returns the resulting PNG data URL. */
+export async function captureScreenshotDataUrl(element: HTMLElement): Promise<string> {
     const rawBg = getComputedStyle(document.documentElement).getPropertyValue("--background").trim();
     const bgColor = rawBg ? `hsl(${rawBg.replace(/\s+/g, ", ")})` : "#0a0a0a";
     const padding = 32;
     const bodyStyle = getComputedStyle(document.body);
 
-    let dataUrl: string;
-    try {
-      dataUrl = await renderInDesktopFrame(element, padding, bgColor, bodyStyle);
-    } catch (frameErr) {
-      console.warn("Desktop frame capture failed, falling back to inline capture:", frameErr);
-      dataUrl = await captureInline(element, padding, bgColor, bodyStyle);
-    }
+  try {
+    return await renderInDesktopFrame(element, padding, bgColor, bodyStyle);
+  } catch (frameErr) {
+    console.warn("Desktop frame capture failed, falling back to inline capture:", frameErr);
+    return await captureInline(element, padding, bgColor, bodyStyle);
+  }
+}
 
-    try {
-      const blobPromise = fetch(dataUrl).then((r) => r.blob());
-      if (typeof ClipboardItem !== "undefined" && navigator.clipboard?.write) {
-        await navigator.clipboard.write([new ClipboardItem({ "image/png": blobPromise })]);
-        toast.success("Imagem copiada para a área de transferência!");
-      } else {
-        throw new Error("Clipboard API indisponível");
-      }
-    } catch (err) {
-      console.warn("Clipboard copy failed, falling back to download:", err);
-      const link = document.createElement("a");
-      link.download = filename;
-      link.href = dataUrl;
-      link.click();
-      toast.success("Imagem salva com sucesso!");
+/** Copies a PNG data URL to the clipboard, falling back to a download. */
+export async function copyOrDownload(dataUrl: string, filename: string) {
+  try {
+    const blobPromise = fetch(dataUrl).then((r) => r.blob());
+    if (typeof ClipboardItem !== "undefined" && navigator.clipboard?.write) {
+      await navigator.clipboard.write([new ClipboardItem({ "image/png": blobPromise })]);
+      toast.success("Imagem copiada para a área de transferência!");
+      return;
     }
+    throw new Error("Clipboard API indisponível");
+  } catch (err) {
+    console.warn("Clipboard copy failed, falling back to download:", err);
+    downloadDataUrl(dataUrl, filename);
+  }
+}
+
+export function downloadDataUrl(dataUrl: string, filename: string) {
+  const link = document.createElement("a");
+  link.download = filename;
+  link.href = dataUrl;
+  link.click();
+  toast.success("Imagem salva com sucesso!");
+}
+
+export async function captureScreenshot(element: HTMLElement, filename: string = "screenshot.png") {
+  try {
+    toast.info("Capturando imagem...");
+    const dataUrl = await captureScreenshotDataUrl(element);
+    await copyOrDownload(dataUrl, filename);
   } catch (err) {
     console.error("Screenshot error:", err);
     const message = err instanceof Error ? err.message : String(err);
