@@ -20,6 +20,10 @@ export interface PhotoModeSettings {
   title: string;
   subtitle: string;
   padding: number;
+  /** Boosts text/border contrast inside the capture for easier reading. */
+  highContrast: boolean;
+  /** Pixel budget for the exported PNG (smaller = lighter file). */
+  maxPixels: number;
 }
 
 export const DEFAULT_PHOTO_MODE: PhotoModeSettings = {
@@ -34,7 +38,15 @@ export const DEFAULT_PHOTO_MODE: PhotoModeSettings = {
   title: "",
   subtitle: "",
   padding: 40,
+  highContrast: true,
+  maxPixels: 5_000_000,
 };
+
+export const QUALITY_PRESETS = [
+  { label: "Leve", value: 3_000_000, hint: "menor arquivo" },
+  { label: "Equilibrado", value: 5_000_000, hint: "recomendado" },
+  { label: "Nítido", value: 8_000_000, hint: "máxima nitidez" },
+];
 
 const KEY = "tm2-photo-mode";
 
@@ -133,6 +145,21 @@ export function paletteCss(s: PhotoModeSettings): string {
 
 export function photoBackground(s: PhotoModeSettings, fallback: string): string {
   return s.palette === "custom" ? s.bg : fallback;
+}
+
+/**
+ * Extra CSS applied inside the capture frame to make small/faded UI readable:
+ * stronger muted text, visible borders and no translucent overlays.
+ */
+export function contrastCss(s: PhotoModeSettings): string {
+  if (!s.highContrast) return "";
+  return `#capture-root, #capture-root *{
+    --muted-foreground: var(--foreground);
+  }
+  #capture-root *{ -webkit-font-smoothing:antialiased; text-shadow:none !important; }
+  #capture-root *:not([style*="opacity: 0"]){ opacity:1 !important; }
+  #capture-root *{ border-color: hsl(var(--border)) ; }
+  #capture-root svg{ stroke-width:2 ; }`;
 }
 
 /** Same overrides as paletteCss, but as inline CSS variables for the live preview. */

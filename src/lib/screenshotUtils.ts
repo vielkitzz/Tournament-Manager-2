@@ -4,6 +4,7 @@ import {
   DEFAULT_PHOTO_MODE,
   PhotoModeSettings,
   paletteCss,
+  contrastCss,
   photoBackground,
 } from "@/lib/photoMode";
 
@@ -23,15 +24,40 @@ function collectHeadStyles(): string {
   return parts.join("\n");
 }
 
+/**
+ * Design tokens read explicitly: Safari/iOS (and older Chrome) do NOT enumerate
+ * custom properties in getComputedStyle, so relying only on the index-based loop
+ * silently dropped the theme and the capture fell back to the light defaults
+ * (white cards + light text = unreadable screenshots).
+ */
+const TOKENS = [
+  "background", "foreground", "card", "card-foreground", "popover", "popover-foreground",
+  "primary", "primary-foreground", "secondary", "secondary-foreground", "muted", "muted-foreground",
+  "accent", "accent-foreground", "destructive", "destructive-foreground", "border", "input", "ring",
+  "radius", "warning", "warning-foreground", "success", "info", "highlight",
+  "sidebar-background", "sidebar-foreground", "sidebar-primary", "sidebar-primary-foreground",
+  "sidebar-accent", "sidebar-accent-foreground", "sidebar-border", "sidebar-ring",
+  "gradient-card", "shadow-glow", "shadow-card", "font-sans",
+];
+
 function inlineVars(source: HTMLElement): string {
-  // Copy every CSS custom property currently resolved on <html> and <body>
   const grab = (el: Element) => {
     const cs = getComputedStyle(el);
+    const seen = new Set<string>();
     const out: string[] = [];
     for (let i = 0; i < cs.length; i++) {
       const p = cs[i];
-      if (p.startsWith("--")) out.push(`${p}: ${cs.getPropertyValue(p)};`);
+      if (p.startsWith("--")) {
+        seen.add(p);
+        out.push(`${p}: ${cs.getPropertyValue(p)};`);
+      }
     }
+    TOKENS.forEach((t) => {
+      const name = `--${t}`;
+      if (seen.has(name)) return;
+      const v = cs.getPropertyValue(name);
+      if (v && v.trim()) out.push(`${name}: ${v.trim()};`);
+    });
     return out.join("");
   };
   return `:root{${grab(document.documentElement)}}body{${grab(document.body)}}` + `#capture-root{${grab(source)}}`;
@@ -108,7 +134,10 @@ async function renderInDesktopFrame(
 ) {
   const scale = Math.min(2, Math.max(0.8, photo.scale || 1));
   // Content is laid out in rem, so scaling the root font-size enlarges everything.
-  const width = Math.max(Math.round(photo.width * scale), Math.ceil(element.scrollWidth * scale));
+  // Wide layouts (brackets) must keep their natural width, otherwise columns get
+  // squeezed and team names break vertically.
+  const natural = Math.ceil(element.scrollWidth * scale);
+  const width = Math.min(6000, Math.max(Math.round(photo.width * scale), natural));
 
   const iframe = document.createElement("iframe");
   iframe.setAttribute("aria-hidden", "true");
@@ -129,9 +158,10 @@ async function renderInDesktopFrame(
     doc.write(`<!DOCTYPE html><html class="${themeClass}" data-theme="${themeAttr}"><head><meta charset="utf-8">${collectHeadStyles()}
 <style>${inlineVars(element)}
 ${paletteCss(photo)}
+${contrastCss(photo)}
 html{font-size:${(16 * scale).toFixed(2)}px;}
 html,body{margin:0;padding:0;background:transparent;width:${width}px;}
-#capture-root{display:inline-block;width:${width}px;box-sizing:border-box;padding:${padding}px;background-color:${bgColor};${
+#capture-root{display:inline-block;min-width:${width}px;width:max-content;box-sizing:border-box;padding:${padding}px;background-color:${bgColor};${
       hasBgImage
         ? `background-image:${bodyStyle.backgroundImage};background-size:${bodyStyle.backgroundSize};background-position:${bodyStyle.backgroundPosition};background-repeat:${bodyStyle.backgroundRepeat};`
         : ""
@@ -158,7 +188,9 @@ html,body{margin:0;padding:0;background:transparent;width:${width}px;}
     clone.style.overflow = "visible";
     clone.style.maxHeight = "none";
     clone.style.maxWidth = "none";
-    clone.style.width = "100%";
+    // max-content keeps brackets aligned; min-width fills the frame for tables/rounds.
+    clone.style.width = "max-content";
+    clone.style.minWidth = "100%";
     root.appendChild(clone);
 
     // Embed remote logos before rasterizing (fixes missing shields on mobile)
@@ -167,13 +199,23 @@ html,body{margin:0;padding:0;background:transparent;width:${width}px;}
     // Mirror scroll positions away and let layout settle
     await waitForAssets(doc);
 
+    // Bump any text that is still too small to read on a phone screen.
+    const minFont = 13 * scale;
+    root.querySelectorAll<HTMLElement>("*").forEach((el) => {
+      const fs = parseFloat(doc.defaultView!.getComputedStyle(el).fontSize || "0");
+      if (fs > 0 && fs < minFont) el.style.fontSize = `${minFont.toFixed(1)}px`;
+    });
+    await new Promise((r) => requestAnimationFrame(r));
+
     const w = Math.ceil(root.scrollWidth);
     const h = Math.ceil(root.scrollHeight);
     iframe.style.height = `${h + 40}px`;
+    iframe.style.width = `${w + 40}px`;
     await new Promise((r) => requestAnimationFrame(r));
 
-    // Keep Discord uploads comfortable: cap total pixels (~8MP) while staying sharp
-    const ratio = Math.min(2, Math.max(1, Math.sqrt(8_000_000 / Math.max(1, w * h))));
+    // Keep Discord uploads comfortable: cap total pixels while staying sharp
+    const budget = photo.maxPixels || DEFAULT_PHOTO_MODE.maxPixels;
+    const ratio = Math.min(2, Math.max(0.75, Math.sqrt(budget / Math.max(1, w * h))));
 
     return await toPng(root as HTMLElement, {
       backgroundColor: hasBgImage ? undefined : bgColor,

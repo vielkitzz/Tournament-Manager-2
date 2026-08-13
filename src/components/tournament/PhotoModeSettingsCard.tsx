@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { Camera, RotateCcw } from "lucide-react";
+import { Camera, RotateCcw, Smartphone, Monitor } from "lucide-react";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
@@ -10,6 +10,7 @@ import { cn } from "@/lib/utils";
 import {
   DEFAULT_PHOTO_MODE,
   PhotoModeSettings,
+  QUALITY_PRESETS,
   loadPhotoMode,
   paletteVars,
   resetPhotoMode,
@@ -40,6 +41,7 @@ export default function PhotoModeSettingsCard({
 }) {
   const [settings, setSettings] = useState<PhotoModeSettings>(() => loadPhotoMode(tournamentId));
   const [mode, setMode] = useState<PreviewMode>("tabela");
+  const [device, setDevice] = useState<"mobile" | "desktop">("mobile");
 
   const update = (partial: Partial<PhotoModeSettings>) => {
     const next = { ...settings, ...partial };
@@ -135,6 +137,40 @@ export default function PhotoModeSettingsCard({
             </div>
           </div>
 
+          <div className="space-y-2">
+            <Label className="text-xs text-muted-foreground">Qualidade / peso do PNG</Label>
+            <div className="grid grid-cols-3 gap-2">
+              {QUALITY_PRESETS.map((q) => (
+                <button
+                  key={q.value}
+                  onClick={() => update({ maxPixels: q.value })}
+                  className={cn(
+                    "rounded-lg border px-2 py-2 text-left transition-colors",
+                    (settings.maxPixels ?? DEFAULT_PHOTO_MODE.maxPixels) === q.value
+                      ? "border-primary bg-primary/10"
+                      : "border-border bg-secondary/40 hover:bg-secondary/60"
+                  )}
+                >
+                  <span className="block text-xs font-medium text-foreground">{q.label}</span>
+                  <span className="block text-[10px] text-muted-foreground">{q.hint}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div className="flex items-center justify-between p-3 rounded-lg bg-secondary/40">
+            <div className="space-y-0.5">
+              <Label className="text-sm text-foreground">Alto contraste</Label>
+              <p className="text-[11px] text-muted-foreground">
+                Reforça textos apagados, bordas e ícones na imagem final
+              </p>
+            </div>
+            <Switch
+              checked={settings.highContrast ?? true}
+              onCheckedChange={(v) => update({ highContrast: v })}
+            />
+          </div>
+
           {settings.palette === "custom" && (
             <div className="grid grid-cols-2 gap-3">
               {COLOR_FIELDS.map(({ key, label }) => (
@@ -188,7 +224,7 @@ export default function PhotoModeSettingsCard({
 
         {/* Preview */}
         <div className="space-y-2">
-          <div className="flex items-center gap-1.5">
+          <div className="flex items-center gap-1.5 flex-wrap">
             {(["tabela", "rodadas", "chaveamento"] as PreviewMode[]).map((m) => (
               <button
                 key={m}
@@ -203,12 +239,39 @@ export default function PhotoModeSettingsCard({
                 {m}
               </button>
             ))}
+            <div className="ml-auto flex items-center gap-1">
+              <button
+                onClick={() => setDevice("mobile")}
+                title="Simular celular"
+                className={cn(
+                  "p-1.5 rounded-md transition-colors",
+                  device === "mobile" ? "bg-primary text-primary-foreground" : "bg-secondary/50 text-muted-foreground"
+                )}
+              >
+                <Smartphone className="w-3.5 h-3.5" />
+              </button>
+              <button
+                onClick={() => setDevice("desktop")}
+                title="Simular desktop"
+                className={cn(
+                  "p-1.5 rounded-md transition-colors",
+                  device === "desktop" ? "bg-primary text-primary-foreground" : "bg-secondary/50 text-muted-foreground"
+                )}
+              >
+                <Monitor className="w-3.5 h-3.5" />
+              </button>
+            </div>
           </div>
 
-          <div className="rounded-lg border border-border overflow-hidden">
+          <div
+            className={cn(
+              "border border-border overflow-hidden mx-auto",
+              device === "mobile" ? "rounded-[1.6rem] max-w-[300px] p-2 bg-secondary/40" : "rounded-lg"
+            )}
+          >
             <div
-              style={{ ...vars, fontSize: `${12 * previewScale}px` } as React.CSSProperties}
-              className="bg-background text-foreground p-3"
+              style={{ ...vars, fontSize: `${(device === "mobile" ? 10.5 : 12) * previewScale}px` } as React.CSSProperties}
+              className={cn("bg-background text-foreground p-3", device === "mobile" && "rounded-[1.1rem]")}
             >
               {settings.showHeader && (
                 <div
