@@ -4,6 +4,7 @@ import {
   DEFAULT_PHOTO_MODE,
   PhotoModeSettings,
   paletteCss,
+  contrastCss,
   photoBackground,
 } from "@/lib/photoMode";
 
@@ -23,15 +24,40 @@ function collectHeadStyles(): string {
   return parts.join("\n");
 }
 
+/**
+ * Design tokens read explicitly: Safari/iOS (and older Chrome) do NOT enumerate
+ * custom properties in getComputedStyle, so relying only on the index-based loop
+ * silently dropped the theme and the capture fell back to the light defaults
+ * (white cards + light text = unreadable screenshots).
+ */
+const TOKENS = [
+  "background", "foreground", "card", "card-foreground", "popover", "popover-foreground",
+  "primary", "primary-foreground", "secondary", "secondary-foreground", "muted", "muted-foreground",
+  "accent", "accent-foreground", "destructive", "destructive-foreground", "border", "input", "ring",
+  "radius", "warning", "warning-foreground", "success", "info", "highlight",
+  "sidebar-background", "sidebar-foreground", "sidebar-primary", "sidebar-primary-foreground",
+  "sidebar-accent", "sidebar-accent-foreground", "sidebar-border", "sidebar-ring",
+  "gradient-card", "shadow-glow", "shadow-card", "font-sans",
+];
+
 function inlineVars(source: HTMLElement): string {
-  // Copy every CSS custom property currently resolved on <html> and <body>
   const grab = (el: Element) => {
     const cs = getComputedStyle(el);
+    const seen = new Set<string>();
     const out: string[] = [];
     for (let i = 0; i < cs.length; i++) {
       const p = cs[i];
-      if (p.startsWith("--")) out.push(`${p}: ${cs.getPropertyValue(p)};`);
+      if (p.startsWith("--")) {
+        seen.add(p);
+        out.push(`${p}: ${cs.getPropertyValue(p)};`);
+      }
     }
+    TOKENS.forEach((t) => {
+      const name = `--${t}`;
+      if (seen.has(name)) return;
+      const v = cs.getPropertyValue(name);
+      if (v && v.trim()) out.push(`${name}: ${v.trim()};`);
+    });
     return out.join("");
   };
   return `:root{${grab(document.documentElement)}}body{${grab(document.body)}}` + `#capture-root{${grab(source)}}`;
