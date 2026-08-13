@@ -1,7 +1,15 @@
 import { toPng } from "html-to-image";
 import { toast } from "sonner";
+import {
+  DEFAULT_PHOTO_MODE,
+  PhotoModeSettings,
+  paletteCss,
+  photoBackground,
+} from "@/lib/photoMode";
 
-const CAPTURE_MIN_WIDTH = 1280;
+function escapeHtml(v: string) {
+  return v.replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c] as string));
+}
 
 function collectHeadStyles(): string {
   const parts: string[] = [];
