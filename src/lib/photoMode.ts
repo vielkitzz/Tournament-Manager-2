@@ -20,6 +20,10 @@ export interface PhotoModeSettings {
   title: string;
   subtitle: string;
   padding: number;
+  /** Boosts text/border contrast inside the capture for easier reading. */
+  highContrast: boolean;
+  /** Pixel budget for the exported PNG (smaller = lighter file). */
+  maxPixels: number;
 }
 
 export const DEFAULT_PHOTO_MODE: PhotoModeSettings = {
@@ -34,7 +38,15 @@ export const DEFAULT_PHOTO_MODE: PhotoModeSettings = {
   title: "",
   subtitle: "",
   padding: 40,
+  highContrast: true,
+  maxPixels: 5_000_000,
 };
+
+export const QUALITY_PRESETS = [
+  { label: "Leve", value: 3_000_000, hint: "menor arquivo" },
+  { label: "Equilibrado", value: 5_000_000, hint: "recomendado" },
+  { label: "Nítido", value: 8_000_000, hint: "máxima nitidez" },
+];
 
 const KEY = "tm2-photo-mode";
 
