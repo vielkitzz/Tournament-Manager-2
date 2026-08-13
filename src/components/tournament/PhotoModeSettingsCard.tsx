@@ -171,25 +171,6 @@ export default function PhotoModeSettingsCard({
             />
           </div>
 
-          <div className="hidden">
-            <div className="grid grid-cols-2 gap-2">
-              {(["app", "custom"] as const).map((p) => (
-                <button
-                  key={p}
-                  onClick={() => update({ palette: p })}
-                  className={cn(
-                    "rounded-lg border px-3 py-2 text-xs transition-colors",
-                    settings.palette === p
-                      ? "border-primary bg-primary/10 text-foreground"
-                      : "border-border bg-secondary/40 text-muted-foreground hover:bg-secondary/60"
-                  )}
-                >
-                  {p === "app" ? "Tema do app" : "Cores do campeonato"}
-                </button>
-              ))}
-            </div>
-          </div>
-
           {settings.palette === "custom" && (
             <div className="grid grid-cols-2 gap-3">
               {COLOR_FIELDS.map(({ key, label }) => (
