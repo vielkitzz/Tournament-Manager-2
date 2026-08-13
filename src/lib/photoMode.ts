@@ -134,3 +134,20 @@ export function paletteCss(s: PhotoModeSettings): string {
 export function photoBackground(s: PhotoModeSettings, fallback: string): string {
   return s.palette === "custom" ? s.bg : fallback;
 }
+
+/** Same overrides as paletteCss, but as inline CSS variables for the live preview. */
+export function paletteVars(s: PhotoModeSettings): Record<string, string> {
+  if (s.palette !== "custom") return {};
+  const css = paletteCss(s);
+  const body = css.slice(css.indexOf("{") + 1, css.lastIndexOf("}"));
+  const out: Record<string, string> = {};
+  body
+    .split(";")
+    .map((d) => d.trim())
+    .filter(Boolean)
+    .forEach((d) => {
+      const i = d.indexOf(":");
+      if (i > 0) out[d.slice(0, i).trim()] = d.slice(i + 1).trim();
+    });
+  return out;
+}
