@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { Camera, RotateCcw } from "lucide-react";
+import { Camera, RotateCcw, Smartphone, Monitor } from "lucide-react";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
@@ -10,6 +10,7 @@ import { cn } from "@/lib/utils";
 import {
   DEFAULT_PHOTO_MODE,
   PhotoModeSettings,
+  QUALITY_PRESETS,
   loadPhotoMode,
   paletteVars,
   resetPhotoMode,
@@ -40,6 +41,7 @@ export default function PhotoModeSettingsCard({
 }) {
   const [settings, setSettings] = useState<PhotoModeSettings>(() => loadPhotoMode(tournamentId));
   const [mode, setMode] = useState<PreviewMode>("tabela");
+  const [device, setDevice] = useState<"mobile" | "desktop">("mobile");
 
   const update = (partial: Partial<PhotoModeSettings>) => {
     const next = { ...settings, ...partial };
