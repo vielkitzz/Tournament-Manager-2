@@ -4,6 +4,9 @@ import { captureScreenshotDataUrl } from "@/lib/screenshotUtils";
 import ScreenshotPreviewDialog from "@/components/ScreenshotPreviewDialog";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
+import { loadPhotoMode } from "@/lib/photoMode";
+import { useParams } from "react-router-dom";
+import { useTournamentStore } from "@/store/tournamentStore";
 
 interface ScreenshotButtonProps {
   targetRef: RefObject<HTMLElement>;
@@ -11,12 +14,29 @@ interface ScreenshotButtonProps {
   className?: string;
   discrete?: boolean;
   skinImage?: string | null;
+  /** Used to load the tournament-specific photo mode settings. */
+  tournamentId?: string;
+  /** Title/subtitle rendered in the photo header band. */
+  title?: string;
+  subtitle?: string;
 }
 
-export default function ScreenshotButton({ targetRef, filename = "screenshot.png", className, discrete, skinImage: _skinImage }: ScreenshotButtonProps) {
+export default function ScreenshotButton({
+  targetRef,
+  filename = "screenshot.png",
+  className,
+  discrete,
+  skinImage: _skinImage,
+  tournamentId,
+  title,
+  subtitle,
+}: ScreenshotButtonProps) {
   const [open, setOpen] = useState(false);
   const [dataUrl, setDataUrl] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const params = useParams<{ id?: string }>();
+  const activeId = tournamentId || params.id;
+  const tournamentName = useTournamentStore((s) => s.tournaments.find((t) => t.id === activeId)?.name);
 
   const handleCapture = useCallback(async () => {
     if (!targetRef.current) return;
@@ -24,7 +44,12 @@ export default function ScreenshotButton({ targetRef, filename = "screenshot.png
     setLoading(true);
     setOpen(true);
     try {
-      const url = await captureScreenshotDataUrl(targetRef.current);
+      const photo = loadPhotoMode(activeId);
+      const url = await captureScreenshotDataUrl(targetRef.current, {
+        ...photo,
+        title: title || photo.title || tournamentName || "",
+        subtitle: subtitle || photo.subtitle,
+      });
       setDataUrl(url);
     } catch (err) {
       console.error("Screenshot error:", err);
@@ -34,7 +59,7 @@ export default function ScreenshotButton({ targetRef, filename = "screenshot.png
     } finally {
       setLoading(false);
     }
-  }, [targetRef]);
+  }, [targetRef, activeId, tournamentName, title, subtitle]);
 
   return (
     <>

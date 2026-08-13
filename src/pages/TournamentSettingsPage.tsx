@@ -20,6 +20,7 @@ import { Switch } from "@/components/ui/switch";
 import { Button } from "@/components/ui/button";
 import { calculateStandings } from "@/lib/standings";
 import PromotionEditor from "@/components/tournament/PromotionEditor";
+import PhotoModeSettingsCard from "@/components/tournament/PhotoModeSettingsCard";
 import { STAGE_TEAM_COUNTS, KnockoutStage } from "@/types/tournament";
 import { Shield } from "lucide-react";
 
@@ -191,6 +192,7 @@ export default function TournamentSettingsPage() {
 
       {/* Main grid */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
+        <PhotoModeSettingsCard tournamentId={tournament.id} tournamentName={tournament.name} />
         {/* Points — only for formats with league phase */}
         {hasLeaguePhase && (
           <SectionCard icon={Trophy} title="Pontuações">
