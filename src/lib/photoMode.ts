@@ -147,6 +147,21 @@ export function photoBackground(s: PhotoModeSettings, fallback: string): string 
   return s.palette === "custom" ? s.bg : fallback;
 }
 
+/**
+ * Extra CSS applied inside the capture frame to make small/faded UI readable:
+ * stronger muted text, visible borders and no translucent overlays.
+ */
+export function contrastCss(s: PhotoModeSettings): string {
+  if (!s.highContrast) return "";
+  return `#capture-root, #capture-root *{
+    --muted-foreground: var(--foreground);
+  }
+  #capture-root *{ -webkit-font-smoothing:antialiased; text-shadow:none !important; }
+  #capture-root *:not([style*="opacity: 0"]){ opacity:1 !important; }
+  #capture-root *{ border-color: hsl(var(--border)) ; }
+  #capture-root svg{ stroke-width:2 ; }`;
+}
+
 /** Same overrides as paletteCss, but as inline CSS variables for the live preview. */
 export function paletteVars(s: PhotoModeSettings): Record<string, string> {
   if (s.palette !== "custom") return {};
