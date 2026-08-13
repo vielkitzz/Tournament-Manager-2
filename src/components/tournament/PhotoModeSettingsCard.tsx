@@ -137,6 +137,59 @@ export default function PhotoModeSettingsCard({
             </div>
           </div>
 
+          <div className="space-y-2">
+            <Label className="text-xs text-muted-foreground">Qualidade / peso do PNG</Label>
+            <div className="grid grid-cols-3 gap-2">
+              {QUALITY_PRESETS.map((q) => (
+                <button
+                  key={q.value}
+                  onClick={() => update({ maxPixels: q.value })}
+                  className={cn(
+                    "rounded-lg border px-2 py-2 text-left transition-colors",
+                    (settings.maxPixels ?? DEFAULT_PHOTO_MODE.maxPixels) === q.value
+                      ? "border-primary bg-primary/10"
+                      : "border-border bg-secondary/40 hover:bg-secondary/60"
+                  )}
+                >
+                  <span className="block text-xs font-medium text-foreground">{q.label}</span>
+                  <span className="block text-[10px] text-muted-foreground">{q.hint}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div className="flex items-center justify-between p-3 rounded-lg bg-secondary/40">
+            <div className="space-y-0.5">
+              <Label className="text-sm text-foreground">Alto contraste</Label>
+              <p className="text-[11px] text-muted-foreground">
+                Reforça textos apagados, bordas e ícones na imagem final
+              </p>
+            </div>
+            <Switch
+              checked={settings.highContrast ?? true}
+              onCheckedChange={(v) => update({ highContrast: v })}
+            />
+          </div>
+
+          <div className="hidden">
+            <div className="grid grid-cols-2 gap-2">
+              {(["app", "custom"] as const).map((p) => (
+                <button
+                  key={p}
+                  onClick={() => update({ palette: p })}
+                  className={cn(
+                    "rounded-lg border px-3 py-2 text-xs transition-colors",
+                    settings.palette === p
+                      ? "border-primary bg-primary/10 text-foreground"
+                      : "border-border bg-secondary/40 text-muted-foreground hover:bg-secondary/60"
+                  )}
+                >
+                  {p === "app" ? "Tema do app" : "Cores do campeonato"}
+                </button>
+              ))}
+            </div>
+          </div>
+
           {settings.palette === "custom" && (
             <div className="grid grid-cols-2 gap-3">
               {COLOR_FIELDS.map(({ key, label }) => (
