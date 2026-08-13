@@ -224,7 +224,7 @@ export default function PhotoModeSettingsCard({
 
         {/* Preview */}
         <div className="space-y-2">
-          <div className="flex items-center gap-1.5">
+          <div className="flex items-center gap-1.5 flex-wrap">
             {(["tabela", "rodadas", "chaveamento"] as PreviewMode[]).map((m) => (
               <button
                 key={m}
@@ -239,12 +239,39 @@ export default function PhotoModeSettingsCard({
                 {m}
               </button>
             ))}
+            <div className="ml-auto flex items-center gap-1">
+              <button
+                onClick={() => setDevice("mobile")}
+                title="Simular celular"
+                className={cn(
+                  "p-1.5 rounded-md transition-colors",
+                  device === "mobile" ? "bg-primary text-primary-foreground" : "bg-secondary/50 text-muted-foreground"
+                )}
+              >
+                <Smartphone className="w-3.5 h-3.5" />
+              </button>
+              <button
+                onClick={() => setDevice("desktop")}
+                title="Simular desktop"
+                className={cn(
+                  "p-1.5 rounded-md transition-colors",
+                  device === "desktop" ? "bg-primary text-primary-foreground" : "bg-secondary/50 text-muted-foreground"
+                )}
+              >
+                <Monitor className="w-3.5 h-3.5" />
+              </button>
+            </div>
           </div>
 
-          <div className="rounded-lg border border-border overflow-hidden">
+          <div
+            className={cn(
+              "border border-border overflow-hidden mx-auto",
+              device === "mobile" ? "rounded-[1.6rem] max-w-[300px] p-2 bg-secondary/40" : "rounded-lg"
+            )}
+          >
             <div
-              style={{ ...vars, fontSize: `${12 * previewScale}px` } as React.CSSProperties}
-              className="bg-background text-foreground p-3"
+              style={{ ...vars, fontSize: `${(device === "mobile" ? 10.5 : 12) * previewScale}px` } as React.CSSProperties}
+              className={cn("bg-background text-foreground p-3", device === "mobile" && "rounded-[1.1rem]")}
             >
               {settings.showHeader && (
                 <div
