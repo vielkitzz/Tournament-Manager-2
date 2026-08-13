@@ -99,8 +99,16 @@ async function inlineImages(root: HTMLElement) {
  * Renders a clone of the element inside an off-screen iframe with a desktop-sized
  * viewport, so responsive (mobile) layouts don't clip or hide content in the export.
  */
-async function renderInDesktopFrame(element: HTMLElement, padding: number, bgColor: string, bodyStyle: CSSStyleDeclaration) {
-  const width = Math.max(CAPTURE_MIN_WIDTH, Math.ceil(element.scrollWidth));
+async function renderInDesktopFrame(
+  element: HTMLElement,
+  padding: number,
+  bgColor: string,
+  bodyStyle: CSSStyleDeclaration,
+  photo: PhotoModeSettings
+) {
+  const scale = Math.min(2, Math.max(0.8, photo.scale || 1));
+  // Content is laid out in rem, so scaling the root font-size enlarges everything.
+  const width = Math.max(Math.round(photo.width * scale), Math.ceil(element.scrollWidth * scale));
 
   const iframe = document.createElement("iframe");
   iframe.setAttribute("aria-hidden", "true");
@@ -114,11 +122,14 @@ async function renderInDesktopFrame(element: HTMLElement, padding: number, bgCol
     const doc = iframe.contentDocument!;
     const themeClass = document.documentElement.className;
     const themeAttr = document.documentElement.getAttribute("data-theme") || "";
-    const hasBgImage = bodyStyle.backgroundImage && bodyStyle.backgroundImage !== "none";
+    const hasBgImage =
+      photo.palette !== "custom" && bodyStyle.backgroundImage && bodyStyle.backgroundImage !== "none";
 
     doc.open();
     doc.write(`<!DOCTYPE html><html class="${themeClass}" data-theme="${themeAttr}"><head><meta charset="utf-8">${collectHeadStyles()}
 <style>${inlineVars(element)}
+${paletteCss(photo)}
+html{font-size:${(16 * scale).toFixed(2)}px;}
 html,body{margin:0;padding:0;background:transparent;width:${width}px;}
 #capture-root{display:inline-block;width:${width}px;box-sizing:border-box;padding:${padding}px;background-color:${bgColor};${
       hasBgImage
@@ -127,10 +138,22 @@ html,body{margin:0;padding:0;background:transparent;width:${width}px;}
     }}
 #capture-root *{overflow:visible !important;max-height:none !important;}
 #capture-root [data-screenshot-ignore="true"]{display:none !important;}
+#photo-header{display:flex;align-items:center;gap:0.9rem;margin-bottom:1.4rem;padding-bottom:1rem;border-bottom:2px solid hsl(var(--primary));}
+#photo-header .bar{width:0.35rem;align-self:stretch;min-height:2.6rem;border-radius:999px;background:hsl(var(--primary));}
+#photo-header h1{margin:0;font-size:1.65rem;line-height:1.15;font-weight:800;letter-spacing:-0.02em;color:hsl(var(--foreground));}
+#photo-header p{margin:0.25rem 0 0;font-size:0.95rem;font-weight:600;letter-spacing:0.14em;text-transform:uppercase;color:hsl(var(--primary));}
 </style></head><body><div id="capture-root"></div></body></html>`);
     doc.close();
 
     const root = doc.getElementById("capture-root")!;
+    if (photo.showHeader && (photo.title || photo.subtitle)) {
+      const header = doc.createElement("div");
+      header.id = "photo-header";
+      header.innerHTML = `<span class="bar"></span><div><h1>${escapeHtml(photo.title || "")}</h1>${
+        photo.subtitle ? `<p>${escapeHtml(photo.subtitle)}</p>` : ""
+      }</div>`;
+      root.appendChild(header);
+    }
     const clone = element.cloneNode(true) as HTMLElement;
     clone.style.overflow = "visible";
     clone.style.maxHeight = "none";
@@ -166,14 +189,19 @@ html,body{margin:0;padding:0;background:transparent;width:${width}px;}
 }
 
 /** Renders the element and returns the resulting PNG data URL. */
-export async function captureScreenshotDataUrl(element: HTMLElement): Promise<string> {
-    const rawBg = getComputedStyle(document.documentElement).getPropertyValue("--background").trim();
-    const bgColor = rawBg ? `hsl(${rawBg.replace(/\s+/g, ", ")})` : "#0a0a0a";
-    const padding = 32;
-    const bodyStyle = getComputedStyle(document.body);
+export async function captureScreenshotDataUrl(
+  element: HTMLElement,
+  photoSettings?: Partial<PhotoModeSettings>
+): Promise<string> {
+  const photo: PhotoModeSettings = { ...DEFAULT_PHOTO_MODE, ...(photoSettings || {}) };
+  const rawBg = getComputedStyle(document.documentElement).getPropertyValue("--background").trim();
+  const themeBg = rawBg ? `hsl(${rawBg.replace(/\s+/g, ", ")})` : "#0a0a0a";
+  const bgColor = photoBackground(photo, themeBg);
+  const padding = Math.round((photo.padding ?? 32) * Math.min(2, Math.max(0.8, photo.scale || 1)));
+  const bodyStyle = getComputedStyle(document.body);
 
   try {
-    return await renderInDesktopFrame(element, padding, bgColor, bodyStyle);
+    return await renderInDesktopFrame(element, padding, bgColor, bodyStyle, photo);
   } catch (frameErr) {
     console.warn("Desktop frame capture failed, falling back to inline capture:", frameErr);
     return await captureInline(element, padding, bgColor, bodyStyle);
