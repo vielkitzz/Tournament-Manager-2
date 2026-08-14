@@ -640,6 +640,7 @@ export default function BracketView({
       >
         {onRemoveMatch && !tournament.finalized && (
           <button
+            data-photo-control="true"
             onClick={(e) => {
               e.stopPropagation();
               handleRemoveMatch(pair.leg1);
@@ -836,7 +837,7 @@ export default function BracketView({
     const nextHasMatches = nextStage && (matchesByStage[nextStage]?.length || 0) > 0;
 
     return (
-      <div className="mb-2 flex flex-wrap items-center justify-center gap-2">
+      <div data-photo-control="true" className="mb-2 flex flex-wrap items-center justify-center gap-2">
         {unplayed.length > 0 && (
           <button
             onClick={() => handleSimulateStage(stage)}
@@ -1195,6 +1196,7 @@ export default function BracketView({
                       <span className="text-[10px] font-bold text-primary">3º Lugar</span>
                       {thirdPlaceMatches.some((m) => !m.played) && (
                         <button
+                          data-photo-control="true"
                           onClick={handleSimulateThirdPlace}
                           className="flex items-center gap-1 px-1.5 py-0.5 rounded bg-primary/10 text-primary hover:bg-primary/20 text-[9px] font-bold transition-colors"
                         >
@@ -1235,6 +1237,7 @@ export default function BracketView({
                         <span className="text-[10px] font-bold text-primary">3º Lugar</span>
                         {thirdPlaceMatches.some((m) => !m.played) && (
                           <button
+                          data-photo-control="true"
                             onClick={handleSimulateThirdPlace}
                             className="flex items-center gap-1 px-1.5 py-0.5 rounded bg-primary/10 text-primary hover:bg-primary/20 text-[9px] font-bold transition-colors"
                           >
@@ -1372,6 +1375,7 @@ function TeamRow({
         </span>
         {!hideEdit && (
           <button
+            data-photo-control="true"
             onClick={(e) => {
               e.stopPropagation();
               onEditTeam();

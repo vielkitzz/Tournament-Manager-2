@@ -82,6 +82,24 @@ async function waitForAssets(doc: Document, timeout = 4000) {
   await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(() => r(null))));
 }
 
+async function waitForImage(img: HTMLImageElement, timeout = 5000) {
+  if (img.complete && img.naturalWidth > 0) {
+    try {
+      await img.decode();
+    } catch {
+      // The browser may reject decode() for an already decoded cached image.
+    }
+    return;
+  }
+  await Promise.race([
+    new Promise<void>((resolve) => {
+      img.addEventListener("load", () => resolve(), { once: true });
+      img.addEventListener("error", () => resolve(), { once: true });
+    }),
+    new Promise<void>((resolve) => setTimeout(resolve, timeout)),
+  ]);
+}
+
 /**
  * Converts every remote <img> inside the capture clone into a data URL.
  * Without this, cross-origin logos (Supabase Storage) are dropped by
@@ -91,21 +109,34 @@ const inlineCache = new Map<string, string>();
 
 async function toDataUrl(url: string): Promise<string | null> {
   if (inlineCache.has(url)) return inlineCache.get(url)!;
-  try {
-    const res = await fetch(url, { mode: "cors", cache: "force-cache" });
-    if (!res.ok) return null;
-    const blob = await res.blob();
-    const dataUrl = await new Promise<string>((resolve, reject) => {
-      const fr = new FileReader();
-      fr.onload = () => resolve(String(fr.result));
-      fr.onerror = () => reject(fr.error);
-      fr.readAsDataURL(blob);
-    });
-    inlineCache.set(url, dataUrl);
-    return dataUrl;
-  } catch {
-    return null;
+  const absoluteUrl = new URL(url, window.location.href).href;
+  const candidates = [absoluteUrl];
+  const parsed = new URL(absoluteUrl);
+  if (parsed.searchParams.has("t")) {
+    parsed.searchParams.delete("t");
+    candidates.push(parsed.href);
   }
+
+  for (const candidate of candidates) {
+    try {
+      // no-store avoids occasional empty/stale Storage responses on mobile WebKit.
+      const res = await fetch(candidate, { mode: "cors", cache: "no-store" });
+      if (!res.ok) continue;
+      const blob = await res.blob();
+      if (!blob.size || !blob.type.startsWith("image/")) continue;
+      const dataUrl = await new Promise<string>((resolve, reject) => {
+        const fr = new FileReader();
+        fr.onload = () => resolve(String(fr.result));
+        fr.onerror = () => reject(fr.error);
+        fr.readAsDataURL(blob);
+      });
+      inlineCache.set(url, dataUrl);
+      return dataUrl;
+    } catch {
+      // Try the URL without the cache-busting query parameter when available.
+    }
+  }
+  return null;
 }
 
 async function inlineImages(root: HTMLElement) {
@@ -113,10 +144,18 @@ async function inlineImages(root: HTMLElement) {
   await Promise.all(
     imgs.map(async (img) => {
       const src = img.getAttribute("src") || "";
-      if (!src || src.startsWith("data:")) return;
-      img.setAttribute("crossorigin", "anonymous");
+      if (!src) return;
+      if (src.startsWith("data:")) {
+        await waitForImage(img);
+        return;
+      }
       const dataUrl = await toDataUrl(src);
-      if (dataUrl) img.setAttribute("src", dataUrl);
+      if (dataUrl) {
+        img.removeAttribute("crossorigin");
+        img.removeAttribute("srcset");
+        img.setAttribute("src", dataUrl);
+        await waitForImage(img);
+      }
     })
   );
 }
@@ -136,8 +175,9 @@ async function renderInDesktopFrame(
   // Content is laid out in rem, so scaling the root font-size enlarges everything.
   // Wide layouts (brackets) must keep their natural width, otherwise columns get
   // squeezed and team names break vertically.
-  const natural = Math.ceil(element.scrollWidth * scale);
-  const width = Math.min(6000, Math.max(Math.round(photo.width * scale), natural));
+  // The frame width is not multiplied by scale: font scaling already enlarges the
+  // layout. Multiplying both produced very wide canvases with distant information.
+  const width = Math.min(6000, Math.max(720, Math.round(photo.width)));
 
   const iframe = document.createElement("iframe");
   iframe.setAttribute("aria-hidden", "true");
@@ -148,7 +188,8 @@ async function renderInDesktopFrame(
   document.body.appendChild(iframe);
 
   try {
-    const doc = iframe.contentDocument!;
+    const doc = iframe.contentDocument;
+    if (!doc) throw new Error("Não foi possível preparar o modo foto");
     const themeClass = document.documentElement.className;
     const themeAttr = document.documentElement.getAttribute("data-theme") || "";
     const hasBgImage =
@@ -160,14 +201,15 @@ async function renderInDesktopFrame(
 ${paletteCss(photo)}
 ${contrastCss(photo)}
 html{font-size:${(16 * scale).toFixed(2)}px;}
-html,body{margin:0;padding:0;background:transparent;width:${width}px;}
-#capture-root{display:inline-block;min-width:${width}px;width:max-content;box-sizing:border-box;padding:${padding}px;background-color:${bgColor};${
+ html,body{margin:0;padding:0;background:${bgColor} !important;min-width:${width}px;}
+ #capture-root{display:inline-block;min-width:${width}px;width:max-content;box-sizing:border-box;padding:${padding}px;background:${bgColor} !important;color:hsl(var(--foreground));${
       hasBgImage
         ? `background-image:${bodyStyle.backgroundImage};background-size:${bodyStyle.backgroundSize};background-position:${bodyStyle.backgroundPosition};background-repeat:${bodyStyle.backgroundRepeat};`
         : ""
     }}
 #capture-root *{overflow:visible !important;max-height:none !important;}
-#capture-root [data-screenshot-ignore="true"]{display:none !important;}
+ #capture-root [data-screenshot-ignore="true"]{display:none !important;}
+ #capture-root [data-photo-control="true"]{display:none !important;}
 #photo-header{display:flex;align-items:center;gap:0.9rem;margin-bottom:1.4rem;padding-bottom:1rem;border-bottom:2px solid hsl(var(--primary));}
 #photo-header .bar{width:0.35rem;align-self:stretch;min-height:2.6rem;border-radius:999px;background:hsl(var(--primary));}
 #photo-header h1{margin:0;font-size:1.65rem;line-height:1.15;font-weight:800;letter-spacing:-0.02em;color:hsl(var(--foreground));}
@@ -175,7 +217,8 @@ html,body{margin:0;padding:0;background:transparent;width:${width}px;}
 </style></head><body><div id="capture-root"></div></body></html>`);
     doc.close();
 
-    const root = doc.getElementById("capture-root")!;
+    const root = doc.getElementById("capture-root");
+    if (!root) throw new Error("Área de captura não encontrada");
     if (photo.showHeader && (photo.title || photo.subtitle)) {
       const header = doc.createElement("div");
       header.id = "photo-header";
@@ -190,7 +233,7 @@ html,body{margin:0;padding:0;background:transparent;width:${width}px;}
     clone.style.maxWidth = "none";
     // max-content keeps brackets aligned; min-width fills the frame for tables/rounds.
     clone.style.width = "max-content";
-    clone.style.minWidth = "100%";
+    clone.style.minWidth = "0";
     root.appendChild(clone);
 
     // Embed remote logos before rasterizing (fixes missing shields on mobile)
@@ -200,9 +243,9 @@ html,body{margin:0;padding:0;background:transparent;width:${width}px;}
     await waitForAssets(doc);
 
     // Bump any text that is still too small to read on a phone screen.
-    const minFont = 13 * scale;
+    const minFont = 12 * scale;
     root.querySelectorAll<HTMLElement>("*").forEach((el) => {
-      const fs = parseFloat(doc.defaultView!.getComputedStyle(el).fontSize || "0");
+      const fs = parseFloat(doc.defaultView?.getComputedStyle(el).fontSize || "0");
       if (fs > 0 && fs < minFont) el.style.fontSize = `${minFont.toFixed(1)}px`;
     });
     await new Promise((r) => requestAnimationFrame(r));
@@ -236,11 +279,17 @@ export async function captureScreenshotDataUrl(
   photoSettings?: Partial<PhotoModeSettings>
 ): Promise<string> {
   const photo: PhotoModeSettings = { ...DEFAULT_PHOTO_MODE, ...(photoSettings || {}) };
-  const rawBg = getComputedStyle(document.documentElement).getPropertyValue("--background").trim();
-  const themeBg = rawBg ? `hsl(${rawBg.replace(/\s+/g, ", ")})` : "#0a0a0a";
+  const rootStyle = getComputedStyle(document.documentElement);
+  const rawBg = rootStyle.getPropertyValue("--background").trim();
+  const bodyStyle = getComputedStyle(document.body);
+  const bodyBg = bodyStyle.backgroundColor;
+  const themeBg = bodyBg && bodyBg !== "rgba(0, 0, 0, 0)" && bodyBg !== "transparent"
+    ? bodyBg
+    : rawBg
+      ? `hsl(${rawBg})`
+      : "#0a0a0a";
   const bgColor = photoBackground(photo, themeBg);
   const padding = Math.round((photo.padding ?? 32) * Math.min(2, Math.max(0.8, photo.scale || 1)));
-  const bodyStyle = getComputedStyle(document.body);
 
   try {
     return await renderInDesktopFrame(element, padding, bgColor, bodyStyle, photo);
