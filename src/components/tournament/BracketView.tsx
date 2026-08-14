@@ -636,10 +636,12 @@ export default function BracketView({
     return (
       <div
         key={pair.leg1.id}
+        data-photo-match="true"
         className="relative group/pair w-[220px] rounded-lg bg-card shadow-sm border border-border overflow-visible"
       >
         {onRemoveMatch && !tournament.finalized && (
           <button
+            data-photo-control="true"
             onClick={(e) => {
               e.stopPropagation();
               handleRemoveMatch(pair.leg1);
@@ -836,7 +838,7 @@ export default function BracketView({
     const nextHasMatches = nextStage && (matchesByStage[nextStage]?.length || 0) > 0;
 
     return (
-      <div className="mb-2 flex flex-wrap items-center justify-center gap-2">
+      <div data-photo-control="true" className="mb-2 flex flex-wrap items-center justify-center gap-2">
         {unplayed.length > 0 && (
           <button
             onClick={() => handleSimulateStage(stage)}
@@ -1070,6 +1072,7 @@ export default function BracketView({
 
       {/* Removemos a tag <img> daqui de dentro! */}
       <div
+        data-photo-layout="bracket"
         className="overflow-x-auto overflow-y-hidden pb-2 will-change-transform min-h-[500px]"
         ref={bracketRef}
         style={{ transform: "translateZ(0)" }}
@@ -1087,9 +1090,9 @@ export default function BracketView({
 
           const renderConnectorSvg = (pairsCount: number, mirrored = false) => {
             const groups = Math.floor(pairsCount / 2);
-            if (groups === 0) return <div className="w-[24px] flex-shrink-0" />;
+            if (groups === 0) return <div data-photo-connector="true" className="w-[24px] flex-shrink-0" />;
             return (
-              <div className="relative w-[48px] flex-shrink-0" style={{ alignSelf: "stretch" }}>
+              <div data-photo-connector="true" className="relative w-[48px] flex-shrink-0" style={{ alignSelf: "stretch" }}>
                 <svg
                   style={{
                     position: "absolute",
@@ -1161,7 +1164,7 @@ export default function BracketView({
             const isTwoLeg = legMode === "home-away" && (stage !== finalStageKey || !finalSingleLeg);
 
             return (
-              <div className="flex flex-col w-[240px]">
+              <div data-photo-stage="true" className="flex flex-col w-[240px]">
                 <div className="flex flex-col items-center gap-1 pb-3 pt-1 flex-shrink-0">
                   <div className="flex items-center gap-1.5">
                     <span className="text-[11px] font-bold text-primary tracking-tight">
@@ -1195,6 +1198,7 @@ export default function BracketView({
                       <span className="text-[10px] font-bold text-primary">3º Lugar</span>
                       {thirdPlaceMatches.some((m) => !m.played) && (
                         <button
+                          data-photo-control="true"
                           onClick={handleSimulateThirdPlace}
                           className="flex items-center gap-1 px-1.5 py-0.5 rounded bg-primary/10 text-primary hover:bg-primary/20 text-[9px] font-bold transition-colors"
                         >
@@ -1235,6 +1239,7 @@ export default function BracketView({
                         <span className="text-[10px] font-bold text-primary">3º Lugar</span>
                         {thirdPlaceMatches.some((m) => !m.played) && (
                           <button
+                          data-photo-control="true"
                             onClick={handleSimulateThirdPlace}
                             className="flex items-center gap-1 px-1.5 py-0.5 rounded bg-primary/10 text-primary hover:bg-primary/20 text-[9px] font-bold transition-colors"
                           >
@@ -1372,6 +1377,7 @@ function TeamRow({
         </span>
         {!hideEdit && (
           <button
+            data-photo-control="true"
             onClick={(e) => {
               e.stopPropagation();
               onEditTeam();
