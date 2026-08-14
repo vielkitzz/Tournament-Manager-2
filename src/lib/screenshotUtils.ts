@@ -107,9 +107,36 @@ async function waitForImage(img: HTMLImageElement, timeout = 5000) {
  */
 const inlineCache = new Map<string, string>();
 
+const FALLBACK_SHIELD =
+  "data:image/svg+xml;charset=utf-8," +
+  encodeURIComponent(
+    '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M20 13c0 5-3.5 7.5-8 9-4.5-1.5-8-4-8-9V5l8-3 8 3z"/></svg>'
+  );
+
+function canvasDataUrl(img: HTMLImageElement): string | null {
+  if (!img.complete || img.naturalWidth === 0 || img.naturalHeight === 0) return null;
+  try {
+    const canvas = document.createElement("canvas");
+    canvas.width = img.naturalWidth;
+    canvas.height = img.naturalHeight;
+    const context = canvas.getContext("2d");
+    if (!context) return null;
+    context.drawImage(img, 0, 0);
+    return canvas.toDataURL("image/png");
+  } catch {
+    // A loaded cross-origin image without CORS cannot be read back from canvas.
+    return null;
+  }
+}
+
 async function toDataUrl(url: string): Promise<string | null> {
-  if (inlineCache.has(url)) return inlineCache.get(url)!;
-  const absoluteUrl = new URL(url, window.location.href).href;
+  if (inlineCache.has(url)) return inlineCache.get(url) ?? null;
+  let absoluteUrl: string;
+  try {
+    absoluteUrl = new URL(url, window.location.href).href;
+  } catch {
+    return null;
+  }
   const candidates = [absoluteUrl];
   const parsed = new URL(absoluteUrl);
   if (parsed.searchParams.has("t")) {
@@ -118,46 +145,82 @@ async function toDataUrl(url: string): Promise<string | null> {
   }
 
   for (const candidate of candidates) {
-    try {
-      // no-store avoids occasional empty/stale Storage responses on mobile WebKit.
-      const res = await fetch(candidate, { mode: "cors", cache: "no-store" });
-      if (!res.ok) continue;
-      const blob = await res.blob();
-      if (!blob.size || !blob.type.startsWith("image/")) continue;
-      const dataUrl = await new Promise<string>((resolve, reject) => {
-        const fr = new FileReader();
-        fr.onload = () => resolve(String(fr.result));
-        fr.onerror = () => reject(fr.error);
-        fr.readAsDataURL(blob);
-      });
-      inlineCache.set(url, dataUrl);
-      return dataUrl;
-    } catch {
-      // Try the URL without the cache-busting query parameter when available.
+    // WebKit occasionally fails a no-store request for an image that is already
+    // present in its memory cache. Try both paths before giving up.
+    for (const cache of ["force-cache", "no-store"] as RequestCache[]) {
+      try {
+        const res = await fetch(candidate, { mode: "cors", cache, credentials: "omit" });
+        if (!res.ok) continue;
+        const blob = await res.blob();
+        if (!blob.size || (blob.type && !blob.type.startsWith("image/"))) continue;
+        const dataUrl = await new Promise<string>((resolve, reject) => {
+          const fr = new FileReader();
+          fr.onload = () => resolve(String(fr.result));
+          fr.onerror = () => reject(fr.error);
+          fr.readAsDataURL(blob);
+        });
+        inlineCache.set(url, dataUrl);
+        return dataUrl;
+      } catch {
+        // Continue with the next cache strategy/URL candidate.
+      }
     }
   }
   return null;
 }
 
-async function inlineImages(root: HTMLElement) {
-  const imgs = Array.from(root.querySelectorAll("img"));
+async function inlineImages(source: HTMLElement, clone: HTMLElement) {
+  const sourceImgs = Array.from(source.querySelectorAll("img"));
+  const imgs = Array.from(clone.querySelectorAll("img"));
   await Promise.all(
-    imgs.map(async (img) => {
-      const src = img.getAttribute("src") || "";
-      if (!src) return;
-      if (src.startsWith("data:")) {
+    imgs.map(async (img, index) => {
+      const sourceImg = sourceImgs[index];
+      const src = sourceImg?.currentSrc || sourceImg?.getAttribute("src") || img.getAttribute("src") || "";
+      img.removeAttribute("srcset");
+      img.removeAttribute("sizes");
+      img.removeAttribute("crossorigin");
+      img.loading = "eager";
+      img.decoding = "sync";
+      if (!src) {
+        img.src = FALLBACK_SHIELD;
+        img.dataset.photoImageFallback = "true";
         await waitForImage(img);
         return;
       }
-      const dataUrl = await toDataUrl(src);
-      if (dataUrl) {
-        img.removeAttribute("crossorigin");
-        img.removeAttribute("srcset");
-        img.setAttribute("src", dataUrl);
+      if (src.startsWith("data:")) {
+        img.src = src;
         await waitForImage(img);
+        return;
       }
+      const dataUrl = (sourceImg && canvasDataUrl(sourceImg)) || await toDataUrl(src);
+      img.src = dataUrl || FALLBACK_SHIELD;
+      if (!dataUrl) img.dataset.photoImageFallback = "true";
+      await waitForImage(img);
     })
   );
+}
+
+function resolvedThemeCss(source: HTMLElement): string {
+  const sourceStyle = getComputedStyle(source);
+  const rootStyle = getComputedStyle(document.documentElement);
+  const read = (name: string, fallback: string) =>
+    sourceStyle.getPropertyValue(`--${name}`).trim() ||
+    rootStyle.getPropertyValue(`--${name}`).trim() ||
+    fallback;
+  const values: Record<string, string> = {
+    background: read("background", "222 47% 8%"),
+    foreground: read("foreground", "0 0% 100%"),
+    card: read("card", "222 40% 12%"),
+    "card-foreground": read("card-foreground", read("foreground", "0 0% 100%")),
+    secondary: read("secondary", "222 35% 15%"),
+    "secondary-foreground": read("secondary-foreground", read("foreground", "0 0% 100%")),
+    muted: read("muted", "222 30% 14%"),
+    "muted-foreground": read("muted-foreground", "222 15% 70%"),
+    primary: read("primary", "217 91% 60%"),
+    "primary-foreground": read("primary-foreground", "222 47% 8%"),
+    border: read("border", "222 25% 24%"),
+  };
+  return `#capture-root{${Object.entries(values).map(([key, value]) => `--${key}:${value};`).join("")}}`;
 }
 
 /**
@@ -198,6 +261,7 @@ async function renderInDesktopFrame(
     doc.open();
     doc.write(`<!DOCTYPE html><html class="${themeClass}" data-theme="${themeAttr}"><head><meta charset="utf-8">${collectHeadStyles()}
 <style>${inlineVars(element)}
+${resolvedThemeCss(element)}
 ${paletteCss(photo)}
 ${contrastCss(photo)}
 html{font-size:${(16 * scale).toFixed(2)}px;}
@@ -208,6 +272,12 @@ html{font-size:${(16 * scale).toFixed(2)}px;}
         : ""
     }}
 #capture-root *{overflow:visible !important;max-height:none !important;}
+ #capture-root{background-color:hsl(var(--background)) !important;color:hsl(var(--foreground)) !important;}
+ #capture-root .bg-card{background-color:hsl(var(--card)) !important;color:hsl(var(--card-foreground)) !important;}
+ #capture-root .bg-secondary{background-color:hsl(var(--secondary)) !important;color:hsl(var(--secondary-foreground)) !important;}
+ #capture-root [class*="bg-secondary/"]{color:hsl(var(--secondary-foreground)) !important;}
+ #capture-root img{visibility:visible !important;opacity:1 !important;object-fit:contain !important;}
+ #capture-root img[data-photo-image-fallback="true"]{color:hsl(var(--muted-foreground));padding:2px;}
  #capture-root [data-screenshot-ignore="true"]{display:none !important;}
  #capture-root [data-photo-control="true"]{display:none !important;}
  #capture-root [data-photo-layout="bracket"] [data-photo-stage="true"]{width:${(210 * scale).toFixed(1)}px !important;}
@@ -240,7 +310,7 @@ html{font-size:${(16 * scale).toFixed(2)}px;}
     root.appendChild(clone);
 
     // Embed remote logos before rasterizing (fixes missing shields on mobile)
-    await inlineImages(clone);
+    await inlineImages(element, clone);
 
     // Mirror scroll positions away and let layout settle
     await waitForAssets(doc);
