@@ -1,59 +1,45 @@
-## Mudanças no `MatchPopup.tsx` + nova edge function
+# Roteiro: correção do modo foto + 3 atualizações
 
-### 1. Nova edge function `get-solarahub-lineup`
-- Input: `{ solarahub_club_id: string }`
-- Server-side usa `SOLARAHUB_URL` + `SOLARAHUB_ANON_KEY` (já são secrets).
-- Retorna `{ lineup: { formation, mentality, pitchIds, benchIds, estiloJogo, pressao, bolaAerea } | null }`.
-- Sem dados de jogadores — usaremos `homePlayers`/`awayPlayers` já carregados no TM2 via `master_player_id` para casar starters.
+## Correção antes de publicar — caixa do campeão no modo foto
 
-### 2. Props novos no `MatchPopup`
-```ts
-homeMoral?: number; // -0.15..+0.15, default 0
-awayMoral?: number; // -0.15..+0.15, default 0
-```
-Apenas estrutura — nenhum cálculo de moral agora.
+Hoje, na captura do chaveamento, as colunas de fase, os cards de confronto e os conectores acompanham o valor de "Tamanho das informações" (scale), mas a coluna do campeão continua com largura fixa (220px). Com scale alto a fonte cresce e a caixa não, então o nome do campeão quebra letra a letra na vertical (como na imagem).
 
-### 3. Carregamento background do lineup
-`useEffect` no mount do popup, em paralelo para os dois times:
-1. `select` em `club_sync_links` para o `tm2_team_id` (RLS do TM2).
-2. Se houver `solarahub_club_id`, chama `supabase.functions.invoke("get-solarahub-lineup", ...)`.
-3. Salva em estado `homeLineup` / `awayLineup`. Popup abre imediatamente; simulação anterior à chegada do lineup usa os rates atuais (sem mods).
+O que muda:
+- Marcar a coluna/caixa do campeão com um atributo próprio de layout de foto.
+- Na captura, aplicar a mesma multiplicação por `scale` na largura dessa caixa (e nas linhas de 2º/3º lugar), com largura mínima suficiente para o nome do clube.
+- Garantir que o nome use quebra por palavra (não por caractere) e ganhe uma linha extra em vez de espremer.
+- Nada muda fora da captura: a tela normal do chaveamento segue igual.
 
-### 4. Cálculo de attackRate / defenseRate por time
-Quando o lineup chega:
-- Identifica starters fazendo lookup `pitchIds.values()` em `homePlayers` por `master_player_id`. Fallback para os 11 primeiros se vazio.
-- `baseEffective = effectiveMatchRate(team.rate, starters)` (já existente).
-- Modificadores aplicados em cima:
-  - **Estilo:** Posse → atk×1.00, def×1.05 · Ligação Direta → atk×1.05, def×0.97 · Contra-ataque → atk×0.97, def×1.08
-  - **Pressão:** Alta → atk×1.05, def×0.95 · Média → 1/1 · Baixa → atk×0.97, def×1.05
-  - **Bola Aérea:** sem efeito agora (sem hook em `simulation.ts` — fica registrado em comentário).
-- Resultado: `homeAttackRate`, `homeDefenseRate`, idem away.
+## Atualização 1 — Sala de troféus
 
-### 5. Encaixe na `simulateHalf`
-A assinatura atual é `simulateHalf(homeRate, awayRate, isET, momentum, homeAttackMod, awayAttackMod)`. Não dá pra passar atk/def separados sem refatorar. Estratégia minimamente invasiva:
-- `homeRate` passado = `homeEffective × (1 + homeMoral)` (moral aqui).
-- `homeAttackMod` final = `styleAttackMod_home × pressureAttackMod_home × (defesaInversa_away) × urgencyMod_home`
-  - onde `defesaInversa_away = 1 / (styleDefenseMod_away × pressureDefenseMod_away)` (defesa boa do adversário reduz seu xG).
-- Idem espelhado para o away.
+- Botão de câmera (modo foto) na galeria de campeões, usando as mesmas preferências de Modo Foto da competição (paleta, escala, alto contraste, cabeçalho com nome do torneio).
+- Restilização da sala: cards de temporada maiores e mais legíveis, faixa de destaque para o maior vencedor, escudos com tamanho consistente e ranking de títulos mais visual.
+- Suporte a mais de um campeão por ano (títulos compartilhados): a estrutura da temporada passa a aceitar uma lista de campeões; o card cresce em altura em vez de espremer o conteúdo, e a contagem de títulos credita cada clube listado.
+- Edição/adição na sala permite incluir ou remover campeões adicionais de um mesmo ano.
 
-### 6. Modificador de urgência (mata-mata 2ª perna)
-Usar `getSecondLegModifiers` já exportado em `simulation.ts`:
-- Calcular `aggregateDeficit` para cada time considerando `pairLeg1` + placar parcial atual.
-- Time perdendo recebe `attackMod` aumentado; time ganhando recebe `attackMod` reduzido (`1/attackModDoOutro`) ou usar o `defenseMod` retornado.
-- Aplicado **antes** de chamar `simulateHalf`, multiplicando no `attackMod` final do passo 5.
-- Para partidas que não são 2ª perna mata-mata: nada (`1.0`).
+## Atualização 2 — Cores dos clubes com utilidade visual
 
-### 7. Onde aplicar
-- `handleSimulate` (simulação por tempo)
-- `handleLiveSimulate` (minuto a minuto) — usa `simulateHalf` 2x
-- `ensureStats` (cálculo de xG via `getExpectedGoals`) — passar mesmos atackMods
+- Liga/pontos corridos: 1º, 2º e 3º colocados recebem realce com as cores do próprio clube (faixa lateral ou fundo suave derivado da cor primária do time), com verificação automática de contraste para não prejudicar leitura em nenhum tema nem no modo foto.
+- Mata-mata: a caixa do campeão passa a usar as cores do clube (fundo em degradê da cor primária + detalhe na secundária), mantendo o texto sempre legível.
+- Sala de troféus: mesma lógica de cor aplicada aos cards de campeão.
+- Interruptor nas configurações da competição para ligar/desligar o uso das cores dos clubes, caso o usuário prefira o visual neutro atual.
 
-### 8. Não-objetivos
-- Não tocar em `simulation.ts`.
-- Não calcular moral.
-- Não exibir UI dos novos campos.
-- Não alterar persistência do match.
+## Atualização 3 — Jogos extras e decisões alternativas
 
-### Pontos abertos
-- **Defesa inversa** é uma aproximação — se você quiser separação real atk/def precisaria refatorar `getExpectedGoals` pra aceitar `defenderRate` separado do `opponentRate`. Confirma se a aproximação serve.
-- **Bola Aérea** fica sem efeito até `simulation.ts` ganhar hook (cartões de cabeçada, gols de bola parada).
+Novas opções de desempate no mata-mata, nas configurações da competição:
+- Modo de decisão: pênaltis (atual), jogo extra (replay/desempate) ou cara ou coroa.
+- Jogo extra: quando o empate persistir, o sistema cria uma partida de desempate ligada ao confronto, com número máximo de repetições configurável (ex.: até 2 ou 3 replays).
+- Se o limite de jogos extras for atingido e o empate continuar, aplica-se o critério final escolhido: cara ou coroa (sorteio explícito, com registro do resultado) ou pênaltis.
+- Os jogos extras entram no chaveamento e nas rodadas como partidas normais (contam para estatísticas e para as notas), sem quebrar o avanço de fases nem os snapshots de temporada.
+
+## Detalhes técnicos
+
+- Modo foto: ajuste em `src/lib/screenshotUtils.ts` (regras `data-photo-*` multiplicadas por `scale`) e novo atributo na caixa do campeão em `BracketView.tsx`.
+- Sala de troféus: `GalleryView.tsx` / `TournamentGalleryPage.tsx`, com `ScreenshotButton` e `data-photo-layout="gallery"`; `SeasonRecord` ganha campo opcional de campeões adicionais, mantendo compatibilidade com os registros existentes.
+- Cores: helper de contraste reaproveitado do modo foto, aplicado em `StandingsTable`, `GroupStandingsView`, `BracketView` e galeria; flag em `TournamentSettings`.
+- Decisões: novos campos em `TournamentSettings` (`decisionMode`, `maxReplays`) e tratamento no avanço de fase (`BracketView` + utilitários de mata-mata), com o resultado do sorteio persistido na partida.
+
+## Ordem sugerida
+
+1. Correção da caixa do campeão (publicar).
+2. Atualização 1, depois 2, depois 3 — cada uma como release estável separada.
