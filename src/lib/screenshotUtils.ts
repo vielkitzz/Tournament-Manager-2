@@ -6,6 +6,7 @@ import {
   paletteCss,
   contrastCss,
   photoBackground,
+  hexToHslTriplet,
 } from "@/lib/photoMode";
 
 function escapeHtml(v: string) {
@@ -239,23 +240,27 @@ function readableOn(surface: string, preferred: string, minimum = 4.5): string {
   return contrastRatio(surface, dark) >= contrastRatio(surface, light) ? dark : light;
 }
 
-function resolvedThemeCss(source: HTMLElement): string {
+function resolvedThemeCss(source: HTMLElement, photo: PhotoModeSettings): string {
   const sourceStyle = getComputedStyle(source);
   const rootStyle = getComputedStyle(document.documentElement);
   const read = (name: string, fallback: string) =>
     sourceStyle.getPropertyValue(`--${name}`).trim() ||
     rootStyle.getPropertyValue(`--${name}`).trim() ||
     fallback;
+  const custom = photo.palette === "custom";
+  const selectedBackground = custom ? hexToHslTriplet(photo.bg) : read("background", "222 47% 8%");
+  const selectedText = custom ? hexToHslTriplet(photo.text) : read("foreground", "0 0% 100%");
+  const selectedCard = custom ? hexToHslTriplet(photo.surface) : read("card", "222 40% 12%");
   const values: Record<string, string> = {
-    background: read("background", "222 47% 8%"),
-    foreground: read("foreground", "0 0% 100%"),
-    card: read("card", "222 40% 12%"),
-    "card-foreground": read("card-foreground", read("foreground", "0 0% 100%")),
-    secondary: read("secondary", "222 35% 15%"),
-    "secondary-foreground": read("secondary-foreground", read("foreground", "0 0% 100%")),
+    background: selectedBackground,
+    foreground: selectedText,
+    card: selectedCard,
+    "card-foreground": custom ? selectedText : read("card-foreground", selectedText),
+    secondary: custom ? selectedCard : read("secondary", "222 35% 15%"),
+    "secondary-foreground": custom ? selectedText : read("secondary-foreground", selectedText),
     muted: read("muted", "222 30% 14%"),
     "muted-foreground": read("muted-foreground", "222 15% 70%"),
-    primary: read("primary", "217 91% 60%"),
+    primary: custom ? hexToHslTriplet(photo.accent) : read("primary", "217 91% 60%"),
     "primary-foreground": read("primary-foreground", "222 47% 8%"),
     border: read("border", "222 25% 24%"),
   };
@@ -306,8 +311,8 @@ async function renderInDesktopFrame(
     doc.open();
     doc.write(`<!DOCTYPE html><html class="${themeClass}" data-theme="${themeAttr}"><head><meta charset="utf-8">${collectHeadStyles()}
 <style>${inlineVars(element)}
-${resolvedThemeCss(element)}
 ${paletteCss(photo)}
+ ${resolvedThemeCss(element, photo)}
 ${contrastCss(photo)}
 html{font-size:${(16 * scale).toFixed(2)}px;}
  html,body{margin:0;padding:0;background:${bgColor} !important;min-width:${width}px;}
