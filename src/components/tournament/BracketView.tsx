@@ -978,7 +978,7 @@ export default function BracketView({
     }
 
     return (
-      <div className="flex flex-col items-stretch justify-start w-[220px] flex-shrink-0">
+      <div data-photo-champion="true" className="flex flex-col items-stretch justify-start w-[220px] flex-shrink-0">
         <div className="mb-3 text-center">
           <span className="text-xs font-bold text-primary tracking-tight">Campeão</span>
         </div>
@@ -995,7 +995,7 @@ export default function BracketView({
               )}
             </div>
             <div className="flex-1 min-w-0">
-              <span className="text-sm font-bold text-foreground block whitespace-normal break-words">
+              <span className="text-sm font-bold text-foreground block whitespace-normal [overflow-wrap:break-word] [word-break:normal]">
                 {championTeam.shortName || championTeam.name}
               </span>
               <span className="text-[10px] text-primary font-semibold">Campeão {tournament.year}</span>
@@ -1011,7 +1011,7 @@ export default function BracketView({
                   <Shield className="w-3.5 h-3.5 text-muted-foreground/50" />
                 )}
               </div>
-              <span className="text-xs text-muted-foreground whitespace-normal break-words">
+              <span className="text-xs text-muted-foreground whitespace-normal [overflow-wrap:break-word] [word-break:normal]">
                 {runnerUpTeam.shortName || runnerUpTeam.name}
               </span>
             </div>
@@ -1026,7 +1026,7 @@ export default function BracketView({
                   <Shield className="w-3.5 h-3.5 text-muted-foreground/50" />
                 )}
               </div>
-              <span className="text-xs text-muted-foreground whitespace-normal break-words">
+              <span className="text-xs text-muted-foreground whitespace-normal [overflow-wrap:break-word] [word-break:normal]">
                 {thirdTeam.shortName || thirdTeam.name}
               </span>
             </div>
