@@ -270,7 +270,7 @@ function resolvedThemeCss(source: HTMLElement, photo: PhotoModeSettings): string
   values["primary-foreground"] = readableOn(values.primary, values["primary-foreground"]);
   const cardMuted = readableOn(values.card, values["muted-foreground"]);
   const secondaryMuted = readableOn(values.secondary, values["muted-foreground"]);
-  return `#capture-root{${Object.entries(values).map(([key, value]) => `--${key}:${value};`).join("")}--photo-card-muted:${cardMuted};--photo-secondary-muted:${secondaryMuted};}`;
+  return `#capture-root,#capture-root *{${Object.entries(values).map(([key, value]) => `--${key}:${value};`).join("")}--photo-card-muted:${cardMuted};--photo-secondary-muted:${secondaryMuted};}`;
 }
 
 /**
