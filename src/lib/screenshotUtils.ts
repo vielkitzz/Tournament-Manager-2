@@ -200,6 +200,45 @@ async function inlineImages(source: HTMLElement, clone: HTMLElement) {
   );
 }
 
+type Rgb = { r: number; g: number; b: number };
+
+function hslTokenToRgb(value: string): Rgb | null {
+  const match = value.trim().match(/^(-?[\d.]+)(?:deg)?\s+([\d.]+)%\s+([\d.]+)%/);
+  if (!match) return null;
+  const h = ((Number(match[1]) % 360) + 360) % 360;
+  const s = Math.min(100, Math.max(0, Number(match[2]))) / 100;
+  const l = Math.min(100, Math.max(0, Number(match[3]))) / 100;
+  const c = (1 - Math.abs(2 * l - 1)) * s;
+  const x = c * (1 - Math.abs(((h / 60) % 2) - 1));
+  const m = l - c / 2;
+  const [r, g, b] = h < 60 ? [c, x, 0] : h < 120 ? [x, c, 0] : h < 180 ? [0, c, x] : h < 240 ? [0, x, c] : h < 300 ? [x, 0, c] : [c, 0, x];
+  return { r: (r + m) * 255, g: (g + m) * 255, b: (b + m) * 255 };
+}
+
+function relativeLuminance(rgb: Rgb): number {
+  const linear = (channel: number) => {
+    const value = channel / 255;
+    return value <= 0.04045 ? value / 12.92 : Math.pow((value + 0.055) / 1.055, 2.4);
+  };
+  return 0.2126 * linear(rgb.r) + 0.7152 * linear(rgb.g) + 0.0722 * linear(rgb.b);
+}
+
+function contrastRatio(a: string, b: string): number {
+  const rgbA = hslTokenToRgb(a);
+  const rgbB = hslTokenToRgb(b);
+  if (!rgbA || !rgbB) return 1;
+  const light = Math.max(relativeLuminance(rgbA), relativeLuminance(rgbB));
+  const dark = Math.min(relativeLuminance(rgbA), relativeLuminance(rgbB));
+  return (light + 0.05) / (dark + 0.05);
+}
+
+function readableOn(surface: string, preferred: string, minimum = 4.5): string {
+  if (contrastRatio(surface, preferred) >= minimum) return preferred;
+  const dark = "222 47% 8%";
+  const light = "0 0% 100%";
+  return contrastRatio(surface, dark) >= contrastRatio(surface, light) ? dark : light;
+}
+
 function resolvedThemeCss(source: HTMLElement): string {
   const sourceStyle = getComputedStyle(source);
   const rootStyle = getComputedStyle(document.documentElement);
@@ -220,7 +259,13 @@ function resolvedThemeCss(source: HTMLElement): string {
     "primary-foreground": read("primary-foreground", "222 47% 8%"),
     border: read("border", "222 25% 24%"),
   };
-  return `#capture-root{${Object.entries(values).map(([key, value]) => `--${key}:${value};`).join("")}}`;
+  values.foreground = readableOn(values.background, values.foreground);
+  values["card-foreground"] = readableOn(values.card, values["card-foreground"]);
+  values["secondary-foreground"] = readableOn(values.secondary, values["secondary-foreground"]);
+  values["primary-foreground"] = readableOn(values.primary, values["primary-foreground"]);
+  const cardMuted = readableOn(values.card, values["muted-foreground"]);
+  const secondaryMuted = readableOn(values.secondary, values["muted-foreground"]);
+  return `#capture-root{${Object.entries(values).map(([key, value]) => `--${key}:${value};`).join("")}--photo-card-muted:${cardMuted};--photo-secondary-muted:${secondaryMuted};}`;
 }
 
 /**
@@ -273,9 +318,16 @@ html{font-size:${(16 * scale).toFixed(2)}px;}
     }}
 #capture-root *{overflow:visible !important;max-height:none !important;}
  #capture-root{background-color:hsl(var(--background)) !important;color:hsl(var(--foreground)) !important;}
- #capture-root .bg-card{background-color:hsl(var(--card)) !important;color:hsl(var(--card-foreground)) !important;}
- #capture-root .bg-secondary{background-color:hsl(var(--secondary)) !important;color:hsl(var(--secondary-foreground)) !important;}
- #capture-root [class*="bg-secondary/"]{color:hsl(var(--secondary-foreground)) !important;}
+ #capture-root .bg-card,#capture-root [class*="bg-card/"]{background-image:none !important;background-color:hsl(var(--card)) !important;color:hsl(var(--card-foreground)) !important;}
+ #capture-root .bg-card .text-foreground,#capture-root [class*="bg-card/"] .text-foreground{color:hsl(var(--card-foreground)) !important;}
+ #capture-root .bg-card .text-muted-foreground,#capture-root .bg-card [class*="text-muted-foreground/"],#capture-root [class*="bg-card/"] .text-muted-foreground,#capture-root [class*="bg-card/"] [class*="text-muted-foreground/"]{color:hsl(var(--photo-card-muted)) !important;}
+ #capture-root .bg-secondary,#capture-root [class*="bg-secondary/"]{background-image:none !important;background-color:hsl(var(--secondary)) !important;color:hsl(var(--secondary-foreground)) !important;}
+ #capture-root .bg-secondary .text-muted-foreground,#capture-root [class*="bg-secondary/"] .text-muted-foreground{color:hsl(var(--photo-secondary-muted)) !important;}
+ #capture-root button{background-color:transparent;color:inherit;}
+ #capture-root [data-photo-match="true"]{background-image:none !important;background-color:hsl(var(--card)) !important;color:hsl(var(--card-foreground)) !important;}
+ #capture-root [data-photo-match="true"] button{background-color:transparent !important;color:inherit !important;}
+ #capture-root [data-photo-match="true"] .text-foreground{color:hsl(var(--card-foreground)) !important;}
+ #capture-root [data-photo-match="true"] .text-muted-foreground,#capture-root [data-photo-match="true"] [class*="text-muted-foreground/"]{color:hsl(var(--photo-card-muted)) !important;}
  #capture-root img{visibility:visible !important;opacity:1 !important;object-fit:contain !important;}
  #capture-root img[data-photo-image-fallback="true"]{color:hsl(var(--muted-foreground));padding:2px;}
  #capture-root [data-screenshot-ignore="true"]{display:none !important;}
