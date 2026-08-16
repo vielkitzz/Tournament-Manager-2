@@ -1,63 +1,123 @@
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { SeasonRecord, Team } from "@/types/tournament";
-import { Trophy, Shield, Plus, Pencil, Trash2, Check, X, Search, Crown } from "lucide-react";
+import type { TeamHistory } from "@/lib/teamHistoryUtils";
+import { resolveTeamForYear } from "@/lib/teamHistoryUtils";
+import { Trophy, Shield, Plus, Pencil, Trash2, Check, X, Search, Crown, History } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
-import { championBoxStyle } from "@/lib/teamColors";
+import { Switch } from "@/components/ui/switch";
+import ScreenshotButton from "@/components/ScreenshotButton";
+import { championBoxStyle, splitChampionStyle } from "@/lib/teamColors";
+
+interface ChampionEntry {
+  id: string;
+  name: string;
+  logo?: string;
+  colors?: string[];
+}
 
 interface GalleryViewProps {
   seasons: SeasonRecord[];
   teams?: Team[];
+  teamHistories?: TeamHistory[];
+  tournamentName?: string;
   onUpdateSeasons?: (seasons: SeasonRecord[]) => void;
 }
 
-export default function GalleryView({ seasons, teams, onUpdateSeasons }: GalleryViewProps) {
+export default function GalleryView({
+  seasons,
+  teams,
+  teamHistories = [],
+  tournamentName,
+  onUpdateSeasons,
+}: GalleryViewProps) {
   const [adding, setAdding] = useState(false);
   const [editingYear, setEditingYear] = useState<number | null>(null);
   const [formYear, setFormYear] = useState("");
   const [formName, setFormName] = useState("");
   const [formTeamId, setFormTeamId] = useState("");
   const [formLogo, setFormLogo] = useState<string | undefined>();
+  const [formCoChampions, setFormCoChampions] = useState<{ id: string; name: string; logo?: string }[]>([]);
   const [teamPickerOpen, setTeamPickerOpen] = useState(false);
+  const [pickerTarget, setPickerTarget] = useState<"main" | "co">("main");
   const [teamSearch, setTeamSearch] = useState("");
+  const [useHistorical, setUseHistorical] = useState(true);
+
+  const titlesRef = useRef<HTMLDivElement>(null);
+  const rankingRef = useRef<HTMLDivElement>(null);
 
   const editable = !!onUpdateSeasons;
   const sorted = [...seasons].sort((a, b) => b.year - a.year);
 
+  const getTeamById = (id: string) => teams?.find((t) => t.id === id);
+
+  /** Resolves a champion entry using the club identity of that specific year. */
+  const resolveChampion = (
+    year: number,
+    id: string,
+    storedName: string,
+    storedLogo?: string
+  ): ChampionEntry => {
+    const team = getTeamById(id);
+    if (!team) return { id, name: storedName, logo: storedLogo };
+    const hist = useHistorical ? resolveTeamForYear(team, year, teamHistories) : null;
+    return {
+      id,
+      // A manually typed name always wins over the resolved one
+      name: storedName && storedName !== team.name ? storedName : hist?.name || team.name,
+      logo: storedLogo && storedLogo !== team.logo ? storedLogo : hist?.logo || team.logo,
+      colors: hist?.colors || team.colors,
+    };
+  };
+
+  const championsOf = (season: SeasonRecord): ChampionEntry[] => [
+    resolveChampion(season.year, season.championId, season.championName, season.championLogo),
+    ...((season.coChampions || []).map((c) => resolveChampion(season.year, c.id, c.name, c.logo))),
+  ];
+
   const topChampions = useMemo(() => {
     const counts: Record<string, { name: string; logo?: string; titles: number; years: number[] }> = {};
     for (const s of seasons) {
-      const key = s.championId || s.championName;
-      if (!counts[key]) {
-        counts[key] = { name: s.championName, logo: s.championLogo, titles: 0, years: [] };
+      for (const ch of championsOf(s)) {
+        const key = ch.id || ch.name;
+        if (!counts[key]) counts[key] = { name: ch.name, logo: ch.logo, titles: 0, years: [] };
+        counts[key].titles++;
+        counts[key].years.push(s.year);
+        if (ch.logo) counts[key].logo = ch.logo;
+        counts[key].name = ch.name;
       }
-      counts[key].titles++;
-      counts[key].years.push(s.year);
-      // Keep latest logo/name
-      if (s.championLogo) counts[key].logo = s.championLogo;
-      counts[key].name = s.championName;
     }
-    return Object.values(counts)
-      .sort((a, b) => b.titles - a.titles || a.name.localeCompare(b.name));
-  }, [seasons]);
-
-  const getTeamById = (id: string) => teams?.find((t) => t.id === id);
+    return Object.values(counts).sort((a, b) => b.titles - a.titles || a.name.localeCompare(b.name));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [seasons, teams, teamHistories, useHistorical]);
 
   const filteredTeams = (teams || [])
     .filter((t) => !t.isArchived)
-    .filter((t) =>
-      t.name.toLowerCase().includes(teamSearch.toLowerCase()) ||
-      t.shortName?.toLowerCase().includes(teamSearch.toLowerCase())
+    .filter(
+      (t) =>
+        t.name.toLowerCase().includes(teamSearch.toLowerCase()) ||
+        t.shortName?.toLowerCase().includes(teamSearch.toLowerCase())
     )
     .sort((a, b) => a.name.localeCompare(b.name));
 
   const handleSelectTeam = (team: Team) => {
-    setFormTeamId(team.id);
-    setFormName(team.name);
-    setFormLogo(team.logo);
+    if (pickerTarget === "co") {
+      setFormCoChampions((prev) =>
+        prev.some((c) => c.id === team.id) ? prev : [...prev, { id: team.id, name: team.name, logo: team.logo }]
+      );
+    } else {
+      setFormTeamId(team.id);
+      setFormName(team.name);
+      setFormLogo(team.logo);
+    }
     setTeamPickerOpen(false);
     setTeamSearch("");
+  };
+
+  const openPicker = (target: "main" | "co") => {
+    setPickerTarget(target);
+    setTeamPickerOpen(true);
   };
 
   const handleAdd = () => {
@@ -70,6 +130,7 @@ export default function GalleryView({ seasons, teams, onUpdateSeasons }: Gallery
       championId: formTeamId || `manual-${year}`,
       championName: formName,
       championLogo: formLogo,
+      coChampions: formCoChampions.length ? formCoChampions : undefined,
       standings: [],
       manual: true,
     };
@@ -89,6 +150,7 @@ export default function GalleryView({ seasons, teams, onUpdateSeasons }: Gallery
         championId: formTeamId || s.championId,
         championName: formName,
         championLogo: formLogo ?? s.championLogo,
+        coChampions: formCoChampions.length ? formCoChampions : undefined,
       };
     });
     onUpdateSeasons(updated);
@@ -106,6 +168,7 @@ export default function GalleryView({ seasons, teams, onUpdateSeasons }: Gallery
     setFormName(season.championName);
     setFormTeamId(season.championId);
     setFormLogo(season.championLogo);
+    setFormCoChampions(season.coChampions || []);
     setAdding(false);
   };
 
@@ -120,6 +183,7 @@ export default function GalleryView({ seasons, teams, onUpdateSeasons }: Gallery
     setFormName("");
     setFormTeamId("");
     setFormLogo(undefined);
+    setFormCoChampions([]);
   };
 
   const resetForm = () => {
@@ -142,7 +206,9 @@ export default function GalleryView({ seasons, teams, onUpdateSeasons }: Gallery
     <Dialog open={teamPickerOpen} onOpenChange={setTeamPickerOpen}>
       <DialogContent className="max-w-sm p-0 gap-0 overflow-hidden">
         <DialogHeader className="p-4 pb-2">
-          <DialogTitle className="text-sm font-bold">Selecionar Time</DialogTitle>
+          <DialogTitle className="text-sm font-bold">
+            {pickerTarget === "co" ? "Adicionar co-campeão" : "Selecionar Time"}
+          </DialogTitle>
         </DialogHeader>
         <div className="px-4 pb-2">
           <div className="relative">
@@ -199,7 +265,7 @@ export default function GalleryView({ seasons, teams, onUpdateSeasons }: Gallery
         />
         <button
           type="button"
-          onClick={() => setTeamPickerOpen(true)}
+          onClick={() => openPicker("main")}
           className="flex items-center gap-2 flex-1 h-8 px-2.5 rounded-md border border-border bg-background text-xs hover:border-primary/40 transition-colors min-w-0"
         >
           {formLogo ? (
@@ -226,12 +292,103 @@ export default function GalleryView({ seasons, teams, onUpdateSeasons }: Gallery
           className="h-8 text-xs"
         />
       )}
+
+      {/* Shared titles */}
+      <div className="flex flex-wrap items-center gap-1.5">
+        {formCoChampions.map((c) => (
+          <span
+            key={c.id}
+            className="flex items-center gap-1.5 pl-1.5 pr-1 py-1 rounded-md bg-background border border-border text-[11px]"
+          >
+            {c.logo ? <img src={c.logo} alt="" className="w-3.5 h-3.5 object-contain" /> : <Shield className="w-3 h-3" />}
+            <span className="truncate max-w-[110px]">{c.name}</span>
+            <button
+              onClick={() => setFormCoChampions((prev) => prev.filter((x) => x.id !== c.id))}
+              className="text-muted-foreground hover:text-destructive"
+            >
+              <X className="w-3 h-3" />
+            </button>
+          </span>
+        ))}
+        <button
+          type="button"
+          onClick={() => openPicker("co")}
+          className="flex items-center gap-1 px-2 py-1 rounded-md border border-dashed border-border text-[11px] text-muted-foreground hover:text-primary hover:border-primary/40 transition-colors"
+        >
+          <Plus className="w-3 h-3" />
+          Adicionar co-campeão
+        </button>
+      </div>
     </div>
   );
+
+  const renderSeasonRow = (season: SeasonRecord) => {
+    const champs = championsOf(season);
+    const style =
+      champs.length > 1
+        ? splitChampionStyle(champs.map((c) => c.colors))
+        : championBoxStyle(champs[0]?.colors);
+
+    return (
+      <div
+        key={season.year}
+        style={style?.container}
+        className="flex flex-wrap items-center gap-x-3 gap-y-2 p-3 rounded-xl bg-secondary/30 border border-border hover:border-primary/30 transition-colors group"
+      >
+        <Trophy className="w-4 h-4 text-primary shrink-0" style={style?.text} />
+        <span className="text-xs font-bold text-muted-foreground min-w-[40px]" style={style?.subtleText}>
+          {season.year}
+        </span>
+        <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5 flex-1 min-w-0">
+          {champs.map((ch, idx) => (
+            <div key={`${ch.id}-${idx}`} className="flex items-center gap-2 min-w-0">
+              <div className="w-7 h-7 flex items-center justify-center shrink-0">
+                {ch.logo ? (
+                  <img src={ch.logo} alt="" className="w-7 h-7 object-contain" />
+                ) : (
+                  <Shield className="w-4 h-4 text-muted-foreground" style={style?.subtleText} />
+                )}
+              </div>
+              <span className="text-sm font-bold text-foreground truncate" style={style?.text}>
+                {ch.name}
+              </span>
+            </div>
+          ))}
+          {champs.length > 1 && (
+            <span
+              className="text-[10px] font-bold uppercase tracking-wide px-1.5 py-0.5 rounded"
+              style={style?.accent}
+            >
+              Título compartilhado
+            </span>
+          )}
+        </div>
+        {editable && (
+          <div
+            data-photo-control="true"
+            className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity"
+          >
+            <button onClick={() => startEdit(season)} className="p-1 text-muted-foreground hover:text-foreground">
+              <Pencil className="w-3.5 h-3.5" />
+            </button>
+            <button onClick={() => handleDelete(season.year)} className="p-1 text-muted-foreground hover:text-destructive">
+              <Trash2 className="w-3.5 h-3.5" />
+            </button>
+          </div>
+        )}
+      </div>
+    );
+  };
 
   return (
     <div className="space-y-2">
       {renderTeamPicker()}
+
+      <div className="flex items-center justify-end gap-2 px-1" data-photo-control="true">
+        <History className="w-3.5 h-3.5 text-muted-foreground" />
+        <span className="text-xs text-muted-foreground">Usar versões históricas dos clubes</span>
+        <Switch checked={useHistorical} onCheckedChange={setUseHistorical} />
+      </div>
 
       <Tabs defaultValue="titles" className="w-full">
         <TabsList className="w-full">
@@ -246,9 +403,20 @@ export default function GalleryView({ seasons, teams, onUpdateSeasons }: Gallery
         </TabsList>
 
         <TabsContent value="titles" className="space-y-2">
+          <div className="flex justify-end" data-photo-control="true">
+            <ScreenshotButton
+              targetRef={titlesRef as any}
+              filename="sala-de-trofeus.png"
+              title={tournamentName}
+              subtitle="Campeões por ano"
+              discrete
+            />
+          </div>
+
           {editable && !adding && (
             <button
               onClick={startAdd}
+              data-photo-control="true"
               className="w-full flex items-center justify-center gap-2 p-2.5 rounded-xl border border-dashed border-border hover:border-primary/30 text-muted-foreground hover:text-primary transition-colors text-xs font-medium"
             >
               <Plus className="w-3.5 h-3.5" />
@@ -258,44 +426,15 @@ export default function GalleryView({ seasons, teams, onUpdateSeasons }: Gallery
 
           {adding && renderForm(handleAdd)}
 
-          {sorted.map((season) =>
-            editingYear === season.year ? (
-              <div key={season.year}>
-                {renderForm(() => handleEdit(season.year))}
-              </div>
-            ) : (
-              <div
-                key={season.year}
-                style={championBoxStyle(getTeamById(season.championId)?.colors)?.container}
-                className="flex items-center gap-3 p-3 rounded-xl bg-secondary/30 border border-border hover:border-primary/30 transition-colors group"
-              >
-                <Trophy className="w-4 h-4 text-primary shrink-0" style={championBoxStyle(getTeamById(season.championId)?.colors)?.text} />
-                <span className="text-xs font-bold text-muted-foreground min-w-[40px]" style={championBoxStyle(getTeamById(season.championId)?.colors)?.subtleText}>
-                  {season.year}
-                </span>
-                <div className="w-7 h-7 flex items-center justify-center shrink-0">
-                  {season.championLogo ? (
-                    <img src={season.championLogo} alt="" className="w-7 h-7 object-contain" />
-                  ) : (
-                    <Shield className="w-4 h-4 text-muted-foreground" />
-                  )}
-                </div>
-                <span className="text-sm font-bold text-foreground truncate flex-1" style={championBoxStyle(getTeamById(season.championId)?.colors)?.text}>
-                  {season.championName}
-                </span>
-                {editable && (
-                  <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                    <button onClick={() => startEdit(season)} className="p-1 text-muted-foreground hover:text-foreground">
-                      <Pencil className="w-3.5 h-3.5" />
-                    </button>
-                    <button onClick={() => handleDelete(season.year)} className="p-1 text-muted-foreground hover:text-destructive">
-                      <Trash2 className="w-3.5 h-3.5" />
-                    </button>
-                  </div>
-                )}
-              </div>
-            )
-          )}
+          <div ref={titlesRef} data-photo-layout="gallery" className="space-y-2">
+            {sorted.map((season) =>
+              editingYear === season.year ? (
+                <div key={season.year}>{renderForm(() => handleEdit(season.year))}</div>
+              ) : (
+                renderSeasonRow(season)
+              )
+            )}
+          </div>
 
           {seasons.length === 0 && editable && !adding && (
             <div className="text-center py-8">
@@ -306,33 +445,51 @@ export default function GalleryView({ seasons, teams, onUpdateSeasons }: Gallery
           )}
         </TabsContent>
 
-        <TabsContent value="ranking">
+        <TabsContent value="ranking" className="space-y-2">
           {topChampions.length > 0 ? (
-            <div className="p-4 rounded-xl bg-secondary/20 border border-border">
-              <div className="space-y-1.5">
-                {topChampions.map((ch, i) => (
-                  <div key={ch.name} className="flex items-center gap-2.5 px-2 py-1.5 rounded-lg hover:bg-secondary/40 transition-colors">
-                    <span className={`text-xs font-bold min-w-[20px] text-center ${i === 0 ? "text-primary" : "text-muted-foreground"}`}>
-                      {i + 1}º
-                    </span>
-                    <div className="w-6 h-6 flex items-center justify-center shrink-0">
-                      {ch.logo ? (
-                        <img src={ch.logo} alt="" className="w-6 h-6 object-contain" />
-                      ) : (
-                        <Shield className="w-4 h-4 text-muted-foreground" />
-                      )}
-                    </div>
-                    <span className={`text-xs font-bold truncate flex-1 ${i === 0 ? "text-foreground" : "text-foreground/80"}`}>
-                      {ch.name}
-                    </span>
-                    <span className="text-xs font-bold text-primary">{ch.titles}×</span>
-                    <span className="text-[10px] text-muted-foreground hidden sm:inline truncate max-w-[120px]">
-                      {ch.years.sort((a, b) => a - b).join(", ")}
-                    </span>
-                  </div>
-                ))}
+            <>
+              <div className="flex justify-end" data-photo-control="true">
+                <ScreenshotButton
+                  targetRef={rankingRef as any}
+                  filename="maiores-campeoes.png"
+                  title={tournamentName}
+                  subtitle="Maiores campeões"
+                  discrete
+                />
               </div>
-            </div>
+              <div
+                ref={rankingRef}
+                data-photo-layout="gallery"
+                className="p-4 rounded-xl bg-secondary/20 border border-border"
+              >
+                <div className="space-y-1.5">
+                  {topChampions.map((ch, i) => (
+                    <div
+                      key={ch.name}
+                      className="flex items-center gap-2.5 px-2 py-1.5 rounded-lg hover:bg-secondary/40 transition-colors"
+                    >
+                      <span className={`text-xs font-bold min-w-[20px] text-center ${i === 0 ? "text-primary" : "text-muted-foreground"}`}>
+                        {i + 1}º
+                      </span>
+                      <div className="w-6 h-6 flex items-center justify-center shrink-0">
+                        {ch.logo ? (
+                          <img src={ch.logo} alt="" className="w-6 h-6 object-contain" />
+                        ) : (
+                          <Shield className="w-4 h-4 text-muted-foreground" />
+                        )}
+                      </div>
+                      <span className={`text-xs font-bold truncate flex-1 ${i === 0 ? "text-foreground" : "text-foreground/80"}`}>
+                        {ch.name}
+                      </span>
+                      <span className="text-xs font-bold text-primary">{ch.titles}×</span>
+                      <span className="text-[10px] text-muted-foreground hidden sm:inline truncate max-w-[120px]">
+                        {ch.years.sort((a, b) => a - b).join(", ")}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </>
           ) : (
             <div className="text-center py-8">
               <Crown className="w-10 h-10 text-muted-foreground/30 mx-auto mb-3" />
