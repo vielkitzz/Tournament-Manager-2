@@ -214,6 +214,8 @@ export default function TournamentDetailPage() {
   }
 
   const settings = activeSettings;
+  const podiumColorsEnabled = (settings as any).useTeamColors !== false && !!championRecord?.championId;
+
 
   // For grupos/suico format, separate group and knockout matches
   const groupMatches =
@@ -1544,7 +1546,7 @@ export default function TournamentDetailPage() {
                               allPlayers={players}
                               year={activeYear}
                               hideScreenshot
-                              useTeamColors={(settings as any).useTeamColors !== false}
+                              useTeamColors={podiumColorsEnabled}
                             />
                           </div>
                         </div>
@@ -1590,7 +1592,7 @@ export default function TournamentDetailPage() {
                   allTeams={resolvedTeams}
                   allPlayers={players}
                   year={activeYear}
-                  useTeamColors={(settings as any).useTeamColors !== false}
+                  useTeamColors={podiumColorsEnabled}
                 />
               </div>
             </div>

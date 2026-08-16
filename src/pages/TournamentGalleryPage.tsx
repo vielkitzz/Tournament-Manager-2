@@ -7,7 +7,7 @@ import { SeasonRecord } from "@/types/tournament";
 export default function TournamentGalleryPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const { tournaments, teams, updateTournament } = useTournamentStore();
+  const { tournaments, teams, teamHistories, updateTournament } = useTournamentStore();
   const tournament = tournaments.find((t) => t.id === id);
 
   if (!tournament) {
@@ -38,6 +38,8 @@ export default function TournamentGalleryPage() {
       <GalleryView
         seasons={tournament.seasons || []}
         teams={teams}
+        teamHistories={teamHistories}
+        tournamentName={tournament.name}
         onUpdateSeasons={handleUpdateSeasons}
       />
     </div>

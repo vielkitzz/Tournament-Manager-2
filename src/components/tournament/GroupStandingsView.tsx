@@ -20,7 +20,7 @@ interface GroupStandingsViewProps {
 export default function GroupStandingsView({
   groupCount,
   standingsByGroup,
-  useTeamColors = true,
+  useTeamColors = false,
 }: GroupStandingsViewProps) {
   const groupsRef = useRef<HTMLDivElement>(null);
   if (groupCount === 0) {
