@@ -163,6 +163,7 @@ export default function TournamentDetailPage() {
   const championTeam = championRecord?.championId
     ? resolvedTeams.find((t) => t.id === championRecord.championId)
     : null;
+  const podiumColorsEnabled = (settings as any).useTeamColors !== false && !!championRecord?.championId;
   const championDisplayName = championRecord?.championName || championTeam?.name;
   const championDisplayLogo = championRecord?.championLogo || championTeam?.logo;
 
@@ -1544,7 +1545,7 @@ export default function TournamentDetailPage() {
                               allPlayers={players}
                               year={activeYear}
                               hideScreenshot
-                              useTeamColors={(settings as any).useTeamColors !== false}
+                              useTeamColors={podiumColorsEnabled}
                             />
                           </div>
                         </div>
@@ -1590,7 +1591,7 @@ export default function TournamentDetailPage() {
                   allTeams={resolvedTeams}
                   allPlayers={players}
                   year={activeYear}
-                  useTeamColors={(settings as any).useTeamColors !== false}
+                  useTeamColors={podiumColorsEnabled}
                 />
               </div>
             </div>
