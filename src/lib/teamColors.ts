@@ -15,10 +15,25 @@ export function normalizeHex(input?: string | null): string | null {
   return `#${h.toLowerCase()}`;
 }
 
-export function teamPalette(colors?: string[] | null): { primary: string; secondary: string } | null {
-  const list = (colors || []).map(normalizeHex).filter((c): c is string => !!c);
+export interface TeamPalette {
+  primary: string;
+  secondary: string;
+  /** Every valid club color (up to 5), in order. Tricolores/quadricolores included. */
+  all: string[];
+}
+
+/** Normalized club colors, capped at 5 entries. */
+export function teamColorList(colors?: string[] | null): string[] {
+  return (colors || [])
+    .map(normalizeHex)
+    .filter((c): c is string => !!c)
+    .slice(0, 5);
+}
+
+export function teamPalette(colors?: string[] | null): TeamPalette | null {
+  const list = teamColorList(colors);
   if (list.length === 0) return null;
-  return { primary: list[0], secondary: list[1] || list[0] };
+  return { primary: list[0], secondary: list[1] || list[0], all: list };
 }
 
 function rgb(hex: string): [number, number, number] {
@@ -51,37 +66,25 @@ export function withAlpha(hex: string, alpha: number): string {
 }
 
 /**
- * Soft row highlight for podium positions: a colored left bar plus a translucent
- * tint that never overpowers the theme text color.
+ * Evenly distributed gradient stops for any number of colors
+ * (1 color = flat, 3 colors = 0/50/100%, and so on).
  */
-export function podiumRowStyle(colors: string[] | undefined, position: number, enabled = true): CSSProperties | undefined {
-  if (!enabled || position > 3) return undefined;
-  const palette = teamPalette(colors);
-  if (!palette) return undefined;
-  const intensity = position === 1 ? 0.3 : position === 2 ? 0.22 : 0.15;
-  return {
-    boxShadow: `inset 6px 0 0 0 ${palette.primary}`,
-    backgroundImage: `linear-gradient(90deg, ${withAlpha(palette.primary, intensity)}, ${withAlpha(
-      palette.secondary,
-      intensity * 0.5
-    )} 85%, transparent)`,
-  };
+function stopsFor(list: string[], alpha?: (index: number) => number, from = 0, to = 100): string {
+  const colorAt = (i: number) => (alpha ? withAlpha(list[i], alpha(i)) : list[i]);
+  if (list.length === 1) return `${colorAt(0)} ${from}%, ${colorAt(0)} ${to}%`;
+  const span = to - from;
+  return list.map((_, i) => `${colorAt(i)} ${(from + (span * i) / (list.length - 1)).toFixed(2)}%`).join(", ");
 }
 
-/** Champion card styling: club gradient with guaranteed readable text. */
-export function championBoxStyle(colors: string[] | undefined, enabled = true) {
-  const palette = enabled ? teamPalette(colors) : null;
-  if (!palette) return null;
-  const text = onColorText(palette.primary);
+/** Text color that reads well over a multi-color gradient (average luminance). */
+function textOverList(list: string[]): string {
+  const avg = list.reduce((sum, c) => sum + luminance(c), 0) / list.length;
+  return avg > 0.35 ? "#0a0a0a" : "#ffffff";
+}
+
+function styleSet(container: CSSProperties, text: string) {
   return {
-    container: {
-      backgroundImage: `linear-gradient(160deg, ${palette.primary}, ${withAlpha(palette.primary, 0.9)} 45%, ${withAlpha(
-        palette.secondary,
-        0.95
-      )})`,
-      borderColor: palette.secondary,
-      color: text,
-    } as CSSProperties,
+    container: { ...container, color: text } as CSSProperties,
     accent: { backgroundColor: withAlpha(text, 0.16), color: text } as CSSProperties,
     text: { color: text } as CSSProperties,
     subtleText: { color: withAlpha(text, 0.78) } as CSSProperties,
@@ -90,29 +93,59 @@ export function championBoxStyle(colors: string[] | undefined, enabled = true) {
 }
 
 /**
+ * Soft row highlight for podium positions: a colored left bar plus a translucent
+ * tint that never overpowers the theme text color.
+ */
+export function podiumRowStyle(colors: string[] | undefined, position: number, enabled = true): CSSProperties | undefined {
+  if (!enabled || position > 3) return undefined;
+  const palette = teamPalette(colors);
+  if (!palette) return undefined;
+  const intensity = position === 1 ? 0.3 : position === 2 ? 0.22 : 0.15;
+  const list = palette.all;
+  // Fade the tint out towards the right so the row never overpowers the text.
+  const fade = (i: number) => intensity * (1 - (i / Math.max(list.length, 2)) * 0.55);
+  return {
+    boxShadow: `inset 6px 0 0 0 ${palette.primary}${
+      list.length > 1 ? `, inset 12px 0 0 0 ${palette.secondary}` : ""
+    }`,
+    backgroundImage: `linear-gradient(90deg, ${stopsFor(list, fade, 0, 85)}, transparent 100%)`,
+  };
+}
+
+/** Champion card styling: club gradient with guaranteed readable text. */
+export function championBoxStyle(colors: string[] | undefined, enabled = true) {
+  const palette = enabled ? teamPalette(colors) : null;
+  if (!palette) return null;
+  const list = palette.all;
+  const text = list.length > 1 ? textOverList(list) : onColorText(list[0]);
+  return styleSet(
+    {
+      backgroundImage: `linear-gradient(160deg, ${stopsFor(list)})`,
+      borderColor: list[list.length - 1],
+    },
+    text
+  );
+}
+
+/**
  * Card style for a shared title (two or more champions in the same year):
  * each club gets a slice of the gradient, with a single readable text color.
  */
 export function splitChampionStyle(colorSets: (string[] | undefined)[], enabled = true) {
   if (!enabled) return null;
-  const palettes = colorSets.map((c) => teamPalette(c)).filter((p): p is { primary: string; secondary: string } => !!p);
+  const palettes = colorSets.map((c) => teamPalette(c)).filter((p): p is TeamPalette => !!p);
   if (palettes.length === 0) return null;
-  if (palettes.length === 1) return championBoxStyle(colorSets[0], enabled);
+  if (palettes.length === 1) return championBoxStyle(palettes[0].all, enabled);
 
   const step = 100 / palettes.length;
-  const stops = palettes
-    .map((p, i) => `${p.primary} ${i * step}%, ${withAlpha(p.secondary, 0.95)} ${(i + 1) * step}%`)
-    .join(", ");
-  const text = onColorText(palettes[0].primary);
-  return {
-    container: {
+  // Each club owns a slice; inside its slice every club color is represented.
+  const stops = palettes.map((p, i) => stopsFor(p.all, undefined, i * step, (i + 1) * step)).join(", ");
+  const text = textOverList(palettes.flatMap((p) => p.all));
+  return styleSet(
+    {
       backgroundImage: `linear-gradient(120deg, ${stops})`,
-      borderColor: palettes[palettes.length - 1].secondary,
-      color: text,
-    } as CSSProperties,
-    accent: { backgroundColor: withAlpha(text, 0.16), color: text } as CSSProperties,
-    text: { color: text } as CSSProperties,
-    subtleText: { color: withAlpha(text, 0.78) } as CSSProperties,
-    divider: { borderColor: withAlpha(text, 0.22), backgroundColor: withAlpha(text, 0.08) } as CSSProperties,
-  };
+      borderColor: palettes[palettes.length - 1].all.slice(-1)[0],
+    },
+    text
+  );
 }
