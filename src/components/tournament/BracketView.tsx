@@ -977,15 +977,31 @@ export default function BracketView({
       }
     }
 
+    const champStyle = championBoxStyle(
+      championTeam.colors,
+      (tournament.settings as any)?.useTeamColors !== false
+    );
+
     return (
       <div data-photo-champion="true" className="flex flex-col items-stretch justify-start w-[220px] flex-shrink-0">
         <div className="mb-3 text-center">
           <span className="text-xs font-bold text-primary tracking-tight">Campeão</span>
         </div>
-        <div className="rounded-xl border-2 border-primary/50 bg-gradient-to-b from-primary/15 via-primary/5 to-secondary/40 overflow-hidden shadow-xl shadow-primary/20">
-          <div className="flex items-center gap-3 px-4 py-3.5 bg-gradient-to-r from-primary/10 to-transparent">
-            <div className="w-8 h-8 rounded-full bg-primary/20 flex items-center justify-center shrink-0">
-              <Trophy className="w-4.5 h-4.5 text-primary" />
+        <div
+          style={champStyle?.container}
+          className={cn(
+            "rounded-xl border-2 overflow-hidden shadow-xl",
+            champStyle
+              ? "shadow-black/25"
+              : "border-primary/50 bg-gradient-to-b from-primary/15 via-primary/5 to-secondary/40 shadow-primary/20"
+          )}
+        >
+          <div className={cn("flex items-center gap-3 px-4 py-3.5", !champStyle && "bg-gradient-to-r from-primary/10 to-transparent")}>
+            <div
+              style={champStyle?.accent}
+              className={cn("w-8 h-8 rounded-full flex items-center justify-center shrink-0", !champStyle && "bg-primary/20")}
+            >
+              <Trophy className={cn("w-4.5 h-4.5", !champStyle && "text-primary")} style={champStyle?.text} />
             </div>
             <div className="w-8 h-8 flex items-center justify-center shrink-0">
               {championTeam.logo ? (
@@ -995,15 +1011,26 @@ export default function BracketView({
               )}
             </div>
             <div className="flex-1 min-w-0">
-              <span className="text-sm font-bold text-foreground block whitespace-normal [overflow-wrap:break-word] [word-break:normal]">
+              <span
+                style={champStyle?.text}
+                className={cn(
+                  "text-sm font-bold block whitespace-normal [overflow-wrap:break-word] [word-break:normal]",
+                  !champStyle && "text-foreground"
+                )}
+              >
                 {championTeam.shortName || championTeam.name}
               </span>
-              <span className="text-[10px] text-primary font-semibold">Campeão {tournament.year}</span>
+              <span style={champStyle?.subtleText} className={cn("text-[10px] font-semibold", !champStyle && "text-primary")}>
+                Campeão {tournament.year}
+              </span>
             </div>
           </div>
           {runnerUpTeam && (
-            <div className="flex items-center gap-2.5 px-4 py-2.5 border-t border-border/30 bg-secondary/20">
-              <span className="text-[10px] font-bold text-muted-foreground w-5 text-center">2º</span>
+            <div
+              style={champStyle?.divider}
+              className={cn("flex items-center gap-2.5 px-4 py-2.5 border-t", !champStyle && "border-border/30 bg-secondary/20")}
+            >
+              <span style={champStyle?.subtleText} className={cn("text-[10px] font-bold w-5 text-center", !champStyle && "text-muted-foreground")}>2º</span>
               <div className="w-5 h-5 flex items-center justify-center shrink-0">
                 {runnerUpTeam.logo ? (
                   <img src={runnerUpTeam.logo} alt="" className="w-5 h-5 object-contain" />
@@ -1011,14 +1038,17 @@ export default function BracketView({
                   <Shield className="w-3.5 h-3.5 text-muted-foreground/50" />
                 )}
               </div>
-              <span className="text-xs text-muted-foreground whitespace-normal [overflow-wrap:break-word] [word-break:normal]">
+              <span style={champStyle?.subtleText} className={cn("text-xs whitespace-normal [overflow-wrap:break-word] [word-break:normal]", !champStyle && "text-muted-foreground")}>
                 {runnerUpTeam.shortName || runnerUpTeam.name}
               </span>
             </div>
           )}
           {thirdTeam && (
-            <div className="flex items-center gap-2.5 px-4 py-2.5 border-t border-border/30 bg-secondary/20">
-              <span className="text-[10px] font-bold text-highlight w-5 text-center">3º</span>
+            <div
+              style={champStyle?.divider}
+              className={cn("flex items-center gap-2.5 px-4 py-2.5 border-t", !champStyle && "border-border/30 bg-secondary/20")}
+            >
+              <span style={champStyle?.subtleText} className={cn("text-[10px] font-bold w-5 text-center", !champStyle && "text-highlight")}>3º</span>
               <div className="w-5 h-5 flex items-center justify-center shrink-0">
                 {thirdTeam.logo ? (
                   <img src={thirdTeam.logo} alt="" className="w-5 h-5 object-contain" />
@@ -1026,7 +1056,7 @@ export default function BracketView({
                   <Shield className="w-3.5 h-3.5 text-muted-foreground/50" />
                 )}
               </div>
-              <span className="text-xs text-muted-foreground whitespace-normal [overflow-wrap:break-word] [word-break:normal]">
+              <span style={champStyle?.subtleText} className={cn("text-xs whitespace-normal [overflow-wrap:break-word] [word-break:normal]", !champStyle && "text-muted-foreground")}>
                 {thirdTeam.shortName || thirdTeam.name}
               </span>
             </div>
