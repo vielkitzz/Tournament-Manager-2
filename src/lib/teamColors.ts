@@ -58,13 +58,13 @@ export function podiumRowStyle(colors: string[] | undefined, position: number, e
   if (!enabled || position > 3) return undefined;
   const palette = teamPalette(colors);
   if (!palette) return undefined;
-  const intensity = position === 1 ? 0.18 : position === 2 ? 0.13 : 0.09;
+  const intensity = position === 1 ? 0.3 : position === 2 ? 0.22 : 0.15;
   return {
-    boxShadow: `inset 4px 0 0 0 ${palette.primary}`,
+    boxShadow: `inset 6px 0 0 0 ${palette.primary}`,
     backgroundImage: `linear-gradient(90deg, ${withAlpha(palette.primary, intensity)}, ${withAlpha(
       palette.secondary,
-      intensity * 0.35
-    )} 60%, transparent)`,
+      intensity * 0.5
+    )} 85%, transparent)`,
   };
 }
 
@@ -75,8 +75,39 @@ export function championBoxStyle(colors: string[] | undefined, enabled = true) {
   const text = onColorText(palette.primary);
   return {
     container: {
-      backgroundImage: `linear-gradient(160deg, ${palette.primary}, ${withAlpha(palette.secondary, 0.92)})`,
+      backgroundImage: `linear-gradient(160deg, ${palette.primary}, ${withAlpha(palette.primary, 0.9)} 45%, ${withAlpha(
+        palette.secondary,
+        0.95
+      )})`,
       borderColor: palette.secondary,
+      color: text,
+    } as CSSProperties,
+    accent: { backgroundColor: withAlpha(text, 0.16), color: text } as CSSProperties,
+    text: { color: text } as CSSProperties,
+    subtleText: { color: withAlpha(text, 0.78) } as CSSProperties,
+    divider: { borderColor: withAlpha(text, 0.22), backgroundColor: withAlpha(text, 0.08) } as CSSProperties,
+  };
+}
+
+/**
+ * Card style for a shared title (two or more champions in the same year):
+ * each club gets a slice of the gradient, with a single readable text color.
+ */
+export function splitChampionStyle(colorSets: (string[] | undefined)[], enabled = true) {
+  if (!enabled) return null;
+  const palettes = colorSets.map((c) => teamPalette(c)).filter((p): p is { primary: string; secondary: string } => !!p);
+  if (palettes.length === 0) return null;
+  if (palettes.length === 1) return championBoxStyle(colorSets[0], enabled);
+
+  const step = 100 / palettes.length;
+  const stops = palettes
+    .map((p, i) => `${p.primary} ${i * step}%, ${withAlpha(p.secondary, 0.95)} ${(i + 1) * step}%`)
+    .join(", ");
+  const text = onColorText(palettes[0].primary);
+  return {
+    container: {
+      backgroundImage: `linear-gradient(120deg, ${stops})`,
+      borderColor: palettes[palettes.length - 1].secondary,
       color: text,
     } as CSSProperties,
     accent: { backgroundColor: withAlpha(text, 0.16), color: text } as CSSProperties,

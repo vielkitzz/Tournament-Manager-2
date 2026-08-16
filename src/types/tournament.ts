@@ -164,6 +164,8 @@ export interface SeasonRecord {
   settings?: TournamentSettings;
   preliminaryPhases?: PreliminaryPhase[];
   manual?: boolean; // Manually added champion entry
+  /** Additional champions for shared titles (same year, more than one winner). */
+  coChampions?: { id: string; name: string; logo?: string }[];
 }
 
 export type PreliminaryPhaseFormat = "mata-mata" | "grupos";

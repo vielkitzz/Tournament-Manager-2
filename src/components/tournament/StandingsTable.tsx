@@ -23,11 +23,11 @@ interface StandingsTableProps {
   allPlayers?: Player[];
   hideScreenshot?: boolean;
   year?: number;
-  /** Highlights the top 3 rows with the club colors. */
+  /** Highlights the top 3 rows with the club colors (only after the champion is confirmed). */
   useTeamColors?: boolean;
 }
 
-export default function StandingsTable({ standings, promotions = [], qualifyUntil, onRemoveTeam, matches = [], allTeams = [], allPlayers = [], hideScreenshot, year, useTeamColors = true }: StandingsTableProps) {
+export default function StandingsTable({ standings, promotions = [], qualifyUntil, onRemoveTeam, matches = [], allTeams = [], allPlayers = [], hideScreenshot, year, useTeamColors = false }: StandingsTableProps) {
   const [selectedTeamId, setSelectedTeamId] = useState<string | null>(null);
   const tableRef = useRef<HTMLDivElement>(null);
 
