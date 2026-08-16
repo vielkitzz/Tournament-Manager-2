@@ -317,6 +317,12 @@ export default function TournamentSettingsPage() {
               checked={settings.rateInfluence}
               onChange={(v) => update({ rateInfluence: v })}
             />
+            <SettingToggle
+              label="Cores dos clubes nos destaques"
+              description="Realça 1º, 2º e 3º na tabela e a caixa do campeão com as cores do clube"
+              checked={(settings as any).useTeamColors !== false}
+              onChange={(v) => update({ useTeamColors: v } as any)}
+            />
           </div>
         </SectionCard>
 

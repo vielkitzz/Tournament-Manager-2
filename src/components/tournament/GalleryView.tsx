@@ -4,6 +4,7 @@ import { Trophy, Shield, Plus, Pencil, Trash2, Check, X, Search, Crown } from "l
 import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import { championBoxStyle } from "@/lib/teamColors";
 
 interface GalleryViewProps {
   seasons: SeasonRecord[];
@@ -265,10 +266,11 @@ export default function GalleryView({ seasons, teams, onUpdateSeasons }: Gallery
             ) : (
               <div
                 key={season.year}
+                style={championBoxStyle(getTeamById(season.championId)?.colors)?.container}
                 className="flex items-center gap-3 p-3 rounded-xl bg-secondary/30 border border-border hover:border-primary/30 transition-colors group"
               >
-                <Trophy className="w-4 h-4 text-primary shrink-0" />
-                <span className="text-xs font-bold text-muted-foreground min-w-[40px]">
+                <Trophy className="w-4 h-4 text-primary shrink-0" style={championBoxStyle(getTeamById(season.championId)?.colors)?.text} />
+                <span className="text-xs font-bold text-muted-foreground min-w-[40px]" style={championBoxStyle(getTeamById(season.championId)?.colors)?.subtleText}>
                   {season.year}
                 </span>
                 <div className="w-7 h-7 flex items-center justify-center shrink-0">
@@ -278,7 +280,7 @@ export default function GalleryView({ seasons, teams, onUpdateSeasons }: Gallery
                     <Shield className="w-4 h-4 text-muted-foreground" />
                   )}
                 </div>
-                <span className="text-sm font-bold text-foreground truncate flex-1">
+                <span className="text-sm font-bold text-foreground truncate flex-1" style={championBoxStyle(getTeamById(season.championId)?.colors)?.text}>
                   {season.championName}
                 </span>
                 {editable && (

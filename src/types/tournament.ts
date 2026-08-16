@@ -28,6 +28,8 @@ export interface TournamentSettings {
   extraTime: boolean;
   goldenGoal: boolean;
   rateInfluence: boolean;
+  /** Use the club colors to highlight podium/champion. Default: true. */
+  useTeamColors?: boolean;
   promotions: PromotionRule[];
   knockoutLegMode?: KnockoutLegMode;
   // Knockout special settings

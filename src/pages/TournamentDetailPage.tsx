@@ -1544,6 +1544,7 @@ export default function TournamentDetailPage() {
                               allPlayers={players}
                               year={activeYear}
                               hideScreenshot
+                              useTeamColors={(settings as any).useTeamColors !== false}
                             />
                           </div>
                         </div>
@@ -1589,6 +1590,7 @@ export default function TournamentDetailPage() {
                   allTeams={resolvedTeams}
                   allPlayers={players}
                   year={activeYear}
+                  useTeamColors={(settings as any).useTeamColors !== false}
                 />
               </div>
             </div>
