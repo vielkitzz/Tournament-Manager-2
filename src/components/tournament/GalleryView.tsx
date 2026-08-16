@@ -4,6 +4,7 @@ import { Trophy, Shield, Plus, Pencil, Trash2, Check, X, Search, Crown } from "l
 import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import { championBoxStyle } from "@/lib/teamColors";
 
 interface GalleryViewProps {
   seasons: SeasonRecord[];
