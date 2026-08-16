@@ -1,4 +1,4 @@
-# Cores multicoloridas + Modo foto: vice, placar da final e pontos da campanha
+- Cores multicoloridas + Modo foto: vice, placar da final e pontos da campanha
 
 ## 1. Gradientes com 3+ cores
 
