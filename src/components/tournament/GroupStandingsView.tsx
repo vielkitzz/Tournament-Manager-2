@@ -3,6 +3,7 @@ import { StandingRow } from "@/lib/standings";
 import { Shield } from "lucide-react";
 import { cn } from "@/lib/utils";
 import ScreenshotButton from "@/components/ScreenshotButton";
+import { podiumRowStyle } from "@/lib/teamColors";
 import {
   Tooltip,
   TooltipContent,
@@ -13,11 +14,13 @@ import {
 interface GroupStandingsViewProps {
   groupCount: number;
   standingsByGroup: Record<number, StandingRow[]>;
+  useTeamColors?: boolean;
 }
 
 export default function GroupStandingsView({
   groupCount,
   standingsByGroup,
+  useTeamColors = true,
 }: GroupStandingsViewProps) {
   const groupsRef = useRef<HTMLDivElement>(null);
   if (groupCount === 0) {
@@ -68,7 +71,11 @@ export default function GroupStandingsView({
               </thead>
               <tbody>
                 {standings.map((row, i) => (
-                  <tr key={row.teamId} className="border-b border-border/30 hover:bg-secondary/30 transition-colors">
+                  <tr
+                    key={row.teamId}
+                    style={podiumRowStyle(row.team?.colors, i + 1, useTeamColors)}
+                    className="border-b border-border/30 hover:bg-secondary/30 transition-colors"
+                  >
                     <td className="py-2 pl-3 pr-1 text-muted-foreground font-mono text-[10px]">{i + 1}</td>
                     <td className="py-2 px-1">
                       <div className="flex items-center gap-1.5 min-w-0">
