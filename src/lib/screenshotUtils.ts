@@ -285,11 +285,10 @@ async function renderInDesktopFrame(
   photo: PhotoModeSettings
 ) {
   const scale = Math.min(2, Math.max(0.8, photo.scale || 1));
-  // Content is laid out in rem, so scaling the root font-size enlarges everything.
-  // Wide layouts (brackets) must keep their natural width, otherwise columns get
-  // squeezed and team names break vertically.
-  // The frame width is not multiplied by scale: font scaling already enlarges the
-  // layout. Multiplying both produced very wide canvases with distant information.
+  // The clone is laid out at a desktop width (so media queries never hide content)
+  // and then the WHOLE subtree is scaled with a CSS transform. Scaling only the root
+  // font-size left every hardcoded px value (text-[10px], w-[220px], logo sizes)
+  // untouched, which is why the zoom often "did nothing".
   const width = Math.min(6000, Math.max(720, Math.round(photo.width)));
 
   const iframe = document.createElement("iframe");
@@ -314,13 +313,14 @@ async function renderInDesktopFrame(
 ${paletteCss(photo)}
  ${resolvedThemeCss(element, photo)}
 ${contrastCss(photo)}
-html{font-size:${(16 * scale).toFixed(2)}px;}
- html,body{margin:0;padding:0;background:${bgColor} !important;min-width:${width}px;}
- #capture-root{display:inline-block;min-width:${width}px;width:max-content;box-sizing:border-box;padding:${padding}px;background:${bgColor} !important;color:hsl(var(--foreground));${
+ html,body{margin:0;padding:0;background:${bgColor} !important;}
+ #capture-root{display:block;box-sizing:border-box;width:max-content;padding:${padding}px;background:${bgColor} !important;color:hsl(var(--foreground));${
       hasBgImage
         ? `background-image:${bodyStyle.backgroundImage};background-size:${bodyStyle.backgroundSize};background-position:${bodyStyle.backgroundPosition};background-repeat:${bodyStyle.backgroundRepeat};`
         : ""
     }}
+#capture-scaler{transform-origin:top left;transform:scale(${scale});}
+#capture-content{width:max-content;min-width:${width}px;}
 #capture-root *{overflow:visible !important;max-height:none !important;}
  #capture-root{background-color:hsl(var(--background)) !important;color:hsl(var(--foreground)) !important;}
  #capture-root .bg-card,#capture-root [class*="bg-card/"]{background-image:none !important;background-color:hsl(var(--card)) !important;color:hsl(var(--card-foreground)) !important;}
@@ -337,10 +337,11 @@ html{font-size:${(16 * scale).toFixed(2)}px;}
  #capture-root img[data-photo-image-fallback="true"]{color:hsl(var(--muted-foreground));padding:2px;}
  #capture-root [data-screenshot-ignore="true"]{display:none !important;}
  #capture-root [data-photo-control="true"]{display:none !important;}
- #capture-root [data-photo-layout="bracket"] [data-photo-stage="true"]{width:${(210 * scale).toFixed(1)}px !important;}
- #capture-root [data-photo-layout="bracket"] [data-photo-match="true"]{width:${(190 * scale).toFixed(1)}px !important;}
- #capture-root [data-photo-layout="bracket"] [data-photo-connector="true"]{width:${(30 * scale).toFixed(1)}px !important;}
- #capture-root [data-photo-layout="bracket"] [data-photo-champion="true"]{width:${Math.max(230, 230 * scale).toFixed(1)}px !important;min-width:${Math.max(230, 230 * scale).toFixed(1)}px !important;flex:0 0 auto !important;}
+ #capture-root [data-photo-layout="bracket"] [data-photo-stage="true"]{width:210px !important;}
+ #capture-root [data-photo-layout="bracket"] [data-photo-match="true"]{width:190px !important;}
+ #capture-root [data-photo-layout="bracket"] [data-photo-connector="true"]{width:30px !important;}
+ #capture-root [data-photo-layout="bracket"] [data-photo-champion="true"]{width:230px !important;min-width:230px !important;flex:0 0 auto !important;}
+ #capture-root [data-photo-layout="rounds"] [class*="min-w-["]{min-width:0 !important;}
  #capture-root [data-photo-champion="true"] *{word-break:normal !important;overflow-wrap:break-word !important;white-space:normal !important;writing-mode:horizontal-tb !important;}
  #capture-root [data-photo-champion="true"] > div{width:100% !important;}
 #photo-header{display:flex;align-items:center;gap:0.9rem;margin-bottom:1.4rem;padding-bottom:1rem;border-bottom:2px solid hsl(var(--primary));}
@@ -352,13 +353,18 @@ html{font-size:${(16 * scale).toFixed(2)}px;}
 
     const root = doc.getElementById("capture-root");
     if (!root) throw new Error("Área de captura não encontrada");
+    const scaler = doc.createElement("div");
+    scaler.id = "capture-scaler";
+    const content = doc.createElement("div");
+    content.id = "capture-content";
+    scaler.appendChild(content);
     if (photo.showHeader && (photo.title || photo.subtitle)) {
       const header = doc.createElement("div");
       header.id = "photo-header";
       header.innerHTML = `<span class="bar"></span><div><h1>${escapeHtml(photo.title || "")}</h1>${
         photo.subtitle ? `<p>${escapeHtml(photo.subtitle)}</p>` : ""
       }</div>`;
-      root.appendChild(header);
+      content.appendChild(header);
     }
     const clone = element.cloneNode(true) as HTMLElement;
     clone.style.overflow = "visible";
@@ -367,7 +373,8 @@ html{font-size:${(16 * scale).toFixed(2)}px;}
     // max-content keeps brackets aligned; min-width fills the frame for tables/rounds.
     clone.style.width = "max-content";
     clone.style.minWidth = "0";
-    root.appendChild(clone);
+    content.appendChild(clone);
+    root.appendChild(scaler);
 
     // Embed remote logos before rasterizing (fixes missing shields on mobile)
     await inlineImages(element, clone);
@@ -375,16 +382,24 @@ html{font-size:${(16 * scale).toFixed(2)}px;}
     // Mirror scroll positions away and let layout settle
     await waitForAssets(doc);
 
-    // Bump any text that is still too small to read on a phone screen.
-    const minFont = 12 * scale;
+    // Bump any text that is still too small to read on a phone screen. The global
+    // transform multiplies it afterwards, so the threshold is the unscaled 12px.
+    const minFont = 12;
     root.querySelectorAll<HTMLElement>("*").forEach((el) => {
       const fs = parseFloat(doc.defaultView?.getComputedStyle(el).fontSize || "0");
       if (fs > 0 && fs < minFont) el.style.fontSize = `${minFont.toFixed(1)}px`;
     });
     await new Promise((r) => requestAnimationFrame(r));
 
-    const w = Math.ceil(root.scrollWidth);
-    const h = Math.ceil(root.scrollHeight);
+    // The transform doesn't affect layout size, so size the frame manually.
+    const contentW = Math.ceil(content.scrollWidth);
+    const contentH = Math.ceil(content.scrollHeight);
+    scaler.style.width = `${Math.ceil(contentW * scale)}px`;
+    scaler.style.height = `${Math.ceil(contentH * scale)}px`;
+    await new Promise((r) => requestAnimationFrame(r));
+
+    const w = Math.ceil(contentW * scale + padding * 2);
+    const h = Math.ceil(contentH * scale + padding * 2);
     iframe.style.height = `${h + 40}px`;
     iframe.style.width = `${w + 40}px`;
     await new Promise((r) => requestAnimationFrame(r));
