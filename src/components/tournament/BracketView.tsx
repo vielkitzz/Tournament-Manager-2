@@ -2,6 +2,7 @@ import { useState, useRef } from "react";
 import { Match, Team, Tournament, KnockoutStage, STAGE_TEAM_COUNTS, Player } from "@/types/tournament";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
+import { championBoxStyle } from "@/lib/teamColors";
 import { Shield, Play, Trophy, Medal, UserPlus, Shuffle, Plus, Trash2, RotateCcw, UserMinus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
