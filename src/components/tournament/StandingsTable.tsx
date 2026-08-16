@@ -5,6 +5,7 @@ import { PromotionRule, Match, Team, Player } from "@/types/tournament";
 import { cn } from "@/lib/utils";
 import TeamStatsPopup from "./TeamStatsPopup";
 import ScreenshotButton from "@/components/ScreenshotButton";
+import { podiumRowStyle } from "@/lib/teamColors";
 import {
   Tooltip,
   TooltipContent,
@@ -22,9 +23,11 @@ interface StandingsTableProps {
   allPlayers?: Player[];
   hideScreenshot?: boolean;
   year?: number;
+  /** Highlights the top 3 rows with the club colors. */
+  useTeamColors?: boolean;
 }
 
-export default function StandingsTable({ standings, promotions = [], qualifyUntil, onRemoveTeam, matches = [], allTeams = [], allPlayers = [], hideScreenshot, year }: StandingsTableProps) {
+export default function StandingsTable({ standings, promotions = [], qualifyUntil, onRemoveTeam, matches = [], allTeams = [], allPlayers = [], hideScreenshot, year, useTeamColors = true }: StandingsTableProps) {
   const [selectedTeamId, setSelectedTeamId] = useState<string | null>(null);
   const tableRef = useRef<HTMLDivElement>(null);
 
@@ -106,11 +109,13 @@ export default function StandingsTable({ standings, promotions = [], qualifyUnti
               const isEliminated = false;
               const showDivider = false;
               const hasMatches = matches.length > 0;
+              const podium = podiumRowStyle(row.team?.colors, pos, useTeamColors);
 
               return (
                 <tr
                   key={row.teamId}
                   onClick={() => hasMatches && setSelectedTeamId(row.teamId)}
+                  style={podium}
                   className={cn(
                     "border-b border-border/50 transition-colors relative",
                     isEliminated ? "opacity-50 bg-destructive/5" : "hover:bg-secondary/30",
