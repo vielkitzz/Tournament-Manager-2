@@ -163,7 +163,6 @@ export default function TournamentDetailPage() {
   const championTeam = championRecord?.championId
     ? resolvedTeams.find((t) => t.id === championRecord.championId)
     : null;
-  const podiumColorsEnabled = (settings as any).useTeamColors !== false && !!championRecord?.championId;
   const championDisplayName = championRecord?.championName || championTeam?.name;
   const championDisplayLogo = championRecord?.championLogo || championTeam?.logo;
 
@@ -215,6 +214,8 @@ export default function TournamentDetailPage() {
   }
 
   const settings = activeSettings;
+  const podiumColorsEnabled = (settings as any).useTeamColors !== false && !!championRecord?.championId;
+
 
   // For grupos/suico format, separate group and knockout matches
   const groupMatches =
