@@ -2,13 +2,14 @@ import { useMemo, useRef, useState } from "react";
 import { SeasonRecord, Team } from "@/types/tournament";
 import type { TeamHistory } from "@/lib/teamHistoryUtils";
 import { resolveTeamForYear } from "@/lib/teamHistoryUtils";
-import { Trophy, Shield, Plus, Pencil, Trash2, Check, X, Search, Crown, History } from "lucide-react";
+import { Trophy, Shield, Plus, Pencil, Trash2, Check, X, Search, Crown, History, Medal } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Switch } from "@/components/ui/switch";
 import ScreenshotButton from "@/components/ScreenshotButton";
 import { championBoxStyle, splitChampionStyle } from "@/lib/teamColors";
+import { getSeasonRunnersUp, getSeasonFinalScore, getSeasonChampionPoints } from "@/lib/seasonSnapshot";
 
 interface ChampionEntry {
   id: string;
@@ -39,8 +40,12 @@ export default function GalleryView({
   const [formTeamId, setFormTeamId] = useState("");
   const [formLogo, setFormLogo] = useState<string | undefined>();
   const [formCoChampions, setFormCoChampions] = useState<{ id: string; name: string; logo?: string }[]>([]);
+  const [formRunnerUp, setFormRunnerUp] = useState<{ id: string; name: string; logo?: string } | undefined>();
+  const [formCoRunnerUps, setFormCoRunnerUps] = useState<{ id: string; name: string; logo?: string }[]>([]);
+  const [formFinalScore, setFormFinalScore] = useState("");
+  const [formPoints, setFormPoints] = useState("");
   const [teamPickerOpen, setTeamPickerOpen] = useState(false);
-  const [pickerTarget, setPickerTarget] = useState<"main" | "co">("main");
+  const [pickerTarget, setPickerTarget] = useState<"main" | "co" | "vice" | "covice">("main");
   const [teamSearch, setTeamSearch] = useState("");
   const [useHistorical, setUseHistorical] = useState(true);
 
@@ -102,10 +107,15 @@ export default function GalleryView({
     .sort((a, b) => a.name.localeCompare(b.name));
 
   const handleSelectTeam = (team: Team) => {
+    const ref = { id: team.id, name: team.name, logo: team.logo };
     if (pickerTarget === "co") {
       setFormCoChampions((prev) =>
-        prev.some((c) => c.id === team.id) ? prev : [...prev, { id: team.id, name: team.name, logo: team.logo }]
+        prev.some((c) => c.id === team.id) ? prev : [...prev, ref]
       );
+    } else if (pickerTarget === "vice") {
+      setFormRunnerUp(ref);
+    } else if (pickerTarget === "covice") {
+      setFormCoRunnerUps((prev) => (prev.some((c) => c.id === team.id) ? prev : [...prev, ref]));
     } else {
       setFormTeamId(team.id);
       setFormName(team.name);
@@ -115,7 +125,7 @@ export default function GalleryView({
     setTeamSearch("");
   };
 
-  const openPicker = (target: "main" | "co") => {
+  const openPicker = (target: "main" | "co" | "vice" | "covice") => {
     setPickerTarget(target);
     setTeamPickerOpen(true);
   };
@@ -131,6 +141,10 @@ export default function GalleryView({
       championName: formName,
       championLogo: formLogo,
       coChampions: formCoChampions.length ? formCoChampions : undefined,
+      runnerUp: formRunnerUp,
+      coRunnerUps: formCoRunnerUps.length ? formCoRunnerUps : undefined,
+      finalScore: formFinalScore.trim() || undefined,
+      championPoints: formPoints.trim() ? parseInt(formPoints) : undefined,
       standings: [],
       manual: true,
     };
@@ -151,6 +165,10 @@ export default function GalleryView({
         championName: formName,
         championLogo: formLogo ?? s.championLogo,
         coChampions: formCoChampions.length ? formCoChampions : undefined,
+        runnerUp: formRunnerUp,
+        coRunnerUps: formCoRunnerUps.length ? formCoRunnerUps : undefined,
+        finalScore: formFinalScore.trim() || undefined,
+        championPoints: formPoints.trim() ? parseInt(formPoints) : undefined,
       };
     });
     onUpdateSeasons(updated);
@@ -169,6 +187,10 @@ export default function GalleryView({
     setFormTeamId(season.championId);
     setFormLogo(season.championLogo);
     setFormCoChampions(season.coChampions || []);
+    setFormRunnerUp(season.runnerUp);
+    setFormCoRunnerUps(season.coRunnerUps || []);
+    setFormFinalScore(season.finalScore || "");
+    setFormPoints(season.championPoints != null ? String(season.championPoints) : "");
     setAdding(false);
   };
 
@@ -184,6 +206,10 @@ export default function GalleryView({
     setFormTeamId("");
     setFormLogo(undefined);
     setFormCoChampions([]);
+    setFormRunnerUp(undefined);
+    setFormCoRunnerUps([]);
+    setFormFinalScore("");
+    setFormPoints("");
   };
 
   const resetForm = () => {
