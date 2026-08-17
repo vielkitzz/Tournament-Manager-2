@@ -233,7 +233,13 @@ export default function GalleryView({
       <DialogContent className="max-w-sm p-0 gap-0 overflow-hidden">
         <DialogHeader className="p-4 pb-2">
           <DialogTitle className="text-sm font-bold">
-            {pickerTarget === "co" ? "Adicionar co-campeão" : "Selecionar Time"}
+            {pickerTarget === "co"
+              ? "Adicionar co-campeão"
+              : pickerTarget === "vice"
+                ? "Selecionar vice-campeão"
+                : pickerTarget === "covice"
+                  ? "Adicionar co-vice"
+                  : "Selecionar Time"}
           </DialogTitle>
         </DialogHeader>
         <div className="px-4 pb-2">
@@ -344,6 +350,68 @@ export default function GalleryView({
           <Plus className="w-3 h-3" />
           Adicionar co-campeão
         </button>
+      </div>
+
+      {/* Runner-up */}
+      <div className="flex flex-wrap items-center gap-1.5">
+        <button
+          type="button"
+          onClick={() => openPicker("vice")}
+          className="flex items-center gap-1.5 px-2 py-1 rounded-md border border-dashed border-border text-[11px] text-muted-foreground hover:text-primary hover:border-primary/40 transition-colors"
+        >
+          <Medal className="w-3 h-3" />
+          {formRunnerUp ? formRunnerUp.name : "Definir vice-campeão"}
+        </button>
+        {formRunnerUp && (
+          <button
+            onClick={() => setFormRunnerUp(undefined)}
+            className="text-muted-foreground hover:text-destructive"
+            type="button"
+          >
+            <X className="w-3 h-3" />
+          </button>
+        )}
+        {formCoRunnerUps.map((c) => (
+          <span
+            key={c.id}
+            className="flex items-center gap-1.5 pl-1.5 pr-1 py-1 rounded-md bg-background border border-border text-[11px]"
+          >
+            {c.logo ? <img src={c.logo} alt="" className="w-3.5 h-3.5 object-contain" /> : <Shield className="w-3 h-3" />}
+            <span className="truncate max-w-[110px]">{c.name}</span>
+            <button
+              onClick={() => setFormCoRunnerUps((prev) => prev.filter((x) => x.id !== c.id))}
+              className="text-muted-foreground hover:text-destructive"
+            >
+              <X className="w-3 h-3" />
+            </button>
+          </span>
+        ))}
+        {formRunnerUp && (
+          <button
+            type="button"
+            onClick={() => openPicker("covice")}
+            className="flex items-center gap-1 px-2 py-1 rounded-md border border-dashed border-border text-[11px] text-muted-foreground hover:text-primary hover:border-primary/40 transition-colors"
+          >
+            <Plus className="w-3 h-3" />
+            Co-vice
+          </button>
+        )}
+      </div>
+
+      <div className="flex items-center gap-2">
+        <Input
+          placeholder="Placar da final (ex: 2 x 1)"
+          value={formFinalScore}
+          onChange={(e) => setFormFinalScore(e.target.value)}
+          className="h-8 text-xs flex-1"
+        />
+        <Input
+          type="number"
+          placeholder="Pontos"
+          value={formPoints}
+          onChange={(e) => setFormPoints(e.target.value)}
+          className="h-8 text-xs w-24"
+        />
       </div>
     </div>
   );
