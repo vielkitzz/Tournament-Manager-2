@@ -422,18 +422,22 @@ export default function GalleryView({
       champs.length > 1
         ? splitChampionStyle(champs.map((c) => c.colors))
         : championBoxStyle(champs[0]?.colors);
+    const vices = getSeasonRunnersUp(season).map((v) => resolveChampion(season.year, v.id, v.name, v.logo));
+    const finalScore = getSeasonFinalScore(season);
+    const points = getSeasonChampionPoints(season);
 
     return (
       <div
         key={season.year}
         style={style?.container}
-        className="flex flex-wrap items-center gap-x-3 gap-y-2 p-3 rounded-xl bg-secondary/30 border border-border hover:border-primary/30 transition-colors group"
+        className="flex flex-wrap items-start gap-x-3 gap-y-2 p-3 rounded-xl bg-secondary/30 border border-border hover:border-primary/30 transition-colors group"
       >
-        <Trophy className="w-4 h-4 text-primary shrink-0" style={style?.text} />
-        <span className="text-xs font-bold text-muted-foreground min-w-[40px]" style={style?.subtleText}>
+        <Trophy className="w-4 h-4 text-primary shrink-0 mt-1" style={style?.text} />
+        <span className="text-xs font-bold text-muted-foreground min-w-[40px] mt-1" style={style?.subtleText}>
           {season.year}
         </span>
-        <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5 flex-1 min-w-0">
+        <div className="flex flex-col gap-1.5 flex-1 min-w-0">
+          <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5 min-w-0">
           {champs.map((ch, idx) => (
             <div key={`${ch.id}-${idx}`} className="flex items-center gap-2 min-w-0">
               <div className="w-7 h-7 flex items-center justify-center shrink-0">
@@ -443,7 +447,10 @@ export default function GalleryView({
                   <Shield className="w-4 h-4 text-muted-foreground" style={style?.subtleText} />
                 )}
               </div>
-              <span className="text-sm font-bold text-foreground truncate" style={style?.text}>
+              <span
+                className="text-sm font-bold text-foreground whitespace-normal [overflow-wrap:break-word] [word-break:normal]"
+                style={style?.text}
+              >
                 {ch.name}
               </span>
             </div>
@@ -456,11 +463,61 @@ export default function GalleryView({
               Título compartilhado
             </span>
           )}
+          </div>
+
+          {vices.length > 0 && (
+            <div className="flex flex-wrap items-center gap-x-3 gap-y-1 min-w-0">
+              <span
+                className="text-[10px] font-bold uppercase tracking-wide text-muted-foreground"
+                style={style?.subtleText}
+              >
+                Vice
+              </span>
+              {vices.map((v, idx) => (
+                <div key={`${v.id}-${idx}`} className="flex items-center gap-1.5 min-w-0">
+                  <div className="w-5 h-5 flex items-center justify-center shrink-0">
+                    {v.logo ? (
+                      <img src={v.logo} alt="" className="w-5 h-5 object-contain" />
+                    ) : (
+                      <Shield className="w-3.5 h-3.5 text-muted-foreground" style={style?.subtleText} />
+                    )}
+                  </div>
+                  <span
+                    className="text-xs font-medium text-muted-foreground whitespace-normal [overflow-wrap:break-word] [word-break:normal]"
+                    style={style?.subtleText}
+                  >
+                    {v.name}
+                  </span>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {(finalScore || points != null) && (
+            <div className="flex flex-wrap items-center gap-1.5">
+              {finalScore && (
+                <span
+                  className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-secondary/60 text-muted-foreground"
+                  style={style?.accent}
+                >
+                  Final {finalScore}
+                </span>
+              )}
+              {points != null && (
+                <span
+                  className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-secondary/60 text-muted-foreground"
+                  style={style?.accent}
+                >
+                  {points} pts
+                </span>
+              )}
+            </div>
+          )}
         </div>
         {editable && (
           <div
             data-photo-control="true"
-            className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity"
+            className="flex items-center gap-1 mt-0.5 opacity-0 group-hover:opacity-100 transition-opacity"
           >
             <button onClick={() => startEdit(season)} className="p-1 text-muted-foreground hover:text-foreground">
               <Pencil className="w-3.5 h-3.5" />
