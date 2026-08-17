@@ -882,6 +882,31 @@ export default function BracketView({
       : null;
     const runnerUpTeam = runnerUp ? getTeam(runnerUp) : null;
 
+    // Final score from the champion's perspective (aggregate over both legs + penalties)
+    let finalScoreLabel: string | null = null;
+    const finalPair = finalPairs[0];
+    if (finalPair && finalPair.leg1.played && (!finalPair.leg2 || finalPair.leg2.played)) {
+      const legs = [finalPair.leg1, ...(finalPair.leg2 ? [finalPair.leg2] : [])];
+      let champGoals = 0;
+      let otherGoals = 0;
+      let pens: string | null = null;
+      for (const leg of legs) {
+        const champHome = leg.homeTeamId === champion;
+        champGoals += champHome
+          ? (leg.homeScore || 0) + (leg.homeExtraTime || 0)
+          : (leg.awayScore || 0) + (leg.awayExtraTime || 0);
+        otherGoals += champHome
+          ? (leg.awayScore || 0) + (leg.awayExtraTime || 0)
+          : (leg.homeScore || 0) + (leg.homeExtraTime || 0);
+        if (leg.homePenalties != null && leg.awayPenalties != null) {
+          pens = champHome
+            ? `${leg.homePenalties}-${leg.awayPenalties} pên.`
+            : `${leg.awayPenalties}-${leg.homePenalties} pên.`;
+        }
+      }
+      finalScoreLabel = `${champGoals} x ${otherGoals}${pens ? ` (${pens})` : ""}`;
+    }
+
     let thirdTeam: Team | undefined = undefined;
     const thirdMatch = thirdPlaceMatches[0];
     const thirdWinnerId = thirdMatch ? getSingleMatchWinner(thirdMatch) : null;
@@ -1026,6 +1051,28 @@ export default function BracketView({
               </span>
             </div>
           </div>
+          {finalScoreLabel && (
+            <div
+              style={champStyle?.divider}
+              className={cn(
+                "flex items-center justify-center gap-1.5 px-3 py-1.5 border-t",
+                !champStyle && "border-border/30 bg-secondary/20"
+              )}
+            >
+              <span
+                style={champStyle?.subtleText}
+                className={cn("text-[10px] font-bold uppercase tracking-wide", !champStyle && "text-muted-foreground")}
+              >
+                Final
+              </span>
+              <span
+                style={champStyle?.text}
+                className={cn("text-xs font-bold whitespace-nowrap", !champStyle && "text-foreground")}
+              >
+                {finalScoreLabel}
+              </span>
+            </div>
+          )}
           {runnerUpTeam && (
             <div
               style={champStyle?.divider}

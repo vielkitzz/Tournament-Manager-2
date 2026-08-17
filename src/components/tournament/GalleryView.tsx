@@ -2,13 +2,14 @@ import { useMemo, useRef, useState } from "react";
 import { SeasonRecord, Team } from "@/types/tournament";
 import type { TeamHistory } from "@/lib/teamHistoryUtils";
 import { resolveTeamForYear } from "@/lib/teamHistoryUtils";
-import { Trophy, Shield, Plus, Pencil, Trash2, Check, X, Search, Crown, History } from "lucide-react";
+import { Trophy, Shield, Plus, Pencil, Trash2, Check, X, Search, Crown, History, Medal } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Switch } from "@/components/ui/switch";
 import ScreenshotButton from "@/components/ScreenshotButton";
 import { championBoxStyle, splitChampionStyle } from "@/lib/teamColors";
+import { getSeasonRunnersUp, getSeasonFinalScore, getSeasonChampionPoints } from "@/lib/seasonSnapshot";
 
 interface ChampionEntry {
   id: string;
@@ -39,8 +40,12 @@ export default function GalleryView({
   const [formTeamId, setFormTeamId] = useState("");
   const [formLogo, setFormLogo] = useState<string | undefined>();
   const [formCoChampions, setFormCoChampions] = useState<{ id: string; name: string; logo?: string }[]>([]);
+  const [formRunnerUp, setFormRunnerUp] = useState<{ id: string; name: string; logo?: string } | undefined>();
+  const [formCoRunnerUps, setFormCoRunnerUps] = useState<{ id: string; name: string; logo?: string }[]>([]);
+  const [formFinalScore, setFormFinalScore] = useState("");
+  const [formPoints, setFormPoints] = useState("");
   const [teamPickerOpen, setTeamPickerOpen] = useState(false);
-  const [pickerTarget, setPickerTarget] = useState<"main" | "co">("main");
+  const [pickerTarget, setPickerTarget] = useState<"main" | "co" | "vice" | "covice">("main");
   const [teamSearch, setTeamSearch] = useState("");
   const [useHistorical, setUseHistorical] = useState(true);
 
@@ -102,10 +107,15 @@ export default function GalleryView({
     .sort((a, b) => a.name.localeCompare(b.name));
 
   const handleSelectTeam = (team: Team) => {
+    const ref = { id: team.id, name: team.name, logo: team.logo };
     if (pickerTarget === "co") {
       setFormCoChampions((prev) =>
-        prev.some((c) => c.id === team.id) ? prev : [...prev, { id: team.id, name: team.name, logo: team.logo }]
+        prev.some((c) => c.id === team.id) ? prev : [...prev, ref]
       );
+    } else if (pickerTarget === "vice") {
+      setFormRunnerUp(ref);
+    } else if (pickerTarget === "covice") {
+      setFormCoRunnerUps((prev) => (prev.some((c) => c.id === team.id) ? prev : [...prev, ref]));
     } else {
       setFormTeamId(team.id);
       setFormName(team.name);
@@ -115,7 +125,7 @@ export default function GalleryView({
     setTeamSearch("");
   };
 
-  const openPicker = (target: "main" | "co") => {
+  const openPicker = (target: "main" | "co" | "vice" | "covice") => {
     setPickerTarget(target);
     setTeamPickerOpen(true);
   };
@@ -131,6 +141,10 @@ export default function GalleryView({
       championName: formName,
       championLogo: formLogo,
       coChampions: formCoChampions.length ? formCoChampions : undefined,
+      runnerUp: formRunnerUp,
+      coRunnerUps: formCoRunnerUps.length ? formCoRunnerUps : undefined,
+      finalScore: formFinalScore.trim() || undefined,
+      championPoints: formPoints.trim() ? parseInt(formPoints) : undefined,
       standings: [],
       manual: true,
     };
@@ -151,6 +165,10 @@ export default function GalleryView({
         championName: formName,
         championLogo: formLogo ?? s.championLogo,
         coChampions: formCoChampions.length ? formCoChampions : undefined,
+        runnerUp: formRunnerUp,
+        coRunnerUps: formCoRunnerUps.length ? formCoRunnerUps : undefined,
+        finalScore: formFinalScore.trim() || undefined,
+        championPoints: formPoints.trim() ? parseInt(formPoints) : undefined,
       };
     });
     onUpdateSeasons(updated);
@@ -169,6 +187,10 @@ export default function GalleryView({
     setFormTeamId(season.championId);
     setFormLogo(season.championLogo);
     setFormCoChampions(season.coChampions || []);
+    setFormRunnerUp(season.runnerUp);
+    setFormCoRunnerUps(season.coRunnerUps || []);
+    setFormFinalScore(season.finalScore || "");
+    setFormPoints(season.championPoints != null ? String(season.championPoints) : "");
     setAdding(false);
   };
 
@@ -184,6 +206,10 @@ export default function GalleryView({
     setFormTeamId("");
     setFormLogo(undefined);
     setFormCoChampions([]);
+    setFormRunnerUp(undefined);
+    setFormCoRunnerUps([]);
+    setFormFinalScore("");
+    setFormPoints("");
   };
 
   const resetForm = () => {
@@ -207,7 +233,13 @@ export default function GalleryView({
       <DialogContent className="max-w-sm p-0 gap-0 overflow-hidden">
         <DialogHeader className="p-4 pb-2">
           <DialogTitle className="text-sm font-bold">
-            {pickerTarget === "co" ? "Adicionar co-campeão" : "Selecionar Time"}
+            {pickerTarget === "co"
+              ? "Adicionar co-campeão"
+              : pickerTarget === "vice"
+                ? "Selecionar vice-campeão"
+                : pickerTarget === "covice"
+                  ? "Adicionar co-vice"
+                  : "Selecionar Time"}
           </DialogTitle>
         </DialogHeader>
         <div className="px-4 pb-2">
@@ -319,6 +351,68 @@ export default function GalleryView({
           Adicionar co-campeão
         </button>
       </div>
+
+      {/* Runner-up */}
+      <div className="flex flex-wrap items-center gap-1.5">
+        <button
+          type="button"
+          onClick={() => openPicker("vice")}
+          className="flex items-center gap-1.5 px-2 py-1 rounded-md border border-dashed border-border text-[11px] text-muted-foreground hover:text-primary hover:border-primary/40 transition-colors"
+        >
+          <Medal className="w-3 h-3" />
+          {formRunnerUp ? formRunnerUp.name : "Definir vice-campeão"}
+        </button>
+        {formRunnerUp && (
+          <button
+            onClick={() => setFormRunnerUp(undefined)}
+            className="text-muted-foreground hover:text-destructive"
+            type="button"
+          >
+            <X className="w-3 h-3" />
+          </button>
+        )}
+        {formCoRunnerUps.map((c) => (
+          <span
+            key={c.id}
+            className="flex items-center gap-1.5 pl-1.5 pr-1 py-1 rounded-md bg-background border border-border text-[11px]"
+          >
+            {c.logo ? <img src={c.logo} alt="" className="w-3.5 h-3.5 object-contain" /> : <Shield className="w-3 h-3" />}
+            <span className="truncate max-w-[110px]">{c.name}</span>
+            <button
+              onClick={() => setFormCoRunnerUps((prev) => prev.filter((x) => x.id !== c.id))}
+              className="text-muted-foreground hover:text-destructive"
+            >
+              <X className="w-3 h-3" />
+            </button>
+          </span>
+        ))}
+        {formRunnerUp && (
+          <button
+            type="button"
+            onClick={() => openPicker("covice")}
+            className="flex items-center gap-1 px-2 py-1 rounded-md border border-dashed border-border text-[11px] text-muted-foreground hover:text-primary hover:border-primary/40 transition-colors"
+          >
+            <Plus className="w-3 h-3" />
+            Co-vice
+          </button>
+        )}
+      </div>
+
+      <div className="flex items-center gap-2">
+        <Input
+          placeholder="Placar da final (ex: 2 x 1)"
+          value={formFinalScore}
+          onChange={(e) => setFormFinalScore(e.target.value)}
+          className="h-8 text-xs flex-1"
+        />
+        <Input
+          type="number"
+          placeholder="Pontos"
+          value={formPoints}
+          onChange={(e) => setFormPoints(e.target.value)}
+          className="h-8 text-xs w-24"
+        />
+      </div>
     </div>
   );
 
@@ -328,18 +422,22 @@ export default function GalleryView({
       champs.length > 1
         ? splitChampionStyle(champs.map((c) => c.colors))
         : championBoxStyle(champs[0]?.colors);
+    const vices = getSeasonRunnersUp(season).map((v) => resolveChampion(season.year, v.id, v.name, v.logo));
+    const finalScore = getSeasonFinalScore(season);
+    const points = getSeasonChampionPoints(season);
 
     return (
       <div
         key={season.year}
         style={style?.container}
-        className="flex flex-wrap items-center gap-x-3 gap-y-2 p-3 rounded-xl bg-secondary/30 border border-border hover:border-primary/30 transition-colors group"
+        className="flex flex-wrap items-start gap-x-3 gap-y-2 p-3 rounded-xl bg-secondary/30 border border-border hover:border-primary/30 transition-colors group"
       >
-        <Trophy className="w-4 h-4 text-primary shrink-0" style={style?.text} />
-        <span className="text-xs font-bold text-muted-foreground min-w-[40px]" style={style?.subtleText}>
+        <Trophy className="w-4 h-4 text-primary shrink-0 mt-1" style={style?.text} />
+        <span className="text-xs font-bold text-muted-foreground min-w-[40px] mt-1" style={style?.subtleText}>
           {season.year}
         </span>
-        <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5 flex-1 min-w-0">
+        <div className="flex flex-col gap-1.5 flex-1 min-w-0">
+          <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5 min-w-0">
           {champs.map((ch, idx) => (
             <div key={`${ch.id}-${idx}`} className="flex items-center gap-2 min-w-0">
               <div className="w-7 h-7 flex items-center justify-center shrink-0">
@@ -349,7 +447,10 @@ export default function GalleryView({
                   <Shield className="w-4 h-4 text-muted-foreground" style={style?.subtleText} />
                 )}
               </div>
-              <span className="text-sm font-bold text-foreground truncate" style={style?.text}>
+              <span
+                className="text-sm font-bold text-foreground whitespace-normal [overflow-wrap:break-word] [word-break:normal]"
+                style={style?.text}
+              >
                 {ch.name}
               </span>
             </div>
@@ -362,11 +463,61 @@ export default function GalleryView({
               Título compartilhado
             </span>
           )}
+          </div>
+
+          {vices.length > 0 && (
+            <div className="flex flex-wrap items-center gap-x-3 gap-y-1 min-w-0">
+              <span
+                className="text-[10px] font-bold uppercase tracking-wide text-muted-foreground"
+                style={style?.subtleText}
+              >
+                Vice
+              </span>
+              {vices.map((v, idx) => (
+                <div key={`${v.id}-${idx}`} className="flex items-center gap-1.5 min-w-0">
+                  <div className="w-5 h-5 flex items-center justify-center shrink-0">
+                    {v.logo ? (
+                      <img src={v.logo} alt="" className="w-5 h-5 object-contain" />
+                    ) : (
+                      <Shield className="w-3.5 h-3.5 text-muted-foreground" style={style?.subtleText} />
+                    )}
+                  </div>
+                  <span
+                    className="text-xs font-medium text-muted-foreground whitespace-normal [overflow-wrap:break-word] [word-break:normal]"
+                    style={style?.subtleText}
+                  >
+                    {v.name}
+                  </span>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {(finalScore || points != null) && (
+            <div className="flex flex-wrap items-center gap-1.5">
+              {finalScore && (
+                <span
+                  className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-secondary/60 text-muted-foreground"
+                  style={style?.accent}
+                >
+                  Final {finalScore}
+                </span>
+              )}
+              {points != null && (
+                <span
+                  className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-secondary/60 text-muted-foreground"
+                  style={style?.accent}
+                >
+                  {points} pts
+                </span>
+              )}
+            </div>
+          )}
         </div>
         {editable && (
           <div
             data-photo-control="true"
-            className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity"
+            className="flex items-center gap-1 mt-0.5 opacity-0 group-hover:opacity-100 transition-opacity"
           >
             <button onClick={() => startEdit(season)} className="p-1 text-muted-foreground hover:text-foreground">
               <Pencil className="w-3.5 h-3.5" />

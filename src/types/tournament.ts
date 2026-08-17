@@ -166,6 +166,14 @@ export interface SeasonRecord {
   manual?: boolean; // Manually added champion entry
   /** Additional champions for shared titles (same year, more than one winner). */
   coChampions?: { id: string; name: string; logo?: string }[];
+  /** Runner-up of the season (manual entries or snapshot). */
+  runnerUp?: { id: string; name: string; logo?: string };
+  /** Additional runners-up when the second place is shared. */
+  coRunnerUps?: { id: string; name: string; logo?: string }[];
+  /** Final match score, knockout formats (ex: "3 x 3 (5-4 pên.)"). */
+  finalScore?: string;
+  /** Champion total points, points-based formats. */
+  championPoints?: number;
 }
 
 export type PreliminaryPhaseFormat = "mata-mata" | "grupos";
