@@ -1051,6 +1051,28 @@ export default function BracketView({
               </span>
             </div>
           </div>
+          {finalScoreLabel && (
+            <div
+              style={champStyle?.divider}
+              className={cn(
+                "flex items-center justify-center gap-1.5 px-3 py-1.5 border-t",
+                !champStyle && "border-border/30 bg-secondary/20"
+              )}
+            >
+              <span
+                style={champStyle?.subtleText}
+                className={cn("text-[10px] font-bold uppercase tracking-wide", !champStyle && "text-muted-foreground")}
+              >
+                Final
+              </span>
+              <span
+                style={champStyle?.text}
+                className={cn("text-xs font-bold whitespace-nowrap", !champStyle && "text-foreground")}
+              >
+                {finalScoreLabel}
+              </span>
+            </div>
+          )}
           {runnerUpTeam && (
             <div
               style={champStyle?.divider}
