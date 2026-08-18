@@ -577,7 +577,15 @@ export default function GalleryView({
 
           {adding && renderForm(handleAdd)}
 
-          <div ref={titlesRef} data-photo-layout="gallery" className="space-y-2">
+          <div
+            ref={titlesRef}
+            data-photo-layout="gallery"
+            className={
+              sorted.length > 8
+                ? "grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-2 items-start"
+                : "space-y-2"
+            }
+          >
             {sorted.map((season) =>
               editingYear === season.year ? (
                 <div key={season.year}>{renderForm(() => handleEdit(season.year))}</div>
