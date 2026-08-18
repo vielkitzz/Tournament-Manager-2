@@ -127,7 +127,8 @@ export default function GroupStandingsView({
                       {row.goalDifference > 0 ? `+${row.goalDifference}` : row.goalDifference}
                     </td>
                   </tr>
-                ))}
+                  );
+                })}
               </tbody>
             </table>
             {standings.length === 0 && (
