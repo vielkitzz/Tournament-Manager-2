@@ -214,7 +214,10 @@ export default function TournamentDetailPage() {
   }
 
   const settings = activeSettings;
-  const podiumColorsEnabled = (settings as any).useTeamColors !== false && !!championRecord?.championId;
+  // Podium tint in the standings only makes sense for pure points-based leagues:
+  // in group/knockout formats the highlight lives in the champion card instead.
+  const podiumColorsEnabled =
+    (settings as any).useTeamColors !== false && !!championRecord?.championId && isLiga;
 
 
   // For grupos/suico format, separate group and knockout matches

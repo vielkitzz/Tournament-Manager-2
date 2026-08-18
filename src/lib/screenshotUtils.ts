@@ -323,10 +323,13 @@ ${contrastCss(photo)}
 #capture-content{width:max-content;min-width:${width}px;}
 #capture-root *{overflow:visible !important;max-height:none !important;}
  #capture-root{background-color:hsl(var(--background)) !important;color:hsl(var(--foreground)) !important;}
- #capture-root .bg-card,#capture-root [class*="bg-card/"]{background-image:none !important;background-color:hsl(var(--card)) !important;color:hsl(var(--card-foreground)) !important;}
+ #capture-root .bg-card:not([data-team-tint]),#capture-root [class*="bg-card/"]:not([data-team-tint]){background-image:none !important;background-color:hsl(var(--card)) !important;color:hsl(var(--card-foreground)) !important;}
+ #capture-root [data-team-tint="true"]{background-color:hsl(var(--card)) !important;color:hsl(var(--foreground)) !important;}
+ #capture-root [data-team-tint="true"] .text-foreground{color:hsl(var(--foreground)) !important;}
+ #capture-root [data-team-tint="true"] .text-muted-foreground,#capture-root [data-team-tint="true"] [class*="text-muted-foreground/"]{color:hsl(var(--photo-card-muted)) !important;}
  #capture-root .bg-card .text-foreground,#capture-root [class*="bg-card/"] .text-foreground{color:hsl(var(--card-foreground)) !important;}
  #capture-root .bg-card .text-muted-foreground,#capture-root .bg-card [class*="text-muted-foreground/"],#capture-root [class*="bg-card/"] .text-muted-foreground,#capture-root [class*="bg-card/"] [class*="text-muted-foreground/"]{color:hsl(var(--photo-card-muted)) !important;}
- #capture-root .bg-secondary,#capture-root [class*="bg-secondary/"]{background-image:none !important;background-color:hsl(var(--secondary)) !important;color:hsl(var(--secondary-foreground)) !important;}
+ #capture-root .bg-secondary:not([data-team-tint]),#capture-root [class*="bg-secondary/"]:not([data-team-tint]){background-image:none !important;background-color:hsl(var(--secondary)) !important;color:hsl(var(--secondary-foreground)) !important;}
  #capture-root .bg-secondary .text-muted-foreground,#capture-root [class*="bg-secondary/"] .text-muted-foreground{color:hsl(var(--photo-secondary-muted)) !important;}
  #capture-root button{background-color:transparent;color:inherit;}
  #capture-root [data-photo-match="true"]{background-image:none !important;background-color:hsl(var(--card)) !important;color:hsl(var(--card-foreground)) !important;}

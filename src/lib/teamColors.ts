@@ -66,29 +66,57 @@ export function withAlpha(hex: string, alpha: number): string {
 }
 
 /**
- * Evenly distributed gradient stops for any number of colors
- * (1 color = flat, 3 colors = 0/50/100%, and so on).
+ * Club colors are applied as a SOFT TINT over the theme surface instead of a
+ * full-bleed gradient: text keeps the theme foreground (always readable in any
+ * skin / any club palette) and the identity comes from a solid side bar plus a
+ * low-opacity glow that fades out before it reaches the text.
  */
-function stopsFor(list: string[], alpha?: (index: number) => number, from = 0, to = 100): string {
-  const colorAt = (i: number) => (alpha ? withAlpha(list[i], alpha(i)) : list[i]);
-  if (list.length === 1) return `${colorAt(0)} ${from}%, ${colorAt(0)} ${to}%`;
-  const span = to - from;
-  return list.map((_, i) => `${colorAt(i)} ${(from + (span * i) / (list.length - 1)).toFixed(2)}%`).join(", ");
+const THEME_TEXT = "hsl(var(--foreground))";
+const THEME_SUBTLE = "hsl(var(--muted-foreground))";
+
+/** Max tint alpha allowed for a color: bright colors tint less, dark ones more. */
+function safeAlpha(hex: string, base: number): number {
+  const l = luminance(hex);
+  // Very light or very dark colors wash out text the most — damp them further.
+  const damp = l > 0.6 ? 0.55 : l < 0.06 ? 0.7 : 1;
+  return Math.min(0.32, base * damp);
 }
 
-/** Text color that reads well over a multi-color gradient (average luminance). */
-function textOverList(list: string[]): string {
-  const avg = list.reduce((sum, c) => sum + luminance(c), 0) / list.length;
-  return avg > 0.35 ? "#0a0a0a" : "#ffffff";
+/** Side bar with every club color (tri/quadricolores keep their identity). */
+function sideBar(list: string[], width = 5): string {
+  const slice = 100 / list.length;
+  const stops = list
+    .map((c, i) => `${c} ${(i * slice).toFixed(2)}%, ${c} ${((i + 1) * slice).toFixed(2)}%`)
+    .join(", ");
+  return `linear-gradient(180deg, ${stops})`;
 }
 
-function styleSet(container: CSSProperties, text: string) {
+function tintLayer(list: string[], base: number, to = 78): string {
+  const span = to;
+  const stops = list
+    .map((c, i) => {
+      const pos = list.length === 1 ? 0 : (span * i) / (list.length - 1) * 0.75;
+      return `${withAlpha(c, safeAlpha(c, base) * (1 - i / (list.length + 1)))} ${pos.toFixed(2)}%`;
+    })
+    .join(", ");
+  return `linear-gradient(100deg, ${stops}, transparent ${span}%)`;
+}
+
+function styleSet(list: string[], intensity: number, barWidth: number) {
+  const primary = list[0];
   return {
-    container: { ...container, color: text } as CSSProperties,
-    accent: { backgroundColor: withAlpha(text, 0.16), color: text } as CSSProperties,
-    text: { color: text } as CSSProperties,
-    subtleText: { color: withAlpha(text, 0.78) } as CSSProperties,
-    divider: { borderColor: withAlpha(text, 0.22), backgroundColor: withAlpha(text, 0.08) } as CSSProperties,
+    container: {
+      backgroundImage: `${tintLayer(list, intensity)}, ${sideBar(list)}`,
+      backgroundRepeat: "no-repeat, no-repeat",
+      backgroundSize: `100% 100%, ${barWidth}px 100%`,
+      backgroundPosition: "left center, left center",
+      borderColor: withAlpha(primary, 0.45),
+      color: THEME_TEXT,
+    } as CSSProperties,
+    accent: { backgroundColor: withAlpha(primary, 0.22), color: THEME_TEXT } as CSSProperties,
+    text: { color: THEME_TEXT } as CSSProperties,
+    subtleText: { color: THEME_SUBTLE } as CSSProperties,
+    divider: { borderColor: withAlpha(primary, 0.28) } as CSSProperties,
   };
 }
 
@@ -100,31 +128,15 @@ export function podiumRowStyle(colors: string[] | undefined, position: number, e
   if (!enabled || position > 3) return undefined;
   const palette = teamPalette(colors);
   if (!palette) return undefined;
-  const intensity = position === 1 ? 0.3 : position === 2 ? 0.22 : 0.15;
-  const list = palette.all;
-  // Fade the tint out towards the right so the row never overpowers the text.
-  const fade = (i: number) => intensity * (1 - (i / Math.max(list.length, 2)) * 0.55);
-  return {
-    boxShadow: `inset 6px 0 0 0 ${palette.primary}${
-      list.length > 1 ? `, inset 12px 0 0 0 ${palette.secondary}` : ""
-    }`,
-    backgroundImage: `linear-gradient(90deg, ${stopsFor(list, fade, 0, 85)}, transparent 100%)`,
-  };
+  const intensity = position === 1 ? 0.2 : position === 2 ? 0.15 : 0.1;
+  return styleSet(palette.all, intensity, 5).container;
 }
 
 /** Champion card styling: club gradient with guaranteed readable text. */
 export function championBoxStyle(colors: string[] | undefined, enabled = true) {
   const palette = enabled ? teamPalette(colors) : null;
   if (!palette) return null;
-  const list = palette.all;
-  const text = list.length > 1 ? textOverList(list) : onColorText(list[0]);
-  return styleSet(
-    {
-      backgroundImage: `linear-gradient(160deg, ${stopsFor(list)})`,
-      borderColor: list[list.length - 1],
-    },
-    text
-  );
+  return styleSet(palette.all, 0.26, 7);
 }
 
 /**
@@ -136,16 +148,6 @@ export function splitChampionStyle(colorSets: (string[] | undefined)[], enabled 
   const palettes = colorSets.map((c) => teamPalette(c)).filter((p): p is TeamPalette => !!p);
   if (palettes.length === 0) return null;
   if (palettes.length === 1) return championBoxStyle(palettes[0].all, enabled);
-
-  const step = 100 / palettes.length;
-  // Each club owns a slice; inside its slice every club color is represented.
-  const stops = palettes.map((p, i) => stopsFor(p.all, undefined, i * step, (i + 1) * step)).join(", ");
-  const text = textOverList(palettes.flatMap((p) => p.all));
-  return styleSet(
-    {
-      backgroundImage: `linear-gradient(120deg, ${stops})`,
-      borderColor: palettes[palettes.length - 1].all.slice(-1)[0],
-    },
-    text
-  );
+  // Every co-champion contributes its colors to the shared tint and side bar.
+  return styleSet(palettes.flatMap((p) => p.all).slice(0, 6), 0.22, 7);
 }

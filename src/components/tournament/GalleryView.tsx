@@ -430,6 +430,7 @@ export default function GalleryView({
       <div
         key={season.year}
         style={style?.container}
+        data-team-tint={style ? "true" : undefined}
         className="flex flex-wrap items-start gap-x-3 gap-y-2 p-3 rounded-xl bg-secondary/30 border border-border hover:border-primary/30 transition-colors group"
       >
         <Trophy className="w-4 h-4 text-primary shrink-0 mt-1" style={style?.text} />
@@ -577,7 +578,15 @@ export default function GalleryView({
 
           {adding && renderForm(handleAdd)}
 
-          <div ref={titlesRef} data-photo-layout="gallery" className="space-y-2">
+          <div
+            ref={titlesRef}
+            data-photo-layout="gallery"
+            className={
+              sorted.length > 8
+                ? "grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-2 items-start"
+                : "space-y-2"
+            }
+          >
             {sorted.map((season) =>
               editingYear === season.year ? (
                 <div key={season.year}>{renderForm(() => handleEdit(season.year))}</div>

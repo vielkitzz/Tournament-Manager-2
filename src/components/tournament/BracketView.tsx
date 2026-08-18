@@ -1015,10 +1015,11 @@ export default function BracketView({
         </div>
         <div
           style={champStyle?.container}
+          data-team-tint={champStyle ? "true" : undefined}
           className={cn(
             "rounded-xl border-2 overflow-hidden shadow-xl",
             champStyle
-              ? "shadow-black/25"
+              ? "bg-card shadow-black/25"
               : "border-primary/50 bg-gradient-to-b from-primary/15 via-primary/5 to-secondary/40 shadow-primary/20"
           )}
         >

@@ -70,10 +70,13 @@ export default function GroupStandingsView({
                 </tr>
               </thead>
               <tbody>
-                {standings.map((row, i) => (
+                {standings.map((row, i) => {
+                  const podium = podiumRowStyle(row.team?.colors, i + 1, useTeamColors);
+                  return (
                   <tr
                     key={row.teamId}
-                    style={podiumRowStyle(row.team?.colors, i + 1, useTeamColors)}
+                    style={podium}
+                    data-team-tint={podium ? "true" : undefined}
                     className="border-b border-border/30 hover:bg-secondary/30 transition-colors"
                   >
                     <td className="py-2 pl-3 pr-1 text-muted-foreground font-mono text-[10px]">{i + 1}</td>
@@ -124,7 +127,8 @@ export default function GroupStandingsView({
                       {row.goalDifference > 0 ? `+${row.goalDifference}` : row.goalDifference}
                     </td>
                   </tr>
-                ))}
+                  );
+                })}
               </tbody>
             </table>
             {standings.length === 0 && (
