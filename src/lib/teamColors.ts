@@ -66,17 +66,6 @@ export function withAlpha(hex: string, alpha: number): string {
 }
 
 /**
- * Evenly distributed gradient stops for any number of colors
- * (1 color = flat, 3 colors = 0/50/100%, and so on).
- */
-function stopsFor(list: string[], alpha?: (index: number) => number, from = 0, to = 100): string {
-  const colorAt = (i: number) => (alpha ? withAlpha(list[i], alpha(i)) : list[i]);
-  if (list.length === 1) return `${colorAt(0)} ${from}%, ${colorAt(0)} ${to}%`;
-  const span = to - from;
-  return list.map((_, i) => `${colorAt(i)} ${(from + (span * i) / (list.length - 1)).toFixed(2)}%`).join(", ");
-}
-
-/**
  * Club colors are applied as a SOFT TINT over the theme surface instead of a
  * full-bleed gradient: text keeps the theme foreground (always readable in any
  * skin / any club palette) and the identity comes from a solid side bar plus a
