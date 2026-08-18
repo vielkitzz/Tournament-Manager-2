@@ -129,10 +129,14 @@ export function getSeasonFinalScore(season: SeasonRecord): string | null {
   return `${a} x ${b}${pens ? ` (${pens})` : ""}`;
 }
 
-/** Champion total points for points-based seasons. */
+/**
+ * Champion total points — only meaningful in pure points-based seasons.
+ * In knockout (or group + knockout) the title is decided in the final, so the
+ * points total is never shown.
+ */
 export function getSeasonChampionPoints(season: SeasonRecord): number | null {
+  if (season.format && season.format !== "liga") return null;
   if (typeof season.championPoints === "number") return season.championPoints;
-  if (season.format === "mata-mata") return null;
   const row = (season.standings || []).find((s) => s.teamId === season.championId);
   return typeof row?.points === "number" ? row.points : null;
 }
