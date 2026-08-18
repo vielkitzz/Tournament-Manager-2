@@ -116,6 +116,7 @@ export default function StandingsTable({ standings, promotions = [], qualifyUnti
                   key={row.teamId}
                   onClick={() => hasMatches && setSelectedTeamId(row.teamId)}
                   style={podium}
+                  data-team-tint={podium ? "true" : undefined}
                   className={cn(
                     "border-b border-border/50 transition-colors relative",
                     isEliminated ? "opacity-50 bg-destructive/5" : "hover:bg-secondary/30",
