@@ -16,6 +16,13 @@ import {
   resetPhotoMode,
   savePhotoMode,
 } from "@/lib/photoMode";
+import { championBoxStyle, podiumRowStyle } from "@/lib/teamColors";
+
+const SAMPLE_COLORS = [
+  ["#1b3a8a", "#f2c200"],
+  ["#0f7a3d", "#ffffff"],
+  ["#a11226", "#111111"],
+];
 
 const WIDTH_PRESETS = [
   { label: "Compacto", value: 900, hint: "leitura próxima" },
@@ -299,7 +306,11 @@ export default function PhotoModeSettingsCard({
                     ["2", "Harley", "7"],
                     ["3", "Auricorona", "6"],
                   ].map(([pos, name, pts], i) => (
-                    <div key={pos} className="flex items-center gap-2 rounded-md bg-card px-2 py-1.5">
+                    <div
+                      key={pos}
+                      style={podiumRowStyle(SAMPLE_COLORS[i], i + 1)}
+                      className="flex items-center gap-2 rounded-md bg-card px-2 py-1.5 overflow-hidden"
+                    >
                       <span className="text-muted-foreground w-4">{pos}</span>
                       <span className="w-[1.6em] h-[1.6em] rounded-full bg-primary/25 border border-border" />
                       <span className="flex-1 truncate font-medium">{name}</span>
@@ -343,8 +354,11 @@ export default function PhotoModeSettingsCard({
                     ))}
                   </div>
                   <div className="w-6 border-t-2 border-primary" />
-                  <div className="flex-1 rounded-md bg-primary/15 border border-primary px-2 py-3 text-center font-semibold">
-                    Final
+                  <div
+                    style={championBoxStyle(SAMPLE_COLORS[0])?.container}
+                    className="flex-1 rounded-md bg-card border px-2 py-3 text-center font-semibold overflow-hidden"
+                  >
+                    Campeão
                   </div>
                 </div>
               )}
