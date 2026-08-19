@@ -308,7 +308,8 @@ function getPairs(stageMatches: Match[]): TiePair[] {
     let awayPenalties: number | undefined;
 
     const generatePenalties = () => {
-      if (tiebreakMode(tournament.settings) === "replay") return { homePenalties: undefined, awayPenalties: undefined };
+      if (tiebreakMode(tournament.settings) === "replay" || !isAutoTiebreak(tournament.settings))
+        return { homePenalties: undefined, awayPenalties: undefined };
       const homePens = Math.floor(Math.random() * 3) + 3;
       let awayPens = homePens + (Math.random() > 0.5 ? 1 : -1);
       if (awayPens < 0) awayPens = homePens + 1;
