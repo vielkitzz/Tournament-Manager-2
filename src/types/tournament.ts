@@ -33,6 +33,8 @@ export interface TournamentSettings {
   maxReplays?: number;
   /** Permite decidir no sorteio a qualquer momento. Default: true. */
   allowCoinToss?: boolean;
+  /** Resolve empates automaticamente ao simular (replays/sorteio). Default: true. */
+  autoTiebreak?: boolean;
   rateInfluence: boolean;
   /** Use the club colors to highlight podium/champion. Default: true. */
   useTeamColors?: boolean;
@@ -289,6 +291,7 @@ export const DEFAULT_SETTINGS: TournamentSettings = {
   knockoutTiebreakMode: "penalties",
   maxReplays: 2,
   allowCoinToss: true,
+  autoTiebreak: true,
   promotions: [],
   knockoutLegMode: "single",
   finalSingleLeg: false,
