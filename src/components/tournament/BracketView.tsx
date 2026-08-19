@@ -80,26 +80,6 @@ function getAggregate(leg1: Match, leg2: Match): { home: number; away: number } 
   return { home, away };
 }
 
-function getTieWinner(leg1: Match, leg2: Match, awayGoalsRule: boolean): string | null {
-  if (!leg1.played || !leg2.played) return null;
-  const agg = getAggregate(leg1, leg2);
-  if (agg.home > agg.away) return leg1.homeTeamId;
-  if (agg.away > agg.home) return leg1.awayTeamId;
-
-  if (awayGoalsRule) {
-    const awayGoalsHome = (leg2.awayScore || 0) + (leg2.awayExtraTime || 0);
-    const awayGoalsAway = (leg1.awayScore || 0) + (leg1.awayExtraTime || 0);
-    if (awayGoalsHome > awayGoalsAway) return leg1.homeTeamId;
-    if (awayGoalsAway > awayGoalsHome) return leg1.awayTeamId;
-  }
-
-  if (leg2.homePenalties !== undefined && leg2.awayPenalties !== undefined) {
-    if (leg2.awayPenalties > leg2.homePenalties) return leg1.homeTeamId;
-    if (leg2.homePenalties > leg2.awayPenalties) return leg1.awayTeamId;
-  }
-  return null;
-}
-
 export default function BracketView({
   tournament,
   teams,
@@ -774,7 +754,7 @@ function getPairs(stageMatches: Match[]): TiePair[] {
     );
   };
 
-  const renderPair = (pair: { leg1: Match; leg2: Match | null }, pairIdx: number) => {
+  const renderPair = (pair: TiePair, pairIdx: number) => {
     const homeTeam = getTeam(pair.leg1.homeTeamId);
     const awayTeam = getTeam(pair.leg1.awayTeamId);
     const winner = getTieResult(pair);
