@@ -340,6 +340,7 @@ ${contrastCss(photo)}
  #capture-root img[data-photo-image-fallback="true"]{color:hsl(var(--muted-foreground));padding:2px;}
  #capture-root [data-screenshot-ignore="true"]{display:none !important;}
  #capture-root [data-photo-control="true"]{display:none !important;}
+ #capture-root [data-photo-expand="true"]{display:block !important;height:auto !important;max-height:none !important;overflow:visible !important;opacity:1 !important;}
  #capture-root [data-photo-layout="bracket"] [data-photo-stage="true"]{width:210px !important;}
  #capture-root [data-photo-layout="bracket"] [data-photo-match="true"]{width:190px !important;}
  #capture-root [data-photo-layout="bracket"] [data-photo-connector="true"]{width:30px !important;}
