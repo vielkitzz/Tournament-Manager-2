@@ -1170,23 +1170,23 @@ export default function MatchPopup({
           </div>
         )}
 
-        {/* Penalties */}
-        {showPenalties && (
-          <></>
-        )}
         {isLeg2OfPair && regularTieContext && (
           <div className="px-6 pb-2">
             <div className="rounded-lg bg-secondary/50 border border-border px-3 py-2 flex items-center justify-between">
               <span className="text-[11px] uppercase tracking-widest text-muted-foreground">Agregado</span>
               <span className="text-sm font-bold text-foreground">
                 {(homeTeam?.abbreviation || homeTeam?.shortName) ?? "Casa"}{" "}
-                {extraTimeTieContext?.aggregateHome ?? regularTieContext.aggregateHome} x{" "}
-                {extraTimeTieContext?.aggregateAway ?? regularTieContext.aggregateAway}{" "}
+                {(showExtraTime ? extraTimeTieContext : regularTieContext)?.aggregateAway ??
+                  regularTieContext.aggregateAway}{" "}
+                x{" "}
+                {(showExtraTime ? extraTimeTieContext : regularTieContext)?.aggregateHome ??
+                  regularTieContext.aggregateHome}{" "}
                 {(awayTeam?.abbreviation || awayTeam?.shortName) ?? "Fora"}
               </span>
             </div>
           </div>
         )}
+        {/* Penalties */}
         {showPenalties && (
           <div className="px-6 py-6 space-y-4">
             <p className="text-sm font-display font-bold text-foreground text-center">Disputa de Pênaltis</p>
