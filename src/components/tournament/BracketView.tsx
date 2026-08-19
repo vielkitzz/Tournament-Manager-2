@@ -232,7 +232,7 @@ function getPairs(stageMatches: Match[]): TiePair[] {
     let awayScore = result.total[1];
     let homePenalties: number | undefined;
     let awayPenalties: number | undefined;
-    if (homeScore === awayScore && !isLeg1OfPair) {
+    if (homeScore === awayScore && !isLeg1OfPair && tiebreakMode(tournament.settings) !== "replay") {
       homePenalties = Math.floor(Math.random() * 3) + 3;
       awayPenalties = homePenalties + (Math.random() > 0.5 ? 1 : -1);
       if (awayPenalties < 0) awayPenalties = homePenalties + 1;
@@ -320,6 +320,7 @@ function getPairs(stageMatches: Match[]): TiePair[] {
     let awayPenalties: number | undefined;
 
     const generatePenalties = () => {
+      if (tiebreakMode(tournament.settings) === "replay") return { homePenalties: undefined, awayPenalties: undefined };
       const homePens = Math.floor(Math.random() * 3) + 3;
       let awayPens = homePens + (Math.random() > 0.5 ? 1 : -1);
       if (awayPens < 0) awayPens = homePens + 1;
