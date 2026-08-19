@@ -662,6 +662,118 @@ function getPairs(stageMatches: Match[]): TiePair[] {
 
   // ─── Render helpers ───
 
+  /** Placar agregado + gaveta de jogos extras / sorteio abaixo do card. */
+  const renderTieDrawer = (pair: TiePair) => {
+    const res = resolveTie(pair, tournament.settings);
+    const replays = pair.replays || [];
+    const hasAggregate = !!pair.leg2 && !!res.aggregate;
+    const limit = maxReplaysOf(tournament.settings);
+    const canReplay =
+      res.needsTiebreak && !tournament.finalized && (limit === 0 || replays.length < limit);
+    const canCoinToss =
+      res.needsTiebreak && !tournament.finalized && (tournament.settings.allowCoinToss ?? true);
+    if (!hasAggregate && replays.length === 0 && !res.needsTiebreak && res.reason !== "coin-toss")
+      return null;
+
+    const open = openReplays[pair.leg1.id] ?? false;
+    const decider = replays.filter((r) => r.played).slice(-1)[0];
+    const scoreOf = (m: Match) =>
+      `${(m.homeScore || 0) + (m.homeExtraTime || 0)} x ${(m.awayScore || 0) + (m.awayExtraTime || 0)}` +
+      (m.homePenalties !== undefined ? ` (${m.homePenalties}-${m.awayPenalties} pên.)` : "");
+
+    return (
+      <div className="border-t border-border/30 bg-secondary/30">
+        {hasAggregate && (
+          <div className="px-2 py-1 flex items-center justify-between gap-1">
+            <span className="text-[9px] font-bold text-foreground">
+              Agregado {res.aggregate!.home} x {res.aggregate!.away}
+            </span>
+            {res.reason && res.reason !== "aggregate" && res.reason !== "single" && (
+              <span className="text-[8px] text-muted-foreground truncate">
+                {res.label?.split("—").slice(1).join("—").trim()}
+              </span>
+            )}
+          </div>
+        )}
+
+        {(replays.length > 0 || res.reason === "coin-toss") && (
+          <>
+            <button
+              onClick={() => setOpenReplays((p) => ({ ...p, [pair.leg1.id]: !open }))}
+              className="w-full px-2 py-1 flex items-center justify-between gap-1 hover:bg-secondary/60 transition-colors"
+            >
+              <span className="text-[9px] font-semibold text-primary">
+                {res.reason === "coin-toss" && !decider
+                  ? "* decidido no sorteio"
+                  : decider
+                    ? `* jogo extra ${decider.replayIndex}: ${scoreOf(decider)}`
+                    : `* ${replays.length} jogo(s) extra(s)`}
+              </span>
+              <ChevronDown
+                data-photo-control="true"
+                className={cn("w-3 h-3 text-muted-foreground transition-transform", open && "rotate-180")}
+              />
+            </button>
+            <div
+              data-photo-expand="true"
+              className={cn("px-2 pb-1 space-y-1", !open && "hidden")}
+            >
+              {replays.map((r) => (
+                <button
+                  key={r.id}
+                  onClick={() => setSelectedMatch(r)}
+                  className="w-full flex items-center justify-between gap-2 rounded bg-card px-1.5 py-1 text-left hover:bg-secondary/50"
+                >
+                  <span className="text-[8px] text-muted-foreground">Jogo extra {r.replayIndex}</span>
+                  <span className="text-[9px] font-bold text-foreground">
+                    {r.played ? scoreOf(r) : "—"}
+                  </span>
+                </button>
+              ))}
+              {res.reason === "coin-toss" && (
+                <div className="text-[8px] text-muted-foreground px-1">
+                  Sorteio: {getTeam(res.winnerId!)?.shortName || getTeam(res.winnerId!)?.name}
+                </div>
+              )}
+            </div>
+          </>
+        )}
+
+        {res.needsTiebreak && (
+          <div data-photo-control="true" className="px-2 py-1 flex flex-wrap items-center gap-1">
+            {canReplay && (
+              <button
+                onClick={() => handleAddReplay(pair)}
+                className="px-1.5 py-0.5 rounded bg-primary/10 text-primary text-[9px] font-bold hover:bg-primary/20"
+              >
+                + Jogo extra
+              </button>
+            )}
+            {replays.some((r) => !r.played) && (
+              <button
+                onClick={() => handleSimulateReplay(pair, replays.find((r) => !r.played)!)}
+                className="px-1.5 py-0.5 rounded bg-secondary text-foreground text-[9px] hover:bg-secondary/70 border border-border"
+              >
+                Simular extra
+              </button>
+            )}
+            {canCoinToss && (
+              <button
+                onClick={() => handleCoinToss(pair)}
+                className="px-1.5 py-0.5 rounded bg-warning/15 text-warning text-[9px] font-bold hover:bg-warning/25"
+              >
+                Sorteio
+              </button>
+            )}
+            {!canReplay && (
+              <span className="text-[8px] text-muted-foreground">Limite de jogos extras atingido</span>
+            )}
+          </div>
+        )}
+      </div>
+    );
+  };
+
   const renderPair = (pair: { leg1: Match; leg2: Match | null }, pairIdx: number) => {
     const homeTeam = getTeam(pair.leg1.homeTeamId);
     const awayTeam = getTeam(pair.leg1.awayTeamId);
