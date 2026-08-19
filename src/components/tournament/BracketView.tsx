@@ -406,6 +406,8 @@ function getPairs(stageMatches: Match[]): TiePair[] {
   };
 
   const handleSimulateStage = async (stage: string) => {
+    const simulateOne = (m: Match, lineupMap?: Map<string, SolaraLineup | null>) =>
+      simulateMatch(m, false, lineupMap);
     const stageMatches = matchesByStage[stage]?.filter((m) => !m.played && m.homeTeamId && m.awayTeamId) || [];
     if (stageMatches.length === 0) return;
     const teamIdsInStage = Array.from(
