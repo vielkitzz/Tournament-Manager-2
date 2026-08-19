@@ -114,6 +114,7 @@ export default function BracketView({
 }: BracketViewProps) {
   const [selectedMatch, setSelectedMatch] = useState<Match | null>(null);
   const [editingTeam, setEditingTeam] = useState<{ match: Match; side: "home" | "away" } | null>(null);
+  const [openReplays, setOpenReplays] = useState<Record<string, boolean>>({});
   const bracketRef = useRef<HTMLDivElement>(null);
   const matches = tournament.matches || []; // Deixamos apenas uma declaração
   const { activeSkin } = useSkin();
@@ -554,9 +555,7 @@ function getPairs(stageMatches: Match[]): TiePair[] {
     const lineupMap = await fetchTeamLineups([replay.homeTeamId, replay.awayTeamId].filter(Boolean));
     // Jogo extra é uma decisão isolada: pode terminar em pênaltis se ainda houver
     // tentativas esgotadas, caso contrário fica empatado e abre nova rodada/sorteio.
-    const limit = maxReplaysOf(tournament.settings);
-    const isLast = limit > 0 && (replay.replayIndex || 1) >= limit;
-    const simulated = simulateMatch(replay, !isLast, lineupMap);
+    const simulated = simulateMatch(replay, false, lineupMap);
     onUpdateMatch(simulated);
   };
 
