@@ -405,9 +405,34 @@ function getPairs(stageMatches: Match[]): TiePair[] {
     toast.success("Times e resultado reiniciados");
   };
 
+  /**
+   * Aplica os desempates automáticos (jogos extras + sorteio) sobre as partidas
+   * recém simuladas, quando o modo automático está ativo.
+   */
+  const withAutoTiebreaks = (
+    updated: Match[],
+    scope: Match[],
+    lineupMap?: Map<string, SolaraLineup | null>,
+  ): Match[] => {
+    if (!isAutoTiebreak(tournament.settings)) return updated;
+    const byId = new Map(updated.map((m) => [m.id, m]));
+    const merged = scope.map((m) => byId.get(m.id) || m);
+    updated.forEach((m) => {
+      if (!merged.some((x) => x.id === m.id)) merged.push(m);
+    });
+    const extra: Match[] = [];
+    getPairs(merged).forEach((pair) => {
+      const produced = autoResolveTie(pair, tournament.settings, (m) =>
+        simulateMatch(m, false, lineupMap),
+      );
+      extra.push(...produced);
+    });
+    if (extra.length === 0) return updated;
+    const out = updated.filter((m) => !extra.some((e) => e.id === m.id));
+    return [...out, ...extra];
+  };
+
   const handleSimulateStage = async (stage: string) => {
-    const simulateOne = (m: Match, lineupMap?: Map<string, SolaraLineup | null>) =>
-      simulateMatch(m, false, lineupMap);
     const stageMatches = matchesByStage[stage]?.filter((m) => !m.played && m.homeTeamId && m.awayTeamId) || [];
     if (stageMatches.length === 0) return;
     const teamIdsInStage = Array.from(
