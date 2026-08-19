@@ -34,6 +34,8 @@ import {
   coinTossWinner,
   maxReplaysOf,
   tiebreakMode,
+  autoResolveTie,
+  isAutoTiebreak,
   type TiePair,
 } from "@/lib/tieBreaker";
 import { ChevronDown } from "lucide-react";
@@ -213,7 +215,12 @@ function getPairs(stageMatches: Match[]): TiePair[] {
     let awayScore = result.total[1];
     let homePenalties: number | undefined;
     let awayPenalties: number | undefined;
-    if (homeScore === awayScore && !isLeg1OfPair && tiebreakMode(tournament.settings) !== "replay") {
+    if (
+      homeScore === awayScore &&
+      !isLeg1OfPair &&
+      tiebreakMode(tournament.settings) !== "replay" &&
+      isAutoTiebreak(tournament.settings)
+    ) {
       homePenalties = Math.floor(Math.random() * 3) + 3;
       awayPenalties = homePenalties + (Math.random() > 0.5 ? 1 : -1);
       if (awayPenalties < 0) awayPenalties = homePenalties + 1;
@@ -301,7 +308,8 @@ function getPairs(stageMatches: Match[]): TiePair[] {
     let awayPenalties: number | undefined;
 
     const generatePenalties = () => {
-      if (tiebreakMode(tournament.settings) === "replay") return { homePenalties: undefined, awayPenalties: undefined };
+      if (tiebreakMode(tournament.settings) === "replay" || !isAutoTiebreak(tournament.settings))
+        return { homePenalties: undefined, awayPenalties: undefined };
       const homePens = Math.floor(Math.random() * 3) + 3;
       let awayPens = homePens + (Math.random() > 0.5 ? 1 : -1);
       if (awayPens < 0) awayPens = homePens + 1;
@@ -403,6 +411,33 @@ function getPairs(stageMatches: Match[]): TiePair[] {
     toast.success("Times e resultado reiniciados");
   };
 
+  /**
+   * Aplica os desempates automáticos (jogos extras + sorteio) sobre as partidas
+   * recém simuladas, quando o modo automático está ativo.
+   */
+  const withAutoTiebreaks = (
+    updated: Match[],
+    scope: Match[],
+    lineupMap?: Map<string, SolaraLineup | null>,
+  ): Match[] => {
+    if (!isAutoTiebreak(tournament.settings)) return updated;
+    const byId = new Map(updated.map((m) => [m.id, m]));
+    const merged = scope.map((m) => byId.get(m.id) || m);
+    updated.forEach((m) => {
+      if (!merged.some((x) => x.id === m.id)) merged.push(m);
+    });
+    const extra: Match[] = [];
+    getPairs(merged).forEach((pair) => {
+      const produced = autoResolveTie(pair, tournament.settings, (m) =>
+        simulateMatch(m, false, lineupMap),
+      );
+      extra.push(...produced);
+    });
+    if (extra.length === 0) return updated;
+    const out = updated.filter((m) => !extra.some((e) => e.id === m.id));
+    return [...out, ...extra];
+  };
+
   const handleSimulateStage = async (stage: string) => {
     const stageMatches = matchesByStage[stage]?.filter((m) => !m.played && m.homeTeamId && m.awayTeamId) || [];
     if (stageMatches.length === 0) return;
@@ -425,9 +460,9 @@ function getPairs(stageMatches: Match[]): TiePair[] {
       return match;
     });
     if (onBatchUpdateMatches) {
-      onBatchUpdateMatches(updated);
+      onBatchUpdateMatches(withAutoTiebreaks(updated, matchesByStage[stage] || [], lineupMap));
     } else {
-      updated.forEach((m) => onUpdateMatch(m));
+      withAutoTiebreaks(updated, matchesByStage[stage] || [], lineupMap).forEach((m) => onUpdateMatch(m));
     }
   };
 
@@ -439,8 +474,9 @@ function getPairs(stageMatches: Match[]): TiePair[] {
     );
     const lineupMap = await fetchTeamLineups(teamIds);
     const updated = unplayed.map((m) => simulateMatch(m, false, lineupMap));
-    if (onBatchUpdateMatches) onBatchUpdateMatches(updated);
-    else updated.forEach((m) => onUpdateMatch(m));
+    const final = withAutoTiebreaks(updated, thirdPlaceMatches, lineupMap);
+    if (onBatchUpdateMatches) onBatchUpdateMatches(final);
+    else final.forEach((m) => onUpdateMatch(m));
   };
 
   const handleAddMatch = (stageIdx: number) => {
@@ -919,8 +955,21 @@ function getPairs(stageMatches: Match[]): TiePair[] {
     const hasET = match.played && ((match.homeExtraTime || 0) > 0 || (match.awayExtraTime || 0) > 0);
     const hasPens = match.played && match.homePenalties !== undefined;
 
+    const thirdPair: TiePair = {
+      leg1: match,
+      leg2: null,
+      replays: thirdPlaceMatches
+        .filter(
+          (r) =>
+            r.isReplay &&
+            (r.pairId ? r.pairId === match.pairId : r.homeTeamId === match.homeTeamId),
+        )
+        .sort((a, b) => (a.replayIndex || 0) - (b.replayIndex || 0)),
+    };
+
     return (
-      <ContextMenu key={match.id}>
+      <div key={match.id} className="w-[220px] rounded-lg overflow-hidden">
+      <ContextMenu>
         <ContextMenuTrigger>
           <button
             onClick={() => setSelectedMatch(match)}
@@ -974,6 +1023,8 @@ function getPairs(stageMatches: Match[]): TiePair[] {
           </ContextMenuItem>
         </ContextMenuContent>
       </ContextMenu>
+      {renderTieDrawer(thirdPair)}
+      </div>
     );
   };
 

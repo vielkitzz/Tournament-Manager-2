@@ -319,6 +319,14 @@ export default function TournamentSettingsPage() {
             />
             <div className="space-y-1.5 pt-2">
               <span className="text-xs text-muted-foreground">Desempate em confrontos eliminatórios</span>
+            </div>
+            <SettingToggle
+              label="Resolver desempates automaticamente"
+              description="Gera pênaltis, jogos extras e o sorteio sozinho ao simular. Desligue para decidir manualmente."
+              checked={(settings as any).autoTiebreak !== false}
+              onChange={(v) => update({ autoTiebreak: v } as any)}
+            />
+            <div className="space-y-1.5">
               <div className="grid grid-cols-2 gap-2">
                 {([
                   { value: "penalties", label: "Pênaltis" },

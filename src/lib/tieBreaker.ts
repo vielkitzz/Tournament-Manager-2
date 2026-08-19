@@ -155,3 +155,63 @@ export function maxReplaysOf(settings: TournamentSettings) {
 export function tiebreakMode(settings: TournamentSettings) {
   return settings.knockoutTiebreakMode || "penalties";
 }
+
+export function isAutoTiebreak(settings: TournamentSettings) {
+  return settings.autoTiebreak !== false;
+}
+
+/**
+ * Resolve automaticamente um confronto empatado: cria e simula jogos extras
+ * até o limite configurado e, se o empate persistir, decide no sorteio.
+ * Retorna as partidas criadas/atualizadas para gravar em lote.
+ */
+export function autoResolveTie(
+  pair: TiePair,
+  settings: TournamentSettings,
+  simulate: (match: Match) => Match,
+): Match[] {
+  const out: Match[] = [];
+  const working: TiePair = { ...pair, replays: [...(pair.replays || [])] };
+  if (!resolveTie(working, settings).needsTiebreak) return out;
+
+  const limit = maxReplaysOf(settings);
+  const mode = tiebreakMode(settings);
+
+  if (mode === "replay") {
+    let guard = 0;
+    while (
+      resolveTie(working, settings).needsTiebreak &&
+      (limit === 0 || (working.replays as Match[]).length < limit) &&
+      guard++ < 20
+    ) {
+      const index = (working.replays as Match[]).length + 1;
+      const base: Match = {
+        ...working.leg1,
+        id: crypto.randomUUID(),
+        homeScore: 0,
+        awayScore: 0,
+        homeExtraTime: undefined,
+        awayExtraTime: undefined,
+        homePenalties: undefined,
+        awayPenalties: undefined,
+        coinTossWinnerId: undefined,
+        events: undefined,
+        played: false,
+        isReplay: true,
+        replayIndex: index,
+      };
+      const simulated = simulate(base);
+      (working.replays as Match[]).push(simulated);
+      out.push(simulated);
+    }
+  }
+
+  if (resolveTie(working, settings).needsTiebreak && (settings.allowCoinToss ?? true)) {
+    const winnerId = coinTossWinner(working.leg1);
+    const leg1 = { ...working.leg1, coinTossWinnerId: winnerId };
+    working.leg1 = leg1;
+    out.push(leg1);
+  }
+
+  return out;
+}
