@@ -521,6 +521,51 @@ function getPairs(stageMatches: Match[]): TiePair[] {
     toast.success("Confronto removido!");
   };
 
+  // ─── Jogos extras (replays) e sorteio ───
+
+  const handleAddReplay = (pair: TiePair) => {
+    const played = (pair.replays || []).length;
+    const limit = maxReplaysOf(tournament.settings);
+    if (limit > 0 && played >= limit) {
+      toast.error(`Limite de ${limit} jogo(s) extra(s) atingido — decida no sorteio.`);
+      return;
+    }
+    const replay: Match = {
+      id: crypto.randomUUID(),
+      tournamentId: tournament.id,
+      round: pair.leg1.round,
+      homeTeamId: pair.leg1.homeTeamId,
+      awayTeamId: pair.leg1.awayTeamId,
+      homeScore: 0,
+      awayScore: 0,
+      played: false,
+      isReplay: true,
+      replayIndex: played + 1,
+      pairId: pair.leg1.pairId,
+      stage: pair.leg1.stage,
+    };
+    if (onBatchUpdateMatches) onBatchUpdateMatches([...matches, replay]);
+    else onAddMatch?.(replay);
+    setOpenReplays((prev) => ({ ...prev, [pair.leg1.id]: true }));
+    toast.success(`Jogo extra ${replay.replayIndex} criado`);
+  };
+
+  const handleSimulateReplay = async (pair: TiePair, replay: Match) => {
+    const lineupMap = await fetchTeamLineups([replay.homeTeamId, replay.awayTeamId].filter(Boolean));
+    // Jogo extra é uma decisão isolada: pode terminar em pênaltis se ainda houver
+    // tentativas esgotadas, caso contrário fica empatado e abre nova rodada/sorteio.
+    const limit = maxReplaysOf(tournament.settings);
+    const isLast = limit > 0 && (replay.replayIndex || 1) >= limit;
+    const simulated = simulateMatch(replay, !isLast, lineupMap);
+    onUpdateMatch(simulated);
+  };
+
+  const handleCoinToss = (pair: TiePair) => {
+    const winnerId = coinTossWinner(pair.leg1);
+    onUpdateMatch({ ...pair.leg1, coinTossWinnerId: winnerId });
+    toast.success(`Sorteio: ${getTeam(winnerId)?.name || "time"} avança`);
+  };
+
   const handleAdvanceStage = (stageIndex: number) => {
     const stage = stages[stageIndex];
     const nextStage = stages[stageIndex + 1];
