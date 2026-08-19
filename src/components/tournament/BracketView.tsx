@@ -1017,6 +1017,8 @@ function getPairs(stageMatches: Match[]): TiePair[] {
           </ContextMenuItem>
         </ContextMenuContent>
       </ContextMenu>
+      {renderTieDrawer(thirdPair)}
+      </div>
     );
   };
 
