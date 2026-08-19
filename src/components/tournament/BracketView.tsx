@@ -949,8 +949,21 @@ function getPairs(stageMatches: Match[]): TiePair[] {
     const hasET = match.played && ((match.homeExtraTime || 0) > 0 || (match.awayExtraTime || 0) > 0);
     const hasPens = match.played && match.homePenalties !== undefined;
 
+    const thirdPair: TiePair = {
+      leg1: match,
+      leg2: null,
+      replays: thirdPlaceMatches
+        .filter(
+          (r) =>
+            r.isReplay &&
+            (r.pairId ? r.pairId === match.pairId : r.homeTeamId === match.homeTeamId),
+        )
+        .sort((a, b) => (a.replayIndex || 0) - (b.replayIndex || 0)),
+    };
+
     return (
-      <ContextMenu key={match.id}>
+      <div key={match.id} className="w-[220px] rounded-lg overflow-hidden">
+      <ContextMenu>
         <ContextMenuTrigger>
           <button
             onClick={() => setSelectedMatch(match)}
