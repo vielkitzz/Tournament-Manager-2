@@ -34,6 +34,8 @@ import {
   coinTossWinner,
   maxReplaysOf,
   tiebreakMode,
+  autoResolveTie,
+  isAutoTiebreak,
   type TiePair,
 } from "@/lib/tieBreaker";
 import { ChevronDown } from "lucide-react";
@@ -425,9 +427,9 @@ function getPairs(stageMatches: Match[]): TiePair[] {
       return match;
     });
     if (onBatchUpdateMatches) {
-      onBatchUpdateMatches(updated);
+      onBatchUpdateMatches(withAutoTiebreaks(updated, matchesByStage[stage] || [], lineupMap));
     } else {
-      updated.forEach((m) => onUpdateMatch(m));
+      withAutoTiebreaks(updated, matchesByStage[stage] || [], lineupMap).forEach((m) => onUpdateMatch(m));
     }
   };
 
@@ -439,8 +441,9 @@ function getPairs(stageMatches: Match[]): TiePair[] {
     );
     const lineupMap = await fetchTeamLineups(teamIds);
     const updated = unplayed.map((m) => simulateMatch(m, false, lineupMap));
-    if (onBatchUpdateMatches) onBatchUpdateMatches(updated);
-    else updated.forEach((m) => onUpdateMatch(m));
+    const final = withAutoTiebreaks(updated, thirdPlaceMatches, lineupMap);
+    if (onBatchUpdateMatches) onBatchUpdateMatches(final);
+    else final.forEach((m) => onUpdateMatch(m));
   };
 
   const handleAddMatch = (stageIdx: number) => {
