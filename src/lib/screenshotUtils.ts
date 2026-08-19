@@ -396,14 +396,43 @@ ${contrastCss(photo)}
     await new Promise((r) => requestAnimationFrame(r));
 
     // The transform doesn't affect layout size, so size the frame manually.
-    const contentW = Math.ceil(content.scrollWidth);
-    const contentH = Math.ceil(content.scrollHeight);
-    scaler.style.width = `${Math.ceil(contentW * scale)}px`;
-    scaler.style.height = `${Math.ceil(contentH * scale)}px`;
+    // scrollWidth/Height under-report when children overflow a responsive grid
+    // (that is what clipped the Trophy Room on the right), so we walk every
+    // descendant and take the furthest right/bottom edge as the real size.
+    const measure = () => {
+      const base = content.getBoundingClientRect();
+      let right = base.width;
+      let bottom = base.height;
+      content.querySelectorAll<HTMLElement>("*").forEach((el) => {
+        const cs = doc.defaultView?.getComputedStyle(el);
+        if (!cs || cs.display === "none" || cs.visibility === "hidden") return;
+        const r = el.getBoundingClientRect();
+        if (r.width === 0 && r.height === 0) return;
+        right = Math.max(right, r.right - base.left);
+        bottom = Math.max(bottom, r.bottom - base.top);
+      });
+      return {
+        w: Math.ceil(Math.max(right, content.scrollWidth)),
+        h: Math.ceil(Math.max(bottom, content.scrollHeight)),
+      };
+    };
+
+    let size = measure();
+    scaler.style.width = `${Math.ceil(size.w * scale)}px`;
+    scaler.style.height = `${Math.ceil(size.h * scale)}px`;
+    iframe.style.width = `${Math.ceil(size.w * scale) + padding * 2 + 80}px`;
+    iframe.style.height = `${Math.ceil(size.h * scale) + padding * 2 + 80}px`;
     await new Promise((r) => requestAnimationFrame(r));
 
-    const w = Math.ceil(contentW * scale + padding * 2);
-    const h = Math.ceil(contentH * scale + padding * 2);
+    // Second pass: the resize above can reflow wrapped content (long lists),
+    // so re-measure before rasterizing to avoid a cut at the bottom/right.
+    const second = measure();
+    size = { w: Math.max(size.w, second.w), h: Math.max(size.h, second.h) };
+    scaler.style.width = `${Math.ceil(size.w * scale)}px`;
+    scaler.style.height = `${Math.ceil(size.h * scale)}px`;
+
+    const w = Math.ceil(size.w * scale + padding * 2);
+    const h = Math.ceil(size.h * scale + padding * 2);
     iframe.style.height = `${h + 40}px`;
     iframe.style.width = `${w + 40}px`;
     await new Promise((r) => requestAnimationFrame(r));
