@@ -215,7 +215,12 @@ function getPairs(stageMatches: Match[]): TiePair[] {
     let awayScore = result.total[1];
     let homePenalties: number | undefined;
     let awayPenalties: number | undefined;
-    if (homeScore === awayScore && !isLeg1OfPair && tiebreakMode(tournament.settings) !== "replay") {
+    if (
+      homeScore === awayScore &&
+      !isLeg1OfPair &&
+      tiebreakMode(tournament.settings) !== "replay" &&
+      isAutoTiebreak(tournament.settings)
+    ) {
       homePenalties = Math.floor(Math.random() * 3) + 3;
       awayPenalties = homePenalties + (Math.random() > 0.5 ? 1 : -1);
       if (awayPenalties < 0) awayPenalties = homePenalties + 1;
