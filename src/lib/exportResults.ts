@@ -33,8 +33,35 @@ function slugify(input: string): string {
     || "torneio";
 }
 
-function pairWinnerLoser(legs: Match[]): { winnerId?: string; loserId?: string } {
+function pairWinnerLoser(allLegs: Match[]): { winnerId?: string; loserId?: string } {
+  if (allLegs.length === 0) return {};
+  const legs = allLegs.filter((m) => !m.isReplay);
+  const replays = allLegs
+    .filter((m) => m.isReplay)
+    .sort((a, b) => (a.replayIndex || 0) - (b.replayIndex || 0));
   if (legs.length === 0) return {};
+  const base = legs[0];
+  const sides = [base.homeTeamId, base.awayTeamId];
+  const opposite = (id: string) => (id === sides[0] ? sides[1] : sides[0]);
+
+  // Sorteio (cara ou coroa) tem precedência
+  const coin = allLegs.find((m) => m.coinTossWinnerId)?.coinTossWinnerId;
+  if (coin) return { winnerId: coin, loserId: opposite(coin) };
+
+  // Jogos extras decidem o confronto
+  for (let i = replays.length - 1; i >= 0; i--) {
+    const r = replays[i];
+    if (!r.played) continue;
+    const h = (r.homeScore || 0) + (r.homeExtraTime || 0);
+    const a = (r.awayScore || 0) + (r.awayExtraTime || 0);
+    if (h > a) return { winnerId: r.homeTeamId, loserId: r.awayTeamId };
+    if (a > h) return { winnerId: r.awayTeamId, loserId: r.homeTeamId };
+    if (r.homePenalties != null && r.awayPenalties != null && r.homePenalties !== r.awayPenalties) {
+      return r.homePenalties > r.awayPenalties
+        ? { winnerId: r.homeTeamId, loserId: r.awayTeamId }
+        : { winnerId: r.awayTeamId, loserId: r.homeTeamId };
+    }
+  }
   if (legs.length === 1) {
     const m = legs[0];
     if (!m.played) return {};

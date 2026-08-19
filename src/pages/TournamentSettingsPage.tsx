@@ -317,6 +317,62 @@ export default function TournamentSettingsPage() {
               checked={settings.rateInfluence}
               onChange={(v) => update({ rateInfluence: v })}
             />
+            <div className="space-y-1.5 pt-2">
+              <span className="text-xs text-muted-foreground">Desempate em confrontos eliminatórios</span>
+              <div className="grid grid-cols-2 gap-2">
+                {([
+                  { value: "penalties", label: "Pênaltis" },
+                  { value: "extra-time", label: "Prorrogação e pênaltis" },
+                  { value: "replay", label: "Jogos extras (replay)" },
+                  { value: "golden-goal", label: "Gol de ouro" },
+                ] as const).map((opt) => (
+                  <button
+                    key={opt.value}
+                    onClick={() =>
+                      update({
+                        knockoutTiebreakMode: opt.value,
+                        ...(opt.value === "extra-time" ? { extraTime: true } : {}),
+                        ...(opt.value === "golden-goal" ? { extraTime: true, goldenGoal: true } : {}),
+                      })
+                    }
+                    className={
+                      "rounded-lg border px-3 py-2 text-xs text-left transition-colors " +
+                      ((settings.knockoutTiebreakMode || "penalties") === opt.value
+                        ? "border-primary bg-primary/10 text-foreground"
+                        : "border-border bg-secondary/40 text-muted-foreground hover:bg-secondary/60")
+                    }
+                  >
+                    {opt.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+            {(settings.knockoutTiebreakMode || "penalties") === "replay" && (
+              <div className="space-y-3 ml-1">
+                <div className="space-y-1.5">
+                  <span className="text-xs text-muted-foreground">
+                    Limite de jogos extras antes do sorteio
+                  </span>
+                  <Input
+                    type="number"
+                    min={0}
+                    max={10}
+                    value={settings.maxReplays ?? 2}
+                    onChange={(e) => update({ maxReplays: Math.max(0, parseInt(e.target.value) || 0) })}
+                    className="bg-secondary border-border"
+                  />
+                  <p className="text-[11px] text-muted-foreground">
+                    Ao atingir o limite, o confronto é decidido no sorteio (cara ou coroa).
+                  </p>
+                </div>
+                <SettingToggle
+                  label="Permitir decidir no sorteio a qualquer momento"
+                  description="Evita ficar preso repetindo jogos extras"
+                  checked={settings.allowCoinToss ?? true}
+                  onChange={(v) => update({ allowCoinToss: v })}
+                />
+              </div>
+            )}
             <SettingToggle
               label="Cores dos clubes nos destaques"
               description="Realça 1º, 2º e 3º na tabela e a caixa do campeão com as cores do clube"

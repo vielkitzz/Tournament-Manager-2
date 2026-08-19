@@ -27,6 +27,16 @@ import {
 import { useSkin } from "@/hooks/useSkin";
 import { loadImage } from "@/hooks/useSkinImageStore";
 import { useEffect } from "react";
+import {
+  resolveTie,
+  pairAggregate,
+  singleMatchWinner,
+  coinTossWinner,
+  maxReplaysOf,
+  tiebreakMode,
+  type TiePair,
+} from "@/lib/tieBreaker";
+import { ChevronDown } from "lucide-react";
 
 interface BracketViewProps {
   tournament: Tournament;
@@ -70,26 +80,6 @@ function getAggregate(leg1: Match, leg2: Match): { home: number; away: number } 
   return { home, away };
 }
 
-function getTieWinner(leg1: Match, leg2: Match, awayGoalsRule: boolean): string | null {
-  if (!leg1.played || !leg2.played) return null;
-  const agg = getAggregate(leg1, leg2);
-  if (agg.home > agg.away) return leg1.homeTeamId;
-  if (agg.away > agg.home) return leg1.awayTeamId;
-
-  if (awayGoalsRule) {
-    const awayGoalsHome = (leg2.awayScore || 0) + (leg2.awayExtraTime || 0);
-    const awayGoalsAway = (leg1.awayScore || 0) + (leg1.awayExtraTime || 0);
-    if (awayGoalsHome > awayGoalsAway) return leg1.homeTeamId;
-    if (awayGoalsAway > awayGoalsHome) return leg1.awayTeamId;
-  }
-
-  if (leg2.homePenalties !== undefined && leg2.awayPenalties !== undefined) {
-    if (leg2.awayPenalties > leg2.homePenalties) return leg1.homeTeamId;
-    if (leg2.homePenalties > leg2.awayPenalties) return leg1.awayTeamId;
-  }
-  return null;
-}
-
 export default function BracketView({
   tournament,
   teams,
@@ -104,6 +94,7 @@ export default function BracketView({
 }: BracketViewProps) {
   const [selectedMatch, setSelectedMatch] = useState<Match | null>(null);
   const [editingTeam, setEditingTeam] = useState<{ match: Match; side: "home" | "away" } | null>(null);
+  const [openReplays, setOpenReplays] = useState<Record<string, boolean>>({});
   const bracketRef = useRef<HTMLDivElement>(null);
   const matches = tournament.matches || []; // Deixamos apenas uma declaração
   const { activeSkin } = useSkin();
@@ -156,47 +147,47 @@ export default function BracketView({
     matchesByStage[stage] = regularMatches.filter((m) => m.round === i + 1);
   });
 
-  function getPairs(stageMatches: Match[]): Array<{ leg1: Match; leg2: Match | null }> {
-    const pairMap = new Map<string, { leg1?: Match; leg2?: Match }>();
-    const singles: Match[] = [];
+function getPairs(stageMatches: Match[]): TiePair[] {
+    const pairMap = new Map<string, { leg1?: Match; leg2?: Match; replays: Match[] }>();
+    const singles: TiePair[] = [];
+    const looseReplays: Match[] = [];
     for (const m of stageMatches) {
       if (m.pairId) {
-        if (!pairMap.has(m.pairId)) pairMap.set(m.pairId, {});
+        if (!pairMap.has(m.pairId)) pairMap.set(m.pairId, { replays: [] });
         const pair = pairMap.get(m.pairId)!;
-        if (m.leg === 1) pair.leg1 = m;
+        if (m.isReplay) pair.replays.push(m);
+        else if (m.leg === 1 || m.leg === undefined) pair.leg1 = m;
         else pair.leg2 = m;
+      } else if (m.isReplay) {
+        looseReplays.push(m);
       } else {
-        singles.push(m);
+        singles.push({ leg1: m, leg2: null, replays: [] });
       }
     }
-    const result: Array<{ leg1: Match; leg2: Match | null }> = [];
+    const result: TiePair[] = [];
     for (const pair of pairMap.values()) {
-      if (pair.leg1) result.push({ leg1: pair.leg1, leg2: pair.leg2 || null });
+      if (pair.leg1)
+        result.push({
+          leg1: pair.leg1,
+          leg2: pair.leg2 || null,
+          replays: pair.replays.sort((a, b) => (a.replayIndex || 0) - (b.replayIndex || 0)),
+        });
     }
-    for (const s of singles) result.push({ leg1: s, leg2: null });
+    for (const s of singles) {
+      s.replays = looseReplays.filter(
+        (r) => r.homeTeamId === s.leg1.homeTeamId || r.homeTeamId === s.leg1.awayTeamId,
+      );
+      result.push(s);
+    }
     return result;
   }
 
-  const getSingleMatchWinner = (match: Match): string | null => {
-    if (!match.played) return null;
-    if (!match.awayTeamId) return match.homeTeamId;
-    if (!match.homeTeamId) return match.awayTeamId;
-    const homeTotal = (match.homeScore || 0) + (match.homeExtraTime || 0);
-    const awayTotal = (match.awayScore || 0) + (match.awayExtraTime || 0);
-    if (homeTotal > awayTotal) return match.homeTeamId;
-    if (awayTotal > homeTotal) return match.awayTeamId;
-    if (match.homePenalties !== undefined && match.awayPenalties !== undefined) {
-      return match.homePenalties > match.awayPenalties ? match.homeTeamId : match.awayTeamId;
-    }
-    return null;
-  };
+  const getSingleMatchWinner = (match: Match): string | null => singleMatchWinner(match);
 
-  const getTieResult = (pair: { leg1: Match; leg2: Match | null }): string | null => {
-    if (!pair.leg2) return getSingleMatchWinner(pair.leg1);
-    return getTieWinner(pair.leg1, pair.leg2, awayGoalsRule);
-  };
+  const getTieResult = (pair: TiePair): string | null =>
+    resolveTie(pair, tournament.settings).winnerId;
 
-  const getSemiLoser = (pair: { leg1: Match; leg2: Match | null }): string | null => {
+  const getSemiLoser = (pair: TiePair): string | null => {
     const winner = getTieResult(pair);
     if (!winner) return null;
     return winner === pair.leg1.homeTeamId ? pair.leg1.awayTeamId : pair.leg1.homeTeamId;
@@ -222,7 +213,7 @@ export default function BracketView({
     let awayScore = result.total[1];
     let homePenalties: number | undefined;
     let awayPenalties: number | undefined;
-    if (homeScore === awayScore && !isLeg1OfPair) {
+    if (homeScore === awayScore && !isLeg1OfPair && tiebreakMode(tournament.settings) !== "replay") {
       homePenalties = Math.floor(Math.random() * 3) + 3;
       awayPenalties = homePenalties + (Math.random() > 0.5 ? 1 : -1);
       if (awayPenalties < 0) awayPenalties = homePenalties + 1;
@@ -310,6 +301,7 @@ export default function BracketView({
     let awayPenalties: number | undefined;
 
     const generatePenalties = () => {
+      if (tiebreakMode(tournament.settings) === "replay") return { homePenalties: undefined, awayPenalties: undefined };
       const homePens = Math.floor(Math.random() * 3) + 3;
       let awayPens = homePens + (Math.random() > 0.5 ? 1 : -1);
       if (awayPens < 0) awayPens = homePens + 1;
@@ -510,6 +502,49 @@ export default function BracketView({
     toast.success("Confronto removido!");
   };
 
+  // ─── Jogos extras (replays) e sorteio ───
+
+  const handleAddReplay = (pair: TiePair) => {
+    const played = (pair.replays || []).length;
+    const limit = maxReplaysOf(tournament.settings);
+    if (limit > 0 && played >= limit) {
+      toast.error(`Limite de ${limit} jogo(s) extra(s) atingido — decida no sorteio.`);
+      return;
+    }
+    const replay: Match = {
+      id: crypto.randomUUID(),
+      tournamentId: tournament.id,
+      round: pair.leg1.round,
+      homeTeamId: pair.leg1.homeTeamId,
+      awayTeamId: pair.leg1.awayTeamId,
+      homeScore: 0,
+      awayScore: 0,
+      played: false,
+      isReplay: true,
+      replayIndex: played + 1,
+      pairId: pair.leg1.pairId,
+      stage: pair.leg1.stage,
+    };
+    if (onBatchUpdateMatches) onBatchUpdateMatches([...matches, replay]);
+    else onAddMatch?.(replay);
+    setOpenReplays((prev) => ({ ...prev, [pair.leg1.id]: true }));
+    toast.success(`Jogo extra ${replay.replayIndex} criado`);
+  };
+
+  const handleSimulateReplay = async (pair: TiePair, replay: Match) => {
+    const lineupMap = await fetchTeamLineups([replay.homeTeamId, replay.awayTeamId].filter(Boolean));
+    // Jogo extra é uma decisão isolada: pode terminar em pênaltis se ainda houver
+    // tentativas esgotadas, caso contrário fica empatado e abre nova rodada/sorteio.
+    const simulated = simulateMatch(replay, false, lineupMap);
+    onUpdateMatch(simulated);
+  };
+
+  const handleCoinToss = (pair: TiePair) => {
+    const winnerId = coinTossWinner(pair.leg1);
+    onUpdateMatch({ ...pair.leg1, coinTossWinnerId: winnerId });
+    toast.success(`Sorteio: ${getTeam(winnerId)?.name || "time"} avança`);
+  };
+
   const handleAdvanceStage = (stageIndex: number) => {
     const stage = stages[stageIndex];
     const nextStage = stages[stageIndex + 1];
@@ -607,7 +642,119 @@ export default function BracketView({
 
   // ─── Render helpers ───
 
-  const renderPair = (pair: { leg1: Match; leg2: Match | null }, pairIdx: number) => {
+  /** Placar agregado + gaveta de jogos extras / sorteio abaixo do card. */
+  const renderTieDrawer = (pair: TiePair) => {
+    const res = resolveTie(pair, tournament.settings);
+    const replays = pair.replays || [];
+    const hasAggregate = !!pair.leg2 && !!res.aggregate;
+    const limit = maxReplaysOf(tournament.settings);
+    const canReplay =
+      res.needsTiebreak && !tournament.finalized && (limit === 0 || replays.length < limit);
+    const canCoinToss =
+      res.needsTiebreak && !tournament.finalized && (tournament.settings.allowCoinToss ?? true);
+    if (!hasAggregate && replays.length === 0 && !res.needsTiebreak && res.reason !== "coin-toss")
+      return null;
+
+    const open = openReplays[pair.leg1.id] ?? false;
+    const decider = replays.filter((r) => r.played).slice(-1)[0];
+    const scoreOf = (m: Match) =>
+      `${(m.homeScore || 0) + (m.homeExtraTime || 0)} x ${(m.awayScore || 0) + (m.awayExtraTime || 0)}` +
+      (m.homePenalties !== undefined ? ` (${m.homePenalties}-${m.awayPenalties} pên.)` : "");
+
+    return (
+      <div className="border-t border-border/30 bg-secondary/30">
+        {hasAggregate && (
+          <div className="px-2 py-1 flex items-center justify-between gap-1">
+            <span className="text-[9px] font-bold text-foreground">
+              Agregado {res.aggregate!.home} x {res.aggregate!.away}
+            </span>
+            {res.reason && res.reason !== "aggregate" && res.reason !== "single" && (
+              <span className="text-[8px] text-muted-foreground truncate">
+                {res.label?.split("—").slice(1).join("—").trim()}
+              </span>
+            )}
+          </div>
+        )}
+
+        {(replays.length > 0 || res.reason === "coin-toss") && (
+          <>
+            <button
+              onClick={() => setOpenReplays((p) => ({ ...p, [pair.leg1.id]: !open }))}
+              className="w-full px-2 py-1 flex items-center justify-between gap-1 hover:bg-secondary/60 transition-colors"
+            >
+              <span className="text-[9px] font-semibold text-primary">
+                {res.reason === "coin-toss" && !decider
+                  ? "* decidido no sorteio"
+                  : decider
+                    ? `* jogo extra ${decider.replayIndex}: ${scoreOf(decider)}`
+                    : `* ${replays.length} jogo(s) extra(s)`}
+              </span>
+              <ChevronDown
+                data-photo-control="true"
+                className={cn("w-3 h-3 text-muted-foreground transition-transform", open && "rotate-180")}
+              />
+            </button>
+            <div
+              data-photo-expand="true"
+              className={cn("px-2 pb-1 space-y-1", !open && "hidden")}
+            >
+              {replays.map((r) => (
+                <button
+                  key={r.id}
+                  onClick={() => setSelectedMatch(r)}
+                  className="w-full flex items-center justify-between gap-2 rounded bg-card px-1.5 py-1 text-left hover:bg-secondary/50"
+                >
+                  <span className="text-[8px] text-muted-foreground">Jogo extra {r.replayIndex}</span>
+                  <span className="text-[9px] font-bold text-foreground">
+                    {r.played ? scoreOf(r) : "—"}
+                  </span>
+                </button>
+              ))}
+              {res.reason === "coin-toss" && (
+                <div className="text-[8px] text-muted-foreground px-1">
+                  Sorteio: {getTeam(res.winnerId!)?.shortName || getTeam(res.winnerId!)?.name}
+                </div>
+              )}
+            </div>
+          </>
+        )}
+
+        {res.needsTiebreak && (
+          <div data-photo-control="true" className="px-2 py-1 flex flex-wrap items-center gap-1">
+            {canReplay && (
+              <button
+                onClick={() => handleAddReplay(pair)}
+                className="px-1.5 py-0.5 rounded bg-primary/10 text-primary text-[9px] font-bold hover:bg-primary/20"
+              >
+                + Jogo extra
+              </button>
+            )}
+            {replays.some((r) => !r.played) && (
+              <button
+                onClick={() => handleSimulateReplay(pair, replays.find((r) => !r.played)!)}
+                className="px-1.5 py-0.5 rounded bg-secondary text-foreground text-[9px] hover:bg-secondary/70 border border-border"
+              >
+                Simular extra
+              </button>
+            )}
+            {canCoinToss && (
+              <button
+                onClick={() => handleCoinToss(pair)}
+                className="px-1.5 py-0.5 rounded bg-warning/15 text-warning text-[9px] font-bold hover:bg-warning/25"
+              >
+                Sorteio
+              </button>
+            )}
+            {!canReplay && (
+              <span className="text-[8px] text-muted-foreground">Limite de jogos extras atingido</span>
+            )}
+          </div>
+        )}
+      </div>
+    );
+  };
+
+  const renderPair = (pair: TiePair, pairIdx: number) => {
     const homeTeam = getTeam(pair.leg1.homeTeamId);
     const awayTeam = getTeam(pair.leg1.awayTeamId);
     const winner = getTieResult(pair);
@@ -756,6 +903,8 @@ export default function BracketView({
             </ContextMenuContent>
           </ContextMenu>
         )}
+
+        {renderTieDrawer(pair)}
       </div>
     );
   };

@@ -27,6 +27,12 @@ export interface TournamentSettings {
   awayGoalsRule: boolean;
   extraTime: boolean;
   goldenGoal: boolean;
+  /** Como resolver um confronto eliminatório empatado. Default: "penalties". */
+  knockoutTiebreakMode?: "penalties" | "extra-time" | "replay" | "golden-goal";
+  /** Máximo de jogos extras antes do sorteio obrigatório. Default: 2. */
+  maxReplays?: number;
+  /** Permite decidir no sorteio a qualquer momento. Default: true. */
+  allowCoinToss?: boolean;
   rateInfluence: boolean;
   /** Use the club colors to highlight podium/champion. Default: true. */
   useTeamColors?: boolean;
@@ -130,6 +136,12 @@ export interface Match {
   awayPenalties?: number;
   // Third-place flag
   isThirdPlace?: boolean;
+  /** Jogo extra (replay) de um confronto empatado. */
+  isReplay?: boolean;
+  /** Ordem do jogo extra dentro do confronto (1, 2, 3...). */
+  replayIndex?: number;
+  /** Confronto decidido no sorteio (cara ou coroa) — id do time vencedor. */
+  coinTossWinnerId?: string;
   // Match statistics
   homeStats?: TeamMatchStats;
   awayStats?: TeamMatchStats;
@@ -274,6 +286,9 @@ export const DEFAULT_SETTINGS: TournamentSettings = {
   extraTime: false,
   goldenGoal: false,
   rateInfluence: true,
+  knockoutTiebreakMode: "penalties",
+  maxReplays: 2,
+  allowCoinToss: true,
   promotions: [],
   knockoutLegMode: "single",
   finalSingleLeg: false,
