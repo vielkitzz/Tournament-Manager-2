@@ -27,6 +27,16 @@ import {
 import { useSkin } from "@/hooks/useSkin";
 import { loadImage } from "@/hooks/useSkinImageStore";
 import { useEffect } from "react";
+import {
+  resolveTie,
+  pairAggregate,
+  singleMatchWinner,
+  coinTossWinner,
+  maxReplaysOf,
+  tiebreakMode,
+  type TiePair,
+} from "@/lib/tieBreaker";
+import { ChevronDown } from "lucide-react";
 
 interface BracketViewProps {
   tournament: Tournament;
@@ -156,47 +166,47 @@ export default function BracketView({
     matchesByStage[stage] = regularMatches.filter((m) => m.round === i + 1);
   });
 
-  function getPairs(stageMatches: Match[]): Array<{ leg1: Match; leg2: Match | null }> {
-    const pairMap = new Map<string, { leg1?: Match; leg2?: Match }>();
-    const singles: Match[] = [];
+function getPairs(stageMatches: Match[]): TiePair[] {
+    const pairMap = new Map<string, { leg1?: Match; leg2?: Match; replays: Match[] }>();
+    const singles: TiePair[] = [];
+    const looseReplays: Match[] = [];
     for (const m of stageMatches) {
       if (m.pairId) {
-        if (!pairMap.has(m.pairId)) pairMap.set(m.pairId, {});
+        if (!pairMap.has(m.pairId)) pairMap.set(m.pairId, { replays: [] });
         const pair = pairMap.get(m.pairId)!;
-        if (m.leg === 1) pair.leg1 = m;
+        if (m.isReplay) pair.replays.push(m);
+        else if (m.leg === 1 || m.leg === undefined) pair.leg1 = m;
         else pair.leg2 = m;
+      } else if (m.isReplay) {
+        looseReplays.push(m);
       } else {
-        singles.push(m);
+        singles.push({ leg1: m, leg2: null, replays: [] });
       }
     }
-    const result: Array<{ leg1: Match; leg2: Match | null }> = [];
+    const result: TiePair[] = [];
     for (const pair of pairMap.values()) {
-      if (pair.leg1) result.push({ leg1: pair.leg1, leg2: pair.leg2 || null });
+      if (pair.leg1)
+        result.push({
+          leg1: pair.leg1,
+          leg2: pair.leg2 || null,
+          replays: pair.replays.sort((a, b) => (a.replayIndex || 0) - (b.replayIndex || 0)),
+        });
     }
-    for (const s of singles) result.push({ leg1: s, leg2: null });
+    for (const s of singles) {
+      s.replays = looseReplays.filter(
+        (r) => r.homeTeamId === s.leg1.homeTeamId || r.homeTeamId === s.leg1.awayTeamId,
+      );
+      result.push(s);
+    }
     return result;
   }
 
-  const getSingleMatchWinner = (match: Match): string | null => {
-    if (!match.played) return null;
-    if (!match.awayTeamId) return match.homeTeamId;
-    if (!match.homeTeamId) return match.awayTeamId;
-    const homeTotal = (match.homeScore || 0) + (match.homeExtraTime || 0);
-    const awayTotal = (match.awayScore || 0) + (match.awayExtraTime || 0);
-    if (homeTotal > awayTotal) return match.homeTeamId;
-    if (awayTotal > homeTotal) return match.awayTeamId;
-    if (match.homePenalties !== undefined && match.awayPenalties !== undefined) {
-      return match.homePenalties > match.awayPenalties ? match.homeTeamId : match.awayTeamId;
-    }
-    return null;
-  };
+  const getSingleMatchWinner = (match: Match): string | null => singleMatchWinner(match);
 
-  const getTieResult = (pair: { leg1: Match; leg2: Match | null }): string | null => {
-    if (!pair.leg2) return getSingleMatchWinner(pair.leg1);
-    return getTieWinner(pair.leg1, pair.leg2, awayGoalsRule);
-  };
+  const getTieResult = (pair: TiePair): string | null =>
+    resolveTie(pair, tournament.settings).winnerId;
 
-  const getSemiLoser = (pair: { leg1: Match; leg2: Match | null }): string | null => {
+  const getSemiLoser = (pair: TiePair): string | null => {
     const winner = getTieResult(pair);
     if (!winner) return null;
     return winner === pair.leg1.homeTeamId ? pair.leg1.awayTeamId : pair.leg1.homeTeamId;
