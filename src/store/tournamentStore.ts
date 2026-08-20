@@ -17,7 +17,6 @@ import { TeamHistory } from "@/lib/teamHistoryUtils";
 // Use any-typed client to avoid strict type errors from generated types
 const db = supabase as any;
 
-
 async function getAuthenticatedUserId(fallbackUserId?: string | null): Promise<string> {
   const { data, error } = await supabase.auth.getUser();
 
@@ -402,7 +401,11 @@ export const useTournamentStore = create<TournamentState>((set, get) => ({
   addFolder: async (name) => {
     const userId = get()._userId;
     if (!userId) return;
-    const { data } = await db.from("team_folders").insert({ user_id: userId, name }).select().single();
+    const { data, error } = await db.from("team_folders").insert({ user_id: userId, name }).select().single();
+    if (error) {
+      console.error("[addFolder] insert error:", error);
+      throw error;
+    }
     if (data) {
       set((s) => ({ folders: [...s.folders, { id: data.id, name: data.name, parentId: data.parent_id || null }] }));
       return data.id;
@@ -506,7 +509,7 @@ export const useTournamentStore = create<TournamentState>((set, get) => ({
   addTeamHistory: async (history) => {
     const userId = get()._userId;
     if (!userId) return;
-    const { data } = await db
+    const { data, error } = await db
       .from("team_histories")
       .insert({
         id: history.id,
@@ -524,6 +527,10 @@ export const useTournamentStore = create<TournamentState>((set, get) => ({
       })
       .select()
       .single();
+    if (error) {
+      console.error("[addTeamHistory] insert error:", error);
+      throw error;
+    }
     if (data) {
       set((s) => ({
         teamHistories: [
