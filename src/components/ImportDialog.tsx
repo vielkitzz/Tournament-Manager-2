@@ -21,7 +21,7 @@ interface Props {
 type ImportMode = "teams" | "tournaments" | "all";
 
 export default function ImportDialog({ trigger }: Props) {
-  const { addTeam, addTournament, addTeamHistory } = useTournamentStore();
+  const { addTeam, addTournament, addTeamHistory, addFolder } = useTournamentStore();
   const [open, setOpen] = useState(false);
   const [mode, setMode] = useState<ImportMode | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -41,9 +41,23 @@ export default function ImportDialog({ trigger }: Props) {
       let teamsImported = 0;
       let tournamentsImported = 0;
       let historiesImported = 0;
+      let foldersImported = 0;
 
       // Build ID mapping for teams (old ID -> new ID)
       const teamIdMap = new Map<string, string>();
+      // Build ID mapping for folders (old ID -> new ID)
+      const folderIdMap = new Map<string, string>();
+
+      if ((mode === "teams" || mode === "all") && data.folders && Array.isArray(data.folders)) {
+        for (const folder of data.folders) {
+          const oldFolderId = folder._originalId || folder.id;
+          const newFolderId = await addFolder(folder.name || "Pasta importada");
+          if (oldFolderId && newFolderId) {
+            folderIdMap.set(oldFolderId, newFolderId);
+            foldersImported++;
+          }
+        }
+      }
 
       if ((mode === "teams" || mode === "all") && data.teams && Array.isArray(data.teams)) {
         for (const team of data.teams) {
@@ -60,6 +74,7 @@ export default function ImportDialog({ trigger }: Props) {
             foundingYear: team.foundingYear,
             colors: team.colors || ["#1e40af", "#ffffff"],
             rate: team.rate || 3,
+            folderId: team.folderId ? folderIdMap.get(team.folderId) : undefined,
           };
           await addTeam(newTeam);
           teamsImported++;
@@ -168,6 +183,7 @@ export default function ImportDialog({ trigger }: Props) {
 
       const parts: string[] = [];
       if (teamsImported > 0) parts.push(`${teamsImported} time(s)`);
+      if (foldersImported > 0) parts.push(`${foldersImported} pasta(s)`);
       if (historiesImported > 0) parts.push(`${historiesImported} versão(ões) histórica(s)`);
       if (tournamentsImported > 0) parts.push(`${tournamentsImported} competição(ões)`);
 
@@ -176,8 +192,9 @@ export default function ImportDialog({ trigger }: Props) {
       } else {
         toast.error("Nenhum dado reconhecido no arquivo");
       }
-    } catch {
-      toast.error("Erro ao ler o arquivo. Verifique o formato JSON.");
+    } catch (err) {
+      console.error("[ImportDialog] import error:", err);
+      toast.error("Erro ao importar. Veja o console para detalhes.");
     }
 
     if (fileInputRef.current) fileInputRef.current.value = "";
