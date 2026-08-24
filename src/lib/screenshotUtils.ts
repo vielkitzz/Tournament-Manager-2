@@ -285,11 +285,12 @@ async function renderInDesktopFrame(
   photo: PhotoModeSettings
 ) {
   const scale = Math.min(2, Math.max(0.8, photo.scale || 1));
-  // The clone is laid out at a desktop width (so media queries never hide content)
-  // and then the WHOLE subtree is scaled with a CSS transform. Scaling only the root
-  // font-size left every hardcoded px value (text-[10px], w-[220px], logo sizes)
-  // untouched, which is why the zoom often "did nothing".
-  const width = Math.min(6000, Math.max(720, Math.round(photo.width)));
+  const targetWidth = Math.min(6000, Math.max(720, Math.round(photo.width)));
+  // The zoom must make the CONTENT bigger relative to the exported image, not the
+  // image bigger. So the clone is laid out at `target / zoom` and then scaled back up
+  // by the same factor: the final PNG keeps the chosen width while every element
+  // (fonts, shields, hardcoded px sizes) really grows.
+  const width = Math.min(6000, Math.max(560, Math.round(targetWidth / scale)));
 
   const iframe = document.createElement("iframe");
   iframe.setAttribute("aria-hidden", "true");
@@ -297,6 +298,7 @@ async function renderInDesktopFrame(
     600,
     element.scrollHeight + 200
   )}px;`;
+
   document.body.appendChild(iframe);
 
   try {
