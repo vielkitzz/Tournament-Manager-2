@@ -285,11 +285,12 @@ async function renderInDesktopFrame(
   photo: PhotoModeSettings
 ) {
   const scale = Math.min(2, Math.max(0.8, photo.scale || 1));
-  // The clone is laid out at a desktop width (so media queries never hide content)
-  // and then the WHOLE subtree is scaled with a CSS transform. Scaling only the root
-  // font-size left every hardcoded px value (text-[10px], w-[220px], logo sizes)
-  // untouched, which is why the zoom often "did nothing".
-  const width = Math.min(6000, Math.max(720, Math.round(photo.width)));
+  const targetWidth = Math.min(6000, Math.max(720, Math.round(photo.width)));
+  // The zoom must make the CONTENT bigger relative to the exported image, not the
+  // image bigger. So the clone is laid out at `target / zoom` and then scaled back up
+  // by the same factor: the final PNG keeps the chosen width while every element
+  // (fonts, shields, hardcoded px sizes) really grows.
+  const width = Math.min(6000, Math.max(560, Math.round(targetWidth / scale)));
 
   const iframe = document.createElement("iframe");
   iframe.setAttribute("aria-hidden", "true");
@@ -297,6 +298,7 @@ async function renderInDesktopFrame(
     600,
     element.scrollHeight + 200
   )}px;`;
+
   document.body.appendChild(iframe);
 
   try {
@@ -320,7 +322,10 @@ ${contrastCss(photo)}
         : ""
     }}
 #capture-scaler{transform-origin:top left;transform:scale(${scale});}
-#capture-content{width:max-content;min-width:${width}px;}
+/* Shrink-to-fit: forcing the frame width here padded narrow content (rounds,
+   tables) with big empty bands, which made the text look tiny in the export. */
+#capture-content{width:max-content;min-width:0;max-width:none;}
+
 #capture-root *{overflow:visible !important;max-height:none !important;}
  #capture-root{background-color:hsl(var(--background)) !important;color:hsl(var(--foreground)) !important;}
  #capture-root .bg-card:not([data-team-tint]),#capture-root [class*="bg-card/"]:not([data-team-tint]){background-image:none !important;background-color:hsl(var(--card)) !important;color:hsl(var(--card-foreground)) !important;}
@@ -386,9 +391,11 @@ ${contrastCss(photo)}
     // Mirror scroll positions away and let layout settle
     await waitForAssets(doc);
 
-    // Bump any text that is still too small to read on a phone screen. The global
-    // transform multiplies it afterwards, so the threshold is the unscaled 12px.
-    const minFont = 12;
+    // Readability floor relative to the layout width (not a fixed 12px): wide
+    // captures need proportionally bigger text to stay legible on a phone.
+    const measuredWidth = Math.max(320, content.scrollWidth || width);
+    const minFont = Math.min(20, Math.max(12, measuredWidth / 85));
+
     root.querySelectorAll<HTMLElement>("*").forEach((el) => {
       const fs = parseFloat(doc.defaultView?.getComputedStyle(el).fontSize || "0");
       if (fs > 0 && fs < minFont) el.style.fontSize = `${minFont.toFixed(1)}px`;
@@ -437,9 +444,11 @@ ${contrastCss(photo)}
     iframe.style.width = `${w + 40}px`;
     await new Promise((r) => requestAnimationFrame(r));
 
-    // Keep Discord uploads comfortable: cap total pixels while staying sharp
+    // The pixel budget only caps EXTRA sharpness — it must never render below 1x,
+    // otherwise a higher zoom produced a downscaled (blurrier/smaller) image.
     const budget = photo.maxPixels || DEFAULT_PHOTO_MODE.maxPixels;
-    const ratio = Math.min(2, Math.max(0.75, Math.sqrt(budget / Math.max(1, w * h))));
+    const ratio = Math.min(2, Math.max(1, Math.sqrt(budget / Math.max(1, w * h))));
+
 
     return await toPng(root as HTMLElement, {
       backgroundColor: hasBgImage ? undefined : bgColor,
@@ -470,7 +479,9 @@ export async function captureScreenshotDataUrl(
       ? `hsl(${rawBg})`
       : "#0a0a0a";
   const bgColor = photoBackground(photo, themeBg);
-  const padding = Math.round((photo.padding ?? 32) * Math.min(2, Math.max(0.8, photo.scale || 1)));
+  // Constant, slim frame: multiplying the padding by the zoom only added empty margin.
+  const padding = Math.max(16, Math.round(photo.padding ?? 32));
+
 
   try {
     return await renderInDesktopFrame(element, padding, bgColor, bodyStyle, photo);
