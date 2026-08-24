@@ -102,13 +102,28 @@ export default function PhotoModeSettingsCard({
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Controls */}
         <div className="space-y-5">
-          <div className="space-y-2">
+          <div className="flex items-center justify-between p-3 rounded-lg bg-secondary/40">
+            <div className="space-y-0.5">
+              <Label className="text-sm text-foreground">Ajuste automático por conteúdo</Label>
+              <p className="text-[11px] text-muted-foreground">
+                Cada modo usa a largura e o zoom ideais (
+                {Object.values(PHOTO_PRESETS)
+                  .slice(0, 3)
+                  .map((p) => `${p.label} ${Math.round(p.scale * 100)}%`)
+                  .join(" · ")}
+                )
+              </p>
+            </div>
+            <Switch checked={auto} onCheckedChange={(v) => update({ autoPreset: v })} />
+          </div>
+
+          <div className={cn("space-y-2", auto && "opacity-50 pointer-events-none")}>
             <Label className="text-xs text-muted-foreground">Formato da imagem</Label>
             <div className="grid grid-cols-3 gap-2">
               {WIDTH_PRESETS.map((p) => (
                 <button
                   key={p.value}
-                  onClick={() => update({ width: p.value })}
+                  onClick={() => update({ width: p.value, autoPreset: false })}
                   className={cn(
                     "rounded-lg border px-2 py-2 text-left transition-colors",
                     settings.width === p.value
@@ -123,22 +138,25 @@ export default function PhotoModeSettingsCard({
             </div>
           </div>
 
-          <div className="space-y-2">
+          <div className={cn("space-y-2", auto && "opacity-50 pointer-events-none")}>
             <div className="flex items-center justify-between">
               <Label className="text-xs text-muted-foreground">Tamanho das informações</Label>
-              <span className="text-xs font-mono text-foreground">{Math.round((settings.scale || 1) * 100)}%</span>
+              <span className="text-xs font-mono text-foreground">
+                {Math.round((effective.scale || 1) * 100)}%
+              </span>
             </div>
             <Slider
               value={[settings.scale ?? 1]}
               min={1}
               max={1.8}
               step={0.05}
-              onValueChange={([v]) => update({ scale: v })}
+              onValueChange={([v]) => update({ scale: v, autoPreset: false })}
             />
             <p className="text-[11px] text-muted-foreground">
               Aumenta escudos, siglas e placares para leitura sem zoom no celular ou no Discord.
             </p>
           </div>
+
 
           <div className="space-y-2">
             <Label className="text-xs text-muted-foreground">Paleta</Label>
