@@ -410,6 +410,9 @@ ${contrastCss(photo)}
       const base = content.getBoundingClientRect();
       let right = base.width;
       let bottom = base.height;
+      // "Ink" right edge: ignores hairlines/dividers and stretched empty wrappers,
+      // so the frame is trimmed to where real information actually ends.
+      let ink = 0;
       content.querySelectorAll<HTMLElement>("*").forEach((el) => {
         const cs = doc.defaultView?.getComputedStyle(el);
         if (!cs || cs.display === "none" || cs.visibility === "hidden") return;
@@ -417,12 +420,29 @@ ${contrastCss(photo)}
         if (r.width === 0 && r.height === 0) return;
         right = Math.max(right, r.right - base.left);
         bottom = Math.max(bottom, r.bottom - base.top);
+
+        const thin = r.height <= 2 || r.width <= 2;
+        if (thin) return;
+        const bg = cs.backgroundColor || "";
+        const paintedBg = !!bg && bg !== "transparent" && !/rgba\(\s*0,\s*0,\s*0,\s*0\s*\)/.test(bg);
+        const leaf = el.childElementCount === 0;
+        const tag = el.tagName.toLowerCase();
+        const hasInk =
+          paintedBg ||
+          tag === "img" ||
+          tag === "svg" ||
+          (leaf && (el.textContent || "").trim().length > 0);
+        if (hasInk) ink = Math.max(ink, r.right - base.left);
       });
+      const full = Math.ceil(Math.max(right, content.scrollWidth));
+      const inkW = Math.ceil(ink) + 2;
       return {
-        w: Math.ceil(Math.max(right, content.scrollWidth)),
+        // Contingency: an implausible ink measurement falls back to the full width.
+        w: inkW >= 160 && inkW < full ? inkW : full,
         h: Math.ceil(Math.max(bottom, content.scrollHeight)),
       };
     };
+
 
     let size = measure();
     scaler.style.width = `${Math.ceil(size.w * scale)}px`;
