@@ -307,13 +307,15 @@ export default function PhotoModeSettingsCard({
           <div
             className={cn(
               "border border-border overflow-hidden mx-auto",
-              device === "mobile" ? "rounded-[1.6rem] max-w-[300px] p-2 bg-secondary/40" : "rounded-lg"
+              device === "mobile" ? "rounded-[1.6rem] p-2 bg-secondary/40" : "rounded-lg"
             )}
+            style={{ width: PREVIEW_WIDTH[device] + (device === "mobile" ? 16 : 0), maxWidth: "100%" }}
           >
             <div
-              style={{ ...vars, fontSize: `${(device === "mobile" ? 10.5 : 12) * previewScale}px` } as React.CSSProperties}
+              style={{ ...vars, fontSize: `${previewFont}px` } as React.CSSProperties}
               className={cn("bg-background text-foreground p-3", device === "mobile" && "rounded-[1.1rem]")}
             >
+
               {settings.showHeader && (
                 <div
                   className="flex items-center gap-2 pb-2 mb-2"
