@@ -24,6 +24,8 @@ export interface PhotoModeSettings {
   highContrast: boolean;
   /** Pixel budget for the exported PNG (smaller = lighter file). */
   maxPixels: number;
+  /** When true, width/scale come from the per-content preset (see PHOTO_PRESETS). */
+  autoPreset: boolean;
 }
 
 export const DEFAULT_PHOTO_MODE: PhotoModeSettings = {
@@ -40,13 +42,41 @@ export const DEFAULT_PHOTO_MODE: PhotoModeSettings = {
   padding: 40,
   highContrast: true,
   maxPixels: 5_000_000,
+  autoPreset: true,
 };
+
+/** Content kinds captured by the camera buttons. */
+export type PhotoLayoutKind = "table" | "rounds" | "bracket" | "gallery" | "stats";
+
+/**
+ * Ideal image width + base zoom per content kind. Tables/rounds are narrow and
+ * benefit from a closer framing; brackets and stats need room for many columns.
+ */
+export const PHOTO_PRESETS: Record<PhotoLayoutKind, { width: number; scale: number; label: string }> = {
+  table: { width: 1000, scale: 1.35, label: "Tabela" },
+  rounds: { width: 900, scale: 1.45, label: "Rodadas" },
+  bracket: { width: 1400, scale: 1.15, label: "Chaveamento" },
+  gallery: { width: 1100, scale: 1.3, label: "Sala de troféus" },
+  stats: { width: 1200, scale: 1.25, label: "Estatísticas" },
+};
+
+/** Applies the per-kind preset when the user hasn't overridden width/zoom manually. */
+export function resolvePhotoMode(
+  settings: PhotoModeSettings,
+  kind?: PhotoLayoutKind
+): PhotoModeSettings {
+  if (!kind || settings.autoPreset === false) return settings;
+  const preset = PHOTO_PRESETS[kind];
+  if (!preset) return settings;
+  return { ...settings, width: preset.width, scale: preset.scale };
+}
 
 export const QUALITY_PRESETS = [
   { label: "Leve", value: 3_000_000, hint: "menor arquivo" },
   { label: "Equilibrado", value: 5_000_000, hint: "recomendado" },
   { label: "Nítido", value: 8_000_000, hint: "máxima nitidez" },
 ];
+
 
 const KEY = "tm2-photo-mode";
 
