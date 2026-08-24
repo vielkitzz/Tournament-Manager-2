@@ -136,7 +136,7 @@ export default function RoundsView({
   };
 
   return (
-    <div className="space-y-4" ref={roundsRef}>
+    <div className="space-y-4" ref={roundsRef} data-photo-layout="rounds">
       {tournament.finalized && (
         <div className="flex items-center justify-center gap-2 p-3 rounded-xl bg-primary/30 border border-primary/20">
           <Trophy className="w-4 h-4 text-primary" />
@@ -200,10 +200,11 @@ export default function RoundsView({
             <button
               key={match.id}
               onClick={() => setSelectedMatch(match)}
+              data-photo-match="true"
               className="w-full p-3 rounded-xl bg-card/70 border border-border hover:border-primary/40 transition-all text-left"
             >
-              <div className="flex items-center gap-3">
-                <div className="flex-1 flex items-center gap-2 justify-end">
+              <div className="flex items-center gap-3" data-photo-row="true">
+                <div className="flex-1 flex items-center gap-2 justify-end" data-photo-side="home">
                   <span className="text-xs font-medium text-foreground truncate">
                     {home?.shortName || home?.abbreviation || "Time Excluído"}
                   </span>
@@ -226,7 +227,8 @@ export default function RoundsView({
                     <span className="text-xs text-muted-foreground">vs</span>
                   )}
                 </div>
-                <div className="flex-1 flex items-center gap-2">
+                <div className="flex-1 flex items-center gap-2" data-photo-side="away">
+
                   <div className="w-6 h-6 flex items-center justify-center shrink-0">
                     {away?.logo ? (
                       <img src={away.logo} alt="" className="w-6 h-6 object-contain" />

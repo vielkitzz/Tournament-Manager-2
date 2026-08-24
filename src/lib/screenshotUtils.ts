@@ -353,6 +353,16 @@ ${contrastCss(photo)}
  #capture-root [data-photo-match="true"] .truncate{overflow:visible !important;text-overflow:clip !important;}
  #capture-root [data-photo-champion="true"] *{word-break:normal !important;overflow-wrap:break-word !important;white-space:normal !important;writing-mode:horizontal-tb !important;}
  #capture-root [data-photo-champion="true"] > div{width:100% !important;}
+ /* Rounds: shrink each match row to its content and center the whole block,
+    removing the wide empty bands caused by w-full rows + flex-1 sides. */
+ #capture-root [data-photo-layout="rounds"]{display:flex !important;flex-direction:column !important;align-items:center !important;width:max-content !important;margin:0 auto !important;}
+ #capture-root [data-photo-layout="rounds"] > *{width:100% !important;}
+ #capture-root [data-photo-layout="rounds"] [data-photo-match="true"]{width:100% !important;min-width:0 !important;}
+ #capture-root [data-photo-layout="rounds"] [data-photo-side="home"]{flex:0 0 auto !important;justify-content:flex-end !important;}
+ #capture-root [data-photo-layout="rounds"] [data-photo-side="away"]{flex:0 0 auto !important;}
+ #capture-root [data-photo-layout="rounds"] [data-photo-side] span{max-width:none !important;overflow:visible !important;text-overflow:clip !important;white-space:nowrap !important;}
+ #capture-root [data-photo-layout="rounds"] [data-photo-row="true"]{justify-content:center !important;}
+
 #photo-header{display:flex;align-items:center;gap:0.9rem;margin-bottom:1.4rem;padding-bottom:1rem;border-bottom:2px solid hsl(var(--primary));}
 #photo-header .bar{width:0.35rem;align-self:stretch;min-height:2.6rem;border-radius:999px;background:hsl(var(--primary));}
 #photo-header h1{margin:0;font-size:1.65rem;line-height:1.15;font-weight:800;letter-spacing:-0.02em;color:hsl(var(--foreground));}
@@ -410,6 +420,9 @@ ${contrastCss(photo)}
       const base = content.getBoundingClientRect();
       let right = base.width;
       let bottom = base.height;
+      // "Ink" right edge: ignores hairlines/dividers and stretched empty wrappers,
+      // so the frame is trimmed to where real information actually ends.
+      let ink = 0;
       content.querySelectorAll<HTMLElement>("*").forEach((el) => {
         const cs = doc.defaultView?.getComputedStyle(el);
         if (!cs || cs.display === "none" || cs.visibility === "hidden") return;
@@ -417,12 +430,29 @@ ${contrastCss(photo)}
         if (r.width === 0 && r.height === 0) return;
         right = Math.max(right, r.right - base.left);
         bottom = Math.max(bottom, r.bottom - base.top);
+
+        const thin = r.height <= 2 || r.width <= 2;
+        if (thin) return;
+        const bg = cs.backgroundColor || "";
+        const paintedBg = !!bg && bg !== "transparent" && !/rgba\(\s*0,\s*0,\s*0,\s*0\s*\)/.test(bg);
+        const leaf = el.childElementCount === 0;
+        const tag = el.tagName.toLowerCase();
+        const hasInk =
+          paintedBg ||
+          tag === "img" ||
+          tag === "svg" ||
+          (leaf && (el.textContent || "").trim().length > 0);
+        if (hasInk) ink = Math.max(ink, r.right - base.left);
       });
+      const full = Math.ceil(Math.max(right, content.scrollWidth));
+      const inkW = Math.ceil(ink) + 2;
       return {
-        w: Math.ceil(Math.max(right, content.scrollWidth)),
+        // Contingency: an implausible ink measurement falls back to the full width.
+        w: inkW >= 160 && inkW < full ? inkW : full,
         h: Math.ceil(Math.max(bottom, content.scrollHeight)),
       };
     };
+
 
     let size = measure();
     scaler.style.width = `${Math.ceil(size.w * scale)}px`;
