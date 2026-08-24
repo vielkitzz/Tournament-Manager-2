@@ -64,15 +64,7 @@ export default function ScreenshotButton({
     }
   }, [targetRef, activeId, tournamentName, title, subtitle, mode]);
 
-    } catch (err) {
-      console.error("Screenshot error:", err);
-      const message = err instanceof Error ? err.message : String(err);
-      toast.error(`Erro ao capturar imagem: ${message.slice(0, 120)}`);
-      setOpen(false);
-    } finally {
-      setLoading(false);
-    }
-  }, [targetRef, activeId, tournamentName, title, subtitle]);
+
 
   return (
     <>
