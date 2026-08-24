@@ -479,7 +479,9 @@ export async function captureScreenshotDataUrl(
       ? `hsl(${rawBg})`
       : "#0a0a0a";
   const bgColor = photoBackground(photo, themeBg);
-  const padding = Math.round((photo.padding ?? 32) * Math.min(2, Math.max(0.8, photo.scale || 1)));
+  // Constant, slim frame: multiplying the padding by the zoom only added empty margin.
+  const padding = Math.max(16, Math.round(photo.padding ?? 32));
+
 
   try {
     return await renderInDesktopFrame(element, padding, bgColor, bodyStyle, photo);
