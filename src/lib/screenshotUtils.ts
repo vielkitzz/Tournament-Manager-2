@@ -391,9 +391,11 @@ ${contrastCss(photo)}
     // Mirror scroll positions away and let layout settle
     await waitForAssets(doc);
 
-    // Bump any text that is still too small to read on a phone screen. The global
-    // transform multiplies it afterwards, so the threshold is the unscaled 12px.
-    const minFont = 12;
+    // Readability floor relative to the layout width (not a fixed 12px): wide
+    // captures need proportionally bigger text to stay legible on a phone.
+    const measuredWidth = Math.max(320, content.scrollWidth || width);
+    const minFont = Math.min(20, Math.max(12, measuredWidth / 85));
+
     root.querySelectorAll<HTMLElement>("*").forEach((el) => {
       const fs = parseFloat(doc.defaultView?.getComputedStyle(el).fontSize || "0");
       if (fs > 0 && fs < minFont) el.style.fontSize = `${minFont.toFixed(1)}px`;
