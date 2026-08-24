@@ -401,7 +401,7 @@ export default function PhotoModeSettingsCard({
             </div>
           </div>
           <p className="text-[11px] text-muted-foreground">
-            Pré-visualização aproximada. As configurações valem para todos os botões de câmera desta competição.
+            Prévia com a mesma matemática da captura: {Math.round(effective.width)}px de largura e zoom {Math.round((effective.scale || 1) * 100)}%.
           </p>
         </div>
       </div>
