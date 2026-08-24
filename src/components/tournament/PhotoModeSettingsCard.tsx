@@ -9,11 +9,15 @@ import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import {
   DEFAULT_PHOTO_MODE,
+  PHOTO_PRESETS,
+  PhotoLayoutKind,
   PhotoModeSettings,
   QUALITY_PRESETS,
   loadPhotoMode,
   paletteVars,
+  photoPreviewFontSize,
   resetPhotoMode,
+  resolvePhotoMode,
   savePhotoMode,
 } from "@/lib/photoMode";
 import { championBoxStyle, podiumRowStyle } from "@/lib/teamColors";
@@ -39,6 +43,15 @@ const COLOR_FIELDS: { key: keyof PhotoModeSettings; label: string }[] = [
 
 type PreviewMode = "tabela" | "rodadas" | "chaveamento";
 
+const MODE_KIND: Record<PreviewMode, PhotoLayoutKind> = {
+  tabela: "table",
+  rodadas: "rounds",
+  chaveamento: "bracket",
+};
+
+/** Width of the simulated screen in the preview column, in CSS px. */
+const PREVIEW_WIDTH = { mobile: 268, desktop: 420 };
+
 export default function PhotoModeSettingsCard({
   tournamentId,
   tournamentName,
@@ -58,8 +71,11 @@ export default function PhotoModeSettingsCard({
 
   const vars = useMemo(() => paletteVars(settings), [settings]);
   const title = settings.title || tournamentName;
-  // Preview area is ~360px wide; simulate the real capture width/scale ratio.
-  const previewScale = (settings.scale || 1) * (1100 / (settings.width || 1100));
+  const auto = settings.autoPreset !== false;
+  // Exactly the capture math, applied to the preview width.
+  const effective = useMemo(() => resolvePhotoMode(settings, MODE_KIND[mode]), [settings, mode]);
+  const previewFont = photoPreviewFontSize(effective, PREVIEW_WIDTH[device], device === "mobile" ? 11 : 12);
+
 
   return (
     <div className="rounded-xl border border-border bg-card p-5 space-y-5 lg:col-span-2">
