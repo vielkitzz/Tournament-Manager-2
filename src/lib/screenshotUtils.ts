@@ -322,7 +322,10 @@ ${contrastCss(photo)}
         : ""
     }}
 #capture-scaler{transform-origin:top left;transform:scale(${scale});}
-#capture-content{width:max-content;min-width:${width}px;}
+/* Shrink-to-fit: forcing the frame width here padded narrow content (rounds,
+   tables) with big empty bands, which made the text look tiny in the export. */
+#capture-content{width:max-content;min-width:0;max-width:none;}
+
 #capture-root *{overflow:visible !important;max-height:none !important;}
  #capture-root{background-color:hsl(var(--background)) !important;color:hsl(var(--foreground)) !important;}
  #capture-root .bg-card:not([data-team-tint]),#capture-root [class*="bg-card/"]:not([data-team-tint]){background-image:none !important;background-color:hsl(var(--card)) !important;color:hsl(var(--card-foreground)) !important;}
