@@ -4,7 +4,7 @@ import { captureScreenshotDataUrl } from "@/lib/screenshotUtils";
 import ScreenshotPreviewDialog from "@/components/ScreenshotPreviewDialog";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
-import { loadPhotoMode } from "@/lib/photoMode";
+import { loadPhotoMode, resolvePhotoMode, PhotoLayoutKind } from "@/lib/photoMode";
 import { useParams } from "react-router-dom";
 import { useTournamentStore } from "@/store/tournamentStore";
 
@@ -16,6 +16,8 @@ interface ScreenshotButtonProps {
   skinImage?: string | null;
   /** Used to load the tournament-specific photo mode settings. */
   tournamentId?: string;
+  /** Content kind, used to pick the ideal width/zoom preset. */
+  mode?: PhotoLayoutKind;
   /** Title/subtitle rendered in the photo header band. */
   title?: string;
   subtitle?: string;
@@ -28,6 +30,7 @@ export default function ScreenshotButton({
   discrete,
   skinImage: _skinImage,
   tournamentId,
+  mode,
   title,
   subtitle,
 }: ScreenshotButtonProps) {
@@ -44,7 +47,7 @@ export default function ScreenshotButton({
     setLoading(true);
     setOpen(true);
     try {
-      const photo = loadPhotoMode(activeId);
+      const photo = resolvePhotoMode(loadPhotoMode(activeId), mode);
       const url = await captureScreenshotDataUrl(targetRef.current, {
         ...photo,
         title: title || photo.title || tournamentName || "",
@@ -59,7 +62,9 @@ export default function ScreenshotButton({
     } finally {
       setLoading(false);
     }
-  }, [targetRef, activeId, tournamentName, title, subtitle]);
+  }, [targetRef, activeId, tournamentName, title, subtitle, mode]);
+
+
 
   return (
     <>

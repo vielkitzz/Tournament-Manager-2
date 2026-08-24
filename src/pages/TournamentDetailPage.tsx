@@ -1433,7 +1433,7 @@ export default function TournamentDetailPage() {
                         </Button>
                       )}
                       {/* BOTÃO DA CÂMERA AGORA FICA AQUI DO LADO! */}
-                      <ScreenshotButton targetRef={groupsRef as any} filename="fase-de-grupos.png" discrete />
+                      <ScreenshotButton targetRef={groupsRef as any} filename="fase-de-grupos.png" mode="table" discrete />
                     </div>
                   </div>
 

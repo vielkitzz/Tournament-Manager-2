@@ -9,11 +9,15 @@ import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import {
   DEFAULT_PHOTO_MODE,
+  PHOTO_PRESETS,
+  PhotoLayoutKind,
   PhotoModeSettings,
   QUALITY_PRESETS,
   loadPhotoMode,
   paletteVars,
+  photoPreviewFontSize,
   resetPhotoMode,
+  resolvePhotoMode,
   savePhotoMode,
 } from "@/lib/photoMode";
 import { championBoxStyle, podiumRowStyle } from "@/lib/teamColors";
@@ -39,6 +43,15 @@ const COLOR_FIELDS: { key: keyof PhotoModeSettings; label: string }[] = [
 
 type PreviewMode = "tabela" | "rodadas" | "chaveamento";
 
+const MODE_KIND: Record<PreviewMode, PhotoLayoutKind> = {
+  tabela: "table",
+  rodadas: "rounds",
+  chaveamento: "bracket",
+};
+
+/** Width of the simulated screen in the preview column, in CSS px. */
+const PREVIEW_WIDTH = { mobile: 268, desktop: 420 };
+
 export default function PhotoModeSettingsCard({
   tournamentId,
   tournamentName,
@@ -58,8 +71,11 @@ export default function PhotoModeSettingsCard({
 
   const vars = useMemo(() => paletteVars(settings), [settings]);
   const title = settings.title || tournamentName;
-  // Preview area is ~360px wide; simulate the real capture width/scale ratio.
-  const previewScale = (settings.scale || 1) * (1100 / (settings.width || 1100));
+  const auto = settings.autoPreset !== false;
+  // Exactly the capture math, applied to the preview width.
+  const effective = useMemo(() => resolvePhotoMode(settings, MODE_KIND[mode]), [settings, mode]);
+  const previewFont = photoPreviewFontSize(effective, PREVIEW_WIDTH[device], device === "mobile" ? 11 : 12);
+
 
   return (
     <div className="rounded-xl border border-border bg-card p-5 space-y-5 lg:col-span-2">
@@ -86,13 +102,28 @@ export default function PhotoModeSettingsCard({
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Controls */}
         <div className="space-y-5">
-          <div className="space-y-2">
+          <div className="flex items-center justify-between p-3 rounded-lg bg-secondary/40">
+            <div className="space-y-0.5">
+              <Label className="text-sm text-foreground">Ajuste automático por conteúdo</Label>
+              <p className="text-[11px] text-muted-foreground">
+                Cada modo usa a largura e o zoom ideais (
+                {Object.values(PHOTO_PRESETS)
+                  .slice(0, 3)
+                  .map((p) => `${p.label} ${Math.round(p.scale * 100)}%`)
+                  .join(" · ")}
+                )
+              </p>
+            </div>
+            <Switch checked={auto} onCheckedChange={(v) => update({ autoPreset: v })} />
+          </div>
+
+          <div className={cn("space-y-2", auto && "opacity-50 pointer-events-none")}>
             <Label className="text-xs text-muted-foreground">Formato da imagem</Label>
             <div className="grid grid-cols-3 gap-2">
               {WIDTH_PRESETS.map((p) => (
                 <button
                   key={p.value}
-                  onClick={() => update({ width: p.value })}
+                  onClick={() => update({ width: p.value, autoPreset: false })}
                   className={cn(
                     "rounded-lg border px-2 py-2 text-left transition-colors",
                     settings.width === p.value
@@ -107,22 +138,25 @@ export default function PhotoModeSettingsCard({
             </div>
           </div>
 
-          <div className="space-y-2">
+          <div className={cn("space-y-2", auto && "opacity-50 pointer-events-none")}>
             <div className="flex items-center justify-between">
               <Label className="text-xs text-muted-foreground">Tamanho das informações</Label>
-              <span className="text-xs font-mono text-foreground">{Math.round((settings.scale || 1) * 100)}%</span>
+              <span className="text-xs font-mono text-foreground">
+                {Math.round((effective.scale || 1) * 100)}%
+              </span>
             </div>
             <Slider
               value={[settings.scale ?? 1]}
               min={1}
               max={1.8}
               step={0.05}
-              onValueChange={([v]) => update({ scale: v })}
+              onValueChange={([v]) => update({ scale: v, autoPreset: false })}
             />
             <p className="text-[11px] text-muted-foreground">
               Aumenta escudos, siglas e placares para leitura sem zoom no celular ou no Discord.
             </p>
           </div>
+
 
           <div className="space-y-2">
             <Label className="text-xs text-muted-foreground">Paleta</Label>
@@ -273,13 +307,15 @@ export default function PhotoModeSettingsCard({
           <div
             className={cn(
               "border border-border overflow-hidden mx-auto",
-              device === "mobile" ? "rounded-[1.6rem] max-w-[300px] p-2 bg-secondary/40" : "rounded-lg"
+              device === "mobile" ? "rounded-[1.6rem] p-2 bg-secondary/40" : "rounded-lg"
             )}
+            style={{ width: PREVIEW_WIDTH[device] + (device === "mobile" ? 16 : 0), maxWidth: "100%" }}
           >
             <div
-              style={{ ...vars, fontSize: `${(device === "mobile" ? 10.5 : 12) * previewScale}px` } as React.CSSProperties}
+              style={{ ...vars, fontSize: `${previewFont}px` } as React.CSSProperties}
               className={cn("bg-background text-foreground p-3", device === "mobile" && "rounded-[1.1rem]")}
             >
+
               {settings.showHeader && (
                 <div
                   className="flex items-center gap-2 pb-2 mb-2"
@@ -365,7 +401,7 @@ export default function PhotoModeSettingsCard({
             </div>
           </div>
           <p className="text-[11px] text-muted-foreground">
-            Pré-visualização aproximada. As configurações valem para todos os botões de câmera desta competição.
+            Prévia com a mesma matemática da captura: {Math.round(effective.width)}px de largura e zoom {Math.round((effective.scale || 1) * 100)}%.
           </p>
         </div>
       </div>

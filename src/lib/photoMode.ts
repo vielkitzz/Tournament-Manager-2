@@ -24,6 +24,8 @@ export interface PhotoModeSettings {
   highContrast: boolean;
   /** Pixel budget for the exported PNG (smaller = lighter file). */
   maxPixels: number;
+  /** When true, width/scale come from the per-content preset (see PHOTO_PRESETS). */
+  autoPreset: boolean;
 }
 
 export const DEFAULT_PHOTO_MODE: PhotoModeSettings = {
@@ -40,13 +42,41 @@ export const DEFAULT_PHOTO_MODE: PhotoModeSettings = {
   padding: 40,
   highContrast: true,
   maxPixels: 5_000_000,
+  autoPreset: true,
 };
+
+/** Content kinds captured by the camera buttons. */
+export type PhotoLayoutKind = "table" | "rounds" | "bracket" | "gallery" | "stats";
+
+/**
+ * Ideal image width + base zoom per content kind. Tables/rounds are narrow and
+ * benefit from a closer framing; brackets and stats need room for many columns.
+ */
+export const PHOTO_PRESETS: Record<PhotoLayoutKind, { width: number; scale: number; label: string }> = {
+  table: { width: 1000, scale: 1.35, label: "Tabela" },
+  rounds: { width: 900, scale: 1.45, label: "Rodadas" },
+  bracket: { width: 1400, scale: 1.15, label: "Chaveamento" },
+  gallery: { width: 1100, scale: 1.3, label: "Sala de troféus" },
+  stats: { width: 1200, scale: 1.25, label: "Estatísticas" },
+};
+
+/** Applies the per-kind preset when the user hasn't overridden width/zoom manually. */
+export function resolvePhotoMode(
+  settings: PhotoModeSettings,
+  kind?: PhotoLayoutKind
+): PhotoModeSettings {
+  if (!kind || settings.autoPreset === false) return settings;
+  const preset = PHOTO_PRESETS[kind];
+  if (!preset) return settings;
+  return { ...settings, width: preset.width, scale: preset.scale };
+}
 
 export const QUALITY_PRESETS = [
   { label: "Leve", value: 3_000_000, hint: "menor arquivo" },
   { label: "Equilibrado", value: 5_000_000, hint: "recomendado" },
   { label: "Nítido", value: 8_000_000, hint: "máxima nitidez" },
 ];
+
 
 const KEY = "tm2-photo-mode";
 
@@ -177,4 +207,20 @@ export function paletteVars(s: PhotoModeSettings): Record<string, string> {
       if (i > 0) out[d.slice(0, i).trim()] = d.slice(i + 1).trim();
     });
   return out;
+}
+
+/**
+ * Same math as the capture engine: the clone is laid out at `width / scale` and
+ * scaled back up, so an element with `baseFont` px occupies `baseFont * scale`
+ * of a `width`-wide image. Rendering that ratio inside a preview of
+ * `previewWidth` px gives a faithful simulation of the exported PNG.
+ */
+export function photoPreviewFontSize(
+  s: PhotoModeSettings,
+  previewWidth: number,
+  baseFont = 12
+): number {
+  const scale = Math.min(2, Math.max(0.8, s.scale || 1));
+  const width = Math.min(6000, Math.max(720, Math.round(s.width || 1100)));
+  return (baseFont * scale * previewWidth) / width;
 }

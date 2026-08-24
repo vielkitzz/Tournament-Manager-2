@@ -1346,7 +1346,7 @@ function getPairs(stageMatches: Match[]): TiePair[] {
             <Shuffle className="w-3.5 h-3.5" />
           </button>
         )}
-        <ScreenshotButton targetRef={bracketRef as any} filename="chaveamento.png" discrete skinImage={skinImage} />
+        <ScreenshotButton targetRef={bracketRef as any} filename="chaveamento.png" mode="bracket" discrete skinImage={skinImage} />
       </div>
 
       {/* Removemos a tag <img> daqui de dentro! */}
