@@ -444,9 +444,11 @@ ${contrastCss(photo)}
     iframe.style.width = `${w + 40}px`;
     await new Promise((r) => requestAnimationFrame(r));
 
-    // Keep Discord uploads comfortable: cap total pixels while staying sharp
+    // The pixel budget only caps EXTRA sharpness — it must never render below 1x,
+    // otherwise a higher zoom produced a downscaled (blurrier/smaller) image.
     const budget = photo.maxPixels || DEFAULT_PHOTO_MODE.maxPixels;
-    const ratio = Math.min(2, Math.max(0.75, Math.sqrt(budget / Math.max(1, w * h))));
+    const ratio = Math.min(2, Math.max(1, Math.sqrt(budget / Math.max(1, w * h))));
+
 
     return await toPng(root as HTMLElement, {
       backgroundColor: hasBgImage ? undefined : bgColor,
