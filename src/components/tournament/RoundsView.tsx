@@ -136,7 +136,7 @@ export default function RoundsView({
   };
 
   return (
-    <div className="space-y-4" ref={roundsRef}>
+    <div className="space-y-4" ref={roundsRef} data-photo-layout="rounds">
       {tournament.finalized && (
         <div className="flex items-center justify-center gap-2 p-3 rounded-xl bg-primary/30 border border-primary/20">
           <Trophy className="w-4 h-4 text-primary" />
