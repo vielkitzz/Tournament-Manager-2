@@ -559,6 +559,7 @@ export default function GalleryView({
             <ScreenshotButton
               targetRef={titlesRef as any}
               filename="sala-de-trofeus.png"
+              mode="gallery"
               title={tournamentName}
               subtitle="Campeões por ano"
               discrete
@@ -612,6 +613,7 @@ export default function GalleryView({
                 <ScreenshotButton
                   targetRef={rankingRef as any}
                   filename="maiores-campeoes.png"
+                  mode="gallery"
                   title={tournamentName}
                   subtitle="Maiores campeões"
                   discrete
