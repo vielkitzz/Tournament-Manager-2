@@ -208,3 +208,19 @@ export function paletteVars(s: PhotoModeSettings): Record<string, string> {
     });
   return out;
 }
+
+/**
+ * Same math as the capture engine: the clone is laid out at `width / scale` and
+ * scaled back up, so an element with `baseFont` px occupies `baseFont * scale`
+ * of a `width`-wide image. Rendering that ratio inside a preview of
+ * `previewWidth` px gives a faithful simulation of the exported PNG.
+ */
+export function photoPreviewFontSize(
+  s: PhotoModeSettings,
+  previewWidth: number,
+  baseFont = 12
+): number {
+  const scale = Math.min(2, Math.max(0.8, s.scale || 1));
+  const width = Math.min(6000, Math.max(720, Math.round(s.width || 1100)));
+  return (baseFont * scale * previewWidth) / width;
+}
