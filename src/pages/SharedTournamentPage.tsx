@@ -730,7 +730,7 @@ export default function SharedTournamentPage() {
                   return (
                     <>
                       <div className="flex justify-end">
-                        <ScreenshotButton targetRef={groupsRef as any} filename="fase-de-grupos.png" discrete />
+                        <ScreenshotButton targetRef={groupsRef as any} filename="fase-de-grupos.png" mode="table" discrete />
                       </div>
                       <div ref={groupsRef} className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                         {Array.from({ length: groupCount }, (_, i) => i + 1).map((groupNum) => (

@@ -182,7 +182,7 @@ export default function RoundsView({
             <Shuffle className="w-4 h-4" />
           </button>
         )}
-        <ScreenshotButton targetRef={roundsRef as any} filename={`rodada-${currentRound}.png`} />
+        <ScreenshotButton targetRef={roundsRef as any} filename={`rodada-${currentRound}.png`} mode="rounds" />
       </div>
 
       {/* Simulate round button */}

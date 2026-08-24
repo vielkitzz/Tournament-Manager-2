@@ -82,7 +82,7 @@ export default function StandingsTable({ standings, promotions = [], qualifyUnti
       <div ref={tableRef}>
         {!hideScreenshot && (
           <div className="flex justify-end px-2 py-1">
-            <ScreenshotButton targetRef={tableRef as any} filename="classificacao.png" discrete />
+            <ScreenshotButton targetRef={tableRef as any} filename="classificacao.png" mode="table" discrete />
           </div>
         )}
         <div className="overflow-x-auto">

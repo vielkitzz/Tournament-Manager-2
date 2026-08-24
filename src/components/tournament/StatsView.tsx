@@ -455,7 +455,7 @@ export default function StatsView({ tournament, teams, players }: StatsViewProps
   return (
     <div className="space-y-3">
       <div className="flex justify-end">
-        <ScreenshotButton targetRef={statsRef as any} filename="estatisticas.png" discrete />
+        <ScreenshotButton targetRef={statsRef as any} filename="estatisticas.png" mode="stats" discrete />
       </div>
       <div ref={statsRef} className="space-y-6">
         {/* Team Stats */}
