@@ -39,7 +39,9 @@ export default function ScreenshotButton({
   const [loading, setLoading] = useState(false);
   const params = useParams<{ id?: string }>();
   const activeId = tournamentId || params.id;
-  const tournamentName = useTournamentStore((s) => s.tournaments.find((t) => t.id === activeId)?.name);
+  const tournament = useTournamentStore((s) => s.tournaments.find((t) => t.id === activeId));
+  const tournamentName = tournament?.name;
+  const tournamentLogo = tournament?.logo;
 
   const handleCapture = useCallback(async () => {
     if (!targetRef.current) return;
@@ -51,10 +53,12 @@ export default function ScreenshotButton({
       const url = await captureScreenshotDataUrl(targetRef.current, {
         ...photo,
         layout: mode,
+        logo: tournamentLogo,
         title: title || photo.title || tournamentName || "",
         subtitle: subtitle || photo.subtitle,
       });
       setDataUrl(url);
+
     } catch (err) {
       console.error("Screenshot error:", err);
       const message = err instanceof Error ? err.message : String(err);
