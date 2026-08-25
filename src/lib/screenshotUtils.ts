@@ -7,6 +7,7 @@ import {
   contrastCss,
   photoBackground,
   hexToHslTriplet,
+  photoLayoutWidth,
 } from "@/lib/photoMode";
 
 function escapeHtml(v: string) {
@@ -285,12 +286,14 @@ async function renderInDesktopFrame(
   photo: PhotoModeSettings
 ) {
   const scale = Math.min(2, Math.max(0.8, photo.scale || 1));
-  const targetWidth = Math.min(6000, Math.max(720, Math.round(photo.width)));
+  const targetWidth = Math.min(6000, Math.max(560, Math.round(photo.width)));
   // The zoom must make the CONTENT bigger relative to the exported image, not the
   // image bigger. So the clone is laid out at `target / zoom` and then scaled back up
   // by the same factor: the final PNG keeps the chosen width while every element
   // (fonts, shields, hardcoded px sizes) really grows.
-  const width = Math.min(6000, Math.max(560, Math.round(targetWidth / scale)));
+  const width = photoLayoutWidth(photo);
+  const layout = photo.layout;
+  const fixedFrame = layout !== "bracket";
 
   const iframe = document.createElement("iframe");
   iframe.setAttribute("aria-hidden", "true");
@@ -324,9 +327,9 @@ ${contrastCss(photo)}
 #capture-scaler{transform-origin:top left;transform:scale(${scale});}
 /* Shrink-to-fit: forcing the frame width here padded narrow content (rounds,
    tables) with big empty bands, which made the text look tiny in the export. */
-#capture-content{width:max-content;min-width:0;max-width:none;}
+#capture-content{box-sizing:border-box;width:${fixedFrame ? `${width}px` : "max-content"};min-width:0;max-width:none;}
 
-#capture-root *{overflow:visible !important;max-height:none !important;}
+ #capture-root *{max-height:none !important;}
  #capture-root{background-color:hsl(var(--background)) !important;color:hsl(var(--foreground)) !important;}
  #capture-root .bg-card:not([data-team-tint]),#capture-root [class*="bg-card/"]:not([data-team-tint]){background-image:none !important;background-color:hsl(var(--card)) !important;color:hsl(var(--card-foreground)) !important;}
  #capture-root [data-team-tint="true"]{background-color:hsl(var(--card)) !important;color:hsl(var(--foreground)) !important;}
@@ -346,22 +349,24 @@ ${contrastCss(photo)}
  #capture-root [data-screenshot-ignore="true"]{display:none !important;}
  #capture-root [data-photo-control="true"]{display:none !important;}
  #capture-root [data-photo-expand="true"]{display:block !important;height:auto !important;max-height:none !important;overflow:visible !important;opacity:1 !important;}
- #capture-root [data-photo-layout="bracket"] [data-photo-stage="true"]{width:210px !important;}
- #capture-root [data-photo-layout="bracket"] [data-photo-match="true"]{width:190px !important;}
- #capture-root [data-photo-layout="bracket"] [data-photo-connector="true"]{width:30px !important;}
- #capture-root [data-photo-layout="bracket"] [data-photo-champion="true"]{width:230px !important;min-width:230px !important;flex:0 0 auto !important;}
+  #capture-root [data-photo-layout="bracket"] [data-photo-stage="true"]{width:210px !important;}
+  #capture-root [data-photo-layout="bracket"] [data-photo-match="true"]{width:190px !important;}
+  #capture-root [data-photo-layout="bracket"] [data-photo-connector="true"]{width:30px !important;}
+  #capture-root [data-photo-layout="bracket"] [data-photo-champion="true"]{width:230px !important;min-width:230px !important;flex:0 0 auto !important;}
  #capture-root [data-photo-match="true"] .truncate{overflow:visible !important;text-overflow:clip !important;}
  #capture-root [data-photo-champion="true"] *{word-break:normal !important;overflow-wrap:break-word !important;white-space:normal !important;writing-mode:horizontal-tb !important;}
  #capture-root [data-photo-champion="true"] > div{width:100% !important;}
  /* Rounds: shrink each match row to its content and center the whole block,
     removing the wide empty bands caused by w-full rows + flex-1 sides. */
- #capture-root [data-photo-layout="rounds"]{display:flex !important;flex-direction:column !important;align-items:center !important;width:max-content !important;margin:0 auto !important;}
+  #capture-root [data-photo-layout="rounds"]{display:flex !important;flex-direction:column !important;align-items:stretch !important;width:100% !important;margin:0 auto !important;}
  #capture-root [data-photo-layout="rounds"] > *{width:100% !important;}
  #capture-root [data-photo-layout="rounds"] [data-photo-match="true"]{width:100% !important;min-width:0 !important;}
  #capture-root [data-photo-layout="rounds"] [data-photo-side="home"]{flex:0 0 auto !important;justify-content:flex-end !important;}
  #capture-root [data-photo-layout="rounds"] [data-photo-side="away"]{flex:0 0 auto !important;}
  #capture-root [data-photo-layout="rounds"] [data-photo-side] span{max-width:none !important;overflow:visible !important;text-overflow:clip !important;white-space:nowrap !important;}
  #capture-root [data-photo-layout="rounds"] [data-photo-row="true"]{justify-content:center !important;}
+  #capture-root [data-photo-layout="table"],#capture-root [data-photo-layout="stats"],#capture-root [data-photo-layout="gallery"]{box-sizing:border-box;width:100% !important;min-width:0 !important;}
+  #capture-root [data-photo-layout="gallery"] [data-photo-years="true"]{display:flex !important;flex-wrap:wrap !important;justify-content:flex-end !important;white-space:normal !important;max-width:42% !important;overflow:visible !important;line-height:1.35 !important;}
 
 #photo-header{display:flex;align-items:center;gap:0.9rem;margin-bottom:1.4rem;padding-bottom:1rem;border-bottom:2px solid hsl(var(--primary));}
 #photo-header .bar{width:0.35rem;align-self:stretch;min-height:2.6rem;border-radius:999px;background:hsl(var(--primary));}
@@ -389,8 +394,9 @@ ${contrastCss(photo)}
     clone.style.overflow = "visible";
     clone.style.maxHeight = "none";
     clone.style.maxWidth = "none";
-    // max-content keeps brackets aligned; min-width fills the frame for tables/rounds.
-    clone.style.width = "max-content";
+    // Brackets keep their intrinsic horizontal canvas; all other modes occupy a
+    // stable layout viewport so zoom changes their visible information density.
+    clone.style.width = fixedFrame ? "100%" : "max-content";
     clone.style.minWidth = "0";
     content.appendChild(clone);
     root.appendChild(scaler);
@@ -403,7 +409,7 @@ ${contrastCss(photo)}
 
     // Readability floor relative to the layout width (not a fixed 12px): wide
     // captures need proportionally bigger text to stay legible on a phone.
-    const measuredWidth = Math.max(320, content.scrollWidth || width);
+    const measuredWidth = Math.max(320, width);
     const minFont = Math.min(20, Math.max(12, measuredWidth / 85));
 
     root.querySelectorAll<HTMLElement>("*").forEach((el) => {
@@ -412,14 +418,13 @@ ${contrastCss(photo)}
     });
     await new Promise((r) => requestAnimationFrame(r));
 
-    // The transform doesn't affect layout size, so size the frame manually.
-    // scrollWidth/Height under-report when children overflow a responsive grid
-    // (that is what clipped the Trophy Room on the right), so we walk every
-    // descendant and take the furthest right/bottom edge as the real size.
+    // Measure in unscaled layout coordinates. getBoundingClientRect() below is
+    // divided by `scale`; multiplying transformed bounds again was the source of
+    // the inverse/double zoom and oversized empty canvases.
     const measure = () => {
       const base = content.getBoundingClientRect();
-      let right = base.width;
-      let bottom = base.height;
+      let right = fixedFrame ? width : base.width / scale;
+      let bottom = base.height / scale;
       // "Ink" right edge: ignores hairlines/dividers and stretched empty wrappers,
       // so the frame is trimmed to where real information actually ends.
       let ink = 0;
@@ -428,8 +433,10 @@ ${contrastCss(photo)}
         if (!cs || cs.display === "none" || cs.visibility === "hidden") return;
         const r = el.getBoundingClientRect();
         if (r.width === 0 && r.height === 0) return;
-        right = Math.max(right, r.right - base.left);
-        bottom = Math.max(bottom, r.bottom - base.top);
+        const localRight = (r.right - base.left) / scale;
+        const localBottom = (r.bottom - base.top) / scale;
+        right = Math.max(right, localRight);
+        bottom = Math.max(bottom, localBottom);
 
         const thin = r.height <= 2 || r.width <= 2;
         if (thin) return;
@@ -442,13 +449,14 @@ ${contrastCss(photo)}
           tag === "img" ||
           tag === "svg" ||
           (leaf && (el.textContent || "").trim().length > 0);
-        if (hasInk) ink = Math.max(ink, r.right - base.left);
+        if (hasInk) ink = Math.max(ink, localRight);
       });
       const full = Math.ceil(Math.max(right, content.scrollWidth));
       const inkW = Math.ceil(ink) + 2;
       return {
-        // Contingency: an implausible ink measurement falls back to the full width.
-        w: inkW >= 160 && inkW < full ? inkW : full,
+        // Fixed modes deliberately retain the configured output width. Intrinsic
+        // layouts (bracket) may trim only when the ink measurement is plausible.
+        w: fixedFrame ? width : inkW >= 160 && inkW < full ? inkW : full,
         h: Math.ceil(Math.max(bottom, content.scrollHeight)),
       };
     };
@@ -464,7 +472,7 @@ ${contrastCss(photo)}
     // Second pass: the resize above can reflow wrapped content (long lists),
     // so re-measure before rasterizing to avoid a cut at the bottom/right.
     const second = measure();
-    size = { w: Math.max(size.w, second.w), h: Math.max(size.h, second.h) };
+    size = { w: fixedFrame ? width : Math.max(size.w, second.w), h: Math.max(size.h, second.h) };
     scaler.style.width = `${Math.ceil(size.w * scale)}px`;
     scaler.style.height = `${Math.ceil(size.h * scale)}px`;
 

@@ -50,6 +50,7 @@ export default function ScreenshotButton({
       const photo = resolvePhotoMode(loadPhotoMode(activeId), mode);
       const url = await captureScreenshotDataUrl(targetRef.current, {
         ...photo,
+        layout: mode,
         title: title || photo.title || tournamentName || "",
         subtitle: subtitle || photo.subtitle,
       });

@@ -644,7 +644,7 @@ export default function GalleryView({
                         {ch.name}
                       </span>
                       <span className="text-xs font-bold text-primary">{ch.titles}×</span>
-                      <span className="text-[10px] text-muted-foreground hidden sm:inline truncate max-w-[120px]">
+                      <span data-photo-years="true" className="text-[10px] text-muted-foreground hidden sm:inline text-right whitespace-normal break-words max-w-[180px]">
                         {ch.years.sort((a, b) => a - b).join(", ")}
                       </span>
                     </div>

@@ -79,7 +79,7 @@ export default function StandingsTable({ standings, promotions = [], qualifyUnti
 
   return (
     <TooltipProvider delayDuration={200}>
-      <div ref={tableRef}>
+      <div ref={tableRef} data-photo-layout="table">
         {!hideScreenshot && (
           <div className="flex justify-end px-2 py-1">
             <ScreenshotButton targetRef={tableRef as any} filename="classificacao.png" mode="table" discrete />
