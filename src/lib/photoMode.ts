@@ -23,6 +23,9 @@ export interface PhotoModeSettings {
   logoMode: "tournament" | "custom" | "none";
   /** Custom image (data URL or http URL) used when logoMode === "custom". */
   logoUrl?: string;
+  /** Resolved tournament logo, injected at capture time (not persisted). */
+  logo?: string;
+
 
   padding: number;
   /** Boosts text/border contrast inside the capture for easier reading. */
