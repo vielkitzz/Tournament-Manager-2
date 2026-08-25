@@ -55,13 +55,16 @@ const PREVIEW_WIDTH = { mobile: 268, desktop: 420 };
 export default function PhotoModeSettingsCard({
   tournamentId,
   tournamentName,
+  tournamentLogo,
 }: {
   tournamentId: string;
   tournamentName: string;
+  tournamentLogo?: string;
 }) {
   const [settings, setSettings] = useState<PhotoModeSettings>(() => loadPhotoMode(tournamentId));
   const [mode, setMode] = useState<PreviewMode>("tabela");
   const [device, setDevice] = useState<"mobile" | "desktop">("mobile");
+
 
   const update = (partial: Partial<PhotoModeSettings>) => {
     const next = { ...settings, ...partial };
