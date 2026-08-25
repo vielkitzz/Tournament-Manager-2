@@ -67,7 +67,7 @@ export default function ScreenshotButton({
     } finally {
       setLoading(false);
     }
-  }, [targetRef, activeId, tournamentName, title, subtitle, mode]);
+  }, [targetRef, activeId, tournamentName, tournamentLogo, title, subtitle, mode]);
 
 
 
