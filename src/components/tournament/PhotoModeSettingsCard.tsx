@@ -1,5 +1,17 @@
 import { useMemo, useState } from "react";
-import { Camera, RotateCcw, Smartphone, Monitor } from "lucide-react";
+import { Camera, RotateCcw, Smartphone, Monitor, Image as ImageIcon } from "lucide-react";
+import ImageUpload from "@/components/ImageUpload";
+
+/** Converts a processed upload into a persistable data URL. */
+function blobToDataUrl(blob: Blob): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(String(reader.result));
+    reader.onerror = () => reject(reader.error);
+    reader.readAsDataURL(blob);
+  });
+}
+
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
