@@ -19,6 +19,11 @@ export interface PhotoModeSettings {
   showHeader: boolean;
   title: string;
   subtitle: string;
+  /** Icon shown at the left of the header band. */
+  logoMode: "tournament" | "custom" | "none";
+  /** Custom image (data URL or http URL) used when logoMode === "custom". */
+  logoUrl?: string;
+
   padding: number;
   /** Boosts text/border contrast inside the capture for easier reading. */
   highContrast: boolean;
