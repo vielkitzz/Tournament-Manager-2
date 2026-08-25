@@ -1,4 +1,4 @@
-# Próxima grande atualização — roteiro em partes
+- Próxima grande atualização — roteiro em partes
 
 Objetivo: modernizar a criação e evolução de elencos sem comprometer o histórico, adicionar avanço global de temporadas e criar o formato “Fase de Liga + Mata-Mata”. O trabalho será entregue em partes independentes, com validação ao fim de cada uma.
 
