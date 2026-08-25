@@ -229,7 +229,7 @@ export function paletteVars(s: PhotoModeSettings): Record<string, string> {
  * `previewWidth` px gives a faithful simulation of the exported PNG.
  */
 export function photoPreviewFontSize(
-  s: PhotoModeSettings,
+  s: Pick<PhotoModeSettings, "width" | "scale">,
   previewWidth: number,
   baseFont = 12
 ): number {
