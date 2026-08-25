@@ -46,7 +46,7 @@ export default function GroupStandingsView({
       <div className="flex justify-end mb-2">
         <ScreenshotButton targetRef={groupsRef as any} filename="fase-de-grupos.png" mode="table" />
       </div>
-      <div className={cn("grid gap-4", gridCols)} ref={groupsRef}>
+      <div className={cn("grid gap-4", gridCols)} ref={groupsRef} data-photo-layout="table">
       {Array.from({ length: groupCount }, (_, i) => i + 1).map((groupNum) => {
         const standings = standingsByGroup[groupNum] || [];
         return (

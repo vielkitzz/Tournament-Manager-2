@@ -457,7 +457,7 @@ export default function StatsView({ tournament, teams, players }: StatsViewProps
       <div className="flex justify-end">
         <ScreenshotButton targetRef={statsRef as any} filename="estatisticas.png" mode="stats" discrete />
       </div>
-      <div ref={statsRef} className="space-y-6">
+      <div ref={statsRef} className="space-y-6" data-photo-layout="stats">
         {/* Team Stats */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-2 gap-4">
           <StatCard icon={Swords} title="Melhor Ataque" items={bestAttack} valueAccessor={(s) => `${s.goalsFor}`} />

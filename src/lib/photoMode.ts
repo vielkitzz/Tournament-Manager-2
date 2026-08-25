@@ -26,6 +26,8 @@ export interface PhotoModeSettings {
   maxPixels: number;
   /** When true, width/scale come from the per-content preset (see PHOTO_PRESETS). */
   autoPreset: boolean;
+  /** Internal capture hint used to select layout-specific framing rules. */
+  layout?: PhotoLayoutKind;
 }
 
 export const DEFAULT_PHOTO_MODE: PhotoModeSettings = {
@@ -53,8 +55,8 @@ export type PhotoLayoutKind = "table" | "rounds" | "bracket" | "gallery" | "stat
  * benefit from a closer framing; brackets and stats need room for many columns.
  */
 export const PHOTO_PRESETS: Record<PhotoLayoutKind, { width: number; scale: number; label: string }> = {
-  table: { width: 1000, scale: 1.35, label: "Tabela" },
-  rounds: { width: 900, scale: 1.45, label: "Rodadas" },
+  table: { width: 920, scale: 1.35, label: "Tabela" },
+  rounds: { width: 720, scale: 1.45, label: "Rodadas" },
   bracket: { width: 1400, scale: 1.15, label: "Chaveamento" },
   gallery: { width: 1100, scale: 1.3, label: "Sala de troféus" },
   stats: { width: 1200, scale: 1.25, label: "Estatísticas" },
@@ -65,10 +67,21 @@ export function resolvePhotoMode(
   settings: PhotoModeSettings,
   kind?: PhotoLayoutKind
 ): PhotoModeSettings {
-  if (!kind || settings.autoPreset === false) return settings;
+  if (!kind || settings.autoPreset === false) return { ...settings, layout: kind };
   const preset = PHOTO_PRESETS[kind];
   if (!preset) return settings;
-  return { ...settings, width: preset.width, scale: preset.scale };
+  return { ...settings, width: preset.width, scale: preset.scale, layout: kind };
+}
+
+/**
+ * Width used to lay content out before it is magnified. Keeping the exported
+ * width stable is what makes a larger zoom visibly larger instead of merely
+ * producing a larger PNG with the same proportions.
+ */
+export function photoLayoutWidth(s: Pick<PhotoModeSettings, "width" | "scale">): number {
+  const zoom = Math.min(2, Math.max(0.8, s.scale || 1));
+  const outputWidth = Math.min(6000, Math.max(560, Math.round(s.width || 1100)));
+  return Math.round(outputWidth / zoom);
 }
 
 export const QUALITY_PRESETS = [
@@ -216,11 +229,11 @@ export function paletteVars(s: PhotoModeSettings): Record<string, string> {
  * `previewWidth` px gives a faithful simulation of the exported PNG.
  */
 export function photoPreviewFontSize(
-  s: PhotoModeSettings,
+  s: Pick<PhotoModeSettings, "width" | "scale">,
   previewWidth: number,
   baseFont = 12
 ): number {
   const scale = Math.min(2, Math.max(0.8, s.scale || 1));
-  const width = Math.min(6000, Math.max(720, Math.round(s.width || 1100)));
+  const width = Math.min(6000, Math.max(560, Math.round(s.width || 1100)));
   return (baseFont * scale * previewWidth) / width;
 }
