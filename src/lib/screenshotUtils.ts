@@ -370,6 +370,7 @@ ${contrastCss(photo)}
 
 #photo-header{display:flex;align-items:center;gap:0.9rem;margin-bottom:1.4rem;padding-bottom:1rem;border-bottom:2px solid hsl(var(--primary));}
 #photo-header .bar{width:0.35rem;align-self:stretch;min-height:2.6rem;border-radius:999px;background:hsl(var(--primary));}
+#photo-header .photo-logo{width:2.9rem;height:2.9rem;object-fit:contain;flex:0 0 auto;}
 #photo-header h1{margin:0;font-size:1.65rem;line-height:1.15;font-weight:800;letter-spacing:-0.02em;color:hsl(var(--foreground));}
 #photo-header p{margin:0.25rem 0 0;font-size:0.95rem;font-weight:600;letter-spacing:0.14em;text-transform:uppercase;color:hsl(var(--primary));}
 </style></head><body><div id="capture-root"></div></body></html>`);
@@ -382,14 +383,22 @@ ${contrastCss(photo)}
     const content = doc.createElement("div");
     content.id = "capture-content";
     scaler.appendChild(content);
-    if (photo.showHeader && (photo.title || photo.subtitle)) {
+    const headerLogo =
+      photo.logoMode === "none"
+        ? ""
+        : (photo.logoMode === "custom" ? photo.logoUrl : photo.logo) || "";
+    if (photo.showHeader && (photo.title || photo.subtitle || headerLogo)) {
       const header = doc.createElement("div");
       header.id = "photo-header";
-      header.innerHTML = `<span class="bar"></span><div><h1>${escapeHtml(photo.title || "")}</h1>${
+      const inlinedLogo = headerLogo ? (await toDataUrl(headerLogo)) || headerLogo : "";
+      header.innerHTML = `${
+        inlinedLogo ? `<img class="photo-logo" src="${escapeHtml(inlinedLogo)}" alt="" />` : ""
+      }<span class="bar"></span><div><h1>${escapeHtml(photo.title || "")}</h1>${
         photo.subtitle ? `<p>${escapeHtml(photo.subtitle)}</p>` : ""
       }</div>`;
       content.appendChild(header);
     }
+
     const clone = element.cloneNode(true) as HTMLElement;
     clone.style.overflow = "visible";
     clone.style.maxHeight = "none";

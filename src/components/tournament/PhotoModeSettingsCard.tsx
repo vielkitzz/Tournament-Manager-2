@@ -1,5 +1,17 @@
 import { useMemo, useState } from "react";
-import { Camera, RotateCcw, Smartphone, Monitor } from "lucide-react";
+import { Camera, RotateCcw, Smartphone, Monitor, Image as ImageIcon } from "lucide-react";
+import ImageUpload from "@/components/ImageUpload";
+
+/** Converts a processed upload into a persistable data URL. */
+function blobToDataUrl(blob: Blob): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(String(reader.result));
+    reader.onerror = () => reject(reader.error);
+    reader.readAsDataURL(blob);
+  });
+}
+
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
@@ -55,13 +67,16 @@ const PREVIEW_WIDTH = { mobile: 268, desktop: 420 };
 export default function PhotoModeSettingsCard({
   tournamentId,
   tournamentName,
+  tournamentLogo,
 }: {
   tournamentId: string;
   tournamentName: string;
+  tournamentLogo?: string;
 }) {
   const [settings, setSettings] = useState<PhotoModeSettings>(() => loadPhotoMode(tournamentId));
   const [mode, setMode] = useState<PreviewMode>("tabela");
   const [device, setDevice] = useState<"mobile" | "desktop">("mobile");
+
 
   const update = (partial: Partial<PhotoModeSettings>) => {
     const next = { ...settings, ...partial };
@@ -240,27 +255,78 @@ export default function PhotoModeSettingsCard({
           </div>
 
           {settings.showHeader && (
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <div className="space-y-1.5">
-                <span className="text-xs text-muted-foreground">Título</span>
-                <Input
-                  value={settings.title}
-                  placeholder={tournamentName}
-                  onChange={(e) => update({ title: e.target.value })}
-                  className="bg-secondary border-border"
-                />
+            <>
+              <div className="space-y-2">
+                <Label className="text-xs text-muted-foreground">Ícone no cabeçalho</Label>
+                <div className="grid grid-cols-3 gap-2">
+                  {(
+                    [
+                      { key: "tournament", label: "Escudo da competição" },
+                      { key: "custom", label: "Personalizado" },
+                      { key: "none", label: "Sem ícone" },
+                    ] as const
+                  ).map((opt) => (
+                    <button
+                      key={opt.key}
+                      onClick={() => update({ logoMode: opt.key })}
+                      className={cn(
+                        "rounded-lg border px-2 py-2 text-[11px] leading-tight transition-colors",
+                        (settings.logoMode ?? "tournament") === opt.key
+                          ? "border-primary bg-primary/10 text-foreground"
+                          : "border-border bg-secondary/40 text-muted-foreground hover:bg-secondary/60"
+                      )}
+                    >
+                      {opt.label}
+                    </button>
+                  ))}
+                </div>
+                {settings.logoMode === "tournament" && !tournamentLogo && (
+                  <p className="text-[11px] text-muted-foreground">
+                    Esta competição ainda não tem escudo salvo — a imagem sai sem ícone.
+                  </p>
+                )}
+                {settings.logoMode === "custom" && (
+                  <div className="flex items-center gap-3">
+                    <ImageUpload
+                      size="sm"
+                      previewUrl={settings.logoUrl || undefined}
+                      onImageSelected={async ({ blob }) => {
+                        const dataUrl = await blobToDataUrl(blob);
+                        update({ logoUrl: dataUrl });
+                      }}
+                      onRemove={() => update({ logoUrl: "" })}
+                      placeholder={<ImageIcon className="w-4 h-4 text-muted-foreground" />}
+                    />
+                    <p className="text-[11px] text-muted-foreground">
+                      Usado apenas nas fotos. Não altera o escudo do torneio.
+                    </p>
+                  </div>
+                )}
               </div>
-              <div className="space-y-1.5">
-                <span className="text-xs text-muted-foreground">Subtítulo</span>
-                <Input
-                  value={settings.subtitle}
-                  placeholder="ex: Quartas de final"
-                  onChange={(e) => update({ subtitle: e.target.value })}
-                  className="bg-secondary border-border"
-                />
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div className="space-y-1.5">
+                  <span className="text-xs text-muted-foreground">Título</span>
+                  <Input
+                    value={settings.title}
+                    placeholder={tournamentName}
+                    onChange={(e) => update({ title: e.target.value })}
+                    className="bg-secondary border-border"
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <span className="text-xs text-muted-foreground">Subtítulo</span>
+                  <Input
+                    value={settings.subtitle}
+                    placeholder="ex: Quartas de final"
+                    onChange={(e) => update({ subtitle: e.target.value })}
+                    className="bg-secondary border-border"
+                  />
+                </div>
               </div>
-            </div>
+            </>
           )}
+
         </div>
 
         {/* Preview */}

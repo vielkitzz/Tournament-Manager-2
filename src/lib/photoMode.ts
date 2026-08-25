@@ -19,6 +19,14 @@ export interface PhotoModeSettings {
   showHeader: boolean;
   title: string;
   subtitle: string;
+  /** Icon shown at the left of the header band. */
+  logoMode: "tournament" | "custom" | "none";
+  /** Custom image (data URL or http URL) used when logoMode === "custom". */
+  logoUrl?: string;
+  /** Resolved tournament logo, injected at capture time (not persisted). */
+  logo?: string;
+
+
   padding: number;
   /** Boosts text/border contrast inside the capture for easier reading. */
   highContrast: boolean;
@@ -41,6 +49,9 @@ export const DEFAULT_PHOTO_MODE: PhotoModeSettings = {
   showHeader: true,
   title: "",
   subtitle: "",
+  logoMode: "tournament",
+  logoUrl: "",
+
   padding: 40,
   highContrast: true,
   maxPixels: 5_000_000,
