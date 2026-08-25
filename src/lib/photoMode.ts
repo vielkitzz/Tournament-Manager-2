@@ -46,6 +46,9 @@ export const DEFAULT_PHOTO_MODE: PhotoModeSettings = {
   showHeader: true,
   title: "",
   subtitle: "",
+  logoMode: "tournament",
+  logoUrl: "",
+
   padding: 40,
   highContrast: true,
   maxPixels: 5_000_000,
