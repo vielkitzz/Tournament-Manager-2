@@ -192,7 +192,7 @@ export default function TournamentSettingsPage() {
 
       {/* Main grid */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
-        <PhotoModeSettingsCard tournamentId={tournament.id} tournamentName={tournament.name} />
+        <PhotoModeSettingsCard tournamentId={tournament.id} tournamentName={tournament.name} tournamentLogo={tournament.logo} />
         {/* Points — only for formats with league phase */}
         {hasLeaguePhase && (
           <SectionCard icon={Trophy} title="Pontuações">
