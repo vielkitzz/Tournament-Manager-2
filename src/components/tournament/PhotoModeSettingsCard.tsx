@@ -387,7 +387,16 @@ export default function PhotoModeSettingsCard({
                   className="flex items-center gap-2 pb-2 mb-2"
                   style={{ borderBottom: "2px solid hsl(var(--primary))" }}
                 >
+                  {previewLogo && (
+                    <img
+                      src={previewLogo}
+                      alt=""
+                      className="object-contain shrink-0"
+                      style={{ width: "2.2em", height: "2.2em" }}
+                    />
+                  )}
                   <span className="w-1 self-stretch min-h-[1.6em] rounded-full bg-primary" />
+
                   <div className="min-w-0">
                     <div className="font-bold leading-tight truncate" style={{ fontSize: "1.3em" }}>
                       {title}
