@@ -86,6 +86,9 @@ export default function PhotoModeSettingsCard({
 
   const vars = useMemo(() => paletteVars(settings), [settings]);
   const title = settings.title || tournamentName;
+  const logoMode = settings.logoMode ?? "tournament";
+  const previewLogo = logoMode === "none" ? "" : (logoMode === "custom" ? settings.logoUrl : tournamentLogo) || "";
+
   const auto = settings.autoPreset !== false;
   // Exactly the capture math, applied to the preview width.
   const effective = useMemo(() => resolvePhotoMode(settings, MODE_KIND[mode]), [settings, mode]);
