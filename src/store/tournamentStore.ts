@@ -216,6 +216,7 @@ interface TournamentState {
   getTeamHistories: (teamId: string) => TeamHistory[];
   // Players
   addPlayer: (player: Player) => Promise<void>;
+  addPlayers: (players: Player[]) => Promise<number>;
   updatePlayer: (id: string, updates: Partial<Player>) => Promise<void>;
   removePlayer: (id: string) => Promise<void>;
   transferPlayer: (playerId: string, teamId: string | null) => Promise<void>;
