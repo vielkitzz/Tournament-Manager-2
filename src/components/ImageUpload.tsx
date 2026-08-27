@@ -11,6 +11,10 @@ interface ImageUploadProps {
   placeholder?: React.ReactNode;
   className?: string;
   size?: "sm" | "md";
+  /** Allowed MIME types. Defaults to all images. */
+  acceptedTypes?: string[];
+  /** Maximum file size in bytes. */
+  maxSizeBytes?: number;
 }
 
 export default function ImageUpload({
@@ -20,14 +24,27 @@ export default function ImageUpload({
   placeholder,
   className = "",
   size = "md",
+  acceptedTypes,
+  maxSizeBytes,
 }: ImageUploadProps) {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [dragging, setDragging] = useState(false);
+
+  const acceptedTypeString = acceptedTypes?.join(",") ?? "image/*";
 
   const handleFile = useCallback(
     async (file: File) => {
       if (!file.type.startsWith("image/")) {
         toast.error("Arquivo não é uma imagem");
+        return;
+      }
+      if (acceptedTypes && !acceptedTypes.includes(file.type)) {
+        toast.error(`Formato não aceito. Use ${acceptedTypes.map((t) => t.replace("image/", "").toUpperCase()).join(", ")}.`);
+        return;
+      }
+      if (maxSizeBytes && file.size > maxSizeBytes) {
+        const maxMb = (maxSizeBytes / 1024 / 1024).toFixed(1).replace(".0", "");
+        toast.error(`Imagem muito grande. Tamanho máximo: ${maxMb} MB.`);
         return;
       }
       try {
@@ -37,7 +54,7 @@ export default function ImageUpload({
         toast.error("Erro ao processar imagem");
       }
     },
-    [onImageSelected]
+    [onImageSelected, acceptedTypes, maxSizeBytes]
   );
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -108,7 +125,7 @@ export default function ImageUpload({
       <input
         ref={fileInputRef}
         type="file"
-        accept="image/*"
+        accept={acceptedTypeString}
         onChange={handleInputChange}
         className="hidden"
       />

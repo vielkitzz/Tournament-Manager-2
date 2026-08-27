@@ -293,6 +293,8 @@ export default function PhotoModeSettingsCard({
                     <ImageUpload
                       size="sm"
                       previewUrl={settings.logoUrl || undefined}
+                      acceptedTypes={["image/png", "image/jpeg", "image/webp"]}
+                      maxSizeBytes={2 * 1024 * 1024}
                       onImageSelected={async ({ blob }) => {
                         const dataUrl = await blobToDataUrl(blob);
                         update({ logoUrl: dataUrl });
@@ -301,7 +303,7 @@ export default function PhotoModeSettingsCard({
                       placeholder={<ImageIcon className="w-4 h-4 text-muted-foreground" />}
                     />
                     <p className="text-[11px] text-muted-foreground">
-                      Usado apenas nas fotos. Não altera o escudo do torneio.
+                      PNG, JPG ou WEBP · máx. 2 MB. Usado apenas nas fotos.
                     </p>
                   </div>
                 )}
