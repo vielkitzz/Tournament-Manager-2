@@ -125,7 +125,7 @@ export default function ImageUpload({
       <input
         ref={fileInputRef}
         type="file"
-        accept="image/*"
+        accept={acceptedTypeString}
         onChange={handleInputChange}
         className="hidden"
       />
