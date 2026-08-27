@@ -11,6 +11,10 @@ interface ImageUploadProps {
   placeholder?: React.ReactNode;
   className?: string;
   size?: "sm" | "md";
+  /** Allowed MIME types. Defaults to all images. */
+  acceptedTypes?: string[];
+  /** Maximum file size in bytes. */
+  maxSizeBytes?: number;
 }
 
 export default function ImageUpload({
