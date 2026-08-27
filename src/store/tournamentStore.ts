@@ -216,6 +216,7 @@ interface TournamentState {
   getTeamHistories: (teamId: string) => TeamHistory[];
   // Players
   addPlayer: (player: Player) => Promise<void>;
+  addPlayers: (players: Player[]) => Promise<number>;
   updatePlayer: (id: string, updates: Partial<Player>) => Promise<void>;
   removePlayer: (id: string) => Promise<void>;
   transferPlayer: (playerId: string, teamId: string | null) => Promise<void>;
@@ -605,6 +606,32 @@ export const useTournamentStore = create<TournamentState>((set, get) => ({
       .single();
     if (data) set((s) => ({ players: [...s.players, dbToPlayer(data)] }));
   },
+
+  addPlayers: async (list) => {
+    const userId = get()._userId;
+    if (!userId || list.length === 0) return 0;
+    const rows = list.map((player) => ({
+      id: player.id,
+      user_id: userId,
+      name: player.name,
+      team_id: player.teamId || null,
+      nationality: player.nationality || null,
+      position: player.position || null,
+      age: player.age ?? null,
+      shirt_number: player.shirtNumber ?? null,
+      skill: player.skill ?? 70,
+      photo_url: player.photoUrl || null,
+      season_year: player.seasonYear ?? null,
+      master_player_id: player.masterPlayerId || null,
+    }));
+    const { data, error } = await db.from("players").insert(rows).select();
+    if (error || !data) throw error || new Error("Falha ao salvar o elenco");
+    const inserted = data.map(dbToPlayer);
+    set((s) => ({ players: [...s.players, ...inserted] }));
+    return inserted.length;
+  },
+
+
 
   updatePlayer: async (id, updates) => {
     const userId = get()._userId;
