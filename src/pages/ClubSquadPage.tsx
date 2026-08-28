@@ -398,24 +398,24 @@ export default function ClubSquadPage() {
     reader.onload = async (ev) => {
       try {
         const data = JSON.parse(ev.target?.result as string);
-        const toImport = data.players.slice(0, MAX_PLAYERS);
-        for (const p of toImport) {
-          await addPlayer({
-            id: crypto.randomUUID(),
-            teamId,
-            name: p.name,
-            position: p.position,
-            skill: clampSkill(p.skill || SKILL_DEFAULT),
-            seasonYear: activeSeasonYear || p.seasonYear,
-          });
-        }
-        toast.success("Importado com sucesso");
+        const toImport = playersFromJson(data, {
+          teamId,
+          seasonYear: activeSeasonYear,
+          usedShirtNumbers: squadShirtNumbers,
+          limit: Math.max(0, MAX_PLAYERS - squad.length),
+        });
+        if (toImport.length === 0) return toast.error("Nenhum jogador válido encontrado");
+        await addPlayers(toImport);
+        toast.success(`${toImport.length} jogadores importados`);
       } catch {
         toast.error("Erro na importação");
+      } finally {
+        e.target.value = "";
       }
     };
     reader.readAsText(file);
   };
+
 
   const handleCreateYear = () => {
     const yr = parseInt(newYearValue);
