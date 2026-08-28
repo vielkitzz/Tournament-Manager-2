@@ -19,6 +19,7 @@ import {
   LinkIcon,
   Unlink,
   RefreshCw,
+  Sparkles,
 } from "lucide-react";
 import TeamLogo from "@/components/TeamLogo";
 import CountryFlag from "@/components/CountryFlag";
@@ -29,6 +30,8 @@ import PlayerStars from "@/components/PlayerStars";
 import { SKILL_DEFAULT, clampSkill } from "@/lib/playerSkill";
 import { supabase } from "@/integrations/supabase/client";
 import { clearLineupCache } from "@/lib/solaraLineups";
+import { playersFromJson } from "@/lib/squadGenerator";
+import GenerateSquadDialog from "@/components/squad/GenerateSquadDialog";
 
 const MAX_PLAYERS = 30;
 
@@ -322,7 +325,8 @@ function SolaraSyncButton({ tm2TeamId }: SolaraSyncButtonProps) {
 export default function ClubSquadPage() {
   const { teamId } = useParams<{ teamId: string }>();
   const navigate = useNavigate();
-  const { teams, players, removePlayer, addPlayer, updatePlayer } = useTournamentStore();
+  const { teams, players, removePlayer, addPlayer, addPlayers, updatePlayer } = useTournamentStore();
+  const [showGenerateDialog, setShowGenerateDialog] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const team = useMemo(() => teams.find((t) => t.id === teamId), [teams, teamId]);
@@ -367,6 +371,11 @@ export default function ClubSquadPage() {
       });
   }, [players, teamId, selectedYear]);
 
+  const squadShirtNumbers = useMemo(
+    () => squad.map((p) => p.shirtNumber).filter((n): n is number => n != null),
+    [squad],
+  );
+
   const handleDelete = async (id: string, name: string) => {
     await removePlayer(id);
     toast.success(`${name} removido do elenco`);
@@ -398,24 +407,24 @@ export default function ClubSquadPage() {
     reader.onload = async (ev) => {
       try {
         const data = JSON.parse(ev.target?.result as string);
-        const toImport = data.players.slice(0, MAX_PLAYERS);
-        for (const p of toImport) {
-          await addPlayer({
-            id: crypto.randomUUID(),
-            teamId,
-            name: p.name,
-            position: p.position,
-            skill: clampSkill(p.skill || SKILL_DEFAULT),
-            seasonYear: activeSeasonYear || p.seasonYear,
-          });
-        }
-        toast.success("Importado com sucesso");
+        const toImport = playersFromJson(data, {
+          teamId,
+          seasonYear: activeSeasonYear,
+          usedShirtNumbers: squadShirtNumbers,
+          limit: Math.max(0, MAX_PLAYERS - squad.length),
+        });
+        if (toImport.length === 0) return toast.error("Nenhum jogador válido encontrado");
+        await addPlayers(toImport);
+        toast.success(`${toImport.length} jogadores importados`);
       } catch {
         toast.error("Erro na importação");
+      } finally {
+        e.target.value = "";
       }
     };
     reader.readAsText(file);
   };
+
 
   const handleCreateYear = () => {
     const yr = parseInt(newYearValue);
@@ -507,6 +516,12 @@ export default function ClubSquadPage() {
                   Excluir Ano
                 </Button>
               </>
+            )}
+            {squad.length < MAX_PLAYERS && (
+              <Button variant="outline" size="sm" onClick={() => setShowGenerateDialog(true)}>
+                <Sparkles className="w-4 h-4 mr-1" />
+                Gerar elenco
+              </Button>
             )}
             <Button variant="outline" size="sm" onClick={handleExportSquad}>
               <Download className="w-4 h-4 mr-1" />
@@ -631,6 +646,21 @@ export default function ClubSquadPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+      {teamId && (
+        <GenerateSquadDialog
+          open={showGenerateDialog}
+          onOpenChange={setShowGenerateDialog}
+          teamId={teamId}
+          teamRate={team.rate}
+          seasonYear={activeSeasonYear}
+          existingCount={squad.length}
+          usedShirtNumbers={squadShirtNumbers}
+          onConfirm={async (generated) => {
+            const created = await addPlayers(generated);
+            toast.success(`${created} jogadores criados`);
+          }}
+        />
+      )}
     </PageTransition>
   );
 }
