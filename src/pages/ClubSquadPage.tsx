@@ -19,6 +19,7 @@ import {
   LinkIcon,
   Unlink,
   RefreshCw,
+  Sparkles,
 } from "lucide-react";
 import TeamLogo from "@/components/TeamLogo";
 import CountryFlag from "@/components/CountryFlag";
@@ -29,6 +30,8 @@ import PlayerStars from "@/components/PlayerStars";
 import { SKILL_DEFAULT, clampSkill } from "@/lib/playerSkill";
 import { supabase } from "@/integrations/supabase/client";
 import { clearLineupCache } from "@/lib/solaraLineups";
+import { playersFromJson } from "@/lib/squadGenerator";
+import GenerateSquadDialog from "@/components/squad/GenerateSquadDialog";
 
 const MAX_PLAYERS = 30;
 
@@ -322,7 +325,8 @@ function SolaraSyncButton({ tm2TeamId }: SolaraSyncButtonProps) {
 export default function ClubSquadPage() {
   const { teamId } = useParams<{ teamId: string }>();
   const navigate = useNavigate();
-  const { teams, players, removePlayer, addPlayer, updatePlayer } = useTournamentStore();
+  const { teams, players, removePlayer, addPlayer, addPlayers, updatePlayer } = useTournamentStore();
+  const [showGenerateDialog, setShowGenerateDialog] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const team = useMemo(() => teams.find((t) => t.id === teamId), [teams, teamId]);
@@ -366,6 +370,11 @@ export default function ClubSquadPage() {
         return (b.skill || 0) - (a.skill || 0); // Desempate por qualidade
       });
   }, [players, teamId, selectedYear]);
+
+  const squadShirtNumbers = useMemo(
+    () => squad.map((p) => p.shirtNumber).filter((n): n is number => n != null),
+    [squad],
+  );
 
   const handleDelete = async (id: string, name: string) => {
     await removePlayer(id);
@@ -507,6 +516,12 @@ export default function ClubSquadPage() {
                   Excluir Ano
                 </Button>
               </>
+            )}
+            {squad.length < MAX_PLAYERS && (
+              <Button variant="outline" size="sm" onClick={() => setShowGenerateDialog(true)}>
+                <Sparkles className="w-4 h-4 mr-1" />
+                Gerar elenco
+              </Button>
             )}
             <Button variant="outline" size="sm" onClick={handleExportSquad}>
               <Download className="w-4 h-4 mr-1" />
