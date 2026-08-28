@@ -646,6 +646,21 @@ export default function ClubSquadPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+      {teamId && (
+        <GenerateSquadDialog
+          open={showGenerateDialog}
+          onOpenChange={setShowGenerateDialog}
+          teamId={teamId}
+          teamRate={team.rate}
+          seasonYear={activeSeasonYear}
+          existingCount={squad.length}
+          usedShirtNumbers={squadShirtNumbers}
+          onConfirm={async (generated) => {
+            const created = await addPlayers(generated);
+            toast.success(`${created} jogadores criados`);
+          }}
+        />
+      )}
     </PageTransition>
   );
 }
