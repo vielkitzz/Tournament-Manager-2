@@ -15,6 +15,7 @@ import {
   PositionCode,
   PositionCounts,
   SquadGeneratorConfig,
+  normalizeComposition,
   skillAnchorForRate,
 } from "@/lib/squadGenerator";
 
@@ -338,7 +339,17 @@ export function playersFromSpecs(
   const minAge = Math.min(config.minAge, config.maxAge);
   const maxAge = Math.max(config.minAge, config.maxAge);
 
-  return specs.map((spec, index) => {
+  // Fila de posições para completar quem não trouxe posição no texto
+  const target = normalizeComposition(config.composition, specs.length);
+  specs.forEach((s) => {
+    if (s.position && target[s.position] > 0) target[s.position] -= 1;
+  });
+  const queue: PositionCode[] = [];
+  POSITION_CODES.forEach((code) => {
+    for (let i = 0; i < target[code]; i++) queue.push(code);
+  });
+
+  return specs.map((spec) => {
     const nationality = spec.nationality || config.baseNationality;
     const age = spec.age ?? Math.floor(rng() * (maxAge - minAge + 1)) + minAge;
 
@@ -367,7 +378,7 @@ export function playersFromSpecs(
       teamId: config.teamId,
       name: spec.name || randomNameForCountry(nationality),
       nationality,
-      position: spec.position || POSITION_CODES[index % POSITION_CODES.length],
+      position: spec.position || queue.shift() || "MC",
       age,
       shirtNumber,
       skill,
