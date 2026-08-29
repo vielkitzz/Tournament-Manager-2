@@ -1,5 +1,5 @@
 import { useState, useRef } from "react";
-import { Download, Upload, Shield, Trophy } from "lucide-react";
+import { Download, Upload, Shield, Trophy, Users } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -12,23 +12,31 @@ import { Button } from "@/components/ui/button";
 import { useTournamentStore } from "@/store/tournamentStore";
 import { toast } from "sonner";
 import { Team, Tournament } from "@/types/tournament";
+import { buildSquadsBackup, countBackupPlayers, planSquadImport } from "@/lib/squadBackup";
 
 interface Props {
   trigger: React.ReactNode;
 }
 
 export default function ImportExportDialog({ trigger }: Props) {
-  const { teams, tournaments, addTeam, addTournament } = useTournamentStore();
+  const { teams, tournaments, players, addTeam, addTournament, addPlayers } = useTournamentStore();
   const [open, setOpen] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const handleExport = (type: "teams" | "tournaments" | "all") => {
+  const squadsBackup = buildSquadsBackup(teams, players);
+  const totalSquadPlayers = countBackupPlayers(squadsBackup);
+
+  const handleExport = (type: "teams" | "tournaments" | "squads" | "all") => {
     let data: any = {};
     if (type === "teams" || type === "all") {
       data.teams = teams.map(({ id, ...t }) => t);
     }
     if (type === "tournaments" || type === "all") {
       data.tournaments = tournaments.map(({ id, ...t }) => t);
+    }
+    if (type === "squads" || type === "all") {
+      data.squads = squadsBackup.squads;
+      if (type === "squads") data._type = "squads";
     }
     data._exportedAt = new Date().toISOString();
     data._version = 1;
@@ -37,7 +45,8 @@ export default function ImportExportDialog({ trigger }: Props) {
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    const suffix = type === "all" ? "dados" : type === "teams" ? "times" : "competicoes";
+    const suffix =
+      type === "all" ? "dados" : type === "teams" ? "times" : type === "squads" ? "elencos" : "competicoes";
     a.download = `tm2-${suffix}-${new Date().toISOString().slice(0, 10)}.json`;
     a.click();
     URL.revokeObjectURL(url);
@@ -111,12 +120,31 @@ export default function ImportExportDialog({ trigger }: Props) {
         }
       }
 
+      let playersImported = 0;
+      let unmatched: string[] = [];
+      if (data.squads && Array.isArray(data.squads)) {
+        const latestTeams = useTournamentStore.getState().teams;
+        const latestPlayers = useTournamentStore.getState().players;
+        const plan = planSquadImport(data, latestTeams, latestPlayers);
+        unmatched = plan.unmatchedTeams;
+        for (const group of plan.matched) {
+          try {
+            playersImported += await addPlayers(group.players);
+          } catch {
+            unmatched.push(group.team.name);
+          }
+        }
+      }
+
       const parts: string[] = [];
       if (teamsImported > 0) parts.push(`${teamsImported} time(s)`);
       if (tournamentsImported > 0) parts.push(`${tournamentsImported} competição(ões)`);
+      if (playersImported > 0) parts.push(`${playersImported} jogador(es)`);
 
       if (parts.length > 0) {
         toast.success(`Importado: ${parts.join(" e ")}`);
+        if (unmatched.length > 0)
+          toast.warning(`Sem time correspondente: ${[...new Set(unmatched)].slice(0, 5).join(", ")}`);
       } else {
         toast.error("Nenhum dado reconhecido no arquivo");
       }
@@ -167,6 +195,16 @@ export default function ImportExportDialog({ trigger }: Props) {
               <Button
                 variant="outline"
                 className="justify-start gap-3 h-11"
+                onClick={() => handleExport("squads")}
+                disabled={totalSquadPlayers === 0}
+              >
+                <Users className="w-4 h-4 text-primary" />
+                <span>Elencos ({totalSquadPlayers} jogadores)</span>
+                <Download className="w-3.5 h-3.5 ml-auto text-muted-foreground" />
+              </Button>
+              <Button
+                variant="outline"
+                className="justify-start gap-3 h-11"
                 onClick={() => handleExport("all")}
                 disabled={teams.length === 0 && tournaments.length === 0}
               >
@@ -184,7 +222,9 @@ export default function ImportExportDialog({ trigger }: Props) {
               <Upload className="w-4 h-4 text-primary" />
               <span>Importar arquivo JSON</span>
             </Button>
-            <p className="text-[11px] text-muted-foreground">Aceita arquivos exportados pelo TM2 (.json)</p>
+            <p className="text-[11px] text-muted-foreground">
+              Aceita arquivos exportados pelo TM2 (.json). Elencos são vinculados aos times pelo nome.
+            </p>
           </div>
         </div>
       </DialogContent>

@@ -6,6 +6,8 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Slider } from "@/components/ui/slider";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Textarea } from "@/components/ui/textarea";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Sparkles, RefreshCw, Save, X } from "lucide-react";
@@ -25,6 +27,7 @@ import {
   validateConfig,
 } from "@/lib/squadGenerator";
 import { SKILL_MAX, SKILL_MIN } from "@/lib/playerSkill";
+import { parseSquadText, playersFromSpecs } from "@/lib/squadTextParser";
 
 interface Props {
   open: boolean;
@@ -56,6 +59,9 @@ export default function GenerateSquadDialog({
   });
   const [preview, setPreview] = useState<Player[] | null>(null);
   const [saving, setSaving] = useState(false);
+  const [text, setText] = useState("");
+  const [textSummary, setTextSummary] = useState<string[]>([]);
+  const [textWarnings, setTextWarnings] = useState<string[]>([]);
 
   const effectiveConfig = useMemo<SquadGeneratorConfig>(
     () => ({ ...config, teamId, teamRate: teamRate ?? 5, seasonYear, usedShirtNumbers }),
@@ -91,6 +97,30 @@ export default function GenerateSquadDialog({
     }
   };
 
+  const handleParseText = () => {
+    const result = parseSquadText(text);
+    if (result.mode === "empty") return toast.error("Escreva as regras ou a lista de jogadores");
+    setTextSummary(result.summary);
+    setTextWarnings(result.warnings);
+
+    const merged: SquadGeneratorConfig = {
+      ...effectiveConfig,
+      ...result.configPatch,
+      composition: result.configPatch.composition ?? effectiveConfig.composition,
+      foreignPool: result.configPatch.foreignPool ?? effectiveConfig.foreignPool,
+    };
+    const capped = Math.max(1, Math.min(merged.size, MAX_SQUAD_SIZE - existingCount));
+    const finalConfig: SquadGeneratorConfig = { ...merged, size: capped };
+
+    setConfig((c) => ({ ...c, ...result.configPatch, size: capped }));
+
+    if (result.players.length > 0) {
+      setPreview(playersFromSpecs(result.players.slice(0, capped), finalConfig));
+    } else {
+      setPreview(generateSquad(finalConfig));
+    }
+  };
+
   const toggleForeign = (country: string) => {
     setConfig((c) => ({
       ...c,
@@ -113,7 +143,45 @@ export default function GenerateSquadDialog({
           </DialogTitle>
         </DialogHeader>
 
-        <div className="grid gap-6 md:grid-cols-2">
+        <Tabs defaultValue="controls">
+          <TabsList className="grid w-full grid-cols-2">
+            <TabsTrigger value="controls">Controles</TabsTrigger>
+            <TabsTrigger value="text">Por texto</TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="text" className="space-y-3 pt-4">
+            <Label>Descreva o elenco</Label>
+            <Textarea
+              value={text}
+              onChange={(e) => setText(e.target.value)}
+              rows={8}
+              className="font-mono text-xs"
+              placeholder={`23 jogadores brasileiros
+20% argentinos e uruguaios
+idade entre 18 e 32
+formação 4-3-3
+habilidade 70-85
+
+ou uma lista, um jogador por linha:
+10, Rivaldo, MEI, 28, Brasil, 88
+Ederson, GOL, 30, Brasil`}
+            />
+            <Button onClick={handleParseText} className="w-full gap-2">
+              <Sparkles className="w-4 h-4" /> Interpretar e gerar prévia
+            </Button>
+            {textSummary.length > 0 && (
+              <p className="text-xs text-muted-foreground">Entendido: {textSummary.join(" · ")}</p>
+            )}
+            {textWarnings.length > 0 && (
+              <ul className="space-y-1 text-xs text-destructive">
+                {textWarnings.map((w, i) => (
+                  <li key={i}>{w}</li>
+                ))}
+              </ul>
+            )}
+          </TabsContent>
+
+          <TabsContent value="controls" className="grid gap-6 md:grid-cols-2 pt-4">
           {/* Configuração geral */}
           <div className="space-y-4">
             <div className="space-y-2">
@@ -299,7 +367,8 @@ export default function GenerateSquadDialog({
               {preview ? "Gerar novamente" : "Gerar prévia"}
             </Button>
           </div>
-        </div>
+          </TabsContent>
+        </Tabs>
 
         {preview && (
           <div className="space-y-2">
