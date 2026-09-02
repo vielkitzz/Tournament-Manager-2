@@ -497,17 +497,40 @@ ${contrastCss(photo)}
     // The pixel budget only caps EXTRA sharpness — it must never render below 1x,
     // otherwise a higher zoom produced a downscaled (blurrier/smaller) image.
     const budget = photo.maxPixels || DEFAULT_PHOTO_MODE.maxPixels;
-    const ratio = Math.min(2, Math.max(1, Math.sqrt(budget / Math.max(1, w * h))));
+    let ratio = Math.min(2, Math.max(1, Math.sqrt(budget / Math.max(1, w * h))));
 
+    // Mobile Safari/Chrome refuse canvases above ~16.7 MP (and ~4096 px per side
+    // on older iPhones): without this cap the capture silently returned a blank
+    // or white PNG on phones.
+    const mobileLike =
+      typeof window !== "undefined" &&
+      (window.matchMedia?.("(pointer: coarse)").matches || /iPhone|iPad|iPod|Android/i.test(navigator.userAgent));
+    if (mobileLike) {
+      const maxSide = 4096;
+      const maxArea = 12_000_000;
+      ratio = Math.min(ratio, maxSide / Math.max(w, h), Math.sqrt(maxArea / Math.max(1, w * h)));
+      ratio = Math.max(0.6, ratio);
+    }
 
-    return await toPng(root as HTMLElement, {
-      backgroundColor: hasBgImage ? undefined : bgColor,
-      cacheBust: false,
-      pixelRatio: ratio,
-      width: w,
-      height: h,
-      skipFonts: true,
-    });
+    const render = () =>
+      toPng(root as HTMLElement, {
+        backgroundColor: hasBgImage ? undefined : bgColor,
+        cacheBust: false,
+        pixelRatio: ratio,
+        width: w,
+        height: h,
+        skipFonts: true,
+      });
+
+    // WebKit frequently returns an empty raster on the first pass (images decoded
+    // late inside the iframe). One retry makes the mobile capture reliable.
+    let dataUrl = await render();
+    if (!dataUrl || dataUrl.length < 8000) {
+      await new Promise((r) => setTimeout(r, 120));
+      dataUrl = await render();
+    }
+    if (!dataUrl || dataUrl.length < 2000) throw new Error("Captura vazia");
+    return dataUrl;
   } finally {
     iframe.remove();
   }
