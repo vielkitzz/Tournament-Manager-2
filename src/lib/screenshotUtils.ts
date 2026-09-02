@@ -462,10 +462,13 @@ ${contrastCss(photo)}
       });
       const full = Math.ceil(Math.max(right, content.scrollWidth));
       const inkW = Math.ceil(ink) + 2;
+      const trimmed = inkW >= 160 && inkW < full ? inkW : full;
       return {
         // Fixed modes deliberately retain the configured output width. Intrinsic
-        // layouts (bracket) may trim only when the ink measurement is plausible.
-        w: fixedFrame ? width : inkW >= 160 && inkW < full ? inkW : full,
+        // layouts (bracket) may trim only when the ink measurement is plausible,
+        // but never below the layout width — trimming below it made a higher zoom
+        // produce a NARROWER image, which reads as an inverted zoom on mobile.
+        w: fixedFrame ? width : Math.max(width, trimmed),
         h: Math.ceil(Math.max(bottom, content.scrollHeight)),
       };
     };
