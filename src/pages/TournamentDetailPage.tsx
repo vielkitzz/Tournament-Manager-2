@@ -1309,8 +1309,9 @@ export default function TournamentDetailPage() {
                   );
                 })()}
               </div>
-            )}
-          </div>
+            </PopoverContent>
+          </Popover>
+
           {!isViewingPastSeason && tournament.finalized && (
             <Button onClick={handleNewSeason} size="sm" className="gap-1.5 bg-primary text-primary-foreground">
               <Plus className="w-3.5 h-3.5" />
