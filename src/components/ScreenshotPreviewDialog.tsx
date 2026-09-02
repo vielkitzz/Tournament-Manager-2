@@ -1,6 +1,7 @@
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Copy, Download, Loader2 } from "lucide-react";
+import { Copy, Download, Loader2, Share2 } from "lucide-react";
 import { copyOrDownload, downloadDataUrl } from "@/lib/screenshotUtils";
+import { toast } from "sonner";
 
 interface ScreenshotPreviewDialogProps {
   open: boolean;
@@ -10,6 +11,23 @@ interface ScreenshotPreviewDialogProps {
   loading?: boolean;
 }
 
+/** Mobile browsers block clipboard images: sharing the PNG file is the reliable path. */
+async function shareImage(dataUrl: string, filename: string) {
+  try {
+    const blob = await (await fetch(dataUrl)).blob();
+    const file = new File([blob], filename, { type: "image/png" });
+    const nav = navigator as Navigator & { canShare?: (data: ShareData) => boolean };
+    if (nav.canShare?.({ files: [file] }) && nav.share) {
+      await nav.share({ files: [file] });
+      return;
+    }
+    downloadDataUrl(dataUrl, filename);
+  } catch (err) {
+    if ((err as Error)?.name === "AbortError") return;
+    toast.error("Não foi possível compartilhar. Baixe a imagem.");
+  }
+}
+
 export default function ScreenshotPreviewDialog({
   open,
   onOpenChange,
@@ -17,6 +35,9 @@ export default function ScreenshotPreviewDialog({
   filename,
   loading,
 }: ScreenshotPreviewDialogProps) {
+  const canShare =
+    typeof navigator !== "undefined" && typeof (navigator as Navigator).share === "function";
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-[min(96vw,1100px)] max-h-[92vh] overflow-hidden flex flex-col gap-3">
@@ -35,20 +56,30 @@ export default function ScreenshotPreviewDialog({
           )}
         </div>
 
-        <div className="flex flex-wrap gap-2 justify-end">
+        <div className="grid grid-cols-2 sm:flex sm:flex-wrap gap-2 sm:justify-end">
           <button
             type="button"
             disabled={!dataUrl}
             onClick={() => dataUrl && downloadDataUrl(dataUrl, filename)}
-            className="px-3 py-2 rounded-lg text-xs bg-secondary text-secondary-foreground hover:bg-secondary/80 disabled:opacity-50 flex items-center gap-1.5"
+            className="px-3 py-2.5 rounded-lg text-xs bg-secondary text-secondary-foreground hover:bg-secondary/80 disabled:opacity-50 flex items-center justify-center gap-1.5"
           >
             <Download className="w-3.5 h-3.5" /> Baixar
           </button>
+          {canShare && (
+            <button
+              type="button"
+              disabled={!dataUrl}
+              onClick={() => dataUrl && shareImage(dataUrl, filename)}
+              className="px-3 py-2.5 rounded-lg text-xs bg-secondary text-secondary-foreground hover:bg-secondary/80 disabled:opacity-50 flex items-center justify-center gap-1.5"
+            >
+              <Share2 className="w-3.5 h-3.5" /> Compartilhar
+            </button>
+          )}
           <button
             type="button"
             disabled={!dataUrl}
             onClick={() => dataUrl && copyOrDownload(dataUrl, filename)}
-            className="px-3 py-2 rounded-lg text-xs bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-50 flex items-center gap-1.5"
+            className="col-span-2 sm:col-auto px-3 py-2.5 rounded-lg text-xs bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-50 flex items-center justify-center gap-1.5"
           >
             <Copy className="w-3.5 h-3.5" /> Copiar
           </button>

@@ -96,7 +96,7 @@ export default function PhotoModeSettingsCard({
 
 
   return (
-    <div className="rounded-xl border border-border bg-card p-5 space-y-5 lg:col-span-2">
+    <div className="rounded-xl border border-border bg-card p-4 sm:p-5 space-y-5 lg:col-span-2">
       <div className="flex items-center gap-2.5">
         <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center">
           <Camera className="w-4 h-4 text-primary" />
@@ -137,7 +137,7 @@ export default function PhotoModeSettingsCard({
 
           <div className={cn("space-y-2", auto && "opacity-50 pointer-events-none")}>
             <Label className="text-xs text-muted-foreground">Formato da imagem</Label>
-            <div className="grid grid-cols-3 gap-2">
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
               {WIDTH_PRESETS.map((p) => (
                 <button
                   key={p.value}
@@ -198,7 +198,7 @@ export default function PhotoModeSettingsCard({
 
           <div className="space-y-2">
             <Label className="text-xs text-muted-foreground">Qualidade / peso do PNG</Label>
-            <div className="grid grid-cols-3 gap-2">
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
               {QUALITY_PRESETS.map((q) => (
                 <button
                   key={q.value}
@@ -231,7 +231,7 @@ export default function PhotoModeSettingsCard({
           </div>
 
           {settings.palette === "custom" && (
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               {COLOR_FIELDS.map(({ key, label }) => (
                 <div key={key} className="flex items-center gap-2">
                   <input
@@ -261,7 +261,7 @@ export default function PhotoModeSettingsCard({
             <>
               <div className="space-y-2">
                 <Label className="text-xs text-muted-foreground">Ícone no cabeçalho</Label>
-                <div className="grid grid-cols-3 gap-2">
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
                   {(
                     [
                       { key: "tournament", label: "Escudo da competição" },
@@ -289,7 +289,7 @@ export default function PhotoModeSettingsCard({
                   </p>
                 )}
                 {settings.logoMode === "custom" && (
-                  <div className="flex items-center gap-3">
+                  <div className="flex flex-col sm:flex-row sm:items-center gap-3">
                     <ImageUpload
                       size="sm"
                       previewUrl={settings.logoUrl || undefined}
