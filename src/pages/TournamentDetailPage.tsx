@@ -1218,17 +1218,24 @@ export default function TournamentDetailPage() {
           </div>
         </div>
         <div className="flex items-center gap-2 shrink-0">
-          <div className="relative">
-            <button
-              onClick={() => setShowYearPicker(!showYearPicker)}
-              className="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-secondary border border-border text-sm font-display font-bold text-foreground hover:border-primary/40 transition-colors"
+          <Popover open={showYearPicker} onOpenChange={setShowYearPicker}>
+            <PopoverTrigger asChild>
+              <button
+                className="flex items-center gap-1 px-3 py-2 rounded-lg bg-secondary border border-border text-sm font-display font-bold text-foreground hover:border-primary/40 transition-colors"
+              >
+                <Calendar className="w-3.5 h-3.5 text-primary" />
+                {activeYear}
+                <ChevronDown className="w-3.5 h-3.5 text-muted-foreground" />
+              </button>
+            </PopoverTrigger>
+            <PopoverContent
+              align="end"
+              sideOffset={6}
+              collisionPadding={12}
+              className="w-[min(88vw,260px)] max-h-[60vh] overflow-y-auto bg-card border border-border rounded-lg shadow-xl z-50 p-2"
             >
-              <Calendar className="w-3.5 h-3.5 text-primary" />
-              {activeYear}
-              <ChevronDown className="w-3.5 h-3.5 text-muted-foreground" />
-            </button>
-            {showYearPicker && (
-              <div className="absolute right-0 top-full mt-1 bg-card border border-border rounded-lg shadow-xl z-20 p-2 min-w-[220px]">
+              <div>
+
                 {(() => {
                   const seasonYears = (tournament.seasons || []).filter((s) => !(s as any).manual).map((s) => s.year);
                   const allYears = Array.from(new Set([...seasonYears, tournament.year])).sort((a, b) => b - a);
