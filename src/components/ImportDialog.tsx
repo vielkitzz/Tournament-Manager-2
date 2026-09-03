@@ -1,5 +1,5 @@
 import { useState, useRef } from "react";
-import { Upload, Shield, Trophy, FileJson } from "lucide-react";
+import { Upload, Shield, Trophy, FileJson, Users } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -13,15 +13,16 @@ import { useTournamentStore } from "@/store/tournamentStore";
 import { toast } from "sonner";
 import { Team, Tournament } from "@/types/tournament";
 import { TeamHistory } from "@/lib/teamHistoryUtils";
+import { planSquadImport } from "@/lib/squadBackup";
 
 interface Props {
   trigger: React.ReactNode;
 }
 
-type ImportMode = "teams" | "tournaments" | "all";
+type ImportMode = "teams" | "tournaments" | "squads" | "all";
 
 export default function ImportDialog({ trigger }: Props) {
-  const { addTeam, addTournament, addTeamHistory, addFolder } = useTournamentStore();
+  const { addTeam, addTournament, addTeamHistory, addFolder, addPlayers } = useTournamentStore();
   const [open, setOpen] = useState(false);
   const [mode, setMode] = useState<ImportMode | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -181,14 +182,32 @@ export default function ImportDialog({ trigger }: Props) {
         }
       }
 
+      let playersImported = 0;
+      const unmatched: string[] = [];
+      if ((mode === "squads" || mode === "all") && data.squads && Array.isArray(data.squads)) {
+        const state = useTournamentStore.getState();
+        const plan = planSquadImport(data, state.teams, state.players);
+        unmatched.push(...plan.unmatchedTeams);
+        for (const group of plan.matched) {
+          try {
+            playersImported += await addPlayers(group.players);
+          } catch {
+            unmatched.push(group.team.name);
+          }
+        }
+      }
+
       const parts: string[] = [];
       if (teamsImported > 0) parts.push(`${teamsImported} time(s)`);
       if (foldersImported > 0) parts.push(`${foldersImported} pasta(s)`);
       if (historiesImported > 0) parts.push(`${historiesImported} versão(ões) histórica(s)`);
       if (tournamentsImported > 0) parts.push(`${tournamentsImported} competição(ões)`);
+      if (playersImported > 0) parts.push(`${playersImported} jogador(es)`);
 
       if (parts.length > 0) {
         toast.success(`Importado: ${parts.join(", ")}`);
+        if (unmatched.length > 0)
+          toast.warning(`Sem time correspondente: ${[...new Set(unmatched)].slice(0, 5).join(", ")}`);
       } else {
         toast.error("Nenhum dado reconhecido no arquivo");
       }
