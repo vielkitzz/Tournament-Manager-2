@@ -175,7 +175,7 @@ function parseRulesLine(line: string, patch: Partial<SquadGeneratorConfig>, comp
     }
   }
 
-  const age = n.match(/(?:idade|anos)[^0-9]{0,12}(\d{2})\D{1,6}(\d{2})/) || n.match(/(\d{2})\s*(?:a|e|-|ate|até)\s*(\d{2})\s*anos/);
+  const age = n.match(/(?:\bidade|\banos)[^0-9]{0,12}(\d{2})\D{1,6}(\d{2})/) || n.match(/(\d{2})\s*(?:a|e|-|ate|até)\s*(\d{2})\s*anos/);
   if (age) {
     patch.minAge = parseInt(age[1], 10);
     patch.maxAge = parseInt(age[2], 10);
