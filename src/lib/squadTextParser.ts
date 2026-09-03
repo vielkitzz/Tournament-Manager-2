@@ -252,8 +252,15 @@ function parseRosterLine(line: string): PartialPlayerSpec | undefined {
   return spec;
 }
 
+/** Contagens explícitas por posição, ex.: "3 goleiros, 4 zagueiros". */
+function hasPositionCounts(line: string): boolean {
+  const matches = [...norm(line).matchAll(/(\d{1,2})\s*([a-zç\- ]{2,20})/g)];
+  return matches.some((m) => matchPosition(m[2].trim()) != null);
+}
+
 /** Uma linha parece uma entrada de jogador (e não uma regra)? */
 function looksLikeRoster(line: string): boolean {
+  if (hasPositionCounts(line)) return false;
   if (RULE_HINT.test(line) && !line.includes(",")) return false;
   if (FORMATION_RE.test(line)) return false;
   if (line.includes(",")) return true;
