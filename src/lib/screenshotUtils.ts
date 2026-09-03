@@ -226,7 +226,7 @@ async function inlineImages(source: HTMLElement, clone: HTMLElement) {
         await waitForImage(img);
         return;
       }
-      const dataUrl = (sourceImg && canvasDataUrl(sourceImg)) || await toDataUrl(src);
+      const dataUrl = (sourceImg && canvasDataUrl(sourceImg)) || (await resolveImageDataUrl(src));
       img.src = dataUrl || FALLBACK_SHIELD;
       if (!dataUrl) img.dataset.photoImageFallback = "true";
       await waitForImage(img);
@@ -422,7 +422,7 @@ ${contrastCss(photo)}
     if (photo.showHeader && (photo.title || photo.subtitle || headerLogo)) {
       const header = doc.createElement("div");
       header.id = "photo-header";
-      const inlinedLogo = headerLogo ? (await toDataUrl(headerLogo)) || headerLogo : "";
+      const inlinedLogo = headerLogo ? (await resolveImageDataUrl(headerLogo)) || "" : "";
       header.innerHTML = `${
         inlinedLogo ? `<img class="photo-logo" src="${escapeHtml(inlinedLogo)}" alt="" />` : ""
       }<span class="bar"></span><div><h1>${escapeHtml(photo.title || "")}</h1>${
