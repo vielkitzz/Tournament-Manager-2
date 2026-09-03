@@ -247,13 +247,18 @@ export default function ImportDialog({ trigger }: Props) {
             <span>Apenas Competições</span>
             <Upload className="w-3.5 h-3.5 ml-auto text-muted-foreground" />
           </Button>
+          <Button variant="outline" className="w-full justify-start gap-3 h-11" onClick={() => handleSelect("squads")}>
+            <Users className="w-4 h-4 text-primary" />
+            <span>Apenas Elencos</span>
+            <Upload className="w-3.5 h-3.5 ml-auto text-muted-foreground" />
+          </Button>
           <Button variant="outline" className="w-full justify-start gap-3 h-11" onClick={() => handleSelect("all")}>
             <FileJson className="w-4 h-4 text-primary" />
             <span>Tudo</span>
             <Upload className="w-3.5 h-3.5 ml-auto text-muted-foreground" />
           </Button>
           <p className="text-[11px] text-muted-foreground pt-1">
-            Aceita arquivos exportados pelo TM2 (.json). Versões históricas são importadas junto com os times.
+            Aceita arquivos exportados pelo TM2 (.json). Versões históricas vêm junto com os times e os elencos são vinculados pelo nome do clube.
           </p>
         </div>
       </DialogContent>
