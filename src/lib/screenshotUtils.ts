@@ -171,6 +171,38 @@ async function toDataUrl(url: string): Promise<string | null> {
   return null;
 }
 
+/**
+ * Guarantees a rasterizable source for a remote image: tries fetch+FileReader
+ * first and, when that is blocked (mobile Safari/CORS/CSP), falls back to
+ * loading the file in an off-screen <img> and reading it back from a canvas.
+ */
+async function resolveImageDataUrl(url: string): Promise<string | null> {
+  if (!url) return null;
+  if (url.startsWith("data:")) return url;
+  const fetched = await toDataUrl(url);
+  if (fetched) return fetched;
+
+  for (const useCors of [true, false]) {
+    const dataUrl = await new Promise<string | null>((resolve) => {
+      const probe = new Image();
+      if (useCors) probe.crossOrigin = "anonymous";
+      probe.decoding = "sync";
+      const done = (value: string | null) => resolve(value);
+      probe.onload = () => done(canvasDataUrl(probe));
+      probe.onerror = () => done(null);
+      setTimeout(() => done(null), 6000);
+      probe.src = url;
+    });
+    if (dataUrl) {
+      inlineCache.set(url, dataUrl);
+      return dataUrl;
+    }
+  }
+  return null;
+}
+
+
+
 async function inlineImages(source: HTMLElement, clone: HTMLElement) {
   const sourceImgs = Array.from(source.querySelectorAll("img"));
   const imgs = Array.from(clone.querySelectorAll("img"));
@@ -194,7 +226,7 @@ async function inlineImages(source: HTMLElement, clone: HTMLElement) {
         await waitForImage(img);
         return;
       }
-      const dataUrl = (sourceImg && canvasDataUrl(sourceImg)) || await toDataUrl(src);
+      const dataUrl = (sourceImg && canvasDataUrl(sourceImg)) || (await resolveImageDataUrl(src));
       img.src = dataUrl || FALLBACK_SHIELD;
       if (!dataUrl) img.dataset.photoImageFallback = "true";
       await waitForImage(img);
@@ -390,7 +422,7 @@ ${contrastCss(photo)}
     if (photo.showHeader && (photo.title || photo.subtitle || headerLogo)) {
       const header = doc.createElement("div");
       header.id = "photo-header";
-      const inlinedLogo = headerLogo ? (await toDataUrl(headerLogo)) || headerLogo : "";
+      const inlinedLogo = headerLogo ? (await resolveImageDataUrl(headerLogo)) || "" : "";
       header.innerHTML = `${
         inlinedLogo ? `<img class="photo-logo" src="${escapeHtml(inlinedLogo)}" alt="" />` : ""
       }<span class="bar"></span><div><h1>${escapeHtml(photo.title || "")}</h1>${

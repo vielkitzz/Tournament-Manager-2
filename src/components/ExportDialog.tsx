@@ -1,17 +1,18 @@
 import { useState } from "react";
-import { Download, Shield, Trophy, Folder, ChevronDown, ChevronRight } from "lucide-react";
+import { Download, Shield, Trophy, Folder, ChevronDown, ChevronRight, Users } from "lucide-react";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useTournamentStore } from "@/store/tournamentStore";
 import { toast } from "sonner";
+import { buildSquadsBackup, countBackupPlayers } from "@/lib/squadBackup";
 
 interface Props {
   trigger: React.ReactNode;
 }
 
 export default function ExportDialog({ trigger }: Props) {
-  const { teams, tournaments, folders, teamHistories } = useTournamentStore();
+  const { teams, tournaments, folders, teamHistories, players } = useTournamentStore();
   const [open, setOpen] = useState(false);
 
   // Selection state
@@ -19,6 +20,7 @@ export default function ExportDialog({ trigger }: Props) {
   const [selectedFolderIds, setSelectedFolderIds] = useState<Set<string>>(new Set());
   const [selectedTournamentIds, setSelectedTournamentIds] = useState<Set<string>>(new Set());
   const [exportWithFolders, setExportWithFolders] = useState(true);
+  const [includeSquads, setIncludeSquads] = useState(true);
 
   // Expand/collapse sections
   const [teamsExpanded, setTeamsExpanded] = useState(false);
@@ -98,6 +100,10 @@ export default function ExportDialog({ trigger }: Props) {
     if (selTournaments.length > 0) {
       data.tournaments = selTournaments.map(({ id, ...t }) => t);
     }
+    if (includeSquads && selTeams.length > 0) {
+      const backup = buildSquadsBackup(selTeams, players);
+      if (backup.squads.length > 0) data.squads = backup.squads;
+    }
 
     data._exportedAt = new Date().toISOString();
     data._version = 1;
@@ -112,6 +118,24 @@ export default function ExportDialog({ trigger }: Props) {
     a.download = `tm2-${suffix}-${new Date().toISOString().slice(0, 10)}.json`;
     a.click();
     URL.revokeObjectURL(url);
+  };
+
+  const allSquads = buildSquadsBackup(teams, players);
+  const totalSquadPlayers = countBackupPlayers(allSquads);
+
+  const handleExportSquads = () => {
+    const selTeams = selectedTeamIds.size > 0 ? teams.filter((t) => selectedTeamIds.has(t.id)) : teams;
+    const backup = buildSquadsBackup(selTeams, players);
+    if (backup.squads.length === 0) {
+      toast.error("Nenhum elenco para exportar");
+      return;
+    }
+    downloadJson(
+      { ...backup, _exportedAt: new Date().toISOString() },
+      "elencos"
+    );
+    toast.success(`${countBackupPlayers(backup)} jogador(es) exportado(s)`);
+    setOpen(false);
   };
 
   const handleExportSelected = () => {
@@ -245,6 +269,27 @@ export default function ExportDialog({ trigger }: Props) {
                 ))}
               </div>
             )}
+          </div>
+
+          {/* Squads Section */}
+          <div className="space-y-2 pt-2 border-t border-border">
+            <div className="flex items-center gap-2">
+              <Users className="w-4 h-4 text-primary" />
+              <span className="text-sm font-semibold">Elencos ({totalSquadPlayers} jogadores)</span>
+            </div>
+            <label className="flex items-center gap-2 px-2 py-1 cursor-pointer">
+              <Checkbox checked={includeSquads} onCheckedChange={(v) => setIncludeSquads(!!v)} />
+              <span className="text-xs text-muted-foreground">Incluir elencos dos times exportados</span>
+            </label>
+            <Button
+              variant="outline"
+              onClick={handleExportSquads}
+              disabled={totalSquadPlayers === 0}
+              className="w-full gap-2"
+            >
+              <Users className="w-4 h-4" />
+              Exportar apenas elencos
+            </Button>
           </div>
 
           {/* Action buttons */}
