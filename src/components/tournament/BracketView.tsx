@@ -480,6 +480,20 @@ function getPairs(stageMatches: Match[]): TiePair[] {
     const final = withAutoTiebreaks(updated, thirdPlaceMatches, lineupMap);
     if (onBatchUpdateMatches) onBatchUpdateMatches(final);
     else final.forEach((m) => onUpdateMatch(m));
+
+    // Empate no 3º lugar: abre a gaveta de desempate em vez de criar jogos
+    // extras automaticamente.
+    const thirdPair: TiePair = {
+      leg1: final.find((m) => m.isThirdPlace && !m.isReplay) || thirdPlaceMatches.find((m) => !m.isReplay)!,
+      leg2: null,
+      replays: final
+        .filter((m) => m.isThirdPlace && m.isReplay)
+        .sort((a, b) => (a.replayIndex || 0) - (b.replayIndex || 0)),
+    };
+    if (thirdPair.leg1 && resolveTie(thirdPair, tournament.settings).needsTiebreak) {
+      setOpenReplays((prev) => ({ ...prev, [thirdPair.leg1.id]: true }));
+      toast.info("Disputa de 3º lugar empatada — decida na gaveta do jogo (jogo extra ou sorteio).");
+    }
   };
 
   const handleAddMatch = (stageIdx: number) => {
