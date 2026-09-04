@@ -428,6 +428,9 @@ function getPairs(stageMatches: Match[]): TiePair[] {
     });
     const extra: Match[] = [];
     getPairs(merged).forEach((pair) => {
+      // Disputa de 3º lugar nunca é decidida automaticamente: empate abre a
+      // gaveta de desempate para o usuário escolher (jogo extra ou sorteio).
+      if (pair.leg1.isThirdPlace) return;
       const produced = autoResolveTie(pair, tournament.settings, (m) =>
         simulateMatch(m, false, lineupMap),
       );
