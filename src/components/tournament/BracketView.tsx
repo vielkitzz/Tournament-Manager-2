@@ -141,8 +141,20 @@ export default function BracketView({
   const startStage = tournament.mataMataInicio || "1/8";
   const stages = getStagesFromStart(startStage);
 
-  const regularMatches = matches.filter((m) => !m.isThirdPlace);
-  const thirdPlaceMatches = matches.filter((m) => m.isThirdPlace);
+  const thirdPlaceMainMatches = matches.filter((m) => m.isThirdPlace && !m.isReplay);
+  const isThirdPlaceReplay = (match: Match) => {
+    if (!match.isReplay) return false;
+    if (match.isThirdPlace) return true;
+    return thirdPlaceMainMatches.some((third) => {
+      if (match.pairId && third.pairId) return match.pairId === third.pairId;
+      const sameTeams =
+        (match.homeTeamId === third.homeTeamId && match.awayTeamId === third.awayTeamId) ||
+        (match.homeTeamId === third.awayTeamId && match.awayTeamId === third.homeTeamId);
+      return sameTeams && match.round === third.round;
+    });
+  };
+  const thirdPlaceMatches = matches.filter((m) => m.isThirdPlace || isThirdPlaceReplay(m));
+  const regularMatches = matches.filter((m) => !m.isThirdPlace && !isThirdPlaceReplay(m));
 
   const matchesByStage: Record<string, Match[]> = {};
   stages.forEach((stage, i) => {
@@ -470,7 +482,7 @@ function getPairs(stageMatches: Match[]): TiePair[] {
   };
 
   const handleSimulateThirdPlace = async () => {
-    const unplayed = thirdPlaceMatches.filter((m) => !m.played && m.homeTeamId && m.awayTeamId);
+    const unplayed = thirdPlaceMainMatches.filter((m) => !m.played && m.homeTeamId && m.awayTeamId);
     if (unplayed.length === 0) return;
     const teamIds = Array.from(
       new Set(unplayed.flatMap((m) => [m.homeTeamId, m.awayTeamId]).filter(Boolean) as string[]),
@@ -487,7 +499,7 @@ function getPairs(stageMatches: Match[]): TiePair[] {
       leg1: final.find((m) => m.isThirdPlace && !m.isReplay) || thirdPlaceMatches.find((m) => !m.isReplay)!,
       leg2: null,
       replays: final
-        .filter((m) => m.isThirdPlace && m.isReplay)
+        .filter((m) => m.isReplay && isThirdPlaceReplay(m))
         .sort((a, b) => (a.replayIndex || 0) - (b.replayIndex || 0)),
     };
     if (thirdPair.leg1 && resolveTie(thirdPair, tournament.settings).needsTiebreak) {
@@ -560,10 +572,16 @@ function getPairs(stageMatches: Match[]): TiePair[] {
   const handleAddReplay = (pair: TiePair) => {
     const played = (pair.replays || []).length;
     const limit = maxReplaysOf(tournament.settings);
+    if ((pair.replays || []).some((replay) => !replay.played)) {
+      toast.error("Simule o jogo extra pendente antes de criar outro.");
+      return;
+    }
     if (limit > 0 && played >= limit) {
       toast.error(`Limite de ${limit} jogo(s) extra(s) atingido — decida no sorteio.`);
       return;
     }
+    const pairId = pair.leg1.pairId || crypto.randomUUID();
+    const linkedLeg1 = pair.leg1.pairId ? pair.leg1 : { ...pair.leg1, pairId };
     const replay: Match = {
       id: crypto.randomUUID(),
       tournamentId: tournament.id,
@@ -574,12 +592,20 @@ function getPairs(stageMatches: Match[]): TiePair[] {
       awayScore: 0,
       played: false,
       isReplay: true,
+      isThirdPlace: pair.leg1.isThirdPlace,
       replayIndex: played + 1,
-      pairId: pair.leg1.pairId,
+      pairId,
       stage: pair.leg1.stage,
     };
-    if (onBatchUpdateMatches) onBatchUpdateMatches([...matches, replay]);
-    else onAddMatch?.(replay);
+    if (onBatchUpdateMatches) {
+      onBatchUpdateMatches([
+        ...matches.map((match) => (match.id === linkedLeg1.id ? linkedLeg1 : match)),
+        replay,
+      ]);
+    } else {
+      if (!pair.leg1.pairId) onUpdateMatch(linkedLeg1);
+      onAddMatch?.(replay);
+    }
     setOpenReplays((prev) => ({ ...prev, [pair.leg1.id]: true }));
     toast.success(`Jogo extra ${replay.replayIndex} criado`);
   };
@@ -702,7 +728,10 @@ function getPairs(stageMatches: Match[]): TiePair[] {
     const hasAggregate = !!pair.leg2 && !!res.aggregate;
     const limit = maxReplaysOf(tournament.settings);
     const canReplay =
-      res.needsTiebreak && !tournament.finalized && (limit === 0 || replays.length < limit);
+      res.needsTiebreak &&
+      !replays.some((replay) => !replay.played) &&
+      !tournament.finalized &&
+      (limit === 0 || replays.length < limit);
     const canCoinToss =
       res.needsTiebreak && !tournament.finalized && (tournament.settings.allowCoinToss ?? true);
     if (!hasAggregate && replays.length === 0 && !res.needsTiebreak && res.reason !== "coin-toss")
@@ -976,11 +1005,14 @@ function getPairs(stageMatches: Match[]): TiePair[] {
       leg1: match,
       leg2: null,
       replays: thirdPlaceMatches
-        .filter(
-          (r) =>
-            r.isReplay &&
-            (r.pairId ? r.pairId === match.pairId : r.homeTeamId === match.homeTeamId),
-        )
+        .filter((r) => {
+          if (!r.isReplay) return false;
+          if (r.pairId && match.pairId) return r.pairId === match.pairId;
+          return (
+            (r.homeTeamId === match.homeTeamId && r.awayTeamId === match.awayTeamId) ||
+            (r.homeTeamId === match.awayTeamId && r.awayTeamId === match.homeTeamId)
+          );
+        })
         .sort((a, b) => (a.replayIndex || 0) - (b.replayIndex || 0)),
     };
 
@@ -1125,7 +1157,7 @@ function getPairs(stageMatches: Match[]): TiePair[] {
     }
 
     let thirdTeam: Team | undefined = undefined;
-    const thirdMatch = thirdPlaceMatches[0];
+    const thirdMatch = thirdPlaceMainMatches[0];
     const thirdWinnerId = thirdMatch ? getSingleMatchWinner(thirdMatch) : null;
     if (thirdWinnerId) {
       thirdTeam = getTeam(thirdWinnerId);
@@ -1487,12 +1519,12 @@ function getPairs(stageMatches: Match[]): TiePair[] {
             return (
               <div className="flex flex-col items-center justify-center py-8 gap-6 mx-auto">
                 {renderStageColumn(finalStageKey, stages.length - 1, finalStagePairs)}
-                {thirdPlaceMatches.length > 0 && (
+                {thirdPlaceMainMatches.length > 0 && (
                   <div className="w-[220px]">
                     <div className="flex items-center justify-center gap-1.5 mb-1.5">
                       <Medal className="w-3.5 h-3.5 text-highlight" />
                       <span className="text-[10px] font-bold text-primary">3º Lugar</span>
-                      {thirdPlaceMatches.some((m) => !m.played) && (
+                      {thirdPlaceMainMatches.some((m) => !m.played) && (
                         <button
                           data-photo-control="true"
                           onClick={handleSimulateThirdPlace}
@@ -1502,7 +1534,7 @@ function getPairs(stageMatches: Match[]): TiePair[] {
                         </button>
                       )}
                     </div>
-                    <div className="flex flex-col gap-2">{thirdPlaceMatches.map(renderThirdPlaceMatch)}</div>
+                    <div className="flex flex-col gap-2">{thirdPlaceMainMatches.map(renderThirdPlaceMatch)}</div>
                   </div>
                 )}
                 {renderChampionCard()}
@@ -1528,12 +1560,12 @@ function getPairs(stageMatches: Match[]): TiePair[] {
                 {/* ── FINAL + 3º LUGAR + CAMPEÃO (center) ── */}
                 <div className="flex flex-col items-center justify-center self-center">
                   {renderStageColumn(finalStageKey, stages.length - 1, finalStagePairs)}
-                  {thirdPlaceMatches.length > 0 && (
+                  {thirdPlaceMainMatches.length > 0 && (
                     <div className="w-[220px] mt-4">
                       <div className="flex items-center justify-center gap-1.5 mb-1.5">
                         <Medal className="w-3.5 h-3.5 text-highlight" />
                         <span className="text-[10px] font-bold text-primary">3º Lugar</span>
-                        {thirdPlaceMatches.some((m) => !m.played) && (
+                        {thirdPlaceMainMatches.some((m) => !m.played) && (
                           <button
                           data-photo-control="true"
                             onClick={handleSimulateThirdPlace}
@@ -1543,7 +1575,7 @@ function getPairs(stageMatches: Match[]): TiePair[] {
                           </button>
                         )}
                       </div>
-                      <div className="flex flex-col gap-2">{thirdPlaceMatches.map(renderThirdPlaceMatch)}</div>
+                      <div className="flex flex-col gap-2">{thirdPlaceMainMatches.map(renderThirdPlaceMatch)}</div>
                     </div>
                   )}
                   <div className="mt-4">{renderChampionCard()}</div>
