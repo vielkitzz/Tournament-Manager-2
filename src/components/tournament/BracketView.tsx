@@ -141,8 +141,20 @@ export default function BracketView({
   const startStage = tournament.mataMataInicio || "1/8";
   const stages = getStagesFromStart(startStage);
 
-  const regularMatches = matches.filter((m) => !m.isThirdPlace);
-  const thirdPlaceMatches = matches.filter((m) => m.isThirdPlace);
+  const thirdPlaceMainMatches = matches.filter((m) => m.isThirdPlace && !m.isReplay);
+  const isThirdPlaceReplay = (match: Match) => {
+    if (!match.isReplay) return false;
+    if (match.isThirdPlace) return true;
+    return thirdPlaceMainMatches.some((third) => {
+      if (match.pairId && third.pairId) return match.pairId === third.pairId;
+      const sameTeams =
+        (match.homeTeamId === third.homeTeamId && match.awayTeamId === third.awayTeamId) ||
+        (match.homeTeamId === third.awayTeamId && match.awayTeamId === third.homeTeamId);
+      return sameTeams && match.round === third.round;
+    });
+  };
+  const thirdPlaceMatches = matches.filter((m) => m.isThirdPlace || isThirdPlaceReplay(m));
+  const regularMatches = matches.filter((m) => !m.isThirdPlace && !isThirdPlaceReplay(m));
 
   const matchesByStage: Record<string, Match[]> = {};
   stages.forEach((stage, i) => {
@@ -470,7 +482,7 @@ function getPairs(stageMatches: Match[]): TiePair[] {
   };
 
   const handleSimulateThirdPlace = async () => {
-    const unplayed = thirdPlaceMatches.filter((m) => !m.played && m.homeTeamId && m.awayTeamId);
+    const unplayed = thirdPlaceMainMatches.filter((m) => !m.played && m.homeTeamId && m.awayTeamId);
     if (unplayed.length === 0) return;
     const teamIds = Array.from(
       new Set(unplayed.flatMap((m) => [m.homeTeamId, m.awayTeamId]).filter(Boolean) as string[]),
@@ -560,10 +572,16 @@ function getPairs(stageMatches: Match[]): TiePair[] {
   const handleAddReplay = (pair: TiePair) => {
     const played = (pair.replays || []).length;
     const limit = maxReplaysOf(tournament.settings);
+    if ((pair.replays || []).some((replay) => !replay.played)) {
+      toast.error("Simule o jogo extra pendente antes de criar outro.");
+      return;
+    }
     if (limit > 0 && played >= limit) {
       toast.error(`Limite de ${limit} jogo(s) extra(s) atingido — decida no sorteio.`);
       return;
     }
+    const pairId = pair.leg1.pairId || crypto.randomUUID();
+    const linkedLeg1 = pair.leg1.pairId ? pair.leg1 : { ...pair.leg1, pairId };
     const replay: Match = {
       id: crypto.randomUUID(),
       tournamentId: tournament.id,
@@ -574,12 +592,20 @@ function getPairs(stageMatches: Match[]): TiePair[] {
       awayScore: 0,
       played: false,
       isReplay: true,
+      isThirdPlace: pair.leg1.isThirdPlace,
       replayIndex: played + 1,
-      pairId: pair.leg1.pairId,
+      pairId,
       stage: pair.leg1.stage,
     };
-    if (onBatchUpdateMatches) onBatchUpdateMatches([...matches, replay]);
-    else onAddMatch?.(replay);
+    if (onBatchUpdateMatches) {
+      onBatchUpdateMatches([
+        ...matches.map((match) => (match.id === linkedLeg1.id ? linkedLeg1 : match)),
+        replay,
+      ]);
+    } else {
+      if (!pair.leg1.pairId) onUpdateMatch(linkedLeg1);
+      onAddMatch?.(replay);
+    }
     setOpenReplays((prev) => ({ ...prev, [pair.leg1.id]: true }));
     toast.success(`Jogo extra ${replay.replayIndex} criado`);
   };
@@ -702,7 +728,10 @@ function getPairs(stageMatches: Match[]): TiePair[] {
     const hasAggregate = !!pair.leg2 && !!res.aggregate;
     const limit = maxReplaysOf(tournament.settings);
     const canReplay =
-      res.needsTiebreak && !tournament.finalized && (limit === 0 || replays.length < limit);
+      res.needsTiebreak &&
+      !replays.some((replay) => !replay.played) &&
+      !tournament.finalized &&
+      (limit === 0 || replays.length < limit);
     const canCoinToss =
       res.needsTiebreak && !tournament.finalized && (tournament.settings.allowCoinToss ?? true);
     if (!hasAggregate && replays.length === 0 && !res.needsTiebreak && res.reason !== "coin-toss")
@@ -1502,7 +1531,7 @@ function getPairs(stageMatches: Match[]): TiePair[] {
                         </button>
                       )}
                     </div>
-                    <div className="flex flex-col gap-2">{thirdPlaceMatches.map(renderThirdPlaceMatch)}</div>
+                    <div className="flex flex-col gap-2">{thirdPlaceMainMatches.map(renderThirdPlaceMatch)}</div>
                   </div>
                 )}
                 {renderChampionCard()}
@@ -1543,7 +1572,7 @@ function getPairs(stageMatches: Match[]): TiePair[] {
                           </button>
                         )}
                       </div>
-                      <div className="flex flex-col gap-2">{thirdPlaceMatches.map(renderThirdPlaceMatch)}</div>
+                      <div className="flex flex-col gap-2">{thirdPlaceMainMatches.map(renderThirdPlaceMatch)}</div>
                     </div>
                   )}
                   <div className="mt-4">{renderChampionCard()}</div>
