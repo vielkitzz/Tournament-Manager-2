@@ -388,7 +388,13 @@ export const useTournamentStore = create<TournamentState>((set, get) => ({
     if (updates.colors !== undefined) dbUpdates.colors = updates.colors?.length ? JSON.stringify(updates.colors) : null;
     if (updates.rate !== undefined) dbUpdates.rate = updates.rate;
     if (updates.folderId !== undefined) dbUpdates.folder_id = updates.folderId;
-    set((s) => ({ teams: s.teams.map((t) => (t.id === id ? { ...t, ...updates } : t)) }));
+    set((s) => ({
+      teams: s.teams.map((t) =>
+        t.id === id
+          ? applyMonoToTeam({ ...t, ...updates, baseLogo: updates.logo !== undefined ? updates.logo : t.baseLogo })
+          : t,
+      ),
+    }));
     await db.from("teams").update(dbUpdates).eq("id", id).eq("user_id", userId);
   },
 

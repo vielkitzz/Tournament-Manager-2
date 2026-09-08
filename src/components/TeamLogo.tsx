@@ -1,7 +1,5 @@
 import { Shield } from "lucide-react";
 import { useState } from "react";
-import { useMonoLogos } from "@/hooks/useMonoLogos";
-import { useTournamentStore } from "@/store/tournamentStore";
 
 interface TeamLogoProps {
   src?: string;
@@ -23,37 +21,22 @@ export default function TeamLogo({
   iconClassName,
 }: TeamLogoProps) {
   const [failed, setFailed] = useState(false);
-  const { monoEnabled } = useMonoLogos();
-  const monoSrc = useTournamentStore((s) =>
-    monoEnabled && src ? s.teams.find((t) => t.logo === src)?.monoLogo : undefined,
-  );
-  const effectiveSrc = monoSrc || src;
-
 
   const containerClass =
     className ??
     `w-${size <= 16 ? "4" : size <= 20 ? "5" : size <= 24 ? "6" : size <= 28 ? "7" : size <= 48 ? "12" : "14"} h-${size <= 16 ? "4" : size <= 20 ? "5" : size <= 24 ? "6" : size <= 28 ? "7" : size <= 48 ? "12" : "14"} flex items-center justify-center shrink-0`;
 
-  if (!effectiveSrc || failed) {
+  if (!src || failed) {
     return (
       <div className={containerClass}>
-        <Shield
-          className={
-            iconClassName ?? "w-3.5 h-3.5 text-muted-foreground"
-          }
-        />
+        <Shield className={iconClassName ?? "w-3.5 h-3.5 text-muted-foreground"} />
       </div>
     );
   }
 
   return (
     <div className={containerClass}>
-      <img
-        src={effectiveSrc}
-        alt={alt}
-        className="w-full h-full object-contain"
-        onError={() => setFailed(true)}
-      />
+      <img src={src} alt={alt} className="w-full h-full object-contain" onError={() => setFailed(true)} />
     </div>
   );
 }
