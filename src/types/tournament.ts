@@ -256,6 +256,8 @@ export interface Team {
   shortName: string;
   abbreviation: string;
   logo?: string;
+  /** Escudo monocromático opcional (usado quando a opção global está ligada) */
+  monoLogo?: string;
   foundingYear?: number;
   colors: string[];
   rate: number;
