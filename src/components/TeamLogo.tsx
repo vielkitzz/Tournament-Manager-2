@@ -34,7 +34,7 @@ export default function TeamLogo({
     className ??
     `w-${size <= 16 ? "4" : size <= 20 ? "5" : size <= 24 ? "6" : size <= 28 ? "7" : size <= 48 ? "12" : "14"} h-${size <= 16 ? "4" : size <= 20 ? "5" : size <= 24 ? "6" : size <= 28 ? "7" : size <= 48 ? "12" : "14"} flex items-center justify-center shrink-0`;
 
-  if (!src || failed) {
+  if (!effectiveSrc || failed) {
     return (
       <div className={containerClass}>
         <Shield
@@ -49,7 +49,7 @@ export default function TeamLogo({
   return (
     <div className={containerClass}>
       <img
-        src={src}
+        src={effectiveSrc}
         alt={alt}
         className="w-full h-full object-contain"
         onError={() => setFailed(true)}
