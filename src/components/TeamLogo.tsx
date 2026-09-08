@@ -23,6 +23,12 @@ export default function TeamLogo({
   iconClassName,
 }: TeamLogoProps) {
   const [failed, setFailed] = useState(false);
+  const { monoEnabled } = useMonoLogos();
+  const monoSrc = useTournamentStore((s) =>
+    monoEnabled && src ? s.teams.find((t) => t.logo === src)?.monoLogo : undefined,
+  );
+  const effectiveSrc = monoSrc || src;
+
 
   const containerClass =
     className ??
