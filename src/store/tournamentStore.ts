@@ -94,6 +94,7 @@ function dbToTeam(row: any): Team {
     shortName: row.short_name ?? "",
     abbreviation: row.abbreviation ?? "",
     logo: row.logo || row.logo_url || undefined,
+    monoLogo: row.mono_logo || undefined,
     foundingYear: row.founding_year || undefined,
     colors: parseColors(row.colors),
     rate: row.rate ?? 0,
@@ -355,6 +356,7 @@ export const useTournamentStore = create<TournamentState>((set, get) => ({
         short_name: team.shortName,
         abbreviation: team.abbreviation,
         logo: team.logo || null,
+        mono_logo: team.monoLogo || null,
         founding_year: team.foundingYear != null ? String(team.foundingYear) : null,
         colors: team.colors?.length ? JSON.stringify(team.colors) : null,
         rate: team.rate,
@@ -376,6 +378,7 @@ export const useTournamentStore = create<TournamentState>((set, get) => ({
     if (updates.shortName !== undefined) dbUpdates.short_name = updates.shortName;
     if (updates.abbreviation !== undefined) dbUpdates.abbreviation = updates.abbreviation;
     if (updates.logo !== undefined) dbUpdates.logo = updates.logo;
+    if (updates.monoLogo !== undefined) dbUpdates.mono_logo = updates.monoLogo || null;
     if (updates.foundingYear !== undefined)
       dbUpdates.founding_year = updates.foundingYear != null ? String(updates.foundingYear) : null;
     if (updates.colors !== undefined) dbUpdates.colors = updates.colors?.length ? JSON.stringify(updates.colors) : null;
