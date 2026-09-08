@@ -88,13 +88,16 @@ function parseColors(raw: any): string[] {
 }
 
 function dbToTeam(row: any): Team {
+  const baseLogo = row.logo || row.logo_url || undefined;
+  const monoLogo = row.mono_logo || undefined;
   return {
     id: row.id ?? "",
     name: row.name ?? "",
     shortName: row.short_name ?? "",
     abbreviation: row.abbreviation ?? "",
-    logo: row.logo || row.logo_url || undefined,
-    monoLogo: row.mono_logo || undefined,
+    logo: getMonoLogosEnabled() && monoLogo ? monoLogo : baseLogo,
+    baseLogo,
+    monoLogo,
     foundingYear: row.founding_year || undefined,
     colors: parseColors(row.colors),
     rate: row.rate ?? 0,
