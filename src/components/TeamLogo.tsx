@@ -1,5 +1,7 @@
 import { Shield } from "lucide-react";
 import { useState } from "react";
+import { useMonoLogos } from "@/hooks/useMonoLogos";
+import { useTournamentStore } from "@/store/tournamentStore";
 
 interface TeamLogoProps {
   src?: string;
