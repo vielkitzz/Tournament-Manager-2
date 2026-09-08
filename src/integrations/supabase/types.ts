@@ -309,6 +309,7 @@ export type Database = {
           is_archived: boolean
           logo: string | null
           logo_url: string | null
+          mono_logo: string | null
           name: string | null
           primary_color: string | null
           primaryColor: string | null
@@ -328,6 +329,7 @@ export type Database = {
           is_archived?: boolean
           logo?: string | null
           logo_url?: string | null
+          mono_logo?: string | null
           name?: string | null
           primary_color?: string | null
           primaryColor?: string | null
@@ -347,6 +349,7 @@ export type Database = {
           is_archived?: boolean
           logo?: string | null
           logo_url?: string | null
+          mono_logo?: string | null
           name?: string | null
           primary_color?: string | null
           primaryColor?: string | null

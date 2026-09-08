@@ -258,6 +258,8 @@ export interface Team {
   logo?: string;
   /** Escudo monocromático opcional (usado quando a opção global está ligada) */
   monoLogo?: string;
+  /** Escudo original, preservado quando o modo monocromático está ligado */
+  baseLogo?: string;
   foundingYear?: number;
   colors: string[];
   rate: number;

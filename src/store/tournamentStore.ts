@@ -13,6 +13,7 @@ import {
 import { supabase } from "@/integrations/supabase/client";
 import { Json } from "@/integrations/supabase/types";
 import { TeamHistory } from "@/lib/teamHistoryUtils";
+import { applyMonoToTeam, getMonoLogosEnabled } from "@/lib/monoLogos";
 
 // Use any-typed client to avoid strict type errors from generated types
 const db = supabase as any;
@@ -88,13 +89,16 @@ function parseColors(raw: any): string[] {
 }
 
 function dbToTeam(row: any): Team {
+  const baseLogo = row.logo || row.logo_url || undefined;
+  const monoLogo = row.mono_logo || undefined;
   return {
     id: row.id ?? "",
     name: row.name ?? "",
     shortName: row.short_name ?? "",
     abbreviation: row.abbreviation ?? "",
-    logo: row.logo || row.logo_url || undefined,
-    monoLogo: row.mono_logo || undefined,
+    logo: getMonoLogosEnabled() && monoLogo ? monoLogo : baseLogo,
+    baseLogo,
+    monoLogo,
     foundingYear: row.founding_year || undefined,
     colors: parseColors(row.colors),
     rate: row.rate ?? 0,
@@ -384,7 +388,13 @@ export const useTournamentStore = create<TournamentState>((set, get) => ({
     if (updates.colors !== undefined) dbUpdates.colors = updates.colors?.length ? JSON.stringify(updates.colors) : null;
     if (updates.rate !== undefined) dbUpdates.rate = updates.rate;
     if (updates.folderId !== undefined) dbUpdates.folder_id = updates.folderId;
-    set((s) => ({ teams: s.teams.map((t) => (t.id === id ? { ...t, ...updates } : t)) }));
+    set((s) => ({
+      teams: s.teams.map((t) =>
+        t.id === id
+          ? applyMonoToTeam({ ...t, ...updates, baseLogo: updates.logo !== undefined ? updates.logo : t.baseLogo })
+          : t,
+      ),
+    }));
     await db.from("teams").update(dbUpdates).eq("id", id).eq("user_id", userId);
   },
 
