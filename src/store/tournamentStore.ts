@@ -13,6 +13,7 @@ import {
 import { supabase } from "@/integrations/supabase/client";
 import { Json } from "@/integrations/supabase/types";
 import { TeamHistory } from "@/lib/teamHistoryUtils";
+import { applyMonoToTeam, getMonoLogosEnabled } from "@/lib/monoLogos";
 
 // Use any-typed client to avoid strict type errors from generated types
 const db = supabase as any;
