@@ -12,6 +12,7 @@ import { useRef } from "react";
 import { Upload, X, Download, ImageIcon } from "lucide-react";
 import { useSkin, exportSkinsJson, parseImportedSkins } from "@/hooks/useSkin";
 import { useCustomLogo } from "@/hooks/useCustomLogo";
+import { useMonoLogos } from "@/hooks/useMonoLogos";
 
 export default function SettingsPage() {
   const { theme, toggleTheme } = useTheme();
@@ -19,6 +20,7 @@ export default function SettingsPage() {
   const navigate = useNavigate();
   const { skins, activeSkin, importSkins } = useSkin();
   const { logoUrl, saveLogo, removeLogo } = useCustomLogo();
+  const { monoEnabled, setMonoEnabled } = useMonoLogos();
   const logoInputRef = useRef<HTMLInputElement>(null);
   const skinImportRef = useRef<HTMLInputElement>(null);
 
@@ -130,6 +132,23 @@ export default function SettingsPage() {
               <Button onClick={toggleTheme} variant="outline" size="sm" className="gap-2">
                 {theme === "dark" ? <Sun className="w-3.5 h-3.5" /> : <Moon className="w-3.5 h-3.5" />}
                 {theme === "dark" ? "Modo Claro" : "Modo Escuro"}
+              </Button>
+            </div>
+
+            {/* Escudos monocromáticos */}
+            <div className="mt-5 pt-5 border-t border-border flex items-center justify-between gap-4">
+              <div>
+                <p className="text-sm text-foreground">Escudos monocromáticos</p>
+                <p className="text-xs text-muted-foreground mt-0.5">
+                  Quando ligado, os times que tiverem um escudo monocromático cadastrado exibem essa versão.
+                </p>
+              </div>
+              <Button
+                onClick={() => setMonoEnabled(!monoEnabled)}
+                variant={monoEnabled ? "default" : "outline"}
+                size="sm"
+              >
+                {monoEnabled ? "Ligado" : "Desligado"}
               </Button>
             </div>
 
