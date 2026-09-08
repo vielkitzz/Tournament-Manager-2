@@ -44,6 +44,11 @@ export default function CreateTeamPage() {
   // pendingBlob = WebP blob waiting to be uploaded on submit
   const [pendingBlob, setPendingBlob] = useState<{ blob: Blob; filename: string } | null>(null);
 
+  // Escudo monocromático
+  const [monoLogoUrl, setMonoLogoUrl] = useState<string | undefined>(undefined);
+  const [monoPreviewUrl, setMonoPreviewUrl] = useState<string | undefined>(undefined);
+  const [monoPendingBlob, setMonoPendingBlob] = useState<{ blob: Blob; filename: string } | null>(null);
+
   const [uploading, setUploading] = useState(false);
   const [initialized, setInitialized] = useState(false);
 
@@ -70,6 +75,8 @@ export default function CreateTeamPage() {
       setRate(existingTeam.rate?.toString() || "3.00");
       setLogoUrl(existingTeam.logo);
       setPreviewUrl(existingTeam.logo); // show existing logo (Storage URL)
+      setMonoLogoUrl(existingTeam.monoLogo);
+      setMonoPreviewUrl(existingTeam.monoLogo);
       setInitialized(true);
     }
   }, [existingTeam, initialized]);
@@ -82,6 +89,21 @@ export default function CreateTeamPage() {
     },
     [previewUrl],
   );
+
+  const handleMonoSelected = useCallback(
+    (result: { previewUrl: string; blob: Blob; filename: string }) => {
+      if (monoPreviewUrl?.startsWith("blob:")) revokeImagePreview(monoPreviewUrl);
+      setMonoPreviewUrl(result.previewUrl);
+      setMonoPendingBlob({ blob: result.blob, filename: result.filename });
+    },
+    [monoPreviewUrl],
+  );
+
+  const handleRemoveMono = () => {
+    if (monoPreviewUrl?.startsWith("blob:")) revokeImagePreview(monoPreviewUrl);
+    setMonoPreviewUrl(undefined);
+    setMonoPendingBlob(null);
+  };
 
   const handleRemoveLogo = () => {
     if (previewUrl?.startsWith("blob:")) revokeImagePreview(previewUrl);
@@ -99,6 +121,7 @@ export default function CreateTeamPage() {
 
     setUploading(true);
     let finalLogoUrl = logoUrl; // default: keep existing URL
+    let finalMonoUrl = monoLogoUrl;
 
     try {
       const teamId = editId || crypto.randomUUID();
@@ -173,13 +196,30 @@ export default function CreateTeamPage() {
         finalLogoUrl = undefined;
       }
 
+      // Escudo monocromático
+      if (monoPendingBlob) {
+        const monoPath = `teams/${teamId}_mono_${Date.now()}.webp`;
+        if (monoLogoUrl) {
+          const oldMono = extractFilePathFromUrl(monoLogoUrl, "logos");
+          if (oldMono) await supabase.storage.from("logos").remove([oldMono]);
+        }
+        finalMonoUrl = await uploadLogo(monoPendingBlob.blob, monoPath, { upsert: false, retries: 2 });
+        if (monoPreviewUrl?.startsWith("blob:")) revokeImagePreview(monoPreviewUrl);
+        setMonoPreviewUrl(finalMonoUrl);
+        setMonoPendingBlob(null);
+      } else if (!monoPreviewUrl && monoLogoUrl) {
+        const oldMono = extractFilePathFromUrl(monoLogoUrl, "logos");
+        if (oldMono) await supabase.storage.from("logos").remove([oldMono]);
+        finalMonoUrl = undefined;
+      }
+
       // Atualiza o time com a URL final do logo
       if (editId && existingTeam) {
-        await updateTeam(editId, { ...teamData, logo: finalLogoUrl });
+        await updateTeam(editId, { ...teamData, logo: finalLogoUrl, monoLogo: finalMonoUrl });
         toast.success(`"${teamData.name}" atualizado!`);
       } else {
         // Time já foi criado acima, agora atualiza com o logo
-        await updateTeam(teamId, { logo: finalLogoUrl });
+        await updateTeam(teamId, { logo: finalLogoUrl, monoLogo: finalMonoUrl });
         toast.success(`"${teamData.name}" criado!`);
       }
       navigate("/teams");
@@ -229,6 +269,19 @@ export default function CreateTeamPage() {
           <div className="space-y-2">
             <Label className="text-sm font-medium text-foreground">Escudo</Label>
             <ImageUpload previewUrl={displayLogo} onImageSelected={handleImageSelected} onRemove={handleRemoveLogo} />
+          </div>
+
+          {/* Escudo monocromático */}
+          <div className="space-y-2">
+            <Label className="text-sm font-medium text-foreground">Escudo monocromático</Label>
+            <p className="text-xs text-muted-foreground -mt-1">
+              Usado no lugar do escudo normal quando a opção "Escudos monocromáticos" estiver ligada nas configurações.
+            </p>
+            <ImageUpload
+              previewUrl={monoPreviewUrl}
+              onImageSelected={handleMonoSelected}
+              onRemove={handleRemoveMono}
+            />
           </div>
 
           {/* Name */}
