@@ -57,7 +57,7 @@ const POSITION_ALIASES: Record<string, PositionCode> = {
   pd: "PD", "ponta direita": "PD", rw: "PD",
   pe: "PE", "ponta esquerda": "PE", lw: "PE",
   sa: "SA", "segundo atacante": "SA", ss: "SA",
-  ata: "ATA", atacante: "ATA", atacantes: "ATA", st: "ATA", cf: "ATA", centroavante: "ATA",
+  ata: "ATA", atacante: "ATA", atacantes: "ATA", st: "ATA", cf: "ATA", centroavante: "ATA", ca: "ATA",
 };
 
 /** Gentílicos comuns → país. */
@@ -205,12 +205,33 @@ function parseRulesLine(line: string, patch: Partial<SquadGeneratorConfig>, comp
   }
 }
 
-function parseRosterLine(line: string, forcedCountry?: string): PartialPlayerSpec | undefined {
+/** Prefixo de posição colado por dois-pontos: "GOL: Fulano | 30". */
+function extractPositionPrefix(line: string): { position?: PositionCode; rest: string } {
+  const m = line.match(/^\s*([\p{L}]{1,14})\s*:\s*(.*)$/u);
+  if (!m) return { rest: line };
+  const pos = matchPosition(m[1]);
+  if (!pos) return { rest: line };
+  return { position: pos, rest: m[2].trim() };
+}
+
+/** "Téc:", "Tec:", "Técnico:" no início da linha. */
+function isCoachLine(line: string): boolean {
+  return /^(tec|tecnico|treinador)\s*:/.test(norm(line));
+}
+
+/** Divisores de seção ("Titulares", "Reservas") e cabeçalhos ("# ..."). */
+function isSectionLine(line: string): boolean {
+  if (line.trim().startsWith("#")) return true;
+  return ["reservas", "titulares", "banco"].includes(norm(line));
+}
+
+function parseRosterLine(line: string, forcedCountry?: string, forcedPosition?: PositionCode): PartialPlayerSpec | undefined {
   const tokens = line
     .split(/[,;|\t]+/)
     .map((t) => t.trim())
     .filter(Boolean);
-  if (tokens.length === 0) return undefined;
+  if (tokens.length === 0 && !forcedPosition) return undefined;
+
 
   const spec: PartialPlayerSpec = {};
   if (forcedCountry) spec.nationality = forcedCountry;
@@ -287,13 +308,29 @@ export function parseSquadText(text: string): ParseSquadTextResult {
     return { mode: "empty", configPatch, players, warnings, summary: [] };
   }
 
-  for (const rawLine of lines) {
-    const { text: line, country: emojiCountry } = extractCustomEmojiCountry(rawLine);
-    if (!line) continue;
+  lines.forEach((rawLine, index) => {
+    if (isCoachLine(rawLine) || isSectionLine(rawLine)) return;
+    const { text: cleanedLine, country: emojiCountry, unknownFlag } = extractCustomEmojiCountry(rawLine);
+    if (!cleanedLine) return;
+    const { position: prefixPosition, rest } = extractPositionPrefix(cleanedLine);
+    const line = prefixPosition ? rest : cleanedLine;
+    if (prefixPosition) {
+      const spec = parseRosterLine(line, emojiCountry, prefixPosition);
+      if (spec) {
+        spec.position = prefixPosition;
+        players.push(spec);
+        if (unknownFlag) warnings.push(`Bandeira não reconhecida ignorada na linha ${index + 1}`);
+      } else {
+        warnings.push(`Linha não reconhecida: "${rawLine}"`);
+      }
+      return;
+    }
     if (looksLikeRoster(line)) {
       const spec = parseRosterLine(line, emojiCountry);
-      if (spec) players.push(spec);
-      else warnings.push(`Linha não reconhecida: "${rawLine}"`);
+      if (spec) {
+        players.push(spec);
+        if (unknownFlag) warnings.push(`Bandeira não reconhecida ignorada na linha ${index + 1}`);
+      } else warnings.push(`Linha não reconhecida: "${rawLine}"`);
     } else {
       const before = JSON.stringify(configPatch) + JSON.stringify(comp);
       parseRulesLine(line, configPatch, comp);
@@ -301,7 +338,8 @@ export function parseSquadText(text: string): ParseSquadTextResult {
         warnings.push(`Linha não reconhecida: "${rawLine}"`);
       }
     }
-  }
+  });
+
 
 
   if (comp.value) configPatch.composition = comp.value;
