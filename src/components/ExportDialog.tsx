@@ -98,7 +98,14 @@ export default function ExportDialog({ trigger }: Props) {
       }
     }
     if (selTournaments.length > 0) {
-      data.tournaments = selTournaments.map(({ id, ...t }) => t);
+      data.tournaments = selTournaments.map(({ id, ...t }) => ({ ...t, _originalId: id }));
+      if (withFolders) {
+        const usedIds = new Set(selTournaments.map((t) => t.folderId).filter(Boolean));
+        const relevant = tournamentFolders.filter((f) => usedIds.has(f.id));
+        if (relevant.length > 0) {
+          data.tournamentFolders = relevant.map(({ id, ...f }) => ({ ...f, _originalId: id }));
+        }
+      }
     }
     if (includeSquads && selTeams.length > 0) {
       const backup = buildSquadsBackup(selTeams, players);

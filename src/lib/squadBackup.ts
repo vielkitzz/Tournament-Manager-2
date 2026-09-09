@@ -54,8 +54,21 @@ export interface SquadImportPlan {
   skipped: number;
 }
 
-const normalize = (s: string) =>
-  s.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
+/** Normaliza um nome para comparação (sem acento, sem caixa, sem espaços extras). */
+export const normalizeName = (s: string) =>
+  (s || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim().replace(/\s+/g, " ");
+
+const normalize = normalizeName;
+
+/** Índice nome normalizado -> item, para detectar duplicados na importação. */
+export function buildNameIndex<T extends { name?: string }>(items: T[]): Map<string, T> {
+  const map = new Map<string, T>();
+  items.forEach((i) => {
+    const key = normalizeName(i.name || "");
+    if (key && !map.has(key)) map.set(key, i);
+  });
+  return map;
+}
 
 /**
  * Casa cada bloco do arquivo com um time existente (pelo nome, ignorando acentos/caixa)
