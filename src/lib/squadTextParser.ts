@@ -57,7 +57,7 @@ const POSITION_ALIASES: Record<string, PositionCode> = {
   pd: "PD", "ponta direita": "PD", rw: "PD",
   pe: "PE", "ponta esquerda": "PE", lw: "PE",
   sa: "SA", "segundo atacante": "SA", ss: "SA",
-  ata: "ATA", atacante: "ATA", atacantes: "ATA", st: "ATA", cf: "ATA", centroavante: "ATA",
+  ata: "ATA", atacante: "ATA", atacantes: "ATA", st: "ATA", cf: "ATA", centroavante: "ATA", ca: "ATA",
 };
 
 /** Gentílicos comuns → país. */
