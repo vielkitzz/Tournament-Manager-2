@@ -205,12 +205,33 @@ function parseRulesLine(line: string, patch: Partial<SquadGeneratorConfig>, comp
   }
 }
 
-function parseRosterLine(line: string, forcedCountry?: string): PartialPlayerSpec | undefined {
+/** Prefixo de posição colado por dois-pontos: "GOL: Fulano | 30". */
+function extractPositionPrefix(line: string): { position?: PositionCode; rest: string } {
+  const m = line.match(/^\s*([\p{L}]{1,14})\s*:\s*(.*)$/u);
+  if (!m) return { rest: line };
+  const pos = matchPosition(m[1]);
+  if (!pos) return { rest: line };
+  return { position: pos, rest: m[2].trim() };
+}
+
+/** "Téc:", "Tec:", "Técnico:" no início da linha. */
+function isCoachLine(line: string): boolean {
+  return /^(tec|tecnico|treinador)\s*:/.test(norm(line));
+}
+
+/** Divisores de seção ("Titulares", "Reservas") e cabeçalhos ("# ..."). */
+function isSectionLine(line: string): boolean {
+  if (line.trim().startsWith("#")) return true;
+  return ["reservas", "titulares", "banco"].includes(norm(line));
+}
+
+function parseRosterLine(line: string, forcedCountry?: string, forcedPosition?: PositionCode): PartialPlayerSpec | undefined {
   const tokens = line
     .split(/[,;|\t]+/)
     .map((t) => t.trim())
     .filter(Boolean);
-  if (tokens.length === 0) return undefined;
+  if (tokens.length === 0 && !forcedPosition) return undefined;
+
 
   const spec: PartialPlayerSpec = {};
   if (forcedCountry) spec.nationality = forcedCountry;
