@@ -308,13 +308,29 @@ export function parseSquadText(text: string): ParseSquadTextResult {
     return { mode: "empty", configPatch, players, warnings, summary: [] };
   }
 
-  for (const rawLine of lines) {
-    const { text: line, country: emojiCountry } = extractCustomEmojiCountry(rawLine);
-    if (!line) continue;
+  lines.forEach((rawLine, index) => {
+    if (isCoachLine(rawLine) || isSectionLine(rawLine)) return;
+    const { text: cleanedLine, country: emojiCountry, unknownFlag } = extractCustomEmojiCountry(rawLine);
+    if (!cleanedLine) return;
+    const { position: prefixPosition, rest } = extractPositionPrefix(cleanedLine);
+    const line = prefixPosition ? rest : cleanedLine;
+    if (prefixPosition) {
+      const spec = parseRosterLine(line, emojiCountry, prefixPosition);
+      if (spec) {
+        spec.position = prefixPosition;
+        players.push(spec);
+        if (unknownFlag) warnings.push(`Bandeira não reconhecida ignorada na linha ${index + 1}`);
+      } else {
+        warnings.push(`Linha não reconhecida: "${rawLine}"`);
+      }
+      return;
+    }
     if (looksLikeRoster(line)) {
       const spec = parseRosterLine(line, emojiCountry);
-      if (spec) players.push(spec);
-      else warnings.push(`Linha não reconhecida: "${rawLine}"`);
+      if (spec) {
+        players.push(spec);
+        if (unknownFlag) warnings.push(`Bandeira não reconhecida ignorada na linha ${index + 1}`);
+      } else warnings.push(`Linha não reconhecida: "${rawLine}"`);
     } else {
       const before = JSON.stringify(configPatch) + JSON.stringify(comp);
       parseRulesLine(line, configPatch, comp);
@@ -322,7 +338,8 @@ export function parseSquadText(text: string): ParseSquadTextResult {
         warnings.push(`Linha não reconhecida: "${rawLine}"`);
       }
     }
-  }
+  });
+
 
 
   if (comp.value) configPatch.composition = comp.value;
