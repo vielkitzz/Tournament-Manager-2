@@ -6,7 +6,9 @@
  *
  * Regra atual: `<:flag_nb:1501023624507953153>` (e variantes animadas `<a:...>`)
  * representam a bandeira do Brasil 🇧🇷. Nenhum outro código/emoji é alterado.
- */
+
+import { COUNTRIES_DATA } from "@/data/countries";
+
 
 /** Emoji da bandeira do Brasil. */
 export const BRAZIL_FLAG = "🇧🇷";
