@@ -8,8 +8,9 @@ import ExportDialog from "@/components/ExportDialog";
 import ImportDialog from "@/components/ImportDialog";
 import SkinSelector from "@/components/SkinSelector";
 import { Button } from "@/components/ui/button";
-import { useRef } from "react";
-import { Upload, X, Download, ImageIcon } from "lucide-react";
+import { useRef, useState } from "react";
+import { Upload, X, Download, ImageIcon, Trash2 } from "lucide-react";
+import { useTournamentStore } from "@/store/tournamentStore";
 import { useSkin, exportSkinsJson, parseImportedSkins } from "@/hooks/useSkin";
 import { useCustomLogo } from "@/hooks/useCustomLogo";
 import { useMonoLogos } from "@/hooks/useMonoLogos";
@@ -23,6 +24,9 @@ export default function SettingsPage() {
   const { monoEnabled, setMonoEnabled } = useMonoLogos();
   const logoInputRef = useRef<HTMLInputElement>(null);
   const skinImportRef = useRef<HTMLInputElement>(null);
+  const [wipeOpen, setWipeOpen] = useState(false);
+  const [wipeWord, setWipeWord] = useState("");
+  const [wiping, setWiping] = useState(false);
 
   const handleLogoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -72,6 +76,22 @@ export default function SettingsPage() {
       toast.error("Arquivo inválido");
     }
     e.target.value = "";
+  };
+
+  const handleWipeAll = async () => {
+    setWiping(true);
+    try {
+      const s = useTournamentStore.getState();
+      for (const p of [...s.players]) await s.removePlayer(p.id);
+      for (const t of [...s.tournaments]) await s.removeTournament(t.id);
+      for (const t of [...s.teams]) await s.removeTeam(t.id);
+      toast.success("Todos os dados foram apagados");
+      setWipeOpen(false);
+      setWipeWord("");
+    } catch {
+      toast.error("Não foi possível apagar tudo. Tente novamente.");
+    }
+    setWiping(false);
   };
 
   const handleSignOut = async () => {
@@ -269,6 +289,56 @@ export default function SettingsPage() {
                 />
               </div>
             </div>
+          </section>
+
+          {/* Zona de risco */}
+          <section className="rounded-xl border border-destructive/40 bg-card p-5">
+            <div className="flex items-center gap-2 mb-4">
+              <Trash2 className="w-4 h-4 text-destructive" />
+              <h2 className="text-sm font-bold text-destructive uppercase tracking-wider">Zona de risco</h2>
+            </div>
+            <p className="text-sm text-foreground">Apagar tudo</p>
+            <p className="text-xs text-muted-foreground mt-0.5">
+              Remove todos os times, competições e jogadores salvos. Não há backup automático — exporte antes.
+            </p>
+            {!wipeOpen ? (
+              <Button variant="destructive" size="sm" className="mt-3" onClick={() => setWipeOpen(true)}>
+                Apagar tudo
+              </Button>
+            ) : (
+              <div className="mt-3 space-y-3">
+                <p className="text-xs text-muted-foreground">
+                  Digite <span className="font-bold text-foreground">APAGAR</span> para liberar o botão.
+                </p>
+                <input
+                  value={wipeWord}
+                  onChange={(e) => setWipeWord(e.target.value)}
+                  placeholder="APAGAR"
+                  className="w-full max-w-[220px] rounded-lg border border-border bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-destructive/40"
+                />
+                <div className="flex gap-2">
+                  <Button
+                    variant="destructive"
+                    size="sm"
+                    disabled={wipeWord.trim().toUpperCase() !== "APAGAR" || wiping}
+                    onClick={handleWipeAll}
+                  >
+                    {wiping ? "Apagando..." : "Confirmar exclusão"}
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    disabled={wiping}
+                    onClick={() => {
+                      setWipeOpen(false);
+                      setWipeWord("");
+                    }}
+                  >
+                    Cancelar
+                  </Button>
+                </div>
+              </div>
+            )}
           </section>
         </div>
       </motion.div>
