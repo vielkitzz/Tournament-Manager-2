@@ -8,8 +8,9 @@ import ExportDialog from "@/components/ExportDialog";
 import ImportDialog from "@/components/ImportDialog";
 import SkinSelector from "@/components/SkinSelector";
 import { Button } from "@/components/ui/button";
-import { useRef } from "react";
-import { Upload, X, Download, ImageIcon } from "lucide-react";
+import { useRef, useState } from "react";
+import { Upload, X, Download, ImageIcon, Trash2 } from "lucide-react";
+import { useTournamentStore } from "@/store/tournamentStore";
 import { useSkin, exportSkinsJson, parseImportedSkins } from "@/hooks/useSkin";
 import { useCustomLogo } from "@/hooks/useCustomLogo";
 import { useMonoLogos } from "@/hooks/useMonoLogos";
@@ -72,6 +73,22 @@ export default function SettingsPage() {
       toast.error("Arquivo inválido");
     }
     e.target.value = "";
+  };
+
+  const handleWipeAll = async () => {
+    setWiping(true);
+    try {
+      const s = useTournamentStore.getState();
+      for (const p of [...s.players]) await s.removePlayer(p.id);
+      for (const t of [...s.tournaments]) await s.removeTournament(t.id);
+      for (const t of [...s.teams]) await s.removeTeam(t.id);
+      toast.success("Todos os dados foram apagados");
+      setWipeOpen(false);
+      setWipeWord("");
+    } catch {
+      toast.error("Não foi possível apagar tudo. Tente novamente.");
+    }
+    setWiping(false);
   };
 
   const handleSignOut = async () => {
