@@ -24,6 +24,9 @@ export default function SettingsPage() {
   const { monoEnabled, setMonoEnabled } = useMonoLogos();
   const logoInputRef = useRef<HTMLInputElement>(null);
   const skinImportRef = useRef<HTMLInputElement>(null);
+  const [wipeOpen, setWipeOpen] = useState(false);
+  const [wipeWord, setWipeWord] = useState("");
+  const [wiping, setWiping] = useState(false);
 
   const handleLogoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
