@@ -12,7 +12,7 @@ interface Props {
 }
 
 export default function ExportDialog({ trigger }: Props) {
-  const { teams, tournaments, folders, teamHistories, players } = useTournamentStore();
+  const { teams, tournaments, folders, tournamentFolders, teamHistories, players } = useTournamentStore();
   const [open, setOpen] = useState(false);
 
   // Selection state
