@@ -422,8 +422,12 @@ export const useTournamentStore = create<TournamentState>((set, get) => ({
   removeTeam: async (id) => {
     const userId = get()._userId;
     if (!userId) return;
-    set((s) => ({ teams: s.teams.filter((t) => t.id !== id) }));
+    set((s) => ({
+      teams: s.teams.filter((t) => t.id !== id),
+      rivalries: s.rivalries.filter((r) => r.teamAId !== id && r.teamBId !== id),
+    }));
     await db.from("teams").delete().eq("id", id).eq("user_id", userId);
+    await db.from("rivalries").delete().eq("user_id", userId).or(`team_a_id.eq.${id},team_b_id.eq.${id}`);
   },
 
   archiveTeam: async (id) => {
