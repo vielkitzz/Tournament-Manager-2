@@ -253,6 +253,7 @@ export const useTournamentStore = create<TournamentState>((set, get) => ({
   folders: [],
   tournamentFolders: [],
   teamHistories: [],
+  rivalries: [],
   loading: true,
   _userId: null,
 
@@ -265,6 +266,7 @@ export const useTournamentStore = create<TournamentState>((set, get) => ({
         folders: [],
         tournamentFolders: [],
         teamHistories: [],
+        rivalries: [],
         loading: false,
         _userId: null,
       });
@@ -278,16 +280,18 @@ export const useTournamentStore = create<TournamentState>((set, get) => ({
       folders: [],
       tournamentFolders: [],
       teamHistories: [],
+      rivalries: [],
       loading: true,
       _userId: userId,
     });
-    const [tRes, teRes, fRes, tfRes, hRes, pRes] = (await Promise.all([
+    const [tRes, teRes, fRes, tfRes, hRes, pRes, rvRes] = (await Promise.all([
       db.from("tournaments").select("*").eq("user_id", userId),
       db.from("teams").select("*").eq("user_id", userId),
       db.from("team_folders").select("*").eq("user_id", userId),
       db.from("tournament_folders").select("*").eq("user_id", userId),
       db.from("team_histories").select("*").eq("user_id", userId),
       db.from("players").select("*").eq("user_id", userId),
+      db.from("rivalries").select("*").eq("user_id", userId),
     ])) as any[];
     set({
       tournaments: tRes.data ? tRes.data.map(dbToTournament) : [],
