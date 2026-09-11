@@ -233,7 +233,11 @@ export function generateMatchStats(
   homeGoals: number,
   awayGoals: number,
   xgInputs?: { home: number; away: number },
+  /** Nível de rivalidade (clássico) de 0 a 5 — aumenta faltas e cartões, nunca gols. */
+  rivalryLevel = 0,
 ): { homeStats: TeamMatchStats; awayStats: TeamMatchStats } {
+  const rivalry = Math.max(0, Math.min(5, Math.round(rivalryLevel || 0)));
+  const rivalryFactor = 1 + 0.18 * rivalry;
   const isUpset = (homeRate > awayRate && homeGoals < awayGoals) || (awayRate > homeRate && awayGoals < homeGoals);
   let upsetAdjustment = 1.0;
   if (isUpset && !isUpsetLikely(homeRate, awayRate, homeGoals, awayGoals)) {
