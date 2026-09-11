@@ -128,10 +128,10 @@ export default function RivalriesPage() {
                 className="flex flex-wrap items-center gap-4 rounded-xl border bg-card p-4 hover:bg-accent/40 transition-colors"
               >
                 <div className="flex items-center gap-3 min-w-0 flex-1">
-                  <TeamLogo team={a} size={32} />
+                  <TeamLogo src={a?.logo} alt={a?.name} size={28} />
                   <span className="text-sm font-medium truncate">{a?.name || "Time removido"}</span>
                   <span className="text-xs text-muted-foreground">x</span>
-                  <TeamLogo team={b} size={32} />
+                  <TeamLogo src={b?.logo} alt={b?.name} size={28} />
                   <span className="text-sm font-medium truncate">{b?.name || "Time removido"}</span>
                 </div>
                 <div className="flex items-center gap-2">

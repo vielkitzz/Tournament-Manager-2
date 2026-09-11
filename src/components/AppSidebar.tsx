@@ -13,6 +13,7 @@ import {
   Sun,
   Users,
   Settings,
+  Flame,
 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
@@ -34,6 +35,7 @@ const navSections = [
       { to: "/competitions", icon: Trophy, label: "Competições", end: false },
       { to: "/teams", icon: Shield, label: "Times", end: false },
       { to: "/squads", icon: Users, label: "Elencos", end: false },
+      { to: "/rivalries", icon: Flame, label: "Rivalidades", end: false },
       { to: "/publish", icon: Share2, label: "Publicar", end: false },
       { to: "/friendly", icon: Swords, label: "Amistoso", end: false },
     ],
