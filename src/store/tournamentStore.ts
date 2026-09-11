@@ -14,6 +14,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Json } from "@/integrations/supabase/types";
 import { TeamHistory } from "@/lib/teamHistoryUtils";
 import { applyMonoToTeam, getMonoLogosEnabled } from "@/lib/monoLogos";
+import type { Rivalry } from "@/lib/rivalries";
 
 // Use any-typed client to avoid strict type errors from generated types
 const db = supabase as any;
@@ -107,6 +108,16 @@ function dbToTeam(row: any): Team {
   };
 }
 
+function dbToRivalry(row: any): Rivalry {
+  return {
+    id: row.id,
+    teamAId: row.team_a_id,
+    teamBId: row.team_b_id,
+    level: Number(row.level) || 1,
+    name: row.name || undefined,
+  };
+}
+
 function dbToPlayer(row: any): Player {
   return {
     id: row.id ?? "",
@@ -190,6 +201,7 @@ interface TournamentState {
   folders: TeamFolder[];
   tournamentFolders: TournamentFolder[];
   teamHistories: TeamHistory[];
+  rivalries: Rivalry[];
   loading: boolean;
   _userId: string | null;
 
@@ -693,5 +705,47 @@ export const useTournamentStore = create<TournamentState>((set, get) => ({
 
   removePlayerLocal: (id) => {
     set((s) => ({ players: s.players.filter((p) => p.id !== id) }));
+  },
+
+  addRivalry: async (rivalry) => {
+    const userId = await getAuthenticatedUserId(get()._userId);
+    const { data, error } = await db
+      .from("rivalries")
+      .insert({
+        user_id: userId,
+        team_a_id: rivalry.teamAId,
+        team_b_id: rivalry.teamBId,
+        level: rivalry.level,
+        name: rivalry.name || null,
+      })
+      .select()
+      .single();
+    if (error) {
+      console.error("[addRivalry] insert error:", error);
+      throw error;
+    }
+    if (data) set((s) => ({ rivalries: [...s.rivalries, dbToRivalry(data)] }));
+  },
+
+  updateRivalry: async (id, updates) => {
+    const userId = await getAuthenticatedUserId(get()._userId);
+    const dbUpdates: any = {};
+    if (updates.teamAId !== undefined) dbUpdates.team_a_id = updates.teamAId;
+    if (updates.teamBId !== undefined) dbUpdates.team_b_id = updates.teamBId;
+    if (updates.level !== undefined) dbUpdates.level = updates.level;
+    if (updates.name !== undefined) dbUpdates.name = updates.name || null;
+    set((s) => ({ rivalries: s.rivalries.map((r) => (r.id === id ? { ...r, ...updates } : r)) }));
+    const { error } = await db.from("rivalries").update(dbUpdates).eq("id", id).eq("user_id", userId);
+    if (error) {
+      console.error("[updateRivalry] update error:", error);
+      throw error;
+    }
+  },
+
+  removeRivalry: async (id) => {
+    const userId = get()._userId;
+    if (!userId) return;
+    set((s) => ({ rivalries: s.rivalries.filter((r) => r.id !== id) }));
+    await db.from("rivalries").delete().eq("id", id).eq("user_id", userId);
   },
 }));
