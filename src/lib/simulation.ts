@@ -337,17 +337,27 @@ export function generateMatchStats(
   // Faltas — geradas nos números mas distribuição concentrada em fases
   let homeFouls = randInt(6, 14) + Math.round((awayPossession - 50) / 12);
   let awayFouls = randInt(6, 14) + Math.round((homePossession - 50) / 12);
-  homeFouls = Math.max(4, Math.min(20, homeFouls));
-  awayFouls = Math.max(4, Math.min(20, awayFouls));
+  homeFouls = Math.round(homeFouls * rivalryFactor);
+  awayFouls = Math.round(awayFouls * rivalryFactor);
+  homeFouls = Math.max(4, Math.min(32, homeFouls));
+  awayFouls = Math.max(4, Math.min(32, awayFouls));
 
   const homeCorners = randInt(1, Math.max(2, Math.min(10, Math.round(homeShots * 0.4))));
   const awayCorners = randInt(1, Math.max(2, Math.min(10, Math.round(awayShots * 0.4))));
 
-  const homeYellow = Math.min(3, randInt(0, Math.max(1, Math.floor(homeFouls / 6))));
-  const awayYellow = Math.min(3, randInt(0, Math.max(1, Math.floor(awayFouls / 6))));
+  const yellowCap = 3 + rivalry;
+  const homeYellow = Math.min(
+    yellowCap,
+    Math.round(randInt(0, Math.max(1, Math.floor(homeFouls / 6))) * rivalryFactor),
+  );
+  const awayYellow = Math.min(
+    yellowCap,
+    Math.round(randInt(0, Math.max(1, Math.floor(awayFouls / 6))) * rivalryFactor),
+  );
 
-  const homeRed = Math.random() < 0.1 ? 1 : 0;
-  const awayRed = Math.random() < 0.1 ? 1 : 0;
+  const redChance = Math.min(0.45, 0.1 * rivalryFactor);
+  const homeRed = Math.random() < redChance ? 1 : 0;
+  const awayRed = Math.random() < redChance ? 1 : 0;
 
   const homeOffsides = randInt(0, 4);
   const awayOffsides = randInt(0, 4);
