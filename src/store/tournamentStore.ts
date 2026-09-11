@@ -316,6 +316,7 @@ export const useTournamentStore = create<TournamentState>((set, get) => ({
           }))
         : [],
       players: pRes.data ? pRes.data.map(dbToPlayer) : [],
+      rivalries: rvRes?.data ? rvRes.data.map(dbToRivalry) : [],
       loading: false,
     });
   },
