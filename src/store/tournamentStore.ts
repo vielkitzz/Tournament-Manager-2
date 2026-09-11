@@ -228,6 +228,10 @@ interface TournamentState {
   // Local-only setters used by realtime subscriptions (não escrevem no DB)
   upsertPlayerLocal: (row: any) => void;
   removePlayerLocal: (id: string) => void;
+  // Rivalidades (clássicos)
+  addRivalry: (rivalry: Omit<Rivalry, "id">) => Promise<void>;
+  updateRivalry: (id: string, updates: Partial<Omit<Rivalry, "id">>) => Promise<void>;
+  removeRivalry: (id: string) => Promise<void>;
 }
 
 export const useTournamentStore = create<TournamentState>((set, get) => ({
