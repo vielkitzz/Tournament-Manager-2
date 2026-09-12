@@ -32,7 +32,6 @@ const PlayersPage = lazy(() => import("@/pages/PlayersPage"));
 const ClubSquadPage = lazy(() => import("@/pages/ClubSquadPage"));
 const CreatePlayerPage = lazy(() => import("@/pages/CreatePlayerPage"));
 const SettingsPage = lazy(() => import("@/pages/SettingsPage"));
-const RivalriesPage = lazy(() => import("@/pages/RivalriesPage"));
 const NotFound = lazy(() => import("@/pages/NotFound"));
 
 function PageFallback() {
@@ -96,7 +95,6 @@ const App = () => (
                     <Route path="/squads/team/:teamId" element={<ClubSquadPage />} />
                     <Route path="/squads/team/:teamId/create" element={<CreatePlayerPage />} />
                     <Route path="/squads/:id/edit" element={<CreatePlayerPage />} />
-                    <Route path="/rivalries" element={<RivalriesPage />} />
                     <Route path="/settings" element={<SettingsPage />} />
                   </Route>
                   <Route path="/shared/:token" element={<SharedTournamentPage />} />
