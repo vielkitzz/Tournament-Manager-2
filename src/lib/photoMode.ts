@@ -59,7 +59,7 @@ export const DEFAULT_PHOTO_MODE: PhotoModeSettings = {
 };
 
 /** Content kinds captured by the camera buttons. */
-export type PhotoLayoutKind = "table" | "rounds" | "bracket" | "gallery" | "stats";
+export type PhotoLayoutKind = "table" | "rounds" | "bracket" | "gallery" | "stats" | "match";
 
 /**
  * Ideal image width + base zoom per content kind. Tables/rounds are narrow and
@@ -71,6 +71,7 @@ export const PHOTO_PRESETS: Record<PhotoLayoutKind, { width: number; scale: numb
   bracket: { width: 1400, scale: 1.15, label: "Chaveamento" },
   gallery: { width: 1100, scale: 1.3, label: "Sala de troféus" },
   stats: { width: 1200, scale: 1.25, label: "Estatísticas" },
+  match: { width: 680, scale: 1.35, label: "Partida" },
 };
 
 /** Applies the per-kind preset when the user hasn't overridden width/zoom manually. */

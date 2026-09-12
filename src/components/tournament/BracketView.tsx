@@ -3,7 +3,7 @@ import { Match, Team, Tournament, KnockoutStage, STAGE_TEAM_COUNTS, Player } fro
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { championBoxStyle } from "@/lib/teamColors";
-import { Shield, Play, Trophy, Medal, UserPlus, Shuffle, Plus, Trash2, RotateCcw, UserMinus } from "lucide-react";
+import { Shield, Play, Trophy, Medal, UserPlus, Shuffle, Plus, Trash2, RotateCcw, UserMinus, Flame } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   simulateFullMatch,
@@ -17,6 +17,8 @@ import { fetchTeamLineups, pickStartingXIWithSubs, type SolaraLineup } from "@/l
 import MatchPopup from "./MatchPopup";
 import BracketTeamEditor from "./BracketTeamEditor";
 import ScreenshotButton from "@/components/ScreenshotButton";
+import { useTournamentStore } from "@/store/tournamentStore";
+import { getRivalryLevel } from "@/lib/rivalries";
 import {
   ContextMenu,
   ContextMenuContent,
@@ -237,10 +239,11 @@ function getPairs(stageMatches: Match[]): TiePair[] {
       awayPenalties = homePenalties + (Math.random() > 0.5 ? 1 : -1);
       if (awayPenalties < 0) awayPenalties = homePenalties + 1;
     }
+    const rivalryLevel = getRivalryLevel(rivalries, match.homeTeamId, match.awayTeamId);
     const stats = generateMatchStats(homeRate, awayRate, homeScore, awayScore, {
       home: result.xg[0],
       away: result.xg[1],
-    });
+    }, rivalryLevel);
 
     // Generate events if both teams have enough players
     let events: any[] | undefined;
