@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { Match, Team, Tournament, Player } from "@/types/tournament";
-import { Shield, ChevronLeft, ChevronRight, Trophy, CheckCircle, Play, Shuffle } from "lucide-react";
+import { Shield, ChevronLeft, ChevronRight, Trophy, CheckCircle, Play, Shuffle, Flame } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   simulateFullMatch,
@@ -12,6 +12,8 @@ import { effectiveMatchRate } from "@/lib/playerSkill";
 import { fetchTeamLineups, pickStartingXIWithSubs } from "@/lib/solaraLineups";
 import MatchPopup from "./MatchPopup";
 import ScreenshotButton from "@/components/ScreenshotButton";
+import { useTournamentStore } from "@/store/tournamentStore";
+import { getRivalryLevel } from "@/lib/rivalries";
 
 interface RoundsViewProps {
   tournament: Tournament;
@@ -39,6 +41,7 @@ export default function RoundsView({
   const [currentRound, setCurrentRound] = useState(lastPlayedRound);
   const [selectedMatch, setSelectedMatch] = useState<Match | null>(null);
   const roundsRef = useRef<HTMLDivElement>(null);
+  const rivalries = useTournamentStore((s) => s.rivalries);
 
   if (matches.length === 0) {
     return (
@@ -78,10 +81,11 @@ export default function RoundsView({
       const result = simulateFullMatch(homeRate, awayRate);
       const totalH = result.total[0];
       const totalA = result.total[1];
+      const rivalryLevel = getRivalryLevel(rivalries, match.homeTeamId, match.awayTeamId);
       const stats = generateMatchStats(homeRate, awayRate, totalH, totalA, {
         home: result.xg[0],
         away: result.xg[1],
-      });
+      }, rivalryLevel);
 
       // Generate events if both teams have enough players
       let events: any[] | undefined;
@@ -196,6 +200,7 @@ export default function RoundsView({
         const renderMatch = (match: Match) => {
           const home = getTeam(match.homeTeamId);
           const away = getTeam(match.awayTeamId);
+          const rivalryLevel = getRivalryLevel(rivalries, match.homeTeamId, match.awayTeamId);
           return (
             <button
               key={match.id}
@@ -217,6 +222,9 @@ export default function RoundsView({
                   </div>
                 </div>
                 <div className="flex items-center gap-1.5 min-w-[60px] justify-center">
+                  {rivalryLevel > 0 && (
+                    <Flame className="w-3.5 h-3.5 text-warning shrink-0" aria-label={`Clássico nível ${rivalryLevel}`} />
+                  )}
                   {match.played ? (
                     <>
                       <span className="text-sm font-bold text-foreground w-5 text-center">{match.homeScore}</span>
