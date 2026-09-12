@@ -172,6 +172,36 @@ export type Database = {
         }
         Relationships: []
       }
+      rivalries: {
+        Row: {
+          created_at: string
+          id: string
+          level: number
+          name: string | null
+          team_a_id: string
+          team_b_id: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          level?: number
+          name?: string | null
+          team_a_id: string
+          team_b_id: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          level?: number
+          name?: string | null
+          team_a_id?: string
+          team_b_id?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       sync_logs: {
         Row: {
           created_at: string | null
