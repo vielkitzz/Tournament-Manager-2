@@ -29,7 +29,7 @@ export default function StoreInitializer() {
       initialize(null);
       lastUserIdRef.current = null;
     }
-  }, [user?.id, user, initialize]);
+  }, [user?.id, initialize]);
 
   useEffect(() => {
     if (!user?.id) return;
@@ -51,11 +51,7 @@ export default function StoreInitializer() {
         { event: "DELETE", schema: "public", table: "players", filter: `user_id=eq.${user.id}` },
         (payload) => removePlayerLocal((payload.old as any).id),
       )
-      .on(
-        "postgres_changes",
-        { event: "*", schema: "public", table: "club_sync_links" },
-        () => clearLineupCache(),
-      )
+      .on("postgres_changes", { event: "*", schema: "public", table: "club_sync_links" }, () => clearLineupCache())
       .subscribe();
 
     return () => {

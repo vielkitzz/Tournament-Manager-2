@@ -18,20 +18,26 @@ import { applyMonoToTeam, getMonoLogosEnabled } from "@/lib/monoLogos";
 // Use any-typed client to avoid strict type errors from generated types
 const db = supabase as any;
 
-async function getAuthenticatedUserId(fallbackUserId?: string | null): Promise<string> {
-  const { data, error } = await supabase.auth.getUser();
-
-  if (error) {
-    throw error;
+async function fetchAllRows(table: string, userId: string): Promise<any[]> {
+  const pageSize = 1000;
+  let allRows: any[] = [];
+  let from = 0;
+  while (true) {
+    const { data, error } = await db
+      .from(table)
+      .select("*")
+      .eq("user_id", userId)
+      .range(from, from + pageSize - 1);
+    if (error) {
+      console.error(`[fetchAllRows] erro ao buscar ${table}:`, error);
+      throw error;
+    }
+    if (!data || data.length === 0) break;
+    allRows = allRows.concat(data);
+    if (data.length < pageSize) break;
+    from += pageSize;
   }
-
-  const userId = data.user?.id ?? fallbackUserId ?? null;
-
-  if (!userId) {
-    throw new Error("Usuário não autenticado");
-  }
-
-  return userId;
+  return allRows;
 }
 
 function parseJsonField<T>(raw: any, fallback: T): T {
@@ -265,36 +271,34 @@ export const useTournamentStore = create<TournamentState>((set, get) => ({
       loading: true,
       _userId: userId,
     });
-    const [tRes, teRes, fRes, tfRes, hRes, pRes] = (await Promise.all([
+    const [tRes, teamsData, fRes, tfRes, historiesData, pRes] = await Promise.all([
       db.from("tournaments").select("*").eq("user_id", userId),
-      db.from("teams").select("*").eq("user_id", userId),
+      fetchAllRows("teams", userId),
       db.from("team_folders").select("*").eq("user_id", userId),
       db.from("tournament_folders").select("*").eq("user_id", userId),
-      db.from("team_histories").select("*").eq("user_id", userId),
+      fetchAllRows("team_histories", userId),
       db.from("players").select("*").eq("user_id", userId),
-    ])) as any[];
+    ]);
     set({
       tournaments: tRes.data ? tRes.data.map(dbToTournament) : [],
-      teams: teRes.data ? teRes.data.map(dbToTeam) : [],
+      teams: teamsData.map(dbToTeam),
       folders: fRes.data ? fRes.data.map((f: any) => ({ id: f.id, name: f.name, parentId: f.parent_id || null })) : [],
       tournamentFolders: tfRes.data
         ? tfRes.data.map((f: any) => ({ id: f.id, name: f.name, parentId: f.parent_id || null }))
         : [],
-      teamHistories: hRes.data
-        ? hRes.data.map((h: any) => ({
-            id: h.id,
-            teamId: h.team_id,
-            startYear: h.start_year,
-            endYear: h.end_year,
-            fieldType: h.field_type || "legacy",
-            logo: h.logo || undefined,
-            rating: h.rating != null ? Number(h.rating) : undefined,
-            name: h.name || undefined,
-            shortName: h.short_name || undefined,
-            abbreviation: h.abbreviation || undefined,
-            colors: h.colors ? parseColors(h.colors) : undefined,
-          }))
-        : [],
+      teamHistories: historiesData.map((h: any) => ({
+        id: h.id,
+        teamId: h.team_id,
+        startYear: h.start_year,
+        endYear: h.end_year,
+        fieldType: h.field_type || "legacy",
+        logo: h.logo || undefined,
+        rating: h.rating != null ? Number(h.rating) : undefined,
+        name: h.name || undefined,
+        shortName: h.short_name || undefined,
+        abbreviation: h.abbreviation || undefined,
+        colors: h.colors ? parseColors(h.colors) : undefined,
+      })),
       players: pRes.data ? pRes.data.map(dbToPlayer) : [],
       loading: false,
     });
@@ -580,15 +584,37 @@ export const useTournamentStore = create<TournamentState>((set, get) => ({
     if (updates.shortName !== undefined) dbUpdates.short_name = updates.shortName || null;
     if (updates.abbreviation !== undefined) dbUpdates.abbreviation = updates.abbreviation || null;
     if (updates.colors !== undefined) dbUpdates.colors = updates.colors?.length ? JSON.stringify(updates.colors) : null;
+
+    const { data, error } = await db
+      .from("team_histories")
+      .update(dbUpdates)
+      .eq("id", id)
+      .eq("user_id", userId)
+      .select();
+
+    if (error) {
+      console.error("[updateTeamHistory] update error:", error);
+      throw error;
+    }
+    if (!data || data.length === 0) {
+      throw new Error("Nenhuma versão histórica foi atualizada");
+    }
+
     set((s) => ({ teamHistories: s.teamHistories.map((h) => (h.id === id ? { ...h, ...updates } : h)) }));
-    await db.from("team_histories").update(dbUpdates).eq("id", id).eq("user_id", userId);
   },
 
   removeTeamHistory: async (id) => {
     const userId = get()._userId;
     if (!userId) return;
+
+    const { data, error } = await db.from("team_histories").delete().eq("id", id).eq("user_id", userId).select();
+
+    if (error) {
+      console.error("[removeTeamHistory] delete error:", error);
+      throw error;
+    }
+
     set((s) => ({ teamHistories: s.teamHistories.filter((h) => h.id !== id) }));
-    await db.from("team_histories").delete().eq("id", id).eq("user_id", userId);
   },
 
   getTeamHistories: (teamId) => {
@@ -643,8 +669,6 @@ export const useTournamentStore = create<TournamentState>((set, get) => ({
     set((s) => ({ players: [...s.players, ...inserted] }));
     return inserted.length;
   },
-
-
 
   updatePlayer: async (id, updates) => {
     const userId = get()._userId;
