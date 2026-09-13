@@ -18,6 +18,18 @@ import { applyMonoToTeam, getMonoLogosEnabled } from "@/lib/monoLogos";
 // Use any-typed client to avoid strict type errors from generated types
 const db = supabase as any;
 
+async function getAuthenticatedUserId(fallbackUserId?: string | null): Promise<string> {
+  const { data, error } = await supabase.auth.getUser();
+  if (error) {
+    throw error;
+  }
+  const userId = data.user?.id ?? fallbackUserId ?? null;
+  if (!userId) {
+    throw new Error("Usuário não autenticado");
+  }
+  return userId;
+}
+
 async function fetchAllRows(table: string, userId: string): Promise<any[]> {
   const pageSize = 1000;
   let allRows: any[] = [];
