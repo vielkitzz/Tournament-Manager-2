@@ -39,6 +39,7 @@ import {
   type TiePair,
 } from "@/lib/tieBreaker";
 import { ChevronDown } from "lucide-react";
+import { useRivalries } from "@/hooks/useRivalries";
 
 interface BracketViewProps {
   tournament: Tournament;
@@ -94,6 +95,7 @@ export default function BracketView({
   onRemoveMatch,
   onResetDraw,
 }: BracketViewProps) {
+  const { getLevel } = useRivalries();
   const [selectedMatch, setSelectedMatch] = useState<Match | null>(null);
   const [editingTeam, setEditingTeam] = useState<{ match: Match; side: "home" | "away" } | null>(null);
   const [openReplays, setOpenReplays] = useState<Record<string, boolean>>({});
@@ -227,6 +229,7 @@ function getPairs(stageMatches: Match[]): TiePair[] {
     let awayScore = result.total[1];
     let homePenalties: number | undefined;
     let awayPenalties: number | undefined;
+    const rivalryLevel = getLevel(leg2.homeTeamId, leg2.awayTeamId);
     if (
       homeScore === awayScore &&
       !isLeg1OfPair &&
@@ -237,10 +240,11 @@ function getPairs(stageMatches: Match[]): TiePair[] {
       awayPenalties = homePenalties + (Math.random() > 0.5 ? 1 : -1);
       if (awayPenalties < 0) awayPenalties = homePenalties + 1;
     }
+    const rivalryLevel = getLevel(match.homeTeamId, match.awayTeamId);
     const stats = generateMatchStats(homeRate, awayRate, homeScore, awayScore, {
       home: result.xg[0],
       away: result.xg[1],
-    });
+    }, rivalryLevel);
 
     // Generate events if both teams have enough players
     let events: any[] | undefined;
@@ -271,6 +275,11 @@ function getPairs(stageMatches: Match[]): TiePair[] {
       }
     }
 
+    const stats = generateMatchStats(homeRate, awayRate, homeScore, awayScore, {
+      home: result.xg[0],
+      away: result.xg[1],
+    }, rivalryLevel);
+
     return {
       ...match,
       homeScore,
@@ -279,6 +288,8 @@ function getPairs(stageMatches: Match[]): TiePair[] {
       awayScoreH1: result.h1[1],
       homeScoreH2: result.h2[0],
       awayScoreH2: result.h2[1],
+      homeStats: stats.homeStats,
+      awayStats: stats.awayStats,
       homeStats: stats.homeStats,
       awayStats: stats.awayStats,
       events,
@@ -840,6 +851,7 @@ function getPairs(stageMatches: Match[]): TiePair[] {
     const homeTeam = getTeam(pair.leg1.homeTeamId);
     const awayTeam = getTeam(pair.leg1.awayTeamId);
     const winner = getTieResult(pair);
+    const rivalryLevel = getLevel(pair.leg1.homeTeamId, pair.leg1.awayTeamId);
 
     const getMatchTotalScore = (match: Match, side: "home" | "away") => {
       const base = side === "home" ? match.homeScore || 0 : match.awayScore || 0;
@@ -867,8 +879,10 @@ function getPairs(stageMatches: Match[]): TiePair[] {
       <div
         key={pair.leg1.id}
         data-photo-match="true"
+        data-photo-rivalry={rivalryLevel || undefined}
         className="relative group/pair w-[220px] rounded-lg bg-card shadow-sm border border-border overflow-visible"
       >
+        {rivalryLevel > 0 && <span className="absolute right-1 top-1 z-10 text-xs" title={`Clássico nível ${rivalryLevel}/5`}>🔥</span>}
         {onRemoveMatch && !tournament.finalized && (
           <button
             data-photo-control="true"
@@ -995,6 +1009,7 @@ function getPairs(stageMatches: Match[]): TiePair[] {
     const winner = getSingleMatchWinner(match);
     const home = getTeam(match.homeTeamId);
     const away = getTeam(match.awayTeamId);
+    const rivalryLevel = getLevel(match.homeTeamId, match.awayTeamId);
     const homeTotal = match.played ? (match.homeScore || 0) + (match.homeExtraTime || 0) : undefined;
     const awayTotal = match.played ? (match.awayScore || 0) + (match.awayExtraTime || 0) : undefined;
 
@@ -1017,7 +1032,8 @@ function getPairs(stageMatches: Match[]): TiePair[] {
     };
 
     return (
-      <div key={match.id} className="w-[220px] rounded-lg overflow-hidden">
+      <div key={match.id} data-photo-match="true" data-photo-rivalry={rivalryLevel || undefined} className="relative w-[220px] rounded-lg overflow-hidden">
+      {rivalryLevel > 0 && <span className="absolute right-1 top-1 z-10 text-xs" title={`Clássico nível ${rivalryLevel}/5`}>🔥</span>}
       <ContextMenu>
         <ContextMenuTrigger>
           <button

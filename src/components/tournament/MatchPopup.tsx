@@ -26,6 +26,7 @@ import InjuryIcon from "@/components/icons/InjuryIcon";
 import HighlightIcon from "@/components/icons/HighlightIcon";
 import SubstitutionIcon from "@/components/icons/SubstitutionIcon";
 import OffsideIcon from "@/components/icons/OffsideIcon";
+import { useRivalries } from "@/hooks/useRivalries";
 
 const POSITION_ORDER: [RegExp, number][] = [
   [/gol|gk/i, 0],
@@ -267,6 +268,8 @@ export default function MatchPopup({
   homeMoral = 0,
   awayMoral = 0,
 }: MatchPopupProps) {
+  const { getLevel } = useRivalries();
+  const rivalryLevel = getLevel(match.homeTeamId, match.awayTeamId);
   const isKnockoutFormat = match.stage === "knockout" || tournament?.format === "mata-mata";
   const isLeg1OfPair = !!(match.pairId && match.leg === 1);
   const pairLeg1 = match.pairId
@@ -500,7 +503,7 @@ export default function MatchPopup({
         // ← CORRIGIDO: usa homeEffectiveRate / awayEffectiveRate (inclui elenco)
         const totalGoalsHome = match.homeScore + (match.homeExtraTime || 0);
         const totalGoalsAway = match.awayScore + (match.awayExtraTime || 0);
-        const stats = generateMatchStats(homeEffectiveRate, awayEffectiveRate, totalGoalsHome, totalGoalsAway);
+        const stats = generateMatchStats(homeEffectiveRate, awayEffectiveRate, totalGoalsHome, totalGoalsAway, undefined, rivalryLevel);
         setMatchStats(stats);
         onPersist?.({ ...match, homeStats: stats.homeStats, awayStats: stats.awayStats });
       }
@@ -749,7 +752,7 @@ export default function MatchPopup({
     const stats = generateMatchStats(homeRateForSim, awayRateForSim, totalHome, totalAway, {
       home: homeXg,
       away: awayXg,
-    });
+    }, rivalryLevel);
     setMatchStats(stats);
     return stats;
   };
@@ -805,7 +808,7 @@ export default function MatchPopup({
     const stats = generateMatchStats(homeRateForSim, awayRateForSim, totalH, totalA, {
       home: homeXg,
       away: awayXg,
-    });
+    }, rivalryLevel);
     setMatchStats(stats);
 
     // 1. Filtramos apenas o necessário para o simulador
@@ -983,7 +986,8 @@ export default function MatchPopup({
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header - Teams */}
-        <div className="bg-secondary/50 border-b border-border px-6 py-5">
+        <div className="relative bg-secondary/50 border-b border-border px-6 py-5" data-photo-rivalry={rivalryLevel || undefined}>
+          {rivalryLevel > 0 && <span className="absolute right-2 top-2 text-base" title={`Clássico nível ${rivalryLevel}/5`}>🔥</span>}
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3 flex-1">
               <div className="w-12 h-12 flex items-center justify-center shrink-0">

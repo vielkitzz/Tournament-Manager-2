@@ -233,6 +233,7 @@ export function generateMatchStats(
   homeGoals: number,
   awayGoals: number,
   xgInputs?: { home: number; away: number },
+  rivalryLevel = 0,
 ): { homeStats: TeamMatchStats; awayStats: TeamMatchStats } {
   const isUpset = (homeRate > awayRate && homeGoals < awayGoals) || (awayRate > homeRate && awayGoals < homeGoals);
   let upsetAdjustment = 1.0;
@@ -336,14 +337,21 @@ export function generateMatchStats(
   homeFouls = Math.max(4, Math.min(20, homeFouls));
   awayFouls = Math.max(4, Math.min(20, awayFouls));
 
+  // Clássicos são mais intensos: o nível aumenta somente a carga disciplinar.
+  // Força, posse, finalizações e gols permanecem inalterados.
+  const rivalryMultiplier = 1 + 0.18 * Math.max(0, Math.min(5, rivalryLevel));
+  homeFouls = Math.min(32, Math.round(homeFouls * rivalryMultiplier));
+  awayFouls = Math.min(32, Math.round(awayFouls * rivalryMultiplier));
+
   const homeCorners = randInt(1, Math.max(2, Math.min(10, Math.round(homeShots * 0.4))));
   const awayCorners = randInt(1, Math.max(2, Math.min(10, Math.round(awayShots * 0.4))));
 
-  const homeYellow = Math.min(3, randInt(0, Math.max(1, Math.floor(homeFouls / 6))));
-  const awayYellow = Math.min(3, randInt(0, Math.max(1, Math.floor(awayFouls / 6))));
+  const homeYellow = Math.min(6, randInt(0, Math.max(1, Math.floor(homeFouls / 5))));
+  const awayYellow = Math.min(6, randInt(0, Math.max(1, Math.floor(awayFouls / 5))));
 
-  const homeRed = Math.random() < 0.1 ? 1 : 0;
-  const awayRed = Math.random() < 0.1 ? 1 : 0;
+  const redChance = Math.min(0.3, 0.1 * rivalryMultiplier);
+  const homeRed = Math.random() < redChance ? 1 : 0;
+  const awayRed = Math.random() < redChance ? 1 : 0;
 
   const homeOffsides = randInt(0, 4);
   const awayOffsides = randInt(0, 4);
