@@ -229,6 +229,7 @@ function getPairs(stageMatches: Match[]): TiePair[] {
     let awayScore = result.total[1];
     let homePenalties: number | undefined;
     let awayPenalties: number | undefined;
+    const rivalryLevel = getLevel(leg2.homeTeamId, leg2.awayTeamId);
     if (
       homeScore === awayScore &&
       !isLeg1OfPair &&
@@ -274,6 +275,11 @@ function getPairs(stageMatches: Match[]): TiePair[] {
       }
     }
 
+    const stats = generateMatchStats(homeRate, awayRate, homeScore, awayScore, {
+      home: result.xg[0],
+      away: result.xg[1],
+    }, rivalryLevel);
+
     return {
       ...match,
       homeScore,
@@ -282,6 +288,8 @@ function getPairs(stageMatches: Match[]): TiePair[] {
       awayScoreH1: result.h1[1],
       homeScoreH2: result.h2[0],
       awayScoreH2: result.h2[1],
+      homeStats: stats.homeStats,
+      awayStats: stats.awayStats,
       homeStats: stats.homeStats,
       awayStats: stats.awayStats,
       events,
