@@ -12,6 +12,7 @@ import { effectiveMatchRate } from "@/lib/playerSkill";
 import { fetchTeamLineups, pickStartingXIWithSubs } from "@/lib/solaraLineups";
 import MatchPopup from "./MatchPopup";
 import ScreenshotButton from "@/components/ScreenshotButton";
+import { useRivalries } from "@/hooks/useRivalries";
 
 interface RoundsViewProps {
   tournament: Tournament;
@@ -33,6 +34,7 @@ export default function RoundsView({
   onFinalize,
   onResetDraw,
 }: RoundsViewProps) {
+  const { getLevel } = useRivalries();
   const matches = tournament.matches;
   const totalRounds = matches.length > 0 ? Math.max(...matches.map((m) => m.round)) : 0;
   const lastPlayedRound = matches.length > 0 ? Math.max(...matches.filter((m) => m.played).map((m) => m.round), 1) : 1;
@@ -78,10 +80,11 @@ export default function RoundsView({
       const result = simulateFullMatch(homeRate, awayRate);
       const totalH = result.total[0];
       const totalA = result.total[1];
+      const rivalryLevel = getLevel(match.homeTeamId, match.awayTeamId);
       const stats = generateMatchStats(homeRate, awayRate, totalH, totalA, {
         home: result.xg[0],
         away: result.xg[1],
-      });
+      }, rivalryLevel);
 
       // Generate events if both teams have enough players
       let events: any[] | undefined;
@@ -196,13 +199,16 @@ export default function RoundsView({
         const renderMatch = (match: Match) => {
           const home = getTeam(match.homeTeamId);
           const away = getTeam(match.awayTeamId);
+          const rivalryLevel = getLevel(match.homeTeamId, match.awayTeamId);
           return (
             <button
               key={match.id}
               onClick={() => setSelectedMatch(match)}
               data-photo-match="true"
-              className="w-full p-3 rounded-xl bg-card/70 border border-border hover:border-primary/40 transition-all text-left"
+              data-photo-rivalry={rivalryLevel || undefined}
+              className="relative w-full p-3 rounded-xl bg-card/70 border border-border hover:border-primary/40 transition-all text-left"
             >
+              {rivalryLevel > 0 && <span className="absolute right-1.5 top-1 text-xs" title={`Clássico nível ${rivalryLevel}/5`}>🔥</span>}
               <div className="flex items-center gap-3" data-photo-row="true">
                 <div className="flex-1 flex items-center gap-2 justify-end" data-photo-side="home">
                   <span className="text-xs font-medium text-foreground truncate">

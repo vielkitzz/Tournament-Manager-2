@@ -386,6 +386,7 @@ ${contrastCss(photo)}
   #capture-root [data-photo-layout="bracket"] [data-photo-connector="true"]{width:30px !important;}
   #capture-root [data-photo-layout="bracket"] [data-photo-champion="true"]{width:230px !important;min-width:230px !important;flex:0 0 auto !important;}
  #capture-root [data-photo-match="true"] .truncate{overflow:visible !important;text-overflow:clip !important;}
+ #capture-root [data-photo-rivalry]::after{content:"🔥";position:absolute;right:5px;top:3px;font-size:13px;line-height:1;}
  #capture-root [data-photo-champion="true"] *{word-break:normal !important;overflow-wrap:break-word !important;white-space:normal !important;writing-mode:horizontal-tb !important;}
  #capture-root [data-photo-champion="true"] > div{width:100% !important;}
  /* Rounds: shrink each match row to its content and center the whole block,

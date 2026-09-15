@@ -124,7 +124,7 @@ export default function SeasonCalendarPage() {
 
       <section className="space-y-5 border-t border-border pt-8">
         <div className="flex items-center justify-between gap-3">
-          <div className="flex items-center gap-2"><Flame className="w-5 h-5 text-destructive" /><h2 className=" Residential font-display font-bold text-foreground">Rivalidades e clássicos</h2></div>
+          <div className="flex items-center gap-2"><Flame className="w-5 h-5 text-destructive" /><h2 className="font-display font-bold text-foreground">Rivalidades e clássicos</h2></div>
           <Button onClick={() => openRivalry()} size="sm" className="gap-2"><Plus className="w-4 h-4" />Criar clássico</Button>
         </div>
         {loading ? <p className="text-sm text-muted-foreground">Carregando...</p> : rivalries.length === 0 ? <p className="text-sm text-muted-foreground py-6">Nenhum clássico cadastrado.</p> : (

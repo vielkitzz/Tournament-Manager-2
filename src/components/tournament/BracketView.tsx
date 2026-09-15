@@ -39,6 +39,7 @@ import {
   type TiePair,
 } from "@/lib/tieBreaker";
 import { ChevronDown } from "lucide-react";
+import { useRivalries } from "@/hooks/useRivalries";
 
 interface BracketViewProps {
   tournament: Tournament;
@@ -94,6 +95,7 @@ export default function BracketView({
   onRemoveMatch,
   onResetDraw,
 }: BracketViewProps) {
+  const { getLevel } = useRivalries();
   const [selectedMatch, setSelectedMatch] = useState<Match | null>(null);
   const [editingTeam, setEditingTeam] = useState<{ match: Match; side: "home" | "away" } | null>(null);
   const [openReplays, setOpenReplays] = useState<Record<string, boolean>>({});
@@ -237,10 +239,11 @@ function getPairs(stageMatches: Match[]): TiePair[] {
       awayPenalties = homePenalties + (Math.random() > 0.5 ? 1 : -1);
       if (awayPenalties < 0) awayPenalties = homePenalties + 1;
     }
+    const rivalryLevel = getLevel(match.homeTeamId, match.awayTeamId);
     const stats = generateMatchStats(homeRate, awayRate, homeScore, awayScore, {
       home: result.xg[0],
       away: result.xg[1],
-    });
+    }, rivalryLevel);
 
     // Generate events if both teams have enough players
     let events: any[] | undefined;
