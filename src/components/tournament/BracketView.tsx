@@ -843,6 +843,7 @@ function getPairs(stageMatches: Match[]): TiePair[] {
     const homeTeam = getTeam(pair.leg1.homeTeamId);
     const awayTeam = getTeam(pair.leg1.awayTeamId);
     const winner = getTieResult(pair);
+    const rivalryLevel = getLevel(pair.leg1.homeTeamId, pair.leg1.awayTeamId);
 
     const getMatchTotalScore = (match: Match, side: "home" | "away") => {
       const base = side === "home" ? match.homeScore || 0 : match.awayScore || 0;
@@ -870,8 +871,10 @@ function getPairs(stageMatches: Match[]): TiePair[] {
       <div
         key={pair.leg1.id}
         data-photo-match="true"
+        data-photo-rivalry={rivalryLevel || undefined}
         className="relative group/pair w-[220px] rounded-lg bg-card shadow-sm border border-border overflow-visible"
       >
+        {rivalryLevel > 0 && <span className="absolute right-1 top-1 z-10 text-xs" title={`Clássico nível ${rivalryLevel}/5`}>🔥</span>}
         {onRemoveMatch && !tournament.finalized && (
           <button
             data-photo-control="true"
@@ -998,6 +1001,7 @@ function getPairs(stageMatches: Match[]): TiePair[] {
     const winner = getSingleMatchWinner(match);
     const home = getTeam(match.homeTeamId);
     const away = getTeam(match.awayTeamId);
+    const rivalryLevel = getLevel(match.homeTeamId, match.awayTeamId);
     const homeTotal = match.played ? (match.homeScore || 0) + (match.homeExtraTime || 0) : undefined;
     const awayTotal = match.played ? (match.awayScore || 0) + (match.awayExtraTime || 0) : undefined;
 
@@ -1020,7 +1024,8 @@ function getPairs(stageMatches: Match[]): TiePair[] {
     };
 
     return (
-      <div key={match.id} className="w-[220px] rounded-lg overflow-hidden">
+      <div key={match.id} data-photo-match="true" data-photo-rivalry={rivalryLevel || undefined} className="relative w-[220px] rounded-lg overflow-hidden">
+      {rivalryLevel > 0 && <span className="absolute right-1 top-1 z-10 text-xs" title={`Clássico nível ${rivalryLevel}/5`}>🔥</span>}
       <ContextMenu>
         <ContextMenuTrigger>
           <button

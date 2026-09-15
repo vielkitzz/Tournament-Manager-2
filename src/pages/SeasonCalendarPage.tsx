@@ -2,7 +2,7 @@ import { useMemo, useState } from "react";
 import { CalendarDays, Check, Flame, Pencil, Plus, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { useTournamentStore } from "@/store/tournamentStore";
-import { buildCalendarPreview, nextSeasonTournament } from "@/lib/seasonAdvance";
+import { buildCalendarPreview, nextSeasonTournament, resolveBatchTeamIds } from "@/lib/seasonAdvance";
 import { useRivalries, type Rivalry } from "@/hooks/useRivalries";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Button } from "@/components/ui/button";
@@ -38,10 +38,16 @@ export default function SeasonCalendarPage() {
     if (invalid.length > 0) return;
     setSaving(true);
     try {
+      const nextTeamIds = resolveBatchTeamIds(tournaments, tournamentIds);
       await Promise.all([
         ...preview.tournaments.map((item) => {
           const tournament = tournaments.find((candidate) => candidate.id === item.id);
-          return tournament ? updateTournament(item.id, nextSeasonTournament(tournament, targetYear)) : Promise.resolve();
+          const teamIdsForSeason = nextTeamIds.get(item.id) || tournament?.teamIds || [];
+          return tournament ? updateTournament(item.id, {
+            ...nextSeasonTournament(tournament, targetYear),
+            teamIds: teamIdsForSeason,
+            numberOfTeams: teamIdsForSeason.length,
+          }) : Promise.resolve();
         }),
         ...preview.players.map((player) => updatePlayer(player.id, { age: player.age, skill: player.skill, seasonYear: targetYear })),
       ]);
