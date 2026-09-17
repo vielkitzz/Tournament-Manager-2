@@ -3,7 +3,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { BrowserRouter, Navigate, Routes, Route } from "react-router-dom";
 import { AuthProvider } from "@/hooks/useAuth";
 import { ThemeProvider } from "@/hooks/useTheme";
 import { SkinProvider } from "@/hooks/useSkin";
@@ -32,7 +32,7 @@ const PlayersPage = lazy(() => import("@/pages/PlayersPage"));
 const ClubSquadPage = lazy(() => import("@/pages/ClubSquadPage"));
 const CreatePlayerPage = lazy(() => import("@/pages/CreatePlayerPage"));
 const SettingsPage = lazy(() => import("@/pages/SettingsPage"));
-const SeasonCalendarPage = lazy(() => import("@/pages/SeasonCalendarPage"));
+const RivalriesPage = lazy(() => import("@/pages/RivalriesPage"));
 const NotFound = lazy(() => import("@/pages/NotFound"));
 
 function PageFallback() {
@@ -97,7 +97,8 @@ const App = () => (
                     <Route path="/squads/team/:teamId/create" element={<CreatePlayerPage />} />
                     <Route path="/squads/:id/edit" element={<CreatePlayerPage />} />
                     <Route path="/settings" element={<SettingsPage />} />
-                    <Route path="/calendar" element={<SeasonCalendarPage />} />
+                    <Route path="/classics" element={<RivalriesPage />} />
+                    <Route path="/calendar" element={<Navigate to="/classics" replace />} />
                   </Route>
                   <Route path="/shared/:token" element={<SharedTournamentPage />} />
                   <Route path="*" element={<NotFound />} />
