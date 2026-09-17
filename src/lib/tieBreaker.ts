@@ -27,6 +27,32 @@ export interface TieResolution {
   needsTiebreak: boolean;
 }
 
+/**
+ * Reúne a partida principal e todos os jogos extras da disputa de 3º lugar.
+ * Também reconhece registros antigos cujos replays perderam isThirdPlace/pairId.
+ */
+export function buildThirdPlacePair(matches: Match[]): TiePair | null {
+  const main = matches.find((match) => match.isThirdPlace && !match.isReplay);
+  if (!main) return null;
+  const replays = matches
+    .filter((match) => {
+      if (!match.isReplay) return false;
+      if (match.isThirdPlace) return true;
+      if (match.pairId && main.pairId) return match.pairId === main.pairId;
+      const sameTeams =
+        (match.homeTeamId === main.homeTeamId && match.awayTeamId === main.awayTeamId) ||
+        (match.homeTeamId === main.awayTeamId && match.awayTeamId === main.homeTeamId);
+      return sameTeams && match.round === main.round;
+    })
+    .sort((a, b) => (a.replayIndex || 0) - (b.replayIndex || 0));
+  return { leg1: main, leg2: null, replays };
+}
+
+export function isThirdPlaceMatch(match: Match, matches: Match[]): boolean {
+  const pair = buildThirdPlacePair(matches);
+  return !!pair && (match.id === pair.leg1.id || (pair.replays || []).some((replay) => replay.id === match.id));
+}
+
 const total = (m: Match, side: "home" | "away") =>
   side === "home"
     ? (m.homeScore || 0) + (m.homeExtraTime || 0)

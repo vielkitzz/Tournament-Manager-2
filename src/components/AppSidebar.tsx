@@ -13,7 +13,7 @@ import {
   Sun,
   Users,
   Settings,
-  CalendarDays,
+  Flame,
 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
@@ -37,7 +37,7 @@ const navSections = [
       { to: "/squads", icon: Users, label: "Elencos", end: false },
       { to: "/publish", icon: Share2, label: "Publicar", end: false },
       { to: "/friendly", icon: Swords, label: "Amistoso", end: false },
-      { to: "/calendar", icon: CalendarDays, label: "Calendário e Clássicos", end: false },
+      { to: "/classics", icon: Flame, label: "Clássicos", end: false },
     ],
   },
   {
