@@ -52,7 +52,7 @@ import { generateSwissLeagueMatches } from "@/lib/swissRounds";
 import { downloadTournamentResults } from "@/lib/exportResults";
 import { processImage } from "@/lib/imageUtils";
 import { uploadLogo } from "@/lib/storageUtils";
-import { resolveTie, type TiePair } from "@/lib/tieBreaker";
+import { isThirdPlaceMatch, resolveTie, type TiePair } from "@/lib/tieBreaker";
 
 const formatLabels: Record<string, string> = {
   liga: "Pontos Corridos",
@@ -562,7 +562,7 @@ export default function TournamentDetailPage() {
       const finalRound = activeStages.length;
 
       const finalMatches = (tournament.matches || []).filter(
-        (m) => !m.isThirdPlace && m.round === finalRound && (isGrupos || isSuico ? m.stage === "knockout" : true),
+        (m) => !isThirdPlaceMatch(m, tournament.matches || []) && m.round === finalRound && (isGrupos || isSuico ? m.stage === "knockout" : true),
       );
 
       if (finalMatches.length > 0) {

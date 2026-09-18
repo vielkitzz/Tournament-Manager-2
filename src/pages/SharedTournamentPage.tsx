@@ -31,7 +31,7 @@ import { generateRoundRobin } from "@/lib/roundRobin";
 import { Match, SeasonRecord, STAGE_TEAM_COUNTS, KnockoutStage } from "@/types/tournament";
 import ScreenshotButton from "@/components/ScreenshotButton";
 import { generateSwissLeagueMatches } from "@/lib/swissRounds";
-import { resolveTie, type TiePair } from "@/lib/tieBreaker";
+import { isThirdPlaceMatch, resolveTie, type TiePair } from "@/lib/tieBreaker";
 
 const formatLabels: Record<string, string> = {
   liga: "Pontos Corridos",
@@ -357,7 +357,7 @@ export default function SharedTournamentPage() {
       const idx = stages.indexOf(startStage);
       const activeStages = idx >= 0 ? stages.slice(idx) : ["1/2"];
       const finalRound = activeStages.length;
-      const finalMatches = allMatches.filter((m) => !m.isThirdPlace && m.round === finalRound && ((isGrupos || isSuico) ? m.stage === "knockout" : true));
+      const finalMatches = allMatches.filter((m) => !isThirdPlaceMatch(m, allMatches) && m.round === finalRound && ((isGrupos || isSuico) ? m.stage === "knockout" : true));
 
       if (finalMatches.length > 0) {
         const pairMap = new Map<string, { leg1?: Match; leg2?: Match; replays: Match[] }>();

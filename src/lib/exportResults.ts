@@ -1,6 +1,6 @@
 import { Match, Tournament, Team, KnockoutStage } from "@/types/tournament";
 import { StandingRow } from "@/lib/standings";
-import { buildThirdPlacePair, resolveTie } from "@/lib/tieBreaker";
+import { buildThirdPlacePair, isThirdPlaceMatch, resolveTie } from "@/lib/tieBreaker";
 
 const STAGE_LABELS: Record<KnockoutStage, string> = {
   "1/64": "64-avos de final",
@@ -128,7 +128,7 @@ export function buildTournamentResults(params: {
   const finalRoundNum = activeStages.length;
 
   // Group knockout matches by round and pair
-  const knMatches = knockoutMatches.filter((m) => !m.isThirdPlace);
+  const knMatches = knockoutMatches.filter((match) => !isThirdPlaceMatch(match, knockoutMatches));
   const thirdPlacePair = buildThirdPlacePair(knockoutMatches);
 
   // For each round, collect pairs and determine winners/losers
