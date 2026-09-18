@@ -30,7 +30,6 @@ import { useEffect } from "react";
 import {
   resolveTie,
   pairAggregate,
-  singleMatchWinner,
   coinTossWinner,
   maxReplaysOf,
   tiebreakMode,
@@ -199,8 +198,6 @@ function getPairs(stageMatches: Match[]): TiePair[] {
     }
     return result;
   }
-
-  const getSingleMatchWinner = (match: Match): string | null => singleMatchWinner(match);
 
   const getTieResult = (pair: TiePair): string | null =>
     resolveTie(pair, tournament.settings).winnerId;
