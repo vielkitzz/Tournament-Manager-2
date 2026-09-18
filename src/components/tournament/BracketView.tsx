@@ -30,12 +30,12 @@ import { useEffect } from "react";
 import {
   resolveTie,
   pairAggregate,
-  singleMatchWinner,
   coinTossWinner,
   maxReplaysOf,
   tiebreakMode,
   autoResolveTie,
   isAutoTiebreak,
+  buildThirdPlacePair,
   type TiePair,
 } from "@/lib/tieBreaker";
 import { ChevronDown } from "lucide-react";
@@ -143,7 +143,8 @@ export default function BracketView({
   const startStage = tournament.mataMataInicio || "1/8";
   const stages = getStagesFromStart(startStage);
 
-  const thirdPlaceMainMatches = matches.filter((m) => m.isThirdPlace && !m.isReplay);
+  const thirdPlacePair = buildThirdPlacePair(matches);
+  const thirdPlaceMainMatches = thirdPlacePair ? [thirdPlacePair.leg1] : [];
   const isThirdPlaceReplay = (match: Match) => {
     if (!match.isReplay) return false;
     if (match.isThirdPlace) return true;
@@ -197,8 +198,6 @@ function getPairs(stageMatches: Match[]): TiePair[] {
     }
     return result;
   }
-
-  const getSingleMatchWinner = (match: Match): string | null => singleMatchWinner(match);
 
   const getTieResult = (pair: TiePair): string | null =>
     resolveTie(pair, tournament.settings).winnerId;
@@ -1006,7 +1005,6 @@ function getPairs(stageMatches: Match[]): TiePair[] {
   };
 
   const renderThirdPlaceMatch = (match: Match) => {
-    const winner = getSingleMatchWinner(match);
     const home = getTeam(match.homeTeamId);
     const away = getTeam(match.awayTeamId);
     const rivalryLevel = getLevel(match.homeTeamId, match.awayTeamId);
@@ -1016,20 +1014,8 @@ function getPairs(stageMatches: Match[]): TiePair[] {
     const hasET = match.played && ((match.homeExtraTime || 0) > 0 || (match.awayExtraTime || 0) > 0);
     const hasPens = match.played && match.homePenalties !== undefined;
 
-    const thirdPair: TiePair = {
-      leg1: match,
-      leg2: null,
-      replays: thirdPlaceMatches
-        .filter((r) => {
-          if (!r.isReplay) return false;
-          if (r.pairId && match.pairId) return r.pairId === match.pairId;
-          return (
-            (r.homeTeamId === match.homeTeamId && r.awayTeamId === match.awayTeamId) ||
-            (r.homeTeamId === match.awayTeamId && r.awayTeamId === match.homeTeamId)
-          );
-        })
-        .sort((a, b) => (a.replayIndex || 0) - (b.replayIndex || 0)),
-    };
+    const thirdPair: TiePair = buildThirdPlacePair(thirdPlaceMatches) || { leg1: match, leg2: null, replays: [] };
+    const winner = getTieResult(thirdPair);
 
     return (
       <div key={match.id} data-photo-match="true" data-photo-rivalry={rivalryLevel || undefined} className="relative w-[220px] rounded-lg overflow-hidden">
@@ -1173,8 +1159,7 @@ function getPairs(stageMatches: Match[]): TiePair[] {
     }
 
     let thirdTeam: Team | undefined = undefined;
-    const thirdMatch = thirdPlaceMainMatches[0];
-    const thirdWinnerId = thirdMatch ? getSingleMatchWinner(thirdMatch) : null;
+    const thirdWinnerId = thirdPlacePair ? getTieResult(thirdPlacePair) : null;
     if (thirdWinnerId) {
       thirdTeam = getTeam(thirdWinnerId);
     } else if (!thirdPlaceMatch) {
@@ -1384,8 +1369,9 @@ function getPairs(stageMatches: Match[]): TiePair[] {
     <div className="space-y-4">
       {/* Banner de finalização */}
       {(() => {
-        const allMatchesPlayed = matches.length > 0 && matches.filter((m) => !m.isThirdPlace).every((m) => m.played);
-        const canFinalize = allFinalResolved && allMatchesPlayed;
+        const allMatchesPlayed = matches.length > 0 && regularMatches.every((m) => m.played);
+        const thirdPlaceResolved = !thirdPlaceMatch || (!!thirdPlacePair && getTieResult(thirdPlacePair) !== null);
+        const canFinalize = allFinalResolved && allMatchesPlayed && thirdPlaceResolved;
         if (!canFinalize || tournament.finalized || !onFinalize) return null;
         return (
           <div className="flex items-center justify-start gap-3 p-3 rounded-xl bg-primary/70 border border-primary/20">

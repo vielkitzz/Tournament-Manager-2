@@ -31,6 +31,7 @@ import { generateRoundRobin } from "@/lib/roundRobin";
 import { Match, SeasonRecord, STAGE_TEAM_COUNTS, KnockoutStage } from "@/types/tournament";
 import ScreenshotButton from "@/components/ScreenshotButton";
 import { generateSwissLeagueMatches } from "@/lib/swissRounds";
+import { isThirdPlaceMatch, resolveTie, type TiePair } from "@/lib/tieBreaker";
 
 const formatLabels: Record<string, string> = {
   liga: "Pontos Corridos",
@@ -356,45 +357,31 @@ export default function SharedTournamentPage() {
       const idx = stages.indexOf(startStage);
       const activeStages = idx >= 0 ? stages.slice(idx) : ["1/2"];
       const finalRound = activeStages.length;
-      const finalMatches = allMatches.filter((m) => !m.isThirdPlace && m.round === finalRound && ((isGrupos || isSuico) ? m.stage === "knockout" : true));
+      const finalMatches = allMatches.filter((m) => !isThirdPlaceMatch(m, allMatches) && m.round === finalRound && ((isGrupos || isSuico) ? m.stage === "knockout" : true));
 
       if (finalMatches.length > 0) {
-        const pairMap = new Map<string, { leg1?: Match; leg2?: Match }>();
+        const pairMap = new Map<string, { leg1?: Match; leg2?: Match; replays: Match[] }>();
         const singles: Match[] = [];
         for (const m of finalMatches) {
           if (m.pairId) {
-            if (!pairMap.has(m.pairId)) pairMap.set(m.pairId, {});
-            const pair = pairMap.get(m.pairId)!;
-            if (m.leg === 1) pair.leg1 = m; else pair.leg2 = m;
+            if (!pairMap.has(m.pairId)) pairMap.set(m.pairId, { replays: [] });
+            const pair = pairMap.get(m.pairId);
+            if (!pair) continue;
+            if (m.isReplay) pair.replays.push(m);
+            else if (m.leg === 1 || m.leg === undefined) pair.leg1 = m;
+            else pair.leg2 = m;
           } else singles.push(m);
         }
-        const finalPairs = [];
-        for (const pair of pairMap.values()) if (pair.leg1) finalPairs.push({ leg1: pair.leg1, leg2: pair.leg2 || null });
-        for (const s of singles) finalPairs.push({ leg1: s, leg2: null });
+        const finalPairs: TiePair[] = [];
+        for (const pair of pairMap.values()) if (pair.leg1) finalPairs.push({ leg1: pair.leg1, leg2: pair.leg2 || null, replays: pair.replays });
+        for (const s of singles.filter((match) => !match.isReplay)) {
+          const replays = singles.filter((match) => match.isReplay && match.homeTeamId === s.homeTeamId && match.awayTeamId === s.awayTeamId);
+          finalPairs.push({ leg1: s, leg2: null, replays });
+        }
 
         if (finalPairs.length > 0) {
           const pair = finalPairs[0];
-          let winnerId: string | null = null;
-          if (!pair.leg2) {
-            const m = pair.leg1;
-            if (m.played) {
-              const h = (m.homeScore || 0) + (m.homeExtraTime || 0);
-              const a = (m.awayScore || 0) + (m.awayExtraTime || 0);
-              if (h > a) winnerId = m.homeTeamId;
-              else if (a > h) winnerId = m.awayTeamId;
-              else if (m.homePenalties !== undefined && m.awayPenalties !== undefined) {
-                winnerId = m.homePenalties > m.awayPenalties ? m.homeTeamId : m.awayTeamId;
-              }
-            }
-          } else if (pair.leg1.played && pair.leg2.played) {
-            const h = (pair.leg1.homeScore || 0) + (pair.leg1.homeExtraTime || 0) + (pair.leg2.awayScore || 0) + (pair.leg2.awayExtraTime || 0);
-            const a = (pair.leg1.awayScore || 0) + (pair.leg1.awayExtraTime || 0) + (pair.leg2.homeScore || 0) + (pair.leg2.homeExtraTime || 0);
-            if (h > a) winnerId = pair.leg1.homeTeamId;
-            else if (a > h) winnerId = pair.leg1.awayTeamId;
-            else if (pair.leg2.homePenalties !== undefined && pair.leg2.awayPenalties !== undefined) {
-              winnerId = pair.leg2.awayPenalties > pair.leg2.homePenalties ? pair.leg1.homeTeamId : pair.leg1.awayTeamId;
-            }
-          }
+          const winnerId = resolveTie(pair, tournament.settings).winnerId;
           if (winnerId) {
             const w = resolvedTeams.find((t) => t.id === winnerId);
             if (w) { championTeamId = w.id; cName = w.name; cLogo = w.logo; }

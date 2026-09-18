@@ -171,17 +171,21 @@ export default function RivalriesPage() {
                   </div>
                 </div>
                 <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-3 px-4 py-5">
-                  {[teamA, teamB].map((team, index) => (
-                    <div key={team?.id || index} className="min-w-0 text-center">
-                      <div style={index === 0 ? accentA : accentB} className="mx-auto mb-2 flex h-14 w-14 items-center justify-center rounded-full bg-secondary/70">
-                        {team ? <TeamLogo src={team.logo} alt={team.name} className="h-10 w-10 flex shrink-0 items-center justify-center" iconClassName="h-6 w-6 text-muted-foreground" /> : <Shield className="h-6 w-6 text-muted-foreground" />}
-                      </div>
-                      <p className="truncate text-xs font-semibold text-foreground">{team?.shortName || team?.name || "Time excluído"}</p>
+                  <div className="min-w-0 text-center">
+                    <div style={accentA} className="mx-auto mb-2 flex h-14 w-14 items-center justify-center rounded-full bg-secondary/70">
+                      {teamA ? <TeamLogo src={teamA.logo} alt={teamA.name} className="h-10 w-10 flex shrink-0 items-center justify-center" iconClassName="h-6 w-6 text-muted-foreground" /> : <Shield className="h-6 w-6 text-muted-foreground" />}
                     </div>
-                  ))}
+                    <p className="truncate text-xs font-semibold text-foreground">{teamA?.shortName || teamA?.name || "Time excluído"}</p>
+                  </div>
                   <div className="flex flex-col items-center gap-1 text-destructive">
                     <Flame className="h-6 w-6" />
                     <span className="text-xs font-black">{rivalry.level}/5</span>
+                  </div>
+                  <div className="min-w-0 text-center">
+                    <div style={accentB} className="mx-auto mb-2 flex h-14 w-14 items-center justify-center rounded-full bg-secondary/70">
+                      {teamB ? <TeamLogo src={teamB.logo} alt={teamB.name} className="h-10 w-10 flex shrink-0 items-center justify-center" iconClassName="h-6 w-6 text-muted-foreground" /> : <Shield className="h-6 w-6 text-muted-foreground" />}
+                    </div>
+                    <p className="truncate text-xs font-semibold text-foreground">{teamB?.shortName || teamB?.name || "Time excluído"}</p>
                   </div>
                 </div>
               </article>
