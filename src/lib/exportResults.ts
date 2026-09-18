@@ -1,5 +1,6 @@
 import { Match, Tournament, Team, KnockoutStage } from "@/types/tournament";
 import { StandingRow } from "@/lib/standings";
+import { buildThirdPlacePair, resolveTie } from "@/lib/tieBreaker";
 
 const STAGE_LABELS: Record<KnockoutStage, string> = {
   "1/64": "64-avos de final",
@@ -128,7 +129,7 @@ export function buildTournamentResults(params: {
 
   // Group knockout matches by round and pair
   const knMatches = knockoutMatches.filter((m) => !m.isThirdPlace);
-  const thirdPlace = knockoutMatches.find((m) => m.isThirdPlace);
+  const thirdPlacePair = buildThirdPlacePair(knockoutMatches);
 
   // For each round, collect pairs and determine winners/losers
   const eliminatedByRound = new Map<number, string[]>();
@@ -177,8 +178,13 @@ export function buildTournamentResults(params: {
   let fourthPlaceId: string | undefined;
   const semifinalRound = finalRoundNum - 1;
   const semifinalLosers = eliminatedByRound.get(semifinalRound) || [];
-  if (thirdPlace && thirdPlace.played) {
-    const { winnerId, loserId } = pairWinnerLoser([thirdPlace]);
+  if (thirdPlacePair) {
+    const winnerId = resolveTie(thirdPlacePair, tournament.settings).winnerId || undefined;
+    const loserId = winnerId
+      ? winnerId === thirdPlacePair.leg1.homeTeamId
+        ? thirdPlacePair.leg1.awayTeamId
+        : thirdPlacePair.leg1.homeTeamId
+      : undefined;
     thirdPlaceId = winnerId;
     fourthPlaceId = loserId;
     // Remove these from eliminated semifinal list to avoid duplicates
