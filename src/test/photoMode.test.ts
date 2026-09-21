@@ -17,4 +17,10 @@ describe("photo mode geometry", () => {
     expect(photoLayoutWidth({ width: 900, scale: 99 })).toBe(450);
     expect(photoLayoutWidth({ width: 900, scale: 0 })).toBe(900);
   });
+
+  it("uses a compact, readable preset for one match", async () => {
+    const { PHOTO_PRESETS, resolvePhotoMode, DEFAULT_PHOTO_MODE } = await import("@/lib/photoMode");
+    expect(PHOTO_PRESETS.match.width).toBeLessThan(PHOTO_PRESETS.table.width);
+    expect(resolvePhotoMode(DEFAULT_PHOTO_MODE, "match").layout).toBe("match");
+  });
 });

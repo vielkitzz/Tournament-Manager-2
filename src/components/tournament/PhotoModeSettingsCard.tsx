@@ -53,12 +53,13 @@ const COLOR_FIELDS: { key: keyof PhotoModeSettings; label: string }[] = [
   { key: "text", label: "Texto" },
 ];
 
-type PreviewMode = "tabela" | "rodadas" | "chaveamento";
+type PreviewMode = "tabela" | "rodadas" | "chaveamento" | "partida";
 
 const MODE_KIND: Record<PreviewMode, PhotoLayoutKind> = {
   tabela: "table",
   rodadas: "rounds",
   chaveamento: "bracket",
+  partida: "match",
 };
 
 /** Width of the simulated screen in the preview column, in CSS px. */
@@ -337,7 +338,7 @@ export default function PhotoModeSettingsCard({
         {/* Preview */}
         <div className="space-y-2">
           <div className="flex items-center gap-1.5 flex-wrap">
-            {(["tabela", "rodadas", "chaveamento"] as PreviewMode[]).map((m) => (
+            {(["tabela", "rodadas", "chaveamento", "partida"] as PreviewMode[]).map((m) => (
               <button
                 key={m}
                 onClick={() => setMode(m)}
@@ -475,6 +476,29 @@ export default function PhotoModeSettingsCard({
                     className="flex-1 rounded-md bg-card border px-2 py-3 text-center font-semibold overflow-hidden"
                   >
                     Campeão
+                  </div>
+                </div>
+              )}
+
+              {mode === "partida" && (
+                <div className="overflow-hidden rounded-md border border-border bg-card">
+                  <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-2 bg-secondary/50 px-3 py-3 text-center">
+                    <div className="min-w-0">
+                      <span className="mx-auto mb-1 block h-[2.2em] w-[2.2em] rounded-full border border-border bg-primary/25" />
+                      <p className="truncate font-bold">Harley</p>
+                      <p className="text-muted-foreground">HAR</p>
+                    </div>
+                    <p className="font-bold" style={{ fontSize: "2.2em" }}>2 × 1</p>
+                    <div className="min-w-0">
+                      <span className="mx-auto mb-1 block h-[2.2em] w-[2.2em] rounded-full border border-border bg-primary/25" />
+                      <p className="truncate font-bold">Molde</p>
+                      <p className="text-muted-foreground">MOL</p>
+                    </div>
+                  </div>
+                  <div className="space-y-1 px-3 py-2">
+                    <p className="font-semibold text-muted-foreground">Gols</p>
+                    <div className="rounded bg-secondary/40 px-2 py-1">18' · Rivaldo</div>
+                    <div className="rounded bg-secondary/40 px-2 py-1">63' · Almeida</div>
                   </div>
                 </div>
               )}

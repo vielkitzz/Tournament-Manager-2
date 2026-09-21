@@ -1061,12 +1061,12 @@ export default function MatchPopup({
 
           <div className="grid grid-cols-2 gap-3 border-b border-border px-7 py-4 text-center">
             <div className="rounded-md bg-secondary/60 px-3 py-2">
-              <p className="text-xl font-bold text-foreground">{displayYellowHome + displayYellowAway}</p>
-              <p className="text-xs text-muted-foreground">Amarelos</p>
+              <p className="text-xs font-bold text-foreground">{homeTeam?.abbreviation || homeTeam?.shortName || "Casa"}</p>
+              <p className="text-xs text-muted-foreground">{displayYellowHome} amarelos · {displayRedHome} vermelhos</p>
             </div>
             <div className="rounded-md bg-secondary/60 px-3 py-2">
-              <p className="text-xl font-bold text-foreground">{displayRedHome + displayRedAway}</p>
-              <p className="text-xs text-muted-foreground">Vermelhos</p>
+              <p className="text-xs font-bold text-foreground">{awayTeam?.abbreviation || awayTeam?.shortName || "Fora"}</p>
+              <p className="text-xs text-muted-foreground">{displayYellowAway} amarelos · {displayRedAway} vermelhos</p>
             </div>
           </div>
 
