@@ -27,6 +27,7 @@ import HighlightIcon from "@/components/icons/HighlightIcon";
 import SubstitutionIcon from "@/components/icons/SubstitutionIcon";
 import OffsideIcon from "@/components/icons/OffsideIcon";
 import { useRivalries } from "@/hooks/useRivalries";
+import ScreenshotButton from "@/components/ScreenshotButton";
 
 const POSITION_ORDER: [RegExp, number][] = [
   [/gol|gk/i, 0],
@@ -309,6 +310,7 @@ export default function MatchPopup({
   const [simSpeed, setSimSpeed] = useState(1);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const eventsRef = useRef<HTMLDivElement>(null);
+  const photoRef = useRef<HTMLDivElement>(null);
 
   // Players for each team
   const homePlayers = (allPlayers || []).filter((p) => p.teamId === match.homeTeamId);
@@ -461,6 +463,16 @@ export default function MatchPopup({
   const liveRedAway = isLiveSimulating
     ? liveEvents.filter((e) => e.type === "red_card" && e.teamId === match.awayTeamId && e.minute <= liveMinute).length
     : 0;
+
+  const matchLabel = match.isThirdPlace
+    ? "Disputa de 3º lugar"
+    : match.isReplay
+      ? `Jogo extra ${match.replayIndex || ""}`.trim()
+      : match.stage === "knockout"
+        ? `Mata-mata · Rodada ${match.round}`
+        : match.group
+          ? `Grupo ${String.fromCharCode(64 + match.group)} · Rodada ${match.round}`
+          : `Rodada ${match.round}`;
 
   const [addedTime1, setAddedTime1] = useState(0);
   const [addedTime2, setAddedTime2] = useState(0);
