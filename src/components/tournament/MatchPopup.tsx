@@ -991,8 +991,111 @@ export default function MatchPopup({
   const displayRedHome = isLiveSimulating ? liveRedHome : (displayStats?.homeStats.redCards ?? 0);
   const displayRedAway = isLiveSimulating ? liveRedAway : (displayStats?.awayStats.redCards ?? 0);
 
+  const photoGoals = visibleEvents.filter((event) => event.type === "goal");
+  const photoPlayerNames = new Map((allPlayers || []).map((player) => [player.id, player.name]));
+  const photoFilename = `${homeTeam?.abbreviation || homeTeam?.shortName || "casa"}-x-${awayTeam?.abbreviation || awayTeam?.shortName || "fora"}.png`
+    .toLowerCase()
+    .replace(/[^a-z0-9.-]+/g, "-");
+
   return (
     <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4" onClick={onCancel}>
+      <div
+        ref={photoRef}
+        data-photo-layout="match"
+        className="fixed left-[-10000px] top-0 w-[520px] overflow-visible bg-card text-card-foreground"
+      >
+        <div className="relative overflow-hidden rounded-lg border border-border bg-card">
+          <div className="relative border-b border-border bg-secondary/50 px-7 py-6" data-photo-rivalry={rivalryLevel || undefined}>
+            {rivalryLevel > 0 && (
+              <div className="absolute right-4 top-3 flex items-center gap-1 text-xs font-bold text-foreground">
+                <span aria-hidden="true">🔥</span> Clássico {rivalryLevel}/5
+              </div>
+            )}
+            <p className="mb-5 text-center text-xs font-semibold text-muted-foreground">{matchLabel}</p>
+            <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-5">
+              <div className="flex min-w-0 flex-col items-center gap-2 text-center">
+                {homeTeam?.logo ? (
+                  <img src={homeTeam.logo} alt="" className="h-16 w-16 object-contain" />
+                ) : (
+                  <Shield className="h-12 w-12 text-muted-foreground" />
+                )}
+                <p className="font-display text-base font-bold text-foreground">{homeTeam?.name || "Time Excluído"}</p>
+                <p className="text-xs font-bold text-muted-foreground">{homeTeam?.abbreviation || homeTeam?.shortName || "CASA"}</p>
+              </div>
+              <div className="flex min-w-[150px] flex-col items-center gap-2">
+                <div className="font-display text-5xl font-bold tabular-nums text-foreground">
+                  {match.played || liveFinished || isLiveSimulating ? `${displayHome} × ${displayAway}` : "VS"}
+                </div>
+                {showExtraTime && (etHome > 0 || etAway > 0) && (
+                  <p className="text-xs font-semibold text-muted-foreground">Após prorrogação · {etHome} × {etAway}</p>
+                )}
+                {showPenalties && (
+                  <p className="text-sm font-bold text-primary">Pênaltis · {penaltyScore("home")} × {penaltyScore("away")}</p>
+                )}
+                {match.coinTossWinnerId && (
+                  <p className="text-xs font-bold text-primary">
+                    Sorteio · {match.coinTossWinnerId === match.homeTeamId ? homeTeam?.name : awayTeam?.name}
+                  </p>
+                )}
+              </div>
+              <div className="flex min-w-0 flex-col items-center gap-2 text-center">
+                {awayTeam?.logo ? (
+                  <img src={awayTeam.logo} alt="" className="h-16 w-16 object-contain" />
+                ) : (
+                  <Shield className="h-12 w-12 text-muted-foreground" />
+                )}
+                <p className="font-display text-base font-bold text-foreground">{awayTeam?.name || "Time Excluído"}</p>
+                <p className="text-xs font-bold text-muted-foreground">{awayTeam?.abbreviation || awayTeam?.shortName || "FORA"}</p>
+              </div>
+            </div>
+          </div>
+
+          {isLeg2OfPair && regularTieContext && (
+            <div className="border-b border-border px-7 py-3 text-center">
+              <span className="text-xs font-semibold text-muted-foreground">Agregado </span>
+              <span className="text-sm font-bold text-foreground">
+                {(showExtraTime ? extraTimeTieContext : regularTieContext)?.aggregateAway ?? regularTieContext.aggregateAway} × {(showExtraTime ? extraTimeTieContext : regularTieContext)?.aggregateHome ?? regularTieContext.aggregateHome}
+              </span>
+            </div>
+          )}
+
+          <div className="grid grid-cols-2 gap-3 border-b border-border px-7 py-4 text-center">
+            <div className="rounded-md bg-secondary/60 px-3 py-2">
+              <p className="text-xl font-bold text-foreground">{displayYellowHome + displayYellowAway}</p>
+              <p className="text-xs text-muted-foreground">Amarelos</p>
+            </div>
+            <div className="rounded-md bg-secondary/60 px-3 py-2">
+              <p className="text-xl font-bold text-foreground">{displayRedHome + displayRedAway}</p>
+              <p className="text-xs text-muted-foreground">Vermelhos</p>
+            </div>
+          </div>
+
+          <div className="px-7 py-5" data-photo-goals="true">
+            <p className="mb-3 text-xs font-bold text-muted-foreground">Gols</p>
+            {photoGoals.length > 0 ? (
+              <div className="space-y-2">
+                {photoGoals.map((event) => {
+                  const team = event.teamId === match.homeTeamId ? homeTeam : awayTeam;
+                  const scorer = event.playerName || (event.playerId ? photoPlayerNames.get(event.playerId) : undefined) || "Jogador";
+                  const assist = event.assistName || (event.assistId ? photoPlayerNames.get(event.assistId) : undefined);
+                  return (
+                    <div key={event.id} className="grid grid-cols-[44px_1fr_auto] items-center gap-3 rounded-md border border-border bg-secondary/30 px-3 py-2">
+                      <span className="font-mono text-sm font-bold text-primary">{event.minute}'</span>
+                      <div className="min-w-0">
+                        <p className="text-sm font-semibold text-foreground">{scorer}</p>
+                        {assist && <p className="text-xs text-muted-foreground">Assistência: {assist}</p>}
+                      </div>
+                      <span className="text-xs font-bold text-muted-foreground">{team?.abbreviation || team?.shortName}</span>
+                    </div>
+                  );
+                })}
+              </div>
+            ) : (
+              <p className="text-center text-sm text-muted-foreground">{match.played ? "Nenhum gol marcado" : "Partida ainda não disputada"}</p>
+            )}
+          </div>
+        </div>
+      </div>
       <div
         className="w-full max-w-2xl rounded-xl bg-card border border-border shadow-2xl overflow-hidden max-h-[90vh] overflow-y-auto"
         onClick={(e) => e.stopPropagation()}
@@ -1685,6 +1788,15 @@ export default function MatchPopup({
           >
             {showBottomPanel ? "Ocultar" : "Detalhes"}
           </button>
+          <ScreenshotButton
+            targetRef={photoRef}
+            filename={photoFilename}
+            tournamentId={tournament?.id}
+            mode="match"
+            title={tournament?.name || "Partida"}
+            subtitle={matchLabel}
+            className="p-2 rounded-lg text-muted-foreground hover:bg-secondary hover:text-foreground"
+          />
           {liveFinished && !match.played ? (
             <button
               onClick={handleFinish}

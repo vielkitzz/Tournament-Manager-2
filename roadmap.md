@@ -7,3 +7,5 @@
 - [x] Página exclusiva de clássicos com busca e cards nas cores dos clubes
 - [x] Remoção do calendário global
 - [x] Resolução completa da disputa de 3º lugar em extras e sorteio
+- [x] Bloco C: modo foto individual de partida
+- [ ] Bloco C: varredura de fotos em celular e desktop
