@@ -226,12 +226,14 @@ interface TournamentState {
   removeFolder: (id: string) => Promise<void>;
   moveTeamToFolder: (teamId: string, folderId: string | null) => Promise<void>;
   moveFolderToFolder: (folderId: string, parentId: string | null) => Promise<void>;
+  reorderFolder: (folderId: string, targetId: string, position: "before" | "after") => Promise<void>;
   // Tournament folders
   addTournamentFolder: (name: string) => Promise<string | undefined>;
   renameTournamentFolder: (id: string, name: string) => Promise<void>;
   removeTournamentFolder: (id: string) => Promise<void>;
   moveTournamentToFolder: (tournamentId: string, folderId: string | null) => Promise<void>;
   moveTournamentFolderToFolder: (folderId: string, parentId: string | null) => Promise<void>;
+  reorderTournamentFolder: (folderId: string, targetId: string, position: "before" | "after") => Promise<void>;
   // Team histories
   addTeamHistory: (history: TeamHistory) => Promise<void>;
   updateTeamHistory: (id: string, updates: Partial<TeamHistory>) => Promise<void>;
@@ -294,9 +296,15 @@ export const useTournamentStore = create<TournamentState>((set, get) => ({
     set({
       tournaments: tRes.data ? tRes.data.map(dbToTournament) : [],
       teams: teamsData.map(dbToTeam),
-      folders: fRes.data ? fRes.data.map((f: any) => ({ id: f.id, name: f.name, parentId: f.parent_id || null })) : [],
+      folders: fRes.data
+        ? fRes.data
+            .map((f: any) => ({ id: f.id, name: f.name, parentId: f.parent_id || null, sortOrder: f.sort_order ?? 0 }))
+            .sort((a: TeamFolder, b: TeamFolder) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0))
+        : [],
       tournamentFolders: tfRes.data
-        ? tfRes.data.map((f: any) => ({ id: f.id, name: f.name, parentId: f.parent_id || null }))
+        ? tfRes.data
+            .map((f: any) => ({ id: f.id, name: f.name, parentId: f.parent_id || null, sortOrder: f.sort_order ?? 0 }))
+            .sort((a: TournamentFolder, b: TournamentFolder) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0))
         : [],
       teamHistories: historiesData.map((h: any) => ({
         id: h.id,
@@ -437,7 +445,9 @@ export const useTournamentStore = create<TournamentState>((set, get) => ({
       throw error;
     }
     if (data) {
-      set((s) => ({ folders: [...s.folders, { id: data.id, name: data.name, parentId: data.parent_id || null }] }));
+      set((s) => ({
+        folders: [...s.folders, { id: data.id, name: data.name, parentId: data.parent_id || null, sortOrder: s.folders.filter((f) => !f.parentId).length }],
+      }));
       return data.id;
     }
   },
@@ -478,8 +488,29 @@ export const useTournamentStore = create<TournamentState>((set, get) => ({
       const parent = folders.find((f) => f.id === current);
       current = parent?.parentId || null;
     }
-    set((s) => ({ folders: s.folders.map((f) => (f.id === folderId ? { ...f, parentId } : f)) }));
-    await db.from("team_folders").update({ parent_id: parentId }).eq("id", folderId).eq("user_id", userId);
+    const nextOrder = folders.filter((f) => (f.parentId || null) === parentId && f.id !== folderId).length;
+    set((s) => ({ folders: s.folders.map((f) => (f.id === folderId ? { ...f, parentId, sortOrder: nextOrder } : f)) }));
+    await db.from("team_folders").update({ parent_id: parentId, sort_order: nextOrder }).eq("id", folderId).eq("user_id", userId);
+  },
+
+  reorderFolder: async (folderId, targetId, position) => {
+    const userId = get()._userId;
+    if (!userId || folderId === targetId) return;
+    const { folders } = get();
+    const target = folders.find((f) => f.id === targetId);
+    const source = folders.find((f) => f.id === folderId);
+    if (!target || !source) return;
+    const parentId = target.parentId || null;
+    const siblings = folders
+      .filter((f) => (f.parentId || null) === parentId && f.id !== folderId)
+      .sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0));
+    const targetIndex = siblings.findIndex((f) => f.id === targetId);
+    siblings.splice(position === "before" ? targetIndex : targetIndex + 1, 0, { ...source, parentId });
+    const orderById = new Map(siblings.map((f, index) => [f.id, index]));
+    set((s) => ({
+      folders: s.folders.map((f) => orderById.has(f.id) ? { ...f, parentId, sortOrder: orderById.get(f.id) } : f),
+    }));
+    await Promise.all(siblings.map((f, index) => db.from("team_folders").update({ parent_id: parentId, sort_order: index }).eq("id", f.id).eq("user_id", userId)));
   },
 
   // Tournament Folders
@@ -489,7 +520,7 @@ export const useTournamentStore = create<TournamentState>((set, get) => ({
     const { data } = await db.from("tournament_folders").insert({ user_id: userId, name }).select().single();
     if (data) {
       set((s) => ({
-        tournamentFolders: [...s.tournamentFolders, { id: data.id, name: data.name, parentId: data.parent_id || null }],
+        tournamentFolders: [...s.tournamentFolders, { id: data.id, name: data.name, parentId: data.parent_id || null, sortOrder: s.tournamentFolders.filter((f) => !f.parentId).length }],
       }));
       return data.id;
     }
@@ -531,8 +562,29 @@ export const useTournamentStore = create<TournamentState>((set, get) => ({
       const parent = tournamentFolders.find((f) => f.id === current);
       current = parent?.parentId || null;
     }
-    set((s) => ({ tournamentFolders: s.tournamentFolders.map((f) => (f.id === folderId ? { ...f, parentId } : f)) }));
-    await db.from("tournament_folders").update({ parent_id: parentId }).eq("id", folderId).eq("user_id", userId);
+    const nextOrder = tournamentFolders.filter((f) => (f.parentId || null) === parentId && f.id !== folderId).length;
+    set((s) => ({ tournamentFolders: s.tournamentFolders.map((f) => (f.id === folderId ? { ...f, parentId, sortOrder: nextOrder } : f)) }));
+    await db.from("tournament_folders").update({ parent_id: parentId, sort_order: nextOrder }).eq("id", folderId).eq("user_id", userId);
+  },
+
+  reorderTournamentFolder: async (folderId, targetId, position) => {
+    const userId = get()._userId;
+    if (!userId || folderId === targetId) return;
+    const { tournamentFolders } = get();
+    const target = tournamentFolders.find((f) => f.id === targetId);
+    const source = tournamentFolders.find((f) => f.id === folderId);
+    if (!target || !source) return;
+    const parentId = target.parentId || null;
+    const siblings = tournamentFolders
+      .filter((f) => (f.parentId || null) === parentId && f.id !== folderId)
+      .sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0));
+    const targetIndex = siblings.findIndex((f) => f.id === targetId);
+    siblings.splice(position === "before" ? targetIndex : targetIndex + 1, 0, { ...source, parentId });
+    const orderById = new Map(siblings.map((f, index) => [f.id, index]));
+    set((s) => ({
+      tournamentFolders: s.tournamentFolders.map((f) => orderById.has(f.id) ? { ...f, parentId, sortOrder: orderById.get(f.id) } : f),
+    }));
+    await Promise.all(siblings.map((f, index) => db.from("tournament_folders").update({ parent_id: parentId, sort_order: index }).eq("id", f.id).eq("user_id", userId)));
   },
 
   // Team Histories
