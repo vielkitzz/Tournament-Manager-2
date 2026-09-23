@@ -573,8 +573,9 @@ export default function CompetitionsPage() {
       return;
     }
     const rect = e.currentTarget.getBoundingClientRect();
-    const ratio = (e.clientY - rect.top) / Math.max(rect.height, 1);
-    const position = ratio < 0.25 ? "before" : ratio > 0.75 ? "after" : "inside";
+    const offsetY = e.clientY - rect.top;
+    const headerHeight = Math.min(44, rect.height);
+    const position = offsetY < 10 ? "before" : offsetY <= headerHeight - 10 ? "inside" : "after";
     setDropTarget({ folderId, position });
   }, []);
 
