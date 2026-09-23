@@ -248,6 +248,7 @@ export interface TournamentFolder {
   id: string;
   name: string;
   parentId?: string | null;
+  sortOrder?: number;
 }
 
 export interface Team {
@@ -271,6 +272,7 @@ export interface TeamFolder {
   id: string;
   name: string;
   parentId?: string | null;
+  sortOrder?: number;
 }
 
 export const DEFAULT_SETTINGS: TournamentSettings = {

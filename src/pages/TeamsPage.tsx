@@ -227,7 +227,7 @@ interface FolderNodeProps {
   foldersByParent: Map<string, TeamFolder[]>;
   teamsByFolder: Map<string, Team[]>;
   openFolders: Set<string>;
-  dragOverFolder: string | null;
+  dropTarget: { folderId: string; position: "before" | "inside" | "after" } | null;
   editingFolderId: string | null;
   editingFolderName: string;
   onToggle: (id: string) => void;
@@ -238,7 +238,7 @@ interface FolderNodeProps {
   onEditNameChange: (name: string) => void;
   onDeleteFolder: (id: string, name: string) => void;
   onDragOver: (e: DragEvent, folderId: string) => void;
-  onDragLeave: () => void;
+  onDragLeave: (e: DragEvent) => void;
   onDrop: (e: DragEvent, folderId: string) => void;
   onFolderDragStart: (e: DragEvent, folderId: string) => void;
   navigate: (path: string) => void;
@@ -258,7 +258,7 @@ const FolderNode = memo(function FolderNode({
   foldersByParent,
   teamsByFolder,
   openFolders,
-  dragOverFolder,
+  dropTarget,
   editingFolderId,
   editingFolderName,
   onToggle,
@@ -286,18 +286,20 @@ const FolderNode = memo(function FolderNode({
   // 3. Pegando de um dicionário O(1) invés de rodar .filter() na array inteira O(N)
   const folderTeams = teamsByFolder.get(folder.id) || [];
   const childFolders = foldersByParent.get(folder.id) || [];
-  const isDragOver = dragOverFolder === folder.id;
+  const dropPosition = dropTarget?.folderId === folder.id ? dropTarget.position : null;
 
   return (
     <div
-      className={`rounded-xl border overflow-hidden transition-colors ${
-        isDragOver ? "border-primary bg-primary/5" : "border-border"
+      className={`relative rounded-xl border overflow-hidden transition-colors ${
+        dropPosition === "inside" ? "border-primary bg-primary/5" : "border-border"
       }`}
       style={{ marginLeft: depth > 0 ? 0 : undefined }}
       onDragOver={(e) => onDragOver(e, folder.id)}
       onDragLeave={onDragLeave}
       onDrop={(e) => onDrop(e, folder.id)}
     >
+      {dropPosition === "before" && <div className="absolute inset-x-1 top-0 z-20 h-0.5 bg-primary" />}
+      {dropPosition === "after" && <div className="absolute inset-x-1 bottom-0 z-20 h-0.5 bg-primary" />}
       <div
         className="flex items-center gap-2 px-3 py-2.5 bg-secondary/30 cursor-pointer hover:bg-secondary/50 transition-colors"
         onClick={() => onToggle(folder.id)}
@@ -399,7 +401,7 @@ const FolderNode = memo(function FolderNode({
               foldersByParent={foldersByParent}
               teamsByFolder={teamsByFolder}
               openFolders={openFolders}
-              dragOverFolder={dragOverFolder}
+              dropTarget={dropTarget}
               editingFolderId={editingFolderId}
               editingFolderName={editingFolderName}
               onToggle={onToggle}
@@ -462,6 +464,7 @@ export default function TeamsPage() {
     removeFolder,
     moveTeamToFolder,
     moveFolderToFolder,
+    reorderFolder,
   } = useTournamentStore();
 
   // Filter out archived teams from the main list
@@ -475,7 +478,10 @@ export default function TeamsPage() {
   const [openFolders, setOpenFolders] = useState<Set<string>>(() => new Set(folders.map((f) => f.id)));
   const [editingFolderId, setEditingFolderId] = useState<string | null>(null);
   const [editingFolderName, setEditingFolderName] = useState("");
-  const [dragOverFolder, setDragOverFolder] = useState<string | null>(null);
+  const [dropTarget, setDropTarget] = useState<{
+    folderId: string;
+    position: "before" | "inside" | "after";
+  } | null>(null);
   const [selectionMode, setSelectionMode] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [showBulkConfirm, setShowBulkConfirm] = useState(false);
@@ -546,6 +552,7 @@ export default function TeamsPage() {
       list.push(f);
       map.set(key, list);
     });
+    map.forEach((list) => list.sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0)));
     return map;
   }, [folders]);
 
@@ -682,18 +689,30 @@ export default function TeamsPage() {
   const handleDragOver = useCallback((e: DragEvent, folderId: string) => {
     e.preventDefault();
     e.stopPropagation();
-    setDragOverFolder(folderId);
+    const isFolder = e.dataTransfer.types.includes("folder-id");
+    if (!isFolder) {
+      setDropTarget({ folderId, position: "inside" });
+      return;
+    }
+    const rect = e.currentTarget.getBoundingClientRect();
+    const offsetY = e.clientY - rect.top;
+    const headerHeight = Math.min(44, rect.height);
+    const position = offsetY < 10 ? "before" : offsetY <= headerHeight - 10 ? "inside" : "after";
+    setDropTarget({ folderId, position });
   }, []);
 
-  const handleDragLeave = useCallback(() => {
-    setDragOverFolder(null);
+  const handleDragLeave = useCallback((e: DragEvent) => {
+    const next = e.relatedTarget;
+    if (next instanceof Node && e.currentTarget.contains(next)) return;
+    setDropTarget(null);
   }, []);
 
   const handleDrop = useCallback(
     (e: DragEvent, folderId: string) => {
       e.preventDefault();
       e.stopPropagation();
-      setDragOverFolder(null);
+      const position = dropTarget?.folderId === folderId ? dropTarget.position : "inside";
+      setDropTarget(null);
 
       const teamId = e.dataTransfer.getData("team-id");
       const sourceFolderId = e.dataTransfer.getData("folder-id");
@@ -720,12 +739,16 @@ export default function TeamsPage() {
           return;
         }
 
-        moveFolderToFolder(sourceFolderId, folderId);
-        toast.success("Pasta movida!");
-        setOpenFolders((prev) => new Set(prev).add(folderId));
+        if (position === "inside") {
+          moveFolderToFolder(sourceFolderId, folderId);
+          setOpenFolders((prev) => new Set(prev).add(folderId));
+        } else {
+          reorderFolder(sourceFolderId, folderId, position);
+        }
+        toast.success(position === "inside" ? "Pasta encaixada!" : "Ordem das pastas atualizada!");
       }
     },
-    [moveTeamToFolder, moveFolderToFolder, folders],
+    [dropTarget, moveTeamToFolder, moveFolderToFolder, reorderFolder, folders],
   );
 
   const handleFolderDragStart = useCallback((e: DragEvent, folderId: string) => {
@@ -751,18 +774,13 @@ export default function TeamsPage() {
     const swapIdx = direction === "up" ? idx - 1 : idx + 1;
     if (swapIdx < 0 || swapIdx >= siblings.length) return;
     const swapFolder = siblings[swapIdx];
-    // Swap positions in the full folders array
-    const fullIdx1 = currentFolders.findIndex((f) => f.id === folderId);
-    const fullIdx2 = currentFolders.findIndex((f) => f.id === swapFolder.id);
-    const newFolders = [...currentFolders];
-    [newFolders[fullIdx1], newFolders[fullIdx2]] = [newFolders[fullIdx2], newFolders[fullIdx1]];
-    useTournamentStore.setState({ folders: newFolders });
-  }, []);
+    reorderFolder(folderId, swapFolder.id, direction === "up" ? "before" : "after");
+  }, [reorderFolder]);
 
   const handleRootDrop = useCallback(
     (e: DragEvent) => {
       e.preventDefault();
-      setDragOverFolder(null);
+      setDropTarget(null);
       const teamId = e.dataTransfer.getData("team-id");
       const folderId = e.dataTransfer.getData("folder-id");
       if (teamId) {
@@ -957,7 +975,7 @@ export default function TeamsPage() {
                   foldersByParent={foldersByParent}
                   teamsByFolder={teamsByFolder}
                   openFolders={openFolders}
-                  dragOverFolder={dragOverFolder}
+                   dropTarget={dropTarget}
                   editingFolderId={editingFolderId}
                   editingFolderName={editingFolderName}
                   onToggle={toggleFolder}

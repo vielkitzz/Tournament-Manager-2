@@ -9,3 +9,4 @@
 - [x] Resolução completa da disputa de 3º lugar em extras e sorteio
 - [x] Bloco C: modo foto individual de partida
 - [x] Bloco C: varredura de fotos em celular e desktop
+- [x] Organização de pastas por arrasto com encaixe preciso
