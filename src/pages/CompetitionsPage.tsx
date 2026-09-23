@@ -567,18 +567,29 @@ export default function CompetitionsPage() {
   const handleDragOver = useCallback((e: DragEvent, folderId: string) => {
     e.preventDefault();
     e.stopPropagation();
-    setDragOverFolder(folderId);
+    const isFolder = e.dataTransfer.types.includes("folder-id");
+    if (!isFolder) {
+      setDropTarget({ folderId, position: "inside" });
+      return;
+    }
+    const rect = e.currentTarget.getBoundingClientRect();
+    const ratio = (e.clientY - rect.top) / Math.max(rect.height, 1);
+    const position = ratio < 0.25 ? "before" : ratio > 0.75 ? "after" : "inside";
+    setDropTarget({ folderId, position });
   }, []);
 
-  const handleDragLeave = useCallback(() => {
-    setDragOverFolder(null);
+  const handleDragLeave = useCallback((e: DragEvent) => {
+    const next = e.relatedTarget;
+    if (next instanceof Node && e.currentTarget.contains(next)) return;
+    setDropTarget(null);
   }, []);
 
   const handleDrop = useCallback(
     (e: DragEvent, folderId: string) => {
       e.preventDefault();
       e.stopPropagation();
-      setDragOverFolder(null);
+      const position = dropTarget?.folderId === folderId ? dropTarget.position : "inside";
+      setDropTarget(null);
 
       const tournamentId = e.dataTransfer.getData("tournament-id");
       const sourceFolderId = e.dataTransfer.getData("folder-id");
@@ -601,11 +612,16 @@ export default function CompetitionsPage() {
           toast.error("Não é possível mover para uma subpasta própria");
           return;
         }
-        moveTournamentFolderToFolder(sourceFolderId, folderId);
-        toast.success("Pasta movida!");
+        if (position === "inside") {
+          moveTournamentFolderToFolder(sourceFolderId, folderId);
+          setOpenFolders((prev) => new Set(prev).add(folderId));
+        } else {
+          reorderTournamentFolder(sourceFolderId, folderId, position);
+        }
+        toast.success(position === "inside" ? "Pasta encaixada!" : "Ordem das pastas atualizada!");
       }
     },
-    [moveTournamentToFolder, moveTournamentFolderToFolder, tournamentFolders],
+    [dropTarget, moveTournamentToFolder, moveTournamentFolderToFolder, reorderTournamentFolder, tournamentFolders],
   );
 
   const handleFolderDragStart = useCallback((e: DragEvent, folderId: string) => {
@@ -630,16 +646,13 @@ export default function CompetitionsPage() {
     const swapIdx = direction === "up" ? idx - 1 : idx + 1;
     if (swapIdx < 0 || swapIdx >= siblings.length) return;
     const swapFolder = siblings[swapIdx];
-    const fullIdx1 = currentFolders.findIndex((f) => f.id === folderId);
-    const fullIdx2 = currentFolders.findIndex((f) => f.id === swapFolder.id);
-    const newFolders = [...currentFolders];
-    [newFolders[fullIdx1], newFolders[fullIdx2]] = [newFolders[fullIdx2], newFolders[fullIdx1]];
-    useTournamentStore.setState({ tournamentFolders: newFolders });
-  }, []);
+    reorderTournamentFolder(folderId, swapFolder.id, direction === "up" ? "before" : "after");
+  }, [reorderTournamentFolder]);
 
   const handleRootDrop = useCallback(
     (e: DragEvent) => {
       e.preventDefault();
+      setDropTarget(null);
       const tournamentId = e.dataTransfer.getData("tournament-id");
       const sourceFolderId = e.dataTransfer.getData("folder-id");
       if (tournamentId) {
@@ -748,7 +761,7 @@ export default function CompetitionsPage() {
                   foldersByParent={foldersByParent}
                   tournamentsByFolder={tournamentsByFolder}
                   openFolders={openFolders}
-                  dragOverFolder={dragOverFolder}
+                   dropTarget={dropTarget}
                   editingFolderId={editingFolderId}
                   editingFolderName={editingFolderName}
                   onToggle={toggleFolder}
