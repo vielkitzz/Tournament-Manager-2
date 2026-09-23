@@ -197,7 +197,7 @@ interface FolderNodeProps {
   foldersByParent: Map<string, TournamentFolder[]>;
   tournamentsByFolder: Map<string, Tournament[]>;
   openFolders: Set<string>;
-  dragOverFolder: string | null;
+  dropTarget: { folderId: string; position: "before" | "inside" | "after" } | null;
   editingFolderId: string | null;
   editingFolderName: string;
   onToggle: (id: string) => void;
@@ -208,7 +208,7 @@ interface FolderNodeProps {
   onEditNameChange: (name: string) => void;
   onDeleteFolder: (id: string, name: string) => void;
   onDragOver: (e: DragEvent, folderId: string) => void;
-  onDragLeave: () => void;
+  onDragLeave: (e: DragEvent) => void;
   onDrop: (e: DragEvent, folderId: string) => void;
   onFolderDragStart: (e: DragEvent, folderId: string) => void;
   navigate: (path: string) => void;
@@ -227,7 +227,7 @@ const CompetitionFolderNode = memo(function CompetitionFolderNode({
   foldersByParent,
   tournamentsByFolder,
   openFolders,
-  dragOverFolder,
+  dropTarget,
   editingFolderId,
   editingFolderName,
   onToggle,
@@ -254,17 +254,19 @@ const CompetitionFolderNode = memo(function CompetitionFolderNode({
   const isOpen = openFolders.has(folder.id);
   const folderTournaments = tournamentsByFolder.get(folder.id) || [];
   const childFolders = foldersByParent.get(folder.id) || [];
-  const isDragOver = dragOverFolder === folder.id;
+  const dropPosition = dropTarget?.folderId === folder.id ? dropTarget.position : null;
 
   return (
     <div
-      className={`rounded-xl border overflow-hidden transition-colors ${
-        isDragOver ? "border-primary bg-primary/5" : "border-border"
+      className={`relative rounded-xl border overflow-hidden transition-colors ${
+        dropPosition === "inside" ? "border-primary bg-primary/5" : "border-border"
       }`}
       onDragOver={(e) => onDragOver(e, folder.id)}
       onDragLeave={onDragLeave}
       onDrop={(e) => onDrop(e, folder.id)}
     >
+      {dropPosition === "before" && <div className="absolute inset-x-1 top-0 z-20 h-0.5 bg-primary" />}
+      {dropPosition === "after" && <div className="absolute inset-x-1 bottom-0 z-20 h-0.5 bg-primary" />}
       <div
         className="flex items-center gap-2 px-3 py-2.5 bg-secondary/30 cursor-pointer hover:bg-secondary/50 transition-colors"
         onClick={() => onToggle(folder.id)}
@@ -365,7 +367,7 @@ const CompetitionFolderNode = memo(function CompetitionFolderNode({
               foldersByParent={foldersByParent}
               tournamentsByFolder={tournamentsByFolder}
               openFolders={openFolders}
-              dragOverFolder={dragOverFolder}
+              dropTarget={dropTarget}
               editingFolderId={editingFolderId}
               editingFolderName={editingFolderName}
               onToggle={onToggle}
@@ -425,6 +427,7 @@ export default function CompetitionsPage() {
     removeTournamentFolder,
     moveTournamentToFolder,
     moveTournamentFolderToFolder,
+    reorderTournamentFolder,
   } = useTournamentStore();
   const navigate = useNavigate();
 
@@ -433,7 +436,10 @@ export default function CompetitionsPage() {
   const [openFolders, setOpenFolders] = useState<Set<string>>(() => new Set(tournamentFolders.map((f) => f.id)));
   const [editingFolderId, setEditingFolderId] = useState<string | null>(null);
   const [editingFolderName, setEditingFolderName] = useState("");
-  const [dragOverFolder, setDragOverFolder] = useState<string | null>(null);
+  const [dropTarget, setDropTarget] = useState<{
+    folderId: string;
+    position: "before" | "inside" | "after";
+  } | null>(null);
 
   // Keep new folders auto-open
   useEffect(() => {
@@ -495,6 +501,7 @@ export default function CompetitionsPage() {
       list.push(f);
       map.set(key, list);
     });
+    map.forEach((list) => list.sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0)));
     return map;
   }, [tournamentFolders]);
 
