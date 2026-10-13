@@ -348,13 +348,22 @@ function SkinEditor({
                 onChange={async (e) => {
                   const file = e.target.files?.[0];
                   if (!file || !newFontName.trim()) return;
-                  const uploaded = await uploadFont(file, newFontName.trim());
-                  if (uploaded) {
-                    updateExtras(skin.id, {
-                      uploadedFonts: [...(extras.uploadedFonts || []), uploaded],
-                    });
-                    toast.success(`Fonte "${uploaded.name}" enviada — use o nome no campo acima`);
-                    setNewFontName("");
+                  try {
+                    const uploaded = await uploadFont(file, newFontName.trim());
+                    if (uploaded) {
+                      updateExtras(skin.id, {
+                        uploadedFonts: [...(extras.uploadedFonts || []), uploaded],
+                      });
+                      toast.success(
+                        `Fonte "${uploaded.name}" enviada — digite "${uploaded.name}" em "Família corpo" ou "Família títulos" e clique fora do campo`,
+                      );
+                      setNewFontName("");
+                    }
+                  } catch (err) {
+                    console.error("Erro ao enviar fonte", err);
+                    toast.error(
+                      `Não foi possível enviar a fonte: ${err instanceof Error ? err.message : "erro desconhecido"}`,
+                    );
                   }
                   e.target.value = "";
                 }}
@@ -645,7 +654,11 @@ export default function SkinSelector() {
                     variant="ghost"
                     size="sm"
                     className="h-7 px-2 gap-1 text-xs"
-                    onClick={() => setEditingId(skin.id)}
+                    onClick={() => {
+                      // As alterações só são visíveis na skin ativa; ativa ao editar.
+                      setActiveSkin(skin.id);
+                      setEditingId(skin.id);
+                    }}
                   >
                     <Pencil className="w-3 h-3" />
                     Editar
@@ -658,6 +671,7 @@ export default function SkinSelector() {
                   onClick={() => {
                     const created = duplicateSkin(skin.id);
                     if (created) {
+                      setActiveSkin(created.id);
                       setEditingId(created.id);
                       toast.success(`Skin "${created.label}" criada`);
                     }
@@ -695,6 +709,7 @@ export default function SkinSelector() {
               base: activeSkin.base,
               from: activeSkin,
             });
+            setActiveSkin(created.id);
             setEditingId(created.id);
           }}
           className="rounded-xl border-2 border-dashed border-border hover:border-primary/60 hover:text-primary text-muted-foreground p-4 flex flex-col items-center justify-center gap-1.5 transition-colors min-h-[120px]"

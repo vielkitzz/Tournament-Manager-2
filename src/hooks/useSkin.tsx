@@ -320,6 +320,18 @@ function applySkinToDocument(skin: Skin) {
   applySkinExtrasToDocument(skin);
 }
 
+/**
+ * Normaliza o valor digitado para uso em `font-family`.
+ * Um nome simples (ex.: "Minha Fonte 2") vai entre aspas, pois nomes sem aspas
+ * com números ou símbolos invalidam a declaração inteira. Se o usuário já
+ * digitou aspas ou uma lista (com vírgulas), o valor é mantido como está.
+ */
+function toFontFamily(value: string): string {
+  const v = value.trim();
+  if (/["',]/.test(v)) return v;
+  return `"${v}"`;
+}
+
 function buildGradientCss(g: SkinGradient): string {
   return `linear-gradient(${g.angle}deg, ${g.from}, ${g.to})`;
 }
@@ -348,7 +360,7 @@ function applySkinExtrasToDocument(skin: Skin) {
   }
 
   if (extras.fontSans && extras.fontSans.trim()) {
-    root.style.setProperty("--font-sans", `${extras.fontSans}, ui-sans-serif, system-ui, sans-serif`);
+    root.style.setProperty("--font-sans", `${toFontFamily(extras.fontSans)}, ui-sans-serif, system-ui, sans-serif`);
   }
   if (typeof extras.fontScale === "number") {
     root.style.fontSize = `${Math.round(extras.fontScale * 100)}%`;
@@ -369,13 +381,15 @@ function applySkinExtrasToDocument(skin: Skin) {
   // Headings font
   if (extras.fontHeading && extras.fontHeading.trim()) {
     rules.push(
-      `h1,h2,h3,h4,h5,h6,.font-display{font-family:${extras.fontHeading},'Space Grotesk',sans-serif !important;}`,
+      `h1,h2,h3,h4,h5,h6,.font-display{font-family:${toFontFamily(extras.fontHeading)},'Space Grotesk',sans-serif !important;}`,
     );
   }
 
   // Font sans no body
   if (extras.fontSans && extras.fontSans.trim()) {
-    rules.push(`body, * { font-family: ${extras.fontSans}, ui-sans-serif, system-ui, sans-serif !important; }`);
+    rules.push(
+      `body, * { font-family: ${toFontFamily(extras.fontSans)}, ui-sans-serif, system-ui, sans-serif !important; }`,
+    );
   }
 
   // Letter spacing
