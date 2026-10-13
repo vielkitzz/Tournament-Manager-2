@@ -24,7 +24,7 @@ export function useCustomFonts(skinId: string) {
         if (!user) throw new Error("Faça login para enviar fontes");
 
         const path = `${user.id}/${skinId}/${Date.now()}-${fontName.replace(/[^\w-]+/g, "_")}.${ext}`;
-        const { error } = await supabase.storage.from("fonts").upload(path, file, { upsert: true });
+        const { error } = await supabase.storage.from("fonts").upload(path, file, { upsert: false });
 
         if (error) throw error;
 
