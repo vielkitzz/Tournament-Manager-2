@@ -14,10 +14,16 @@ export function useCustomFonts(skinId: string) {
     async (file: File, fontName: string): Promise<UploadedFont | null> => {
       const ext = file.name.split(".").pop()?.toLowerCase() || "woff2";
       const format = ext === "ttf" ? "truetype" : ext;
-      const path = `${skinId}/${Date.now()}-${fontName.replace(/\s+/g, "_")}.${ext}`;
 
       setUploading(true);
       try {
+        // A política de storage exige que a primeira pasta seja o id do usuário.
+        const {
+          data: { user },
+        } = await supabase.auth.getUser();
+        if (!user) throw new Error("Faça login para enviar fontes");
+
+        const path = `${user.id}/${skinId}/${Date.now()}-${fontName.replace(/[^\w-]+/g, "_")}.${ext}`;
         const { error } = await supabase.storage.from("fonts").upload(path, file, { upsert: true });
 
         if (error) throw error;
