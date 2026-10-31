@@ -115,7 +115,7 @@ export default function GlobalStatsPage() {
           <h1 className="font-display text-3xl font-bold tracking-tight text-foreground">Estatísticas</h1>
           <p className="mt-1 text-sm text-muted-foreground">Números de todos os tempos, por competição e por time.</p>
         </div>
-        <ScreenshotButton targetRef={ref} filename="estatisticas" />
+        <ScreenshotButton targetRef={ref} filename="estatisticas.png" title="Estatísticas" />
       </header>
 
       <div className="grid gap-3 sm:grid-cols-2">
