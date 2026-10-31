@@ -14,6 +14,7 @@ import {
   Users,
   Settings,
   Flame,
+  BarChart3,
 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
@@ -33,6 +34,7 @@ const navSections = [
     label: "NAVEGAR",
     items: [
       { to: "/competitions", icon: Trophy, label: "Competições", end: false },
+      { to: "/stats", icon: BarChart3, label: "Estatísticas", end: false },
       { to: "/teams", icon: Shield, label: "Times", end: false },
       { to: "/squads", icon: Users, label: "Elencos", end: false },
       { to: "/publish", icon: Share2, label: "Publicar", end: false },

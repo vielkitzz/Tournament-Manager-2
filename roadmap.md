@@ -10,3 +10,4 @@
 - [x] Bloco C: modo foto individual de partida
 - [x] Bloco C: varredura de fotos em celular e desktop
 - [x] Organização de pastas por arrasto com encaixe preciso
+- [x] Página de Estatísticas gerais (todos os tempos, por time e jogadores por campeonato)
