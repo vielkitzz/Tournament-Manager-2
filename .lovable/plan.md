@@ -14,6 +14,7 @@ Topo com dois filtros simples: **Competição** (Todas / uma específica) e **Ti
    - Maiores campeões (títulos por time)
 2. **Por time** — tabela histórica com todos os clubes: J, V, E, D, GP, GC, SG, aproveitamento e títulos; ordenável clicando no cabeçalho, com busca por nome. Clicar em um time filtra a página para ele.
 3. **Time selecionado** (quando houver filtro de time) — campanha por competição/ano, artilheiros do clube na história, maior vitória e maior derrota.
+   - Por campeonato: tabela com **todos os jogadores cadastrados** no elenco, mostrando jogos, gols, assistências e nota média (quem não jogou aparece com zeros/"—"), ordenável.
 
 Visual: escudos pequenos, tipografia leve, sem gráficos pesados; mesmo padrão das demais páginas. Botão de screenshot no topo, como em outras telas.
 
