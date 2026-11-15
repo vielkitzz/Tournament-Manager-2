@@ -5,13 +5,7 @@ import type { TournamentTemplate } from "@/data/templates";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
   Tournament,
   TournamentFormat,
@@ -44,7 +38,9 @@ export default function TournamentForm({ onSuccess, editTournament, initialTempl
   const [sport, setSport] = useState(editTournament?.sport || tpl?.sport || "Futebol");
   const [year, setYear] = useState((editTournament?.year || new Date().getFullYear()).toString());
   const [format, setFormat] = useState<TournamentFormat | "">(editTournament?.format || tpl?.format || "");
-  const [numberOfTeams, setNumberOfTeams] = useState((editTournament?.numberOfTeams || tpl?.numberOfTeams || 16).toString());
+  const [numberOfTeams, setNumberOfTeams] = useState(
+    (editTournament?.numberOfTeams || tpl?.numberOfTeams || 16).toString(),
+  );
 
   // Logo state — no base64, use Storage URLs + temporary Object URLs
   const [logoUrl, setLogoUrl] = useState<string | undefined>(editTournament?.logo);
@@ -53,19 +49,37 @@ export default function TournamentForm({ onSuccess, editTournament, initialTempl
   const [uploading, setUploading] = useState(false);
 
   // Liga
-  const [ligaTurnos, setLigaTurnos] = useState<"1" | "2">((editTournament?.ligaTurnos?.toString() || tpl?.ligaTurnos?.toString() || "2") as "1" | "2");
+  const [ligaTurnos, setLigaTurnos] = useState<"1" | "2">(
+    (editTournament?.ligaTurnos?.toString() || tpl?.ligaTurnos?.toString() || "2") as "1" | "2",
+  );
   // Grupos
-  const [gruposQtd, setGruposQtd] = useState((editTournament?.gruposQuantidade || tpl?.gruposQuantidade || 4).toString());
-  const [gruposTurnos, setGruposTurnos] = useState<"1" | "2" | "3" | "4">((editTournament?.gruposTurnos?.toString() || tpl?.gruposTurnos?.toString() || "2") as any);
-  const [gruposMataMata, setGruposMataMata] = useState<KnockoutStage>(editTournament?.gruposMataMataInicio || tpl?.gruposMataMataInicio || "1/8");
+  const [gruposQtd, setGruposQtd] = useState(
+    (editTournament?.gruposQuantidade || tpl?.gruposQuantidade || 4).toString(),
+  );
+  const [gruposTurnos, setGruposTurnos] = useState<"1" | "2" | "3" | "4">(
+    (editTournament?.gruposTurnos?.toString() || tpl?.gruposTurnos?.toString() || "2") as any,
+  );
+  const [gruposMataMata, setGruposMataMata] = useState<KnockoutStage>(
+    editTournament?.gruposMataMataInicio || tpl?.gruposMataMataInicio || "1/8",
+  );
   // Mata-mata
-  const [mataMataInicio, setMataMataInicio] = useState<KnockoutStage>(editTournament?.mataMataInicio || tpl?.mataMataInicio || "1/16");
+  const [mataMataInicio, setMataMataInicio] = useState<KnockoutStage>(
+    editTournament?.mataMataInicio || tpl?.mataMataInicio || "1/16",
+  );
   // Knockout leg mode
-  const [knockoutLegMode, setKnockoutLegMode] = useState<KnockoutLegMode>(editTournament?.settings?.knockoutLegMode || tpl?.knockoutLegMode || "single");
+  const [knockoutLegMode, setKnockoutLegMode] = useState<KnockoutLegMode>(
+    editTournament?.settings?.knockoutLegMode || tpl?.knockoutLegMode || "single",
+  );
   // Suíço
-  const [suicoJogosLiga, setSuicoJogosLiga] = useState((editTournament?.suicoJogosLiga || tpl?.suicoJogosLiga || 8).toString());
-  const [suicoMataMataInicio, setSuicoMataMataInicio] = useState<KnockoutStage>(editTournament?.suicoMataMataInicio || tpl?.suicoMataMataInicio || "1/8");
-  const [suicoPlayoffVagas, setSuicoPlayoffVagas] = useState((editTournament?.suicoPlayoffVagas || tpl?.suicoPlayoffVagas || 8).toString());
+  const [suicoJogosLiga, setSuicoJogosLiga] = useState(
+    (editTournament?.suicoJogosLiga || tpl?.suicoJogosLiga || 8).toString(),
+  );
+  const [suicoMataMataInicio, setSuicoMataMataInicio] = useState<KnockoutStage>(
+    editTournament?.suicoMataMataInicio || tpl?.suicoMataMataInicio || "1/8",
+  );
+  const [suicoPlayoffVagas, setSuicoPlayoffVagas] = useState(
+    (editTournament?.suicoPlayoffVagas || tpl?.suicoPlayoffVagas || 8).toString(),
+  );
 
   // Bug fix #2: Sync form fields when editTournament loads from Supabase
   // (useState initializes only once; if data arrives late, fields stay empty)
@@ -88,7 +102,7 @@ export default function TournamentForm({ onSuccess, editTournament, initialTempl
       setSuicoMataMataInicio(editTournament.suicoMataMataInicio || "1/8");
       setSuicoPlayoffVagas((editTournament.suicoPlayoffVagas || 8).toString());
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [editTournament?.id]); // Only re-sync when the tournament ID changes
 
   // Revoke Object URLs on unmount
@@ -251,22 +265,37 @@ export default function TournamentForm({ onSuccess, editTournament, initialTempl
         <div className="space-y-2">
           <Label className="text-sm font-medium text-foreground">Esporte</Label>
           <Select value={sport} onValueChange={setSport}>
-            <SelectTrigger className="bg-secondary border-border"><SelectValue /></SelectTrigger>
+            <SelectTrigger className="bg-secondary border-border">
+              <SelectValue />
+            </SelectTrigger>
             <SelectContent>
-              {SPORTS.map((s) => (<SelectItem key={s} value={s}>{s}</SelectItem>))}
+              {SPORTS.map((s) => (
+                <SelectItem key={s} value={s}>
+                  {s}
+                </SelectItem>
+              ))}
             </SelectContent>
           </Select>
         </div>
         <div className="space-y-2">
           <Label className="text-sm font-medium text-foreground">Ano (Temporada)</Label>
-          <Input type="number" value={year} onChange={(e) => setYear(e.target.value)} className="bg-secondary border-border" min={1900} max={2200} />
+          <Input
+            type="number"
+            value={year}
+            onChange={(e) => setYear(e.target.value)}
+            className="bg-secondary border-border"
+            min={1871}
+            max={2200}
+          />
         </div>
       </div>
 
       <div className="space-y-2">
         <Label className="text-sm font-medium text-foreground">Formato</Label>
         <Select value={format} onValueChange={(v) => setFormat(v as TournamentFormat)}>
-          <SelectTrigger className="bg-secondary border-border"><SelectValue placeholder="Selecione o formato" /></SelectTrigger>
+          <SelectTrigger className="bg-secondary border-border">
+            <SelectValue placeholder="Selecione o formato" />
+          </SelectTrigger>
           <SelectContent>
             <SelectItem value="liga">Liga (Pontos Corridos)</SelectItem>
             <SelectItem value="grupos">Fase de Grupos + Mata-Mata</SelectItem>
@@ -278,15 +307,34 @@ export default function TournamentForm({ onSuccess, editTournament, initialTempl
 
       <div className="space-y-2">
         <Label className="text-sm font-medium text-foreground">Número de Times</Label>
-        <Input type="number" value={numberOfTeams} onChange={(e) => setNumberOfTeams(e.target.value)} className="bg-secondary border-border" min={2} max={128} />
+        <Input
+          type="number"
+          value={numberOfTeams}
+          onChange={(e) => setNumberOfTeams(e.target.value)}
+          className="bg-secondary border-border"
+          min={2}
+          max={128}
+        />
       </div>
 
       <AnimatePresence mode="wait">
         {format === "liga" && (
-          <motion.div key="liga" variants={inputVariants} initial="hidden" animate="visible" exit="hidden" className="p-4 rounded-lg bg-secondary/50 border border-border space-y-3">
-            <h3 className="text-sm font-display font-semibold text-primary flex items-center gap-2"><Trophy className="w-4 h-4" />Opções da Liga</h3>
+          <motion.div
+            key="liga"
+            variants={inputVariants}
+            initial="hidden"
+            animate="visible"
+            exit="hidden"
+            className="p-4 rounded-lg bg-secondary/50 border border-border space-y-3"
+          >
+            <h3 className="text-sm font-display font-semibold text-primary flex items-center gap-2">
+              <Trophy className="w-4 h-4" />
+              Opções da Liga
+            </h3>
             <Select value={ligaTurnos} onValueChange={(v) => setLigaTurnos(v as "1" | "2")}>
-              <SelectTrigger className="bg-secondary border-border"><SelectValue /></SelectTrigger>
+              <SelectTrigger className="bg-secondary border-border">
+                <SelectValue />
+              </SelectTrigger>
               <SelectContent>
                 <SelectItem value="1">1 Turno</SelectItem>
                 <SelectItem value="2">2 Turnos</SelectItem>
@@ -295,17 +343,36 @@ export default function TournamentForm({ onSuccess, editTournament, initialTempl
           </motion.div>
         )}
         {format === "grupos" && (
-          <motion.div key="grupos" variants={inputVariants} initial="hidden" animate="visible" exit="hidden" className="p-4 rounded-lg bg-secondary/50 border border-border space-y-3">
-            <h3 className="text-sm font-display font-semibold text-primary flex items-center gap-2"><Trophy className="w-4 h-4" />Opções dos Grupos</h3>
+          <motion.div
+            key="grupos"
+            variants={inputVariants}
+            initial="hidden"
+            animate="visible"
+            exit="hidden"
+            className="p-4 rounded-lg bg-secondary/50 border border-border space-y-3"
+          >
+            <h3 className="text-sm font-display font-semibold text-primary flex items-center gap-2">
+              <Trophy className="w-4 h-4" />
+              Opções dos Grupos
+            </h3>
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-2">
                 <Label className="text-sm text-muted-foreground">Quantidade de Grupos</Label>
-                <Input type="number" value={gruposQtd} onChange={(e) => setGruposQtd(e.target.value)} className="bg-secondary border-border" min={2} max={16} />
+                <Input
+                  type="number"
+                  value={gruposQtd}
+                  onChange={(e) => setGruposQtd(e.target.value)}
+                  className="bg-secondary border-border"
+                  min={2}
+                  max={16}
+                />
               </div>
               <div className="space-y-2">
                 <Label className="text-sm text-muted-foreground">Turnos</Label>
                 <Select value={gruposTurnos} onValueChange={(v) => setGruposTurnos(v as "1" | "2" | "3" | "4")}>
-                  <SelectTrigger className="bg-secondary border-border"><SelectValue /></SelectTrigger>
+                  <SelectTrigger className="bg-secondary border-border">
+                    <SelectValue />
+                  </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="1">1 Turno</SelectItem>
                     <SelectItem value="2">2 Turnos</SelectItem>
@@ -318,16 +385,24 @@ export default function TournamentForm({ onSuccess, editTournament, initialTempl
             <div className="space-y-2">
               <Label className="text-sm text-muted-foreground">Início do Mata-Mata</Label>
               <Select value={gruposMataMata} onValueChange={(v) => setGruposMataMata(v as KnockoutStage)}>
-                <SelectTrigger className="bg-secondary border-border"><SelectValue /></SelectTrigger>
+                <SelectTrigger className="bg-secondary border-border">
+                  <SelectValue />
+                </SelectTrigger>
                 <SelectContent>
-                  {KNOCKOUT_STAGES.map((s) => (<SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>))}
+                  {KNOCKOUT_STAGES.map((s) => (
+                    <SelectItem key={s.value} value={s.value}>
+                      {s.label}
+                    </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             </div>
             <div className="space-y-2">
               <Label className="text-sm text-muted-foreground">Jogos no Mata-Mata</Label>
               <Select value={knockoutLegMode} onValueChange={(v) => setKnockoutLegMode(v as KnockoutLegMode)}>
-                <SelectTrigger className="bg-secondary border-border"><SelectValue /></SelectTrigger>
+                <SelectTrigger className="bg-secondary border-border">
+                  <SelectValue />
+                </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="single">Jogo Único</SelectItem>
                   <SelectItem value="home-away">Ida e Volta</SelectItem>
@@ -337,21 +412,39 @@ export default function TournamentForm({ onSuccess, editTournament, initialTempl
           </motion.div>
         )}
         {format === "mata-mata" && (
-          <motion.div key="mata-mata" variants={inputVariants} initial="hidden" animate="visible" exit="hidden" className="p-4 rounded-lg bg-secondary/50 border border-border space-y-3">
-            <h3 className="text-sm font-display font-semibold text-primary flex items-center gap-2"><Trophy className="w-4 h-4" />Opções do Mata-Mata</h3>
+          <motion.div
+            key="mata-mata"
+            variants={inputVariants}
+            initial="hidden"
+            animate="visible"
+            exit="hidden"
+            className="p-4 rounded-lg bg-secondary/50 border border-border space-y-3"
+          >
+            <h3 className="text-sm font-display font-semibold text-primary flex items-center gap-2">
+              <Trophy className="w-4 h-4" />
+              Opções do Mata-Mata
+            </h3>
             <div className="space-y-2">
               <Label className="text-sm text-muted-foreground">Fase Inicial</Label>
               <Select value={mataMataInicio} onValueChange={(v) => setMataMataInicio(v as KnockoutStage)}>
-                <SelectTrigger className="bg-secondary border-border"><SelectValue /></SelectTrigger>
+                <SelectTrigger className="bg-secondary border-border">
+                  <SelectValue />
+                </SelectTrigger>
                 <SelectContent>
-                  {KNOCKOUT_STAGES.map((s) => (<SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>))}
+                  {KNOCKOUT_STAGES.map((s) => (
+                    <SelectItem key={s.value} value={s.value}>
+                      {s.label}
+                    </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             </div>
             <div className="space-y-2">
               <Label className="text-sm text-muted-foreground">Jogos</Label>
               <Select value={knockoutLegMode} onValueChange={(v) => setKnockoutLegMode(v as KnockoutLegMode)}>
-                <SelectTrigger className="bg-secondary border-border"><SelectValue /></SelectTrigger>
+                <SelectTrigger className="bg-secondary border-border">
+                  <SelectValue />
+                </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="single">Jogo Único</SelectItem>
                   <SelectItem value="home-away">Ida e Volta</SelectItem>
@@ -361,31 +454,63 @@ export default function TournamentForm({ onSuccess, editTournament, initialTempl
           </motion.div>
         )}
         {format === "suico" && (
-          <motion.div key="suico" variants={inputVariants} initial="hidden" animate="visible" exit="hidden" className="p-4 rounded-lg bg-secondary/50 border border-border space-y-3">
-            <h3 className="text-sm font-display font-semibold text-primary flex items-center gap-2"><Trophy className="w-4 h-4" />Opções do Sistema Suíço</h3>
+          <motion.div
+            key="suico"
+            variants={inputVariants}
+            initial="hidden"
+            animate="visible"
+            exit="hidden"
+            className="p-4 rounded-lg bg-secondary/50 border border-border space-y-3"
+          >
+            <h3 className="text-sm font-display font-semibold text-primary flex items-center gap-2">
+              <Trophy className="w-4 h-4" />
+              Opções do Sistema Suíço
+            </h3>
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-2">
                 <Label className="text-sm text-muted-foreground">Jogos na Fase de Liga</Label>
-                <Input type="number" value={suicoJogosLiga} onChange={(e) => setSuicoJogosLiga(e.target.value)} className="bg-secondary border-border" min={2} max={38} />
+                <Input
+                  type="number"
+                  value={suicoJogosLiga}
+                  onChange={(e) => setSuicoJogosLiga(e.target.value)}
+                  className="bg-secondary border-border"
+                  min={2}
+                  max={38}
+                />
               </div>
               <div className="space-y-2">
                 <Label className="text-sm text-muted-foreground">Vagas nos Play-offs</Label>
-                <Input type="number" value={suicoPlayoffVagas} onChange={(e) => setSuicoPlayoffVagas(e.target.value)} className="bg-secondary border-border" min={0} max={32} />
+                <Input
+                  type="number"
+                  value={suicoPlayoffVagas}
+                  onChange={(e) => setSuicoPlayoffVagas(e.target.value)}
+                  className="bg-secondary border-border"
+                  min={0}
+                  max={32}
+                />
               </div>
             </div>
             <div className="space-y-2">
               <Label className="text-sm text-muted-foreground">Início do Mata-Mata</Label>
               <Select value={suicoMataMataInicio} onValueChange={(v) => setSuicoMataMataInicio(v as KnockoutStage)}>
-                <SelectTrigger className="bg-secondary border-border"><SelectValue /></SelectTrigger>
+                <SelectTrigger className="bg-secondary border-border">
+                  <SelectValue />
+                </SelectTrigger>
                 <SelectContent>
-                  {KNOCKOUT_STAGES.map((s) => (<SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>))}
+                  {KNOCKOUT_STAGES.map((s) => (
+                    <SelectItem key={s.value} value={s.value}>
+                      {s.label}
+                    </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             </div>
             <div className="space-y-2">
               <Label className="text-sm text-muted-foreground">Jogos no Mata-Mata</Label>
               <Select value={knockoutLegMode} onValueChange={(v) => setKnockoutLegMode(v as KnockoutLegMode)}>
-                <SelectTrigger className="bg-secondary border-border"><SelectValue /></SelectTrigger>
+                <SelectTrigger className="bg-secondary border-border">
+                  <SelectValue />
+                </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="single">Jogo Único</SelectItem>
                   <SelectItem value="home-away">Ida e Volta</SelectItem>
@@ -406,7 +531,11 @@ export default function TournamentForm({ onSuccess, editTournament, initialTempl
             <Loader2 className="w-4 h-4 animate-spin" />
             Enviando...
           </span>
-        ) : isEdit ? "Salvar Alterações" : "Criar Competição"}
+        ) : isEdit ? (
+          "Salvar Alterações"
+        ) : (
+          "Criar Competição"
+        )}
       </Button>
     </motion.form>
   );
