@@ -1,0 +1,1 @@
+ALTER FUNCTION public.force_skill_sync_from_master() SET search_path = public;
